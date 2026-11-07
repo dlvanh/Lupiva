@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lupus:pool-exchange:1.0",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "enum": [
+        "lupus-pool-exchange-1.0"
+      ]
+    },
+    "dictionary_version": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_.:-]+$"
+    },
+    "dictionary_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "package_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_.:-]+$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "supersedes": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "package_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "package_id",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "created_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "case_id": {
+      "type": "null"
+    },
+    "identity_status": {
+      "enum": [
+        "unconfirmed"
+      ]
+    },
+    "source_run": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "source_document_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "input_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "source_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "source_document_id",
+          "input_sha256",
+          "source_key"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "document_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "source_evidence_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "source_data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "evidence_id",
+          "document_id",
+          "source_evidence_id",
+          "source_data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "observation_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "document_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "source_observation_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "field_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "component": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "uniqueItems": true
+          },
+          "date_evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "uniqueItems": true
+          },
+          "metadata_candidate_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "observation_id",
+          "document_id",
+          "source_observation_id",
+          "field_id",
+          "component",
+          "evidence_ids",
+          "date_evidence_ids",
+          "metadata_candidate_id",
+          "source_data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "metadata_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidate_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "document_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "source_candidate_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "uniqueItems": true
+          },
+          "source_data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "candidate_id",
+          "document_id",
+          "source_candidate_id",
+          "key",
+          "evidence_ids",
+          "source_data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "found",
+              "not_processed",
+              "processing_failed",
+              "not_found",
+              "unreadable",
+              "conflict",
+              "ambiguous_mapping",
+              "not_applicable",
+              "requires_clinical_assessment",
+              "not_computed"
+            ]
+          },
+          "observation_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "uniqueItems": true
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "components": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "enum": [
+                    "found",
+                    "not_processed",
+                    "processing_failed",
+                    "not_found",
+                    "unreadable",
+                    "conflict",
+                    "ambiguous_mapping",
+                    "not_applicable",
+                    "requires_clinical_assessment",
+                    "not_computed"
+                  ]
+                },
+                "observation_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_.:-]+$"
+                  },
+                  "uniqueItems": true
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "status",
+                "observation_ids",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "status",
+          "observation_ids",
+          "reason",
+          "components"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "source_issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sha256",
+          "size",
+          "role"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "dictionary_version",
+    "dictionary_sha256",
+    "package_id",
+    "revision",
+    "supersedes",
+    "created_at_utc",
+    "case_id",
+    "identity_status",
+    "source_run",
+    "documents",
+    "evidence",
+    "observations",
+    "metadata_candidates",
+    "fields",
+    "source_issues",
+    "assets"
+  ],
+  "additionalProperties": false
+}

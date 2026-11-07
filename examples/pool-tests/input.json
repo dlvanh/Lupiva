@@ -1,0 +1,43 @@
+{
+  "case_id": "SYNTHETIC-ONLY",
+  "documents": [
+    {
+      "document_id": "SYN-BIO", "source_kind": "synthetic_table",
+      "context": {"decimal_separator": ",", "source_date": "2026-08-01", "date_type": "sample_date"},
+      "tables": [{"table_id": "BIO", "raw": "Test\tReference\tUnit\tResult\nC3\t0,9 - 1,8\tg/L\t0,65\nCreatinine\t49 - 90\tumol/L\t65\nCRP\t< 5\tmg/L\t4,6\nRF\t< 14\tIU/mL\t<10"}]
+    },
+    {
+      "document_id": "SYN-CBC", "source_kind": "synthetic_table",
+      "context": {"specimen": "blood"},
+      "tables": [{"table_id": "CBC", "raw": "Test\tResult\tUnit\nRBC\t4.87\tT/L\nHGB\t135\tg/L\nNE#\t5.61\tG/L\nNE%\t61.1\t%\nPLT\t299\tG/L"}]
+    },
+    {
+      "document_id": "SYN-ANA", "source_kind": "synthetic_table",
+      "context": {
+        "panel": "ana_profile_23",
+        "class_legend": {"o": "negative", "(+)": "borderline", "+": "positive", "++": "positive", "+++": "strong_positive"},
+        "intensity_ranges": {"o": [0, 7], "(+)": [8, 14], "+": [15, 35], "++": [36, 70], "+++": [71, 255]}
+      },
+      "tables": [{"table_id": "ANA", "raw": "Antigen\tIntensity\tClass\ndsDNA [AC-1] (dsDNA)\t0\to\nKu [AC-4] (Ku)\t8\t(+)\nScl-70 [AC-29] (Scl-70)\t124\t+++"}]
+    },
+    {
+      "document_id": "SYN-MYO", "source_kind": "synthetic_table",
+      "context": {"panel": "myositis"},
+      "tables": [{"table_id": "MYO", "raw": "Antigen\tResult\nKu\t5 Negative\nHMGCR\t6 Negative\nOJ\t11 Borderline"}]
+    },
+    {
+      "document_id": "SYN-PFT", "source_kind": "synthetic_table",
+      "context": {"panel": "pft"},
+      "tables": [{"table_id": "PFT", "raw": "<table><tr><th rowspan=\"2\">Test</th><th rowspan=\"2\">Pred</th><th colspan=\"2\">Pre</th><th colspan=\"2\">Post</th></tr><tr><th>Meas.</th><th>%Pred</th><th>Meas.</th><th>%Pred</th></tr><tr><td>FVC(L)</td><td>4.0</td><td>3.0</td><td>75</td><td>3.2</td><td>80</td></tr></table>"}]
+    },
+    {
+      "document_id": "SYN-ERRORS", "source_kind": "synthetic_table",
+      "context": {},
+      "tables": [
+        {"table_id": "BAD-NUMBER", "raw": "Test\tResult\tUnit\nCRP\t4.O\tmg/L"},
+        {"table_id": "MISSING-PANEL", "raw": "Antigen\tIntensity\tClass\nKu\t8\tBorderline"},
+        {"table_id": "TRUNCATED", "raw": "Test\tResult\tUnit\nC3\t0.6\tg/L", "truncated": true}
+      ]
+    }
+  ]
+}

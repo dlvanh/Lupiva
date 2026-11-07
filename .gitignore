@@ -1,3 +1,56 @@
+.venv-senocr/
+.venv*/
+.cache/
+models/
+__pycache__/
+*.pyc
+# Keep publication limited to code, contracts, documentation and synthetic tests.
+/research/
+/SESSION-HANDOFF.md
+/OCR-*-RESULTS.md
+/tmp/
+/.publish/
+/synthetic-form-test-*/
+/notebooks/
+/.aws/
+/.codex/
+/.agents/
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.db
+*.db-*
+*.log
+*.bak
+*.lnk
+*.ipynb
+*.docx
+*.pem
+*.key
+/examples/*
+!/examples/pool-tests/
+# Local medical inputs, OCR outputs, and input manifests must not be committed.
+examples/inputs/
+examples/outputs/
+examples/ocr-reference-draft/
+tmp/ocr-reference-crops/
+tmp/layout-*/
+examples/region-development.json
+examples/metadata-development.json
+examples/metadata-retry-development.json
+examples/metadata-merged-development.json
+examples/metadata-run-selection.json
+examples/layout-*.json
+research/session-checkpoints/
+research/ocr-pool/run-*/
+research/ocr-pool/reference-parser-*/
+research/senocr-vi/run-*/
+research/senocr-vi/preflight-*/
+
+# Preserve repository defaults for future web/app development.
 # Dependencies
 node_modules/
 .pnp

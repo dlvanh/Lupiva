@@ -95,3 +95,7 @@ Developed with guidance and clinical insights from specialists in **Clinical Imm
 
 * Repository: [https://github.com/dlvanh/Lupiva](https://github.com/dlvanh/Lupiva)
 * Project Lead: [@dlvanh](https://github.com/dlvanh)
+
+## Local OCR and registry implementation
+
+The current implementation includes offline OCR, structured candidate pools, immutable SQLite revisions, and local source review for observations, metadata, and specimen forms. See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, tests, commands, and current implementation limits. Product features and milestones above describe the broader roadmap.

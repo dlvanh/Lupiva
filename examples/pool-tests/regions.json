@@ -1,0 +1,108 @@
+{
+  "status": "synthetic_images_only",
+  "documents": [
+    {
+      "document_id": "SYN-BIO",
+      "input_path": "examples/pool-tests/images/SYN-BIO.png",
+      "context": {
+        "decimal_separator": ",",
+        "source_date": "2026-08-01",
+        "date_type": "sample_date"
+      },
+      "regions": [
+        {
+          "region_id": "SYN-BIO-table",
+          "bbox_xyxy": [
+            23,
+            68,
+            568,
+            322
+          ]
+        }
+      ]
+    },
+    {
+      "document_id": "SYN-CBC",
+      "input_path": "examples/pool-tests/images/SYN-CBC.png",
+      "context": {
+        "specimen": "blood"
+      },
+      "regions": [
+        {
+          "region_id": "SYN-CBC-table",
+          "bbox_xyxy": [
+            23,
+            68,
+            324,
+            372
+          ]
+        }
+      ]
+    },
+    {
+      "document_id": "SYN-ANA",
+      "input_path": "examples/pool-tests/images/SYN-ANA.png",
+      "context": {
+        "panel": "ana_profile_23",
+        "class_legend": {
+          "o": "negative",
+          "(+)": "borderline",
+          "+": "positive",
+          "++": "positive",
+          "+++": "strong_positive"
+        },
+        "intensity_ranges": {
+          "o": [
+            0,
+            7
+          ],
+          "(+)": [
+            8,
+            14
+          ],
+          "+": [
+            15,
+            35
+          ],
+          "++": [
+            36,
+            70
+          ],
+          "+++": [
+            71,
+            255
+          ]
+        }
+      },
+      "regions": [
+        {
+          "region_id": "SYN-ANA-table",
+          "bbox_xyxy": [
+            23,
+            68,
+            579,
+            272
+          ]
+        }
+      ]
+    },
+    {
+      "document_id": "SYN-MYO",
+      "input_path": "examples/pool-tests/images/SYN-MYO.png",
+      "context": {
+        "panel": "myositis"
+      },
+      "regions": [
+        {
+          "region_id": "SYN-MYO-table",
+          "bbox_xyxy": [
+            23,
+            68,
+            350,
+            272
+          ]
+        }
+      ]
+    }
+  ]
+}
