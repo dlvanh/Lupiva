@@ -3,17 +3,20 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DEMO_USERS, UserRole } from "@/data/mockData";
+import { UserRole } from "@/data/mockData";
 import { useLupiva } from "@/context/LupivaContext";
+import { getLocalizedDemoUsers } from "@/data/translations";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { currentUser, loginAsRole, showToast } = useLupiva();
+  const { language, t, currentUser, loginAsRole, showToast } = useLupiva();
+
+  const localizedUsers = getLocalizedDemoUsers(language);
 
   const [selectedRole, setSelectedRole] = useState<UserRole>(
     currentUser?.role || "specialist"
   );
-  const activePersona = DEMO_USERS[selectedRole];
+  const activePersona = localizedUsers[selectedRole];
 
   const [email, setEmail] = useState<string>(activePersona.email);
   const [password, setPassword] = useState<string>(activePersona.passwordHint);
@@ -21,19 +24,19 @@ export default function LoginPage() {
 
   const handleSelectRole = (role: UserRole) => {
     setSelectedRole(role);
-    setEmail(DEMO_USERS[role].email);
-    setPassword(DEMO_USERS[role].passwordHint);
+    setEmail(localizedUsers[role].email);
+    setPassword(localizedUsers[role].passwordHint);
     setConsentChecked(true);
   };
 
   const handleAutofillDemo = () => {
-    const persona = DEMO_USERS[selectedRole];
+    const persona = localizedUsers[selectedRole];
     setEmail(persona.email);
     setPassword(persona.passwordHint);
     setConsentChecked(true);
     showToast(
-      "Demo Credentials Autofilled",
-      `Loaded mock profile for ${persona.name}.`,
+      t.toasts.autofillTitle,
+      t.toasts.autofillDesc(persona.name),
       "navy"
     );
   };
@@ -42,16 +45,16 @@ export default function LoginPage() {
     e.preventDefault();
     if (!email.trim()) {
       showToast(
-        "Email Required",
-        "Please enter an email or click Autofill Demo Credentials.",
+        t.toasts.emailRequiredTitle,
+        t.toasts.emailRequiredDesc,
         "amber"
       );
       return;
     }
     if (selectedRole === "patient" && !consentChecked) {
       showToast(
-        "Informed Consent Required",
-        "Patients must acknowledge e-CRF registry data de-identification consent.",
+        t.toasts.consentRequiredTitle,
+        t.toasts.consentRequiredDesc,
         "amber"
       );
       return;
@@ -70,10 +73,10 @@ export default function LoginPage() {
             <div className="flex items-center justify-between">
               <div>
                 <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
-                  Role-Based Clinical Access
+                  {t.login.roleAccessTag}
                 </span>
                 <h1 className="mt-1 text-2xl font-bold text-slate-900">
-                  Sign in to Lupiva Platform
+                  {t.login.title}
                 </h1>
               </div>
               <button
@@ -82,14 +85,12 @@ export default function LoginPage() {
                 onClick={handleAutofillDemo}
                 className="rounded-lg border border-teal-700/30 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-900 transition hover:bg-teal-100 cursor-pointer"
               >
-                Autofill Demo Credentials
+                {t.login.autofillBtn}
               </button>
             </div>
 
             <p className="mt-2 text-xs text-slate-600">
-              Select a persona below to test the workflow as either a{" "}
-              <strong>Vinmec Clinical Immunology Specialist</strong> (HITL
-              verifier) or an <strong>SLE Cohort Patient</strong>.
+              {t.login.subtitle}
             </p>
 
             {/* Role Switcher Tabs */}
@@ -105,13 +106,15 @@ export default function LoginPage() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">Clinical Specialist</span>
+                  <span className="text-xs font-bold">
+                    {t.login.specialistTabTitle}
+                  </span>
                   <span className="rounded bg-teal-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-teal-900">
-                    HITL Doctor
+                    {t.login.specialistTabBadge}
                   </span>
                 </div>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  Verify OCR labs &amp; commit e-CRF
+                  {t.login.specialistTabDesc}
                 </p>
               </button>
 
@@ -126,13 +129,15 @@ export default function LoginPage() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">SLE Patient Portal</span>
+                  <span className="text-xs font-bold">
+                    {t.login.patientTabTitle}
+                  </span>
                   <span className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-900">
-                    Companion
+                    {t.login.patientTabBadge}
                   </span>
                 </div>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  Upload lab scans &amp; earn vouchers
+                  {t.login.patientTabDesc}
                 </p>
               </button>
             </div>
@@ -144,7 +149,7 @@ export default function LoginPage() {
                   htmlFor="login-input-email"
                   className="block text-xs font-semibold text-slate-700"
                 >
-                  Institutional or Patient Email
+                  {t.login.emailLabel}
                 </label>
                 <input
                   id="login-input-email"
@@ -162,10 +167,10 @@ export default function LoginPage() {
                     htmlFor="login-input-password"
                     className="block text-xs font-semibold text-slate-700"
                   >
-                    Demo Passkey / PIN
+                    {t.login.passwordLabel}
                   </label>
                   <span className="font-mono text-[11px] text-slate-400">
-                    Pre-populated for evaluation
+                    {t.login.passwordHint}
                   </span>
                 </div>
                 <input
@@ -188,27 +193,9 @@ export default function LoginPage() {
                     className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
                   />
                   <span className="text-xs leading-relaxed text-slate-600">
-                    {selectedRole === "specialist" ? (
-                      <>
-                        I confirm{" "}
-                        <strong className="text-slate-800">
-                          Physician-in-the-Loop (HITL)
-                        </strong>{" "}
-                        supervision responsibility: all flagged OCR biomarkers
-                        (&lt;85% confidence) will be reviewed against the source
-                        scan before e-CRF commit.
-                      </>
-                    ) : (
-                      <>
-                        I consent to contribute de-identified SLE lab values to
-                        the{" "}
-                        <strong className="text-slate-800">
-                          Vinmec Clinical Immunology Registry
-                        </strong>{" "}
-                        in exchange for specialist consultation voucher
-                        incentives.
-                      </>
-                    )}
+                    {selectedRole === "specialist"
+                      ? t.login.specialistConsent
+                      : t.login.patientConsent}
                   </span>
                 </label>
               </div>
@@ -219,14 +206,14 @@ export default function LoginPage() {
                   id="login-btn-submit"
                   className="flex-1 rounded-xl bg-teal-700 px-5 py-3 text-xs font-semibold text-white shadow-xs transition hover:bg-teal-800 cursor-pointer"
                 >
-                  Sign In as {activePersona.name} &amp; Open OCR →
+                  {t.login.submitBtn(activePersona.name)}
                 </button>
                 <Link
                   href="/ocr"
                   id="login-btn-skip-guest"
                   className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                 >
-                  Continue to OCR Without Changing Session
+                  {t.login.skipBtn}
                 </Link>
               </div>
             </form>
@@ -238,7 +225,7 @@ export default function LoginPage() {
               <div className="flex items-center justify-between border-b border-slate-200 pb-4">
                 <div>
                   <span className="font-mono text-[11px] font-semibold uppercase text-slate-500">
-                    Selected Mock Profile
+                    {t.login.selectedProfileTitle}
                   </span>
                   <h2 className="mt-0.5 text-lg font-bold text-slate-900">
                     {activePersona.name}
@@ -251,53 +238,85 @@ export default function LoginPage() {
 
               <dl className="mt-4 space-y-3 text-xs">
                 <div>
-                  <dt className="text-slate-500">Role &amp; Affiliation</dt>
+                  <dt className="text-slate-500">{t.login.roleAffiliation}</dt>
                   <dd className="mt-0.5 font-semibold text-slate-800">
                     {activePersona.title}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-slate-500">Department / Cohort ID</dt>
+                  <dt className="text-slate-500">{t.login.deptCohort}</dt>
                   <dd className="mt-0.5 font-mono text-slate-800">
                     {activePersona.departmentOrRegistryId}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-slate-500">What This Role Unlocks in OCR</dt>
+                  <dt className="text-slate-500">{t.login.whatUnlocks}</dt>
                   <dd className="mt-1.5 space-y-1.5 text-slate-600">
                     {selectedRole === "specialist" ? (
                       <ul className="list-disc space-y-1 pl-4">
-                        <li>
-                          Approve low-confidence (&lt;85%) OCR reads such as{" "}
-                          <code className="font-mono text-slate-800">
-                            Complement C3
-                          </code>{" "}
-                          and{" "}
-                          <code className="font-mono text-slate-800">UPCR</code>
-                        </li>
-                        <li>
-                          Edit biomarker numerical values and reference units
-                          inline
-                        </li>
-                        <li>
-                          Commit verified records to the SLE e-CRF database
-                          under specialist signature
-                        </li>
+                        {language === "vi" ? (
+                          <>
+                            <li>
+                              Phê duyệt các chỉ số OCR có độ tin cậy thấp (&lt;85%) như{" "}
+                              <code className="font-mono text-slate-800">
+                                Bổ thể C3
+                              </code>{" "}
+                              và{" "}
+                              <code className="font-mono text-slate-800">UPCR</code>
+                            </li>
+                            <li>
+                              Chỉnh sửa trực tiếp giá trị số và đơn vị tham chiếu của chỉ số
+                            </li>
+                            <li>
+                              Lưu trữ hồ sơ đã xác thực vào cơ sở dữ liệu e-CRF SLE dưới chữ ký Bác sĩ
+                            </li>
+                          </>
+                        ) : (
+                          <>
+                            <li>
+                              Approve low-confidence (&lt;85%) OCR reads such as{" "}
+                              <code className="font-mono text-slate-800">
+                                Complement C3
+                              </code>{" "}
+                              and{" "}
+                              <code className="font-mono text-slate-800">UPCR</code>
+                            </li>
+                            <li>
+                              Edit biomarker numerical values and reference units inline
+                            </li>
+                            <li>
+                              Commit verified records to the SLE e-CRF database under specialist signature
+                            </li>
+                          </>
+                        )}
                       </ul>
                     ) : (
                       <ul className="list-disc space-y-1 pl-4">
-                        <li>
-                          Upload smartphone photos or PDFs of external hospital
-                          lab reports
-                        </li>
-                        <li>
-                          Pre-screen extracted SLE values before routing to
-                          Vinmec specialists
-                        </li>
-                        <li>
-                          Track consultation voucher eligibility upon registry
-                          submission
-                        </li>
+                        {language === "vi" ? (
+                          <>
+                            <li>
+                              Tải lên ảnh chụp hoặc tệp PDF phiếu xét nghiệm từ các bệnh viện ngoài
+                            </li>
+                            <li>
+                              Xem trước các chỉ số SLE trích xuất trước khi chuyển tới Bác sĩ Vinmec
+                            </li>
+                            <li>
+                              Theo dõi điều kiện nhận voucher tư vấn khám chuyên khoa sau khi nộp
+                            </li>
+                          </>
+                        ) : (
+                          <>
+                            <li>
+                              Upload smartphone photos or PDFs of external hospital lab reports
+                            </li>
+                            <li>
+                              Pre-screen extracted SLE values before routing to Vinmec specialists
+                            </li>
+                            <li>
+                              Track consultation voucher eligibility upon registry submission
+                            </li>
+                          </>
+                        )}
                       </ul>
                     )}
                   </dd>
@@ -307,18 +326,27 @@ export default function LoginPage() {
 
             <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs">
               <p className="font-semibold text-slate-800">
-                Currently Active Session
+                {t.login.activeSessionTitle}
               </p>
               <p className="mt-1 text-slate-600">
                 {currentUser ? (
                   <>
-                    Logged in as{" "}
-                    <strong className="text-teal-900">{currentUser.name}</strong>
-                    . Signing in above will switch the active session to the
-                    selected role.
+                    {language === "vi" ? (
+                      <>
+                        Đang đăng nhập với tên{" "}
+                        <strong className="text-teal-900">{currentUser.name}</strong>
+                        . Đăng nhập ở trên sẽ chuyển đổi phiên sang vai trò tương ứng.
+                      </>
+                    ) : (
+                      <>
+                        Logged in as{" "}
+                        <strong className="text-teal-900">{currentUser.name}</strong>
+                        . Signing in above will switch the active session to the selected role.
+                      </>
+                    )}
                   </>
                 ) : (
-                  <>No user currently signed in (Guest Evaluator mode).</>
+                  t.login.guestNotice
                 )}
               </p>
             </div>

@@ -6,13 +6,13 @@ import { Navbar } from "@/components/Navbar";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
-  subsets: ["latin"],
+  subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
+  subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700"],
 });
 

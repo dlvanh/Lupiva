@@ -1,13 +1,24 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
 import {
-  DEMO_USERS,
   DemoUser,
   MOCK_LAB_REPORTS,
   BiomarkerField,
   UserRole,
 } from "@/data/mockData";
+import {
+  Language,
+  Translations,
+  TRANSLATIONS,
+  getLocalizedDemoUsers,
+} from "@/data/translations";
 
 export interface SavedRegistryRecord {
   recordId: string;
@@ -29,6 +40,10 @@ export interface ToastMessage {
 }
 
 interface LupivaContextValue {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  toggleLanguage: () => void;
+  t: Translations;
   currentUser: DemoUser | null;
   loginAsRole: (role: UserRole, customEmail?: string) => void;
   logout: () => void;
@@ -46,21 +61,49 @@ interface LupivaContextValue {
   isActionGuideOpen: boolean;
   setIsActionGuideOpen: (open: boolean) => void;
   toast: ToastMessage | null;
-  showToast: (title: string, description: string, tone?: "teal" | "amber" | "navy") => void;
+  showToast: (
+    title: string,
+    description: string,
+    tone?: "teal" | "amber" | "navy"
+  ) => void;
   dismissToast: () => void;
 }
 
 const LupivaContext = createContext<LupivaContextValue | undefined>(undefined);
 
 export function LupivaProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<DemoUser | null>(DEMO_USERS.specialist);
-  const [selectedReportId, setSelectedReportId] = useState<string>(MOCK_LAB_REPORTS[0].id);
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("lupiva-lang") as Language | null;
+        if (stored === "en" || stored === "vi") {
+          return stored;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return "en";
+  });
+
+  const [currentUser, setCurrentUser] = useState<DemoUser | null>(() => {
+    return getLocalizedDemoUsers("en").specialist;
+  });
+  const [selectedReportId, setSelectedReportId] = useState<string>(
+    MOCK_LAB_REPORTS[0].id
+  );
   const [savedRecords, setSavedRecords] = useState<SavedRegistryRecord[]>([]);
   const [isActionGuideOpen, setIsActionGuideOpen] = useState<boolean>(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
+  const t = TRANSLATIONS[language];
+
   const showToast = useCallback(
-    (title: string, description: string, tone: "teal" | "amber" | "navy" = "teal") => {
+    (
+      title: string,
+      description: string,
+      tone: "teal" | "amber" | "navy" = "teal"
+    ) => {
       const id = String(Date.now());
       setToast({ id, title, description, tone });
     },
@@ -71,30 +114,61 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     setToast(null);
   }, []);
 
+  // Synchronize document lang attribute whenever language changes
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = language;
+    }
+  }, [language]);
+
+  const setLanguage = useCallback(
+    (newLang: Language) => {
+      setLanguageState(newLang);
+      try {
+        localStorage.setItem("lupiva-lang", newLang);
+      } catch {
+        // ignore
+      }
+      if (typeof document !== "undefined") {
+        document.documentElement.lang = newLang;
+      }
+      setCurrentUser((prev) => {
+        if (!prev) return null;
+        const localized = getLocalizedDemoUsers(newLang)[prev.role];
+        return { ...localized, email: prev.email };
+      });
+
+      const msg = TRANSLATIONS[newLang].toasts;
+      showToast(msg.langSwitchedTitle, msg.langSwitchedDesc, "teal");
+    },
+    [showToast]
+  );
+
+  const toggleLanguage = useCallback(() => {
+    setLanguage(language === "en" ? "vi" : "en");
+  }, [language, setLanguage]);
+
   const loginAsRole = useCallback(
     (role: UserRole, customEmail?: string) => {
-      const baseUser = DEMO_USERS[role];
+      const localizedUsers = getLocalizedDemoUsers(language);
+      const baseUser = localizedUsers[role];
       const updatedUser: DemoUser = customEmail
         ? { ...baseUser, email: customEmail }
         : baseUser;
       setCurrentUser(updatedUser);
       showToast(
-        `Signed in as ${updatedUser.name}`,
-        `Active mode: ${updatedUser.title}`,
+        t.toasts.signedIn(updatedUser.name),
+        t.toasts.activeMode(updatedUser.title),
         "teal"
       );
     },
-    [showToast]
+    [language, showToast, t]
   );
 
   const logout = useCallback(() => {
     setCurrentUser(null);
-    showToast(
-      "Signed out of Lupiva session",
-      "You are now browsing in public evaluator mode.",
-      "navy"
-    );
-  }, [showToast]);
+    showToast(t.toasts.signedOutTitle, t.toasts.signedOutDesc, "navy");
+  }, [showToast, t]);
 
   const saveReportToRegistry = useCallback(
     (
@@ -111,25 +185,37 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         reportTitle,
         patientName,
         patientId,
-        verifiedBy: currentUser ? currentUser.name : "Clinical Evaluator (Guest)",
-        savedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        verifiedBy: currentUser
+          ? currentUser.name
+          : language === "vi"
+          ? "Người Đánh giá Lâm sàng (Khách)"
+          : "Clinical Evaluator (Guest)",
+        savedAt: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
         sledaiImpact,
         fields: fields.map((f) => ({ ...f })),
       };
       setSavedRecords((prev) => [newRecord, ...prev]);
       showToast(
-        `Saved ${newRecord.recordId} to SLE e-CRF Registry`,
-        `${fields.length} biomarkers committed (${sledaiImpact}).`,
+        t.toasts.savedRegistryTitle(newRecord.recordId),
+        t.toasts.savedRegistryDesc(fields.length, sledaiImpact),
         "teal"
       );
       return newRecord;
     },
-    [currentUser, savedRecords.length, showToast]
+    [currentUser, language, savedRecords.length, showToast, t]
   );
 
   return (
     <LupivaContext.Provider
       value={{
+        language,
+        setLanguage,
+        toggleLanguage,
+        t,
         currentUser,
         loginAsRole,
         logout,

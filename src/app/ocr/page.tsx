@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import {
-  MOCK_LAB_REPORTS,
   BiomarkerField,
   ClinicalFlag,
   LabReportMock,
 } from "@/data/mockData";
 import { useLupiva } from "@/context/LupivaContext";
+import { getLocalizedLabReports } from "@/data/translations";
 
 type FilterMode = "all" | "needs_review" | "abnormal";
 
 export default function OcrWorkspacePage() {
   const {
+    language,
+    t,
     selectedReportId,
     setSelectedReportId,
     currentUser,
@@ -21,23 +23,52 @@ export default function OcrWorkspacePage() {
     showToast,
   } = useLupiva();
 
-  // Map of reportId -> editable BiomarkerField[] so switches preserve edits or can be reset
-  const [fieldsByReport, setFieldsByReport] = useState<
+  const localizedReports = useMemo(
+    () => getLocalizedLabReports(language),
+    [language]
+  );
+
+  // Map of reportId -> editable overrides (value, unit, flag, verified, confidence, custom fields)
+  const [editedFieldsByReport, setEditedFieldsByReport] = useState<
     Record<string, BiomarkerField[]>
   >(() => {
     const initial: Record<string, BiomarkerField[]> = {};
-    for (const rep of MOCK_LAB_REPORTS) {
+    for (const rep of localizedReports) {
       initial[rep.id] = rep.fields.map((f) => ({ ...f }));
     }
     return initial;
   });
 
   const activeReport: LabReportMock =
-    MOCK_LAB_REPORTS.find((r) => r.id === selectedReportId) ||
-    MOCK_LAB_REPORTS[0];
+    localizedReports.find((r) => r.id === selectedReportId) ||
+    localizedReports[0];
 
-  const currentFields: BiomarkerField[] =
-    fieldsByReport[activeReport.id] || activeReport.fields;
+  // Merge localized labels with any user edits (or fallback to localized initial fields)
+  const currentFields: BiomarkerField[] = useMemo(() => {
+    const edits = editedFieldsByReport[activeReport.id];
+    if (!edits) return activeReport.fields;
+
+    // For standard fields, merge the latest language labels (name, category, clinicalNote, referenceRange)
+    // while keeping user's edited value, unit, flag, confidence, and verified state
+    const merged: BiomarkerField[] = edits.map((editField) => {
+      const template = activeReport.fields.find((f) => f.id === editField.id);
+      if (!template) {
+        // Custom added field
+        return editField;
+      }
+      return {
+        ...template,
+        value: editField.value,
+        unit: editField.unit,
+        flag: editField.flag,
+        confidence: editField.confidence,
+        verified: editField.verified,
+        bbox: editField.bbox,
+      };
+    });
+
+    return merged;
+  }, [activeReport, editedFieldsByReport]);
 
   const [activeFieldId, setActiveFieldId] = useState<string>(
     currentFields[0]?.id || ""
@@ -57,9 +88,9 @@ export default function OcrWorkspacePage() {
   const handleSelectReport = (reportId: string) => {
     setSelectedReportId(reportId);
     setUploadedFilePreview(null);
-    const targetFields = fieldsByReport[reportId];
-    if (targetFields && targetFields.length > 0) {
-      setActiveFieldId(targetFields[0].id);
+    const targetRep = localizedReports.find((r) => r.id === reportId);
+    if (targetRep && targetRep.fields.length > 0) {
+      setActiveFieldId(targetRep.fields[0].id);
     }
   };
 
@@ -68,27 +99,28 @@ export default function OcrWorkspacePage() {
     setTimeout(() => {
       setIsScanning(false);
       showToast(
-        "AI OCR Extraction Complete",
-        `Extracted ${currentFields.length} biomarkers from ${
+        t.toasts.ocrScanCompleteTitle,
+        t.toasts.ocrScanCompleteDesc(
+          currentFields.length,
           uploadedFilePreview ? uploadedFilePreview.name : activeReport.title
-        }.`,
+        ),
         "teal"
       );
     }, 1100);
   };
 
   const handleResetCurrentReport = () => {
-    const original = MOCK_LAB_REPORTS.find((r) => r.id === activeReport.id);
+    const original = localizedReports.find((r) => r.id === activeReport.id);
     if (!original) return;
-    setFieldsByReport((prev) => ({
+    setEditedFieldsByReport((prev) => ({
       ...prev,
       [activeReport.id]: original.fields.map((f) => ({ ...f })),
     }));
     setUploadedFilePreview(null);
     setActiveFieldId(original.fields[0]?.id || "");
     showToast(
-      "Report Reset to Default Mock Data",
-      `Restored original OCR extraction state for ${original.shortTitle}.`,
+      t.toasts.reportResetTitle,
+      t.toasts.reportResetDesc(original.shortTitle),
       "navy"
     );
   };
@@ -103,8 +135,8 @@ export default function OcrWorkspacePage() {
     setTimeout(() => {
       setIsScanning(false);
       showToast(
-        `Scanned Uploaded Document: ${file.name}`,
-        "Mapped detected values to SLE e-CRF template. Please review highlighted fields.",
+        t.toasts.scanUploadTitle(file.name),
+        t.toasts.scanUploadDesc,
         "teal"
       );
     }, 1050);
@@ -115,34 +147,44 @@ export default function OcrWorkspacePage() {
     key: "value" | "unit" | "name" | "flag",
     newValue: string
   ) => {
-    setFieldsByReport((prev) => ({
-      ...prev,
-      [activeReport.id]: (prev[activeReport.id] || []).map((field) =>
-        field.id === fieldId
-          ? {
-              ...field,
-              [key]: newValue,
-              verified: true,
-              confidence: 100,
-            }
-          : field
-      ),
-    }));
+    setEditedFieldsByReport((prev) => {
+      const baseList = prev[activeReport.id] || activeReport.fields;
+      return {
+        ...prev,
+        [activeReport.id]: baseList.map((field) =>
+          field.id === fieldId
+            ? {
+                ...field,
+                [key]: newValue,
+                verified: true,
+                confidence: 100,
+              }
+            : field
+        ),
+      };
+    });
   };
 
   const handleVerifyRow = (fieldId: string) => {
-    setFieldsByReport((prev) => ({
-      ...prev,
-      [activeReport.id]: (prev[activeReport.id] || []).map((field) =>
-        field.id === fieldId
-          ? { ...field, verified: true, confidence: Math.max(field.confidence, 99) }
-          : field
-      ),
-    }));
+    setEditedFieldsByReport((prev) => {
+      const baseList = prev[activeReport.id] || activeReport.fields;
+      return {
+        ...prev,
+        [activeReport.id]: baseList.map((field) =>
+          field.id === fieldId
+            ? {
+                ...field,
+                verified: true,
+                confidence: Math.max(field.confidence, 99),
+              }
+            : field
+        ),
+      };
+    });
     const target = currentFields.find((f) => f.id === fieldId);
     showToast(
-      `Verified ${target?.code || "Biomarker"}`,
-      `Confirmed value "${target?.value} ${target?.unit}" against source lab report.`,
+      t.toasts.verifiedFieldTitle(target?.code || "Biomarker"),
+      t.toasts.verifiedFieldDesc(target?.value || "", target?.unit || ""),
       "teal"
     );
   };
@@ -152,20 +194,23 @@ export default function OcrWorkspacePage() {
       (f) => !f.verified || f.confidence < 85
     ).length;
 
-    setFieldsByReport((prev) => ({
-      ...prev,
-      [activeReport.id]: (prev[activeReport.id] || []).map((field) => ({
-        ...field,
-        verified: true,
-        confidence: Math.max(field.confidence, 99),
-      })),
-    }));
+    setEditedFieldsByReport((prev) => {
+      const baseList = prev[activeReport.id] || activeReport.fields;
+      return {
+        ...prev,
+        [activeReport.id]: baseList.map((field) => ({
+          ...field,
+          verified: true,
+          confidence: Math.max(field.confidence, 99),
+        })),
+      };
+    });
 
     showToast(
-      "All Flagged Biomarkers Verified",
+      t.toasts.verifiedAllTitle,
       unverifiedCount > 0
-        ? `Approved ${unverifiedCount} low-confidence OCR field(s) for e-CRF submission.`
-        : "All biomarkers in this panel are already verified.",
+        ? t.toasts.verifiedAllDesc(unverifiedCount)
+        : t.toasts.allAlreadyVerifiedDesc,
       "teal"
     );
   };
@@ -175,15 +220,15 @@ export default function OcrWorkspacePage() {
     const newField: BiomarkerField = {
       id: `fld-custom-${Date.now()}`,
       code: `SLE-CUSTOM-${newIndex}`,
-      name: "Anti-Smith (Anti-Sm) IgG",
-      category: "Autoantibodies",
-      value: "Positive (48.0)",
+      name: t.ocr.defaultAddedName,
+      category: language === "vi" ? "Tự kháng thể" : "Autoantibodies",
+      value: language === "vi" ? "Dương tính (48.0)" : "Positive (48.0)",
       unit: "U/mL",
       referenceRange: "< 20.0 U/mL",
       flag: "Positive",
       confidence: 100,
       verified: true,
-      clinicalNote: "Manually added by reviewer during HITL inspection.",
+      clinicalNote: t.ocr.defaultAddedNote,
       bbox: {
         top: Math.min(84, 24 + newIndex * 8),
         left: 6,
@@ -192,16 +237,15 @@ export default function OcrWorkspacePage() {
       },
     };
 
-    setFieldsByReport((prev) => ({
-      ...prev,
-      [activeReport.id]: [...(prev[activeReport.id] || []), newField],
-    }));
+    setEditedFieldsByReport((prev) => {
+      const baseList = prev[activeReport.id] || activeReport.fields;
+      return {
+        ...prev,
+        [activeReport.id]: [...baseList, newField],
+      };
+    });
     setActiveFieldId(newField.id);
-    showToast(
-      "Added Biomarker Row",
-      "Appended manual biomarker entry to the e-CRF table.",
-      "navy"
-    );
+    showToast(t.toasts.addedRowTitle, t.toasts.addedRowDesc, "navy");
   };
 
   const handleSaveToRegistry = () => {
@@ -210,10 +254,10 @@ export default function OcrWorkspacePage() {
     );
     if (unverified.length > 0) {
       showToast(
-        `${unverified.length} Field(s) Still Need Review`,
-        `Please click "Verify" on amber rows (${unverified
-          .map((u) => u.code)
-          .join(", ")}) or click "Verify All Flagged" before saving.`,
+        t.toasts.unverifiedWarningTitle(unverified.length),
+        t.toasts.unverifiedWarningDesc(
+          unverified.map((u) => u.code).join(", ")
+        ),
         "amber"
       );
       setActiveFieldId(unverified[0].id);
@@ -250,10 +294,14 @@ export default function OcrWorkspacePage() {
 
   const eCrfJsonPayload = {
     schemaVersion: "vinmec-sle-ecrf-v1.0",
+    language,
     reportTimestamp: activeReport.collectionDate,
     verifiedBy: currentUser
       ? { name: currentUser.name, role: currentUser.role }
-      : { name: "Guest Evaluator", role: "evaluator" },
+      : {
+          name: language === "vi" ? "Người Đánh giá Khách" : "Guest Evaluator",
+          role: "evaluator",
+        },
     patient: {
       name: activeReport.patientName,
       registryId: activeReport.patientId,
@@ -290,8 +338,10 @@ export default function OcrWorkspacePage() {
     a.click();
     URL.revokeObjectURL(url);
     showToast(
-      "Downloaded e-CRF JSON",
-      `Saved ${activeReport.patientId}-${activeReport.id}-ecrf.json`,
+      t.toasts.downloadJsonTitle,
+      t.toasts.downloadJsonDesc(
+        `${activeReport.patientId}-${activeReport.id}-ecrf.json`
+      ),
       "teal"
     );
   };
@@ -305,9 +355,9 @@ export default function OcrWorkspacePage() {
             {/* Left: Sample Lab Report Selector Pills */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="mr-1 font-mono text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Sample Lab Scan:
+                {t.ocr.sampleScanLabel}
               </span>
-              {MOCK_LAB_REPORTS.map((rep) => {
+              {localizedReports.map((rep) => {
                 const isSelected =
                   rep.id === activeReport.id && !uploadedFilePreview;
                 return (
@@ -355,7 +405,7 @@ export default function OcrWorkspacePage() {
                   <polyline points="17 8 12 3 7 8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
-                <span>Upload Lab Image / PDF</span>
+                <span>{t.ocr.uploadBtn}</span>
               </button>
 
               <button
@@ -366,7 +416,7 @@ export default function OcrWorkspacePage() {
                 className="inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-teal-800 disabled:opacity-60 cursor-pointer"
               >
                 <span>
-                  {isScanning ? "Scanning Document..." : "Run AI OCR Scan"}
+                  {isScanning ? t.ocr.scanningBtn : t.ocr.runScanBtn}
                 </span>
               </button>
 
@@ -375,9 +425,9 @@ export default function OcrWorkspacePage() {
                 id="ocr-btn-reset"
                 onClick={handleResetCurrentReport}
                 className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
-                title="Reset current report back to initial unverified mock state"
+                title={t.ocr.resetTitle}
               >
-                Reset Mock State
+                {t.ocr.resetBtn}
               </button>
             </div>
           </div>
@@ -397,11 +447,11 @@ export default function OcrWorkspacePage() {
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-teal-600" />
                 <h2 className="text-xs font-bold uppercase tracking-wide text-slate-800">
-                  Source Lab Scan
+                  {t.ocr.sourceScanHeader}
                 </h2>
                 {uploadedFilePreview && (
                   <span className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-900">
-                    Uploaded: {uploadedFilePreview.name}
+                    {t.ocr.uploadedLabel(uploadedFilePreview.name)}
                   </span>
                 )}
               </div>
@@ -443,7 +493,7 @@ export default function OcrWorkspacePage() {
                       : "border-slate-200 bg-white text-slate-600"
                   }`}
                 >
-                  {showBoundingBoxes ? "Boxes: ON" : "Boxes: OFF"}
+                  {showBoundingBoxes ? t.ocr.boxesOn : t.ocr.boxesOff}
                 </button>
               </div>
             </div>
@@ -465,13 +515,15 @@ export default function OcrWorkspacePage() {
                 {uploadedFilePreview?.url ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-[11px] text-slate-500">
-                      <span>Custom Uploaded Scan: {uploadedFilePreview.name}</span>
+                      <span>
+                        {t.ocr.uploadedScanTitle} {uploadedFilePreview.name}
+                      </span>
                       <button
                         type="button"
                         onClick={() => setUploadedFilePreview(null)}
                         className="font-semibold text-teal-800 underline cursor-pointer"
                       >
-                        Return to Mock Sheet
+                        {t.ocr.returnToMock}
                       </button>
                     </div>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -508,19 +560,25 @@ export default function OcrWorkspacePage() {
                       {/* Patient Demographics Strip on Paper */}
                       <div className="mt-2.5 grid grid-cols-3 gap-2 rounded bg-slate-100 px-2.5 py-1.5 font-mono text-[10px]">
                         <div>
-                          <span className="text-slate-500">PATIENT:</span>{" "}
+                          <span className="text-slate-500">
+                            {t.ocr.patientLabel}
+                          </span>{" "}
                           <strong className="text-slate-900">
                             {activeReport.patientName} ({activeReport.patientAgeSex})
                           </strong>
                         </div>
                         <div>
-                          <span className="text-slate-500">ID:</span>{" "}
+                          <span className="text-slate-500">
+                            {t.ocr.idLabel}
+                          </span>{" "}
                           <strong className="text-slate-900">
                             {activeReport.patientId}
                           </strong>
                         </div>
                         <div>
-                          <span className="text-slate-500">SPECIMEN:</span>{" "}
+                          <span className="text-slate-500">
+                            {t.ocr.specimenLabel}
+                          </span>{" "}
                           <strong className="text-slate-900">
                             {activeReport.specimenType}
                           </strong>
@@ -530,10 +588,16 @@ export default function OcrWorkspacePage() {
 
                     {/* Table Column Headers on Paper */}
                     <div className="mt-3 grid grid-cols-12 border-b border-slate-300 pb-1 font-mono text-[9px] font-bold uppercase text-slate-500">
-                      <div className="col-span-5">Assay / Biomarker</div>
-                      <div className="col-span-3 text-right">Result</div>
-                      <div className="col-span-2 text-center">Flag</div>
-                      <div className="col-span-2 text-right">Ref. Range</div>
+                      <div className="col-span-5">{t.ocr.tableThBiomarker}</div>
+                      <div className="col-span-3 text-right">
+                        {t.ocr.tableThResult}
+                      </div>
+                      <div className="col-span-2 text-center">
+                        {t.ocr.tableThFlag}
+                      </div>
+                      <div className="col-span-2 text-right">
+                        {t.ocr.tableThRef}
+                      </div>
                     </div>
 
                     {/* Simulated Printed Biomarker Rows with Interactive Bounding Boxes */}
@@ -558,6 +622,23 @@ export default function OcrWorkspacePage() {
                               "border-teal-600/45 bg-teal-50/15 hover:border-teal-700";
                           }
                         }
+
+                        const flagBadgeText =
+                          field.flag === "Normal"
+                            ? language === "vi"
+                              ? "BT"
+                              : "NORM"
+                            : field.flag === "High"
+                            ? language === "vi"
+                              ? "CAO"
+                              : "HIGH"
+                            : field.flag === "Low"
+                            ? language === "vi"
+                              ? "THẤP"
+                              : "LOW"
+                            : language === "vi"
+                            ? "DƯƠNG"
+                            : "POS";
 
                         return (
                           <div
@@ -611,9 +692,7 @@ export default function OcrWorkspacePage() {
                                     : "bg-rose-100 text-rose-900"
                                 }`}
                               >
-                                {field.flag === "Normal"
-                                  ? "NORM"
-                                  : field.flag.toUpperCase()}
+                                {flagBadgeText}
                               </span>
                             </div>
 
@@ -627,8 +706,11 @@ export default function OcrWorkspacePage() {
 
                     {/* Simulated Lab Sheet Footer Signature */}
                     <div className="mt-5 flex items-center justify-between border-t border-slate-300 pt-2.5 font-mono text-[9px] text-slate-500">
-                      <span>Ordering: {activeReport.orderingPhysician}</span>
-                      <span>ISO 15189 Accredited Clinical Lab</span>
+                      <span>
+                        {t.ocr.orderingPhysician}{" "}
+                        {activeReport.orderingPhysician}
+                      </span>
+                      <span>{t.ocr.accreditedLab}</span>
                     </div>
                   </>
                 )}
@@ -640,15 +722,15 @@ export default function OcrWorkspacePage() {
               <div className="flex items-center gap-3">
                 <span className="inline-flex items-center gap-1">
                   <span className="h-2.5 w-2.5 rounded-xs border border-teal-700 bg-teal-100" />
-                  <span>Verified (&ge;85%)</span>
+                  <span>{t.ocr.legendVerified}</span>
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="h-2.5 w-2.5 rounded-xs border border-dashed border-amber-600 bg-amber-100" />
-                  <span>Needs Human Review (&lt;85%)</span>
+                  <span>{t.ocr.legendReview}</span>
                 </span>
               </div>
               <span className="font-mono text-[10px] text-slate-500">
-                Click any box to sync with table →
+                {t.ocr.legendHint}
               </span>
             </div>
           </section>
@@ -668,13 +750,13 @@ export default function OcrWorkspacePage() {
                     </span>
                   </div>
                   <h1 className="text-base font-bold text-slate-900 sm:text-lg">
-                    {activeReport.title} — e-CRF Extraction
+                    {activeReport.title} {t.ocr.extractionHeaderSuffix}
                   </h1>
                 </div>
 
                 <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-right">
                   <p className="font-mono text-[10px] font-semibold uppercase text-rose-700">
-                    Estimated SLEDAI-2K Impact
+                    {t.ocr.sledaiImpactTitle}
                   </p>
                   <p className="font-mono text-xs font-bold text-rose-950">
                     {activeReport.sledaiImpact}
@@ -695,7 +777,7 @@ export default function OcrWorkspacePage() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    All Fields ({currentFields.length})
+                    {t.ocr.filterAll(currentFields.length)}
                   </button>
                   <button
                     type="button"
@@ -707,7 +789,7 @@ export default function OcrWorkspacePage() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    Needs Review ({needsReviewCount})
+                    {t.ocr.filterReview(needsReviewCount)}
                   </button>
                   <button
                     type="button"
@@ -719,7 +801,7 @@ export default function OcrWorkspacePage() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    Abnormal ({abnormalCount})
+                    {t.ocr.filterAbnormal(abnormalCount)}
                   </button>
                 </div>
 
@@ -730,7 +812,7 @@ export default function OcrWorkspacePage() {
                     onClick={handleAddBiomarkerRow}
                     className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
                   >
-                    + Add Biomarker Row
+                    {t.ocr.addRowBtn}
                   </button>
                   {needsReviewCount > 0 && (
                     <button
@@ -739,7 +821,7 @@ export default function OcrWorkspacePage() {
                       onClick={handleVerifyAllFlagged}
                       className="rounded-lg bg-amber-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-700 cursor-pointer"
                     >
-                      ✓ Verify All Flagged ({needsReviewCount})
+                      {t.ocr.verifyAllBtn(needsReviewCount)}
                     </button>
                   )}
                 </div>
@@ -751,12 +833,12 @@ export default function OcrWorkspacePage() {
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    <th className="px-4 py-2.5">Biomarker / Assay</th>
-                    <th className="px-3 py-2.5">Extracted Value</th>
-                    <th className="px-3 py-2.5">Unit &amp; Ref</th>
-                    <th className="px-3 py-2.5">Flag</th>
+                    <th className="px-4 py-2.5">{t.ocr.tblHeaderBiomarker}</th>
+                    <th className="px-3 py-2.5">{t.ocr.tblHeaderValue}</th>
+                    <th className="px-3 py-2.5">{t.ocr.tblHeaderUnitRef}</th>
+                    <th className="px-3 py-2.5">{t.ocr.tblHeaderFlag}</th>
                     <th className="px-3 py-2.5 text-right">
-                      HITL Verification
+                      {t.ocr.tblHeaderHitl}
                     </th>
                   </tr>
                 </thead>
@@ -855,10 +937,12 @@ export default function OcrWorkspacePage() {
                                 : "border-rose-200 bg-rose-100 text-rose-900"
                             }`}
                           >
-                            <option value="Normal">Normal</option>
-                            <option value="High">High</option>
-                            <option value="Low">Low</option>
-                            <option value="Positive">Positive</option>
+                            <option value="Normal">{t.common.normal}</option>
+                            <option value="High">{t.common.high}</option>
+                            <option value="Low">{t.common.low}</option>
+                            <option value="Positive">
+                              {t.common.positive}
+                            </option>
                           </select>
                         </td>
 
@@ -875,11 +959,14 @@ export default function OcrWorkspacePage() {
                                 }}
                                 className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-2xs transition hover:bg-amber-700 cursor-pointer"
                               >
-                                <span>Verify ({field.confidence}%)</span>
+                                <span>
+                                  {language === "vi" ? "Xác thực" : "Verify"} (
+                                  {field.confidence}%)
+                                </span>
                               </button>
                             ) : (
                               <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-teal-800">
-                                ✓ Verified ({field.confidence}%)
+                                ✓ {t.common.verified} ({field.confidence}%)
                               </span>
                             )}
                           </div>
@@ -897,18 +984,18 @@ export default function OcrWorkspacePage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="rounded bg-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-800">
-                      GROUNDED FIELD: {selectedField.code}
+                      {t.ocr.groundedFieldPrefix} {selectedField.code}
                     </span>
                     <span className="font-semibold text-slate-900">
                       {selectedField.name}
                     </span>
                   </div>
                   <span className="font-mono text-[11px] text-slate-500">
-                    Category: {selectedField.category}
+                    {t.ocr.categoryPrefix} {selectedField.category}
                   </span>
                 </div>
                 <p className="mt-1 text-slate-600">
-                  <strong>Clinical &amp; OCR Note:</strong>{" "}
+                  <strong>{t.ocr.clinicalNotePrefix}</strong>{" "}
                   {selectedField.clinicalNote}
                 </p>
               </div>
@@ -919,13 +1006,11 @@ export default function OcrWorkspacePage() {
               <div className="text-xs">
                 {needsReviewCount > 0 ? (
                   <p className="font-medium text-amber-800">
-                    ⚠ <strong>{needsReviewCount} field(s)</strong> flagged below
-                    85% OCR confidence require verification before commit.
+                    {t.ocr.statusNeedsReview(needsReviewCount)}
                   </p>
                 ) : (
                   <p className="font-medium text-teal-800">
-                    ✓ All {currentFields.length} biomarkers verified and ready
-                    for SLE e-CRF database commit.
+                    {t.ocr.statusAllVerified(currentFields.length)}
                   </p>
                 )}
               </div>
@@ -937,7 +1022,7 @@ export default function OcrWorkspacePage() {
                   onClick={() => setIsJsonModalOpen(true)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 cursor-pointer"
                 >
-                  Preview / Export e-CRF JSON
+                  {t.ocr.exportJsonBtn}
                 </button>
 
                 <button
@@ -946,7 +1031,7 @@ export default function OcrWorkspacePage() {
                   onClick={handleSaveToRegistry}
                   className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-teal-800 cursor-pointer"
                 >
-                  Save to SLE Registry (e-CRF) →
+                  {t.ocr.saveRegistryBtn}
                 </button>
               </div>
             </div>
@@ -958,24 +1043,17 @@ export default function OcrWorkspacePage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-bold text-slate-900">
-                Committed SLE e-CRF Registry Records (Current Session:{" "}
-                {savedRecords.length})
+                {t.ocr.committedSectionTitle(savedRecords.length)}
               </h2>
               <p className="text-xs text-slate-500">
-                Records saved via &ldquo;Save to SLE Registry (e-CRF)&rdquo;
-                appear here with specialist attribution and SLEDAI-2K impact.
+                {t.ocr.committedSectionDesc}
               </p>
             </div>
           </div>
 
           {savedRecords.length === 0 ? (
             <div className="mt-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-              No e-CRF records committed in this session yet. Verify the amber
-              flagged rows above and click{" "}
-              <strong className="text-slate-700">
-                Save to SLE Registry (e-CRF)
-              </strong>{" "}
-              to test the submission flow.
+              {t.ocr.noRecordsCommitted}
             </div>
           ) : (
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -989,21 +1067,21 @@ export default function OcrWorkspacePage() {
                       {rec.recordId}
                     </span>
                     <span className="font-mono text-[11px] text-slate-500">
-                      Saved at {rec.savedAt}
+                      {t.ocr.recordSavedAt(rec.savedAt)}
                     </span>
                   </div>
                   <p className="mt-2 font-bold text-slate-900">
                     {rec.reportTitle}
                   </p>
                   <p className="mt-0.5 text-slate-600">
-                    Patient: <strong>{rec.patientName}</strong> ({rec.patientId})
+                    {language === "vi" ? "Bệnh nhân:" : "Patient:"}{" "}
+                    <strong>{rec.patientName}</strong> ({rec.patientId})
                   </p>
                   <p className="mt-1 font-mono text-[11px] font-semibold text-rose-800">
                     {rec.sledaiImpact}
                   </p>
                   <p className="mt-2 border-t border-teal-200/70 pt-2 text-[11px] text-slate-500">
-                    Signed off by: <strong>{rec.verifiedBy}</strong> (
-                    {rec.fields.length} biomarkers)
+                    {t.ocr.recordSignedBy(rec.verifiedBy, rec.fields.length)}
                   </p>
                 </div>
               ))}
@@ -1027,11 +1105,14 @@ export default function OcrWorkspacePage() {
                   id="json-modal-title"
                   className="text-base font-bold text-slate-900"
                 >
-                  Standardized SLE e-CRF JSON Payload
+                  {t.ocr.jsonModalTitle}
                 </h2>
                 <p className="text-xs text-slate-600">
-                  Structured output for {activeReport.patientName} (
-                  {activeReport.patientId}) • {activeReport.title}
+                  {t.ocr.jsonModalDesc(
+                    activeReport.patientName,
+                    activeReport.patientId,
+                    activeReport.title
+                  )}
                 </p>
               </div>
               <button
@@ -1039,7 +1120,7 @@ export default function OcrWorkspacePage() {
                 onClick={() => setIsJsonModalOpen(false)}
                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
-                Close
+                {t.common.close}
               </button>
             </div>
 
@@ -1056,7 +1137,7 @@ export default function OcrWorkspacePage() {
                 onClick={handleDownloadJson}
                 className="rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800 cursor-pointer"
               >
-                Download .json File
+                {t.ocr.jsonModalDownloadBtn}
               </button>
             </div>
           </div>

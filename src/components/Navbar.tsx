@@ -4,11 +4,15 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
-import { BUTTON_ACTION_MAP } from "@/data/mockData";
+import { getLocalizedButtonActionMap } from "@/data/translations";
 
 export function Navbar() {
   const pathname = usePathname();
   const {
+    language,
+    toggleLanguage,
+    setLanguage,
+    t,
     currentUser,
     logout,
     savedRecords,
@@ -19,10 +23,12 @@ export function Navbar() {
   } = useLupiva();
 
   const navLinks = [
-    { href: "/", label: "Overview & Workflow", id: "nav-link-home" },
-    { href: "/login", label: "Role Login", id: "nav-link-login" },
-    { href: "/ocr", label: "Document OCR Workspace", id: "nav-link-ocr" },
+    { href: "/", label: t.navbar.overviewWorkflow, id: "nav-link-home" },
+    { href: "/login", label: t.navbar.roleLogin, id: "nav-link-login" },
+    { href: "/ocr", label: t.navbar.ocrWorkspace, id: "nav-link-ocr" },
   ];
+
+  const localizedButtonMap = getLocalizedButtonActionMap(language);
 
   return (
     <>
@@ -58,7 +64,7 @@ export function Navbar() {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Vinmec SLE Registry &amp; HITL Lab OCR
+                  {t.common.brandSubtitle}
                 </p>
               </div>
             </Link>
@@ -93,14 +99,74 @@ export function Navbar() {
             })}
           </nav>
 
-          {/* Right Controls: Button Map Guide & Active Session */}
-          <div className="flex items-center gap-2.5">
+          {/* Right Controls: Language Switcher, Button Map Guide & Active Session */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Bilingual English / Vietnamese Toggle Button */}
+            <div
+              className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 shadow-2xs"
+              role="group"
+              aria-label={t.common.languageToggleTitle}
+            >
+              <button
+                type="button"
+                id="nav-btn-language-toggle"
+                onClick={toggleLanguage}
+                title={t.common.languageToggleTitle}
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200/60 cursor-pointer"
+              >
+                {/* Globe Icon */}
+                <svg
+                  className="h-3.5 w-3.5 text-teal-700"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+                <div className="flex items-center gap-1 font-mono text-[11px]">
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLanguage("en");
+                    }}
+                    className={`rounded px-1.5 py-0.5 transition ${
+                      language === "en"
+                        ? "bg-teal-700 font-bold text-white shadow-xs"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    EN
+                  </span>
+                  <span className="text-slate-300">/</span>
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLanguage("vi");
+                    }}
+                    className={`rounded px-1.5 py-0.5 transition ${
+                      language === "vi"
+                        ? "bg-teal-700 font-bold text-white shadow-xs"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    VI
+                  </span>
+                </div>
+              </button>
+            </div>
+
+            {/* UI Button Map Modal Trigger */}
             <button
               type="button"
               id="nav-btn-action-guide"
               onClick={() => setIsActionGuideOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-teal-600/40 hover:bg-teal-50/50 hover:text-teal-900 cursor-pointer"
-              title="Inspect what every button in the prototype does"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-teal-600/40 hover:bg-teal-50/50 hover:text-teal-900 cursor-pointer"
+              title={t.navbar.inspectButtonsTitle}
             >
               <svg
                 className="h-3.5 w-3.5 text-teal-700"
@@ -113,7 +179,7 @@ export function Navbar() {
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
-              <span>UI Button Map</span>
+              <span>{t.navbar.uiButtonMap}</span>
             </button>
 
             {currentUser ? (
@@ -125,7 +191,7 @@ export function Navbar() {
                       : "bg-blue-600"
                   }`}
                 />
-                <div className="hidden text-left sm:block">
+                <div className="hidden text-left md:block">
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-semibold text-slate-900">
                       {currentUser.name}
@@ -136,8 +202,8 @@ export function Navbar() {
                   </div>
                   <p className="text-[10px] text-slate-500">
                     {currentUser.role === "specialist"
-                      ? "Specialist Reviewer Mode"
-                      : "Patient Companion Mode"}
+                      ? t.common.activeModeSpecialist
+                      : t.common.activeModePatient}
                   </p>
                 </div>
                 <button
@@ -146,7 +212,7 @@ export function Navbar() {
                   onClick={logout}
                   className="ml-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
                 >
-                  Sign Out
+                  {t.common.signOut}
                 </button>
               </div>
             ) : (
@@ -155,7 +221,7 @@ export function Navbar() {
                 id="nav-btn-signin"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
               >
-                <span>Sign In</span>
+                <span>{t.common.signIn}</span>
               </Link>
             )}
           </div>
@@ -210,11 +276,10 @@ export function Navbar() {
                   id="modal-button-map-title"
                   className="text-base font-bold text-slate-900"
                 >
-                  Interactive UI Button &amp; Mock Action Map
+                  {t.navbar.modalTitle}
                 </h2>
                 <p className="text-xs text-slate-600">
-                  Reference specification mapping every button across Landing,
-                  Login, and OCR Workspace to its mock data behavior.
+                  {t.navbar.modalDescription}
                 </p>
               </div>
               <button
@@ -223,7 +288,7 @@ export function Navbar() {
                 onClick={() => setIsActionGuideOpen(false)}
                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
-                Close (Esc)
+                {t.common.closeEsc}
               </button>
             </div>
 
@@ -232,20 +297,22 @@ export function Navbar() {
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-slate-700">
-                      <th className="px-3.5 py-2.5 font-semibold">Page / View</th>
                       <th className="px-3.5 py-2.5 font-semibold">
-                        Button / Control
+                        {t.navbar.modalThPage}
                       </th>
                       <th className="px-3.5 py-2.5 font-semibold">
-                        Mock Data Action
+                        {t.navbar.modalThButton}
                       </th>
                       <th className="px-3.5 py-2.5 font-semibold">
-                        Expected UI Outcome
+                        {t.navbar.modalThAction}
+                      </th>
+                      <th className="px-3.5 py-2.5 font-semibold">
+                        {t.navbar.modalThOutcome}
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {BUTTON_ACTION_MAP.map((item, idx) => (
+                    {localizedButtonMap.map((item, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/80">
                         <td className="whitespace-nowrap px-3.5 py-2.5 font-medium text-slate-900">
                           {item.page}
@@ -270,7 +337,7 @@ export function Navbar() {
 
             <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-3 text-xs text-slate-600">
               <span>
-                All mock data is defined in{" "}
+                {t.common.allMockDataNotice}{" "}
                 <code className="rounded bg-slate-200/70 px-1.5 py-0.5 font-mono text-[11px] text-slate-800">
                   src/data/mockData.ts
                 </code>
@@ -280,7 +347,7 @@ export function Navbar() {
                 onClick={() => setIsActionGuideOpen(false)}
                 className="rounded-lg bg-teal-700 px-4 py-1.5 font-semibold text-white hover:bg-teal-800 cursor-pointer"
               >
-                Got It
+                {t.common.gotIt}
               </button>
             </div>
           </div>

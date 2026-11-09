@@ -3,17 +3,22 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MOCK_LAB_REPORTS, BUTTON_ACTION_MAP } from "@/data/mockData";
+import { BUTTON_ACTION_MAP } from "@/data/mockData";
 import { useLupiva } from "@/context/LupivaContext";
+import { getLocalizedLabReports } from "@/data/translations";
 
 export default function LandingPage() {
   const router = useRouter();
   const {
+    language,
+    t,
     setSelectedReportId,
     setIsActionGuideOpen,
     savedRecords,
     currentUser,
   } = useLupiva();
+
+  const localizedReports = getLocalizedLabReports(language);
 
   const handleOpenSampleReport = (reportId: string) => {
     setSelectedReportId(reportId);
@@ -30,26 +35,18 @@ export default function LandingPage() {
             <div className="lg:col-span-7">
               <div className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
                 <span className="font-mono font-semibold text-teal-800">
-                  VINMEC INNOVATION CHALLENGE 2026
+                  {t.landing.challengeTag}
                 </span>
                 <span className="text-slate-300">•</span>
-                <span>Clinical Immunology &amp; Allergy</span>
+                <span>{t.landing.specialtyTag}</span>
               </div>
 
               <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-[42px] lg:leading-[1.15]">
-                Standardized Lupus Lab OCR &amp; Physician-Verified e-CRF
-                Registry
+                {t.landing.heroTitle}
               </h1>
 
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-600">
-                <strong>Lupiva</strong> transforms paper and PDF immunology lab
-                reports into structured{" "}
-                <span className="font-medium text-slate-800">
-                  Systemic Lupus Erythematosus (SLE)
-                </span>{" "}
-                registry records. Powered by side-by-side optical character
-                recognition, bounding-box grounding, and mandatory
-                Physician-in-the-Loop (HITL) verification.
+                {t.landing.heroDescription}
               </p>
 
               {/* Hero Action Buttons */}
@@ -59,7 +56,7 @@ export default function LandingPage() {
                   id="hero-btn-launch-ocr"
                   className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-xs transition hover:bg-teal-800"
                 >
-                  <span>Launch Document OCR Workspace</span>
+                  <span>{t.landing.launchOcrBtn}</span>
                   <span aria-hidden="true">→</span>
                 </Link>
 
@@ -70,8 +67,8 @@ export default function LandingPage() {
                 >
                   <span>
                     {currentUser
-                      ? `Switch Role (${currentUser.role === "specialist" ? "Specialist" : "Patient"})`
-                      : "Specialist / Patient Login"}
+                      ? t.landing.switchRoleBtn(currentUser.role)
+                      : t.landing.loginBtn}
                   </span>
                 </Link>
 
@@ -81,7 +78,9 @@ export default function LandingPage() {
                   onClick={() => setIsActionGuideOpen(true)}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200/70 cursor-pointer"
                 >
-                  <span>View Interactive Button Map ({BUTTON_ACTION_MAP.length})</span>
+                  <span>
+                    {t.landing.viewButtonMapBtn(BUTTON_ACTION_MAP.length)}
+                  </span>
                 </button>
               </div>
 
@@ -89,35 +88,35 @@ export default function LandingPage() {
               <dl className="mt-9 grid grid-cols-3 gap-4 border-t border-slate-200 pt-6">
                 <div>
                   <dt className="text-xs font-medium text-slate-500">
-                    SLE Lab Panels Mapped
+                    {t.landing.metricPanelsTitle}
                   </dt>
                   <dd className="mt-1 font-mono text-xl font-bold text-slate-900">
-                    3 Core e-CRFs
+                    {t.landing.metricPanelsVal}
                   </dd>
                   <p className="text-[11px] text-slate-500">
-                    Serology, Renal, Hematology
+                    {t.landing.metricPanelsSub}
                   </p>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-slate-500">
-                    HITL Confidence Gate
+                    {t.landing.metricConfidenceTitle}
                   </dt>
                   <dd className="mt-1 font-mono text-xl font-bold text-teal-800">
-                    &ge; 85% Auto
+                    {t.landing.metricConfidenceVal}
                   </dd>
                   <p className="text-[11px] text-slate-500">
-                    Flagged review below threshold
+                    {t.landing.metricConfidenceSub}
                   </p>
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-slate-500">
-                    Session e-CRF Commits
+                    {t.landing.metricCommitsTitle}
                   </dt>
                   <dd className="mt-1 font-mono text-xl font-bold text-slate-900">
-                    {savedRecords.length} Saved
+                    {t.landing.metricCommitsVal(savedRecords.length)}
                   </dd>
                   <p className="text-[11px] text-slate-500">
-                    Ready for FHIR / JSON export
+                    {t.landing.metricCommitsSub}
                   </p>
                 </div>
               </dl>
@@ -130,17 +129,26 @@ export default function LandingPage() {
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-teal-600" />
                     <span className="font-mono text-xs font-semibold text-slate-800">
-                      PREVIEW: SLE SEROLOGY e-CRF EXTRACTION
+                      {t.landing.previewBadge}
                     </span>
                   </div>
                   <span className="rounded bg-amber-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-900">
-                    2 Fields Need Review
+                    {t.landing.previewNeedsReview(2)}
                   </span>
                 </div>
 
                 <div className="space-y-3 p-4">
-                  {MOCK_LAB_REPORTS[0].fields.slice(0, 4).map((field) => {
+                  {localizedReports[0].fields.slice(0, 4).map((field) => {
                     const needsReview = !field.verified || field.confidence < 85;
+                    const flagLabel =
+                      field.flag === "Normal"
+                        ? t.common.normal
+                        : field.flag === "High"
+                        ? t.common.high
+                        : field.flag === "Low"
+                        ? t.common.low
+                        : t.common.positive;
+
                     return (
                       <div
                         key={field.id}
@@ -181,7 +189,7 @@ export default function LandingPage() {
                                   : "bg-rose-100 text-rose-800"
                               }`}
                             >
-                              {field.flag}
+                              {flagLabel}
                             </span>
                             <span
                               className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
@@ -201,10 +209,10 @@ export default function LandingPage() {
                   <button
                     type="button"
                     id="preview-card-btn-open-ocr"
-                    onClick={() => handleOpenSampleReport(MOCK_LAB_REPORTS[0].id)}
+                    onClick={() => handleOpenSampleReport(localizedReports[0].id)}
                     className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 cursor-pointer"
                   >
-                    <span>Open Full Split-Screen Review &amp; Verify C3/C4</span>
+                    <span>{t.landing.previewOpenOcrBtn}</span>
                     <span aria-hidden="true">→</span>
                   </button>
                 </div>
@@ -219,18 +227,17 @@ export default function LandingPage() {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
-              How the Physician-in-the-Loop (HITL) OCR Workflow Operates
+              {t.landing.workflowSectionTitle}
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Designed around medical Document AI safety standards: source
-              grounding, confidence triage, and explicit specialist sign-off.
+              {t.landing.workflowSectionSub}
             </p>
           </div>
           <Link
             href="/ocr"
             className="text-xs font-semibold text-teal-800 hover:underline"
           >
-            Jump straight to OCR Workspace →
+            {t.landing.workflowJumpLink}
           </Link>
         </div>
 
@@ -238,58 +245,51 @@ export default function LandingPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <div className="flex items-center justify-between">
               <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-bold text-slate-800">
-                STEP 01
+                {t.landing.step1Tag}
               </span>
               <span className="text-xs font-medium text-slate-500">
-                Document Capture
+                {t.landing.step1Category}
               </span>
             </div>
             <h3 className="mt-4 text-base font-bold text-slate-900">
-              Select or Upload SLE Lab Report
+              {t.landing.step1Title}
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              Patients or clinical coordinators upload a hospital lab sheet
-              (Serology, 24h Urinalysis, or CBC) or choose from 3 pre-loaded
-              Vinmec SLE sample panels.
+              {t.landing.step1Desc}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <div className="flex items-center justify-between">
               <span className="rounded-lg bg-amber-100 px-2.5 py-1 font-mono text-xs font-bold text-amber-900">
-                STEP 02
+                {t.landing.step2Tag}
               </span>
               <span className="text-xs font-medium text-amber-800">
-                Side-by-Side Grounding
+                {t.landing.step2Category}
               </span>
             </div>
             <h3 className="mt-4 text-base font-bold text-slate-900">
-              Inspect Bounding Boxes &amp; Flagged Reads
+              {t.landing.step2Title}
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              Clicking any biomarker row highlights its exact bounding box on
-              the original lab report. Values below{" "}
-              <span className="font-mono font-semibold">85%</span> confidence
-              are flagged in amber for human verification.
+              {t.landing.step2Desc}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <div className="flex items-center justify-between">
               <span className="rounded-lg bg-teal-100 px-2.5 py-1 font-mono text-xs font-bold text-teal-900">
-                STEP 03
+                {t.landing.step3Tag}
               </span>
               <span className="text-xs font-medium text-teal-800">
-                Standardized e-CRF
+                {t.landing.step3Category}
               </span>
             </div>
             <h3 className="mt-4 text-base font-bold text-slate-900">
-              Approve &amp; Commit to SLE Registry
+              {t.landing.step3Title}
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              Once verified, the structured panel is saved to the patient&apos;s
-              longitudinal e-CRF profile with automated SLEDAI-2K biomarker
-              scoring and JSON export.
+              {t.landing.step3Desc}
             </p>
           </div>
         </div>
@@ -301,17 +301,16 @@ export default function LandingPage() {
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
             <div>
               <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
-                Interactive Mock Lab Reports Ready for Testing
+                {t.landing.mockSectionTitle}
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Click any report card below to load its scanned document and
-                mock biomarker dataset directly into the OCR Workspace.
+                {t.landing.mockSectionSub}
               </p>
             </div>
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {MOCK_LAB_REPORTS.map((report, index) => {
+            {localizedReports.map((report, index) => {
               const needsReviewCount = report.fields.filter(
                 (f) => !f.verified || f.confidence < 85
               ).length;
@@ -327,7 +326,7 @@ export default function LandingPage() {
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <span className="rounded-md bg-slate-200/80 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-800">
-                        SAMPLE #{index + 1}
+                        {t.landing.sampleBadge(index + 1)}
                       </span>
                       <span className="font-mono text-[11px] text-slate-500">
                         {report.collectionDate}
@@ -359,10 +358,10 @@ export default function LandingPage() {
                   <div className="mt-6 border-t border-slate-200/80 pt-4">
                     <div className="mb-3 flex items-center justify-between text-xs">
                       <span className="font-medium text-rose-700">
-                        {abnormalCount} Abnormal Flags
+                        {t.landing.abnormalBadge(abnormalCount)}
                       </span>
                       <span className="font-medium text-amber-800">
-                        {needsReviewCount} Low-Confidence OCR Reads
+                        {t.landing.needsReviewBadge(needsReviewCount)}
                       </span>
                     </div>
                     <button
@@ -371,7 +370,7 @@ export default function LandingPage() {
                       onClick={() => handleOpenSampleReport(report.id)}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-teal-800 cursor-pointer"
                     >
-                      <span>Inspect in OCR Workspace</span>
+                      <span>{t.landing.inspectCardBtn}</span>
                       <span aria-hidden="true">→</span>
                     </button>
                   </div>

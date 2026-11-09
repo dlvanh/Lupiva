@@ -373,6 +373,13 @@ export const MOCK_LAB_REPORTS: LabReportMock[] = [
 export const BUTTON_ACTION_MAP: ButtonMappingItem[] = [
   {
     page: "Global Navbar",
+    buttonLabel: "EN | VI (Language Switcher)",
+    elementId: "nav-btn-language-toggle",
+    mockAction: "Toggles the entire platform interface and clinical mock data between English and Vietnamese in real time.",
+    expectedOutcome: "Updates header, pages, and biomarker tables to the selected language immediately.",
+  },
+  {
+    page: "Global Navbar",
     buttonLabel: "UI Button Map",
     elementId: "nav-btn-action-guide",
     mockAction: "Opens the interactive Button & Mock Data Reference modal from any page.",
