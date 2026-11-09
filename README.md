@@ -94,4 +94,4 @@ flowchart TD
 Developed with guidance and clinical insights from specialists in **Clinical Immunology & Allergy**, submitted for the **Vinmec Innovation Challenge 2026**.
 
 * Repository: [https://github.com/dlvanh/Lupiva](https://github.com/dlvanh/Lupiva)
-* Project Lead: [@dlvanh](https://github.com/dlvanh)
+* Members: [@dlvanh](https://github.com/dlvanh), [@phamkien_1](https://github.com/pvksssss), [@VietHoang04-sys](https://github.com/VietHoang04-sys)
