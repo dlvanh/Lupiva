@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
@@ -21,6 +21,35 @@ export function Navbar() {
     toast,
     dismissToast,
   } = useLupiva();
+
+  const [visibleToast, setVisibleToast] = useState<typeof toast>(null);
+  const [isFadingOut, setIsFadingOut] = useState(false);
+
+  useEffect(() => {
+    if (!toast) {
+      setVisibleToast(null);
+      setIsFadingOut(false);
+      return;
+    }
+
+    // New toast arrived
+    setVisibleToast(toast);
+    setIsFadingOut(false);
+
+    // Start fading out after 4.3 seconds, fully dismiss after 5 seconds
+    const fadeTimer = setTimeout(() => {
+      setIsFadingOut(true);
+    }, 4300);
+
+    const dismissTimer = setTimeout(() => {
+      dismissToast();
+    }, 5000);
+
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(dismissTimer);
+    };
+  }, [toast, dismissToast]);
 
   const navLinks = [
     { href: "/", label: t.navbar.overviewWorkflow, id: "nav-link-home" },
@@ -229,17 +258,21 @@ export function Navbar() {
       </header>
 
       {/* Global Toast Banner */}
-      {toast && (
+      {visibleToast && (
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-5 right-5 z-50 flex max-w-md items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-lg"
+          className={`fixed bottom-5 right-5 z-50 flex max-w-md items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-lg transition-all duration-700 ease-out ${
+            isFadingOut
+              ? "opacity-0 translate-y-2 pointer-events-none"
+              : "opacity-100 translate-y-0"
+          }`}
         >
           <div
             className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-              toast.tone === "teal"
+              visibleToast.tone === "teal"
                 ? "bg-teal-700"
-                : toast.tone === "amber"
+                : visibleToast.tone === "amber"
                 ? "bg-amber-600"
                 : "bg-slate-800"
             }`}
@@ -247,8 +280,8 @@ export function Navbar() {
             ✓
           </div>
           <div className="flex-1 text-xs">
-            <p className="font-semibold text-slate-900">{toast.title}</p>
-            <p className="mt-0.5 text-slate-600">{toast.description}</p>
+            <p className="font-semibold text-slate-900">{visibleToast.title}</p>
+            <p className="mt-0.5 text-slate-600">{visibleToast.description}</p>
           </div>
           <button
             type="button"
