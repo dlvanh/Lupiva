@@ -16,29 +16,22 @@ export function Navbar() {
     currentUser,
     logout,
     savedRecords,
+    crfPatients,
     isActionGuideOpen,
     setIsActionGuideOpen,
     toast,
     dismissToast,
   } = useLupiva();
 
-  const [visibleToast, setVisibleToast] = useState<typeof toast>(null);
-  const [isFadingOut, setIsFadingOut] = useState(false);
+  const [fadingToastId, setFadingToastId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!toast) {
-      setVisibleToast(null);
-      setIsFadingOut(false);
-      return;
-    }
+    if (!toast) return;
 
-    // New toast arrived
-    setVisibleToast(toast);
-    setIsFadingOut(false);
-
+    const currentId = toast.id;
     // Start fading out after 4.3 seconds, fully dismiss after 5 seconds
     const fadeTimer = setTimeout(() => {
-      setIsFadingOut(true);
+      setFadingToastId(currentId);
     }, 4300);
 
     const dismissTimer = setTimeout(() => {
@@ -51,10 +44,14 @@ export function Navbar() {
     };
   }, [toast, dismissToast]);
 
+  const visibleToast = toast;
+  const isFadingOut = Boolean(toast && fadingToastId === toast.id);
+
   const navLinks = [
     { href: "/", label: t.navbar.overviewWorkflow, id: "nav-link-home" },
+    { href: "/upload", label: language === "vi" ? "1. Bệnh nhân Tải lên" : "1. Patient Upload", id: "nav-link-upload" },
+    { href: "/ocr", label: language === "vi" ? "2. Bác sĩ Duyệt OCR" : "2. Doctor OCR Review", id: "nav-link-ocr" },
     { href: "/login", label: t.navbar.roleLogin, id: "nav-link-login" },
-    { href: "/ocr", label: t.navbar.ocrWorkspace, id: "nav-link-ocr" },
   ];
 
   const localizedButtonMap = getLocalizedButtonActionMap(language);
@@ -118,9 +115,9 @@ export function Navbar() {
                   }`}
                 >
                   {item.label}
-                  {item.href === "/ocr" && savedRecords.length > 0 && (
+                  {item.href === "/ocr" && crfPatients.length > 0 && (
                     <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-teal-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-teal-800">
-                      {savedRecords.length}
+                      {crfPatients.length}
                     </span>
                   )}
                 </Link>

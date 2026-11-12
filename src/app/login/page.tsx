@@ -61,7 +61,7 @@ export default function LoginPage() {
     }
 
     loginAsRole(selectedRole, email.trim());
-    router.push("/ocr");
+    router.push(selectedRole === "patient" ? "/upload" : "/ocr");
   };
 
   return (

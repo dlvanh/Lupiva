@@ -35,6 +35,7 @@ export interface Translations {
     overviewWorkflow: string;
     roleLogin: string;
     ocrWorkspace: string;
+    crfManager: string;
     uiButtonMap: string;
     inspectButtonsTitle: string;
     modalTitle: string;
@@ -229,11 +230,12 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       overviewWorkflow: "Overview & Workflow",
       roleLogin: "Role Login",
       ocrWorkspace: "Document OCR Workspace",
+      crfManager: "SLE Case Report Form (CRF)",
       uiButtonMap: "UI Button Map",
       inspectButtonsTitle: "Inspect what every button in the prototype does",
       modalTitle: "Interactive UI Button & Mock Action Map",
       modalDescription:
-        "Reference specification mapping every button across Landing, Login, and OCR Workspace to its mock data behavior.",
+        "Reference specification mapping every button across Landing, Login, OCR Workspace, and SLE e-CRF Manager to its mock data behavior.",
       modalThPage: "Page / View",
       modalThButton: "Button / Control",
       modalThAction: "Mock Data Action",
@@ -254,9 +256,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       metricPanelsTitle: "SLE Lab Panels Mapped",
       metricPanelsVal: "3 Core e-CRFs",
       metricPanelsSub: "Serology, Renal, Hematology",
-      metricConfidenceTitle: "HITL Confidence Gate",
-      metricConfidenceVal: "≥ 85% Auto",
-      metricConfidenceSub: "Flagged review below threshold",
+      metricConfidenceTitle: "3-Tier HITL Confidence",
+      metricConfidenceVal: ">90% Auto",
+      metricConfidenceSub: "80–90% Verify • <80% Manual",
       metricCommitsTitle: "Session e-CRF Commits",
       metricCommitsVal: (count) => `${count} Saved`,
       metricCommitsSub: "Ready for FHIR / JSON export",
@@ -342,8 +344,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       tableThRef: "Ref. Range",
       orderingPhysician: "Ordering:",
       accreditedLab: "ISO 15189 Accredited Clinical Lab",
-      legendVerified: "Verified (≥85%)",
-      legendReview: "Needs Human Review (<85%)",
+      legendVerified: "Auto-Approved (>90%)",
+      legendReview: "Verify (80–90%) / Manual (<80%)",
       legendHint: "Click any box to sync with table →",
       extractionHeaderSuffix: "— e-CRF Extraction",
       sledaiImpactTitle: "Estimated SLEDAI-2K Impact",
@@ -361,9 +363,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       categoryPrefix: "Category:",
       clinicalNotePrefix: "Clinical & OCR Note:",
       statusNeedsReview: (count) =>
-        `⚠ ${count} field(s) flagged below 85% OCR confidence require verification before commit.`,
+        `⚠ ${count} field(s) require action: <80% must be entered from original scan, and 80–90% must be verified before commit.`,
       statusAllVerified: (count) =>
-        `✓ All ${count} biomarkers verified and ready for SLE e-CRF database commit.`,
+        `✓ All ${count} biomarkers verified (>90% auto-approved or user-confirmed) and ready for SLE e-CRF commit.`,
       exportJsonBtn: "Preview / Export e-CRF JSON",
       saveRegistryBtn: "Save to SLE Registry (e-CRF) →",
       committedSectionTitle: (count) =>
@@ -452,11 +454,12 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       overviewWorkflow: "Tổng quan & Quy trình",
       roleLogin: "Đăng nhập Vai trò",
       ocrWorkspace: "Không gian OCR Tài liệu",
+      crfManager: "Hồ sơ Bệnh án SLE (CRF)",
       uiButtonMap: "Sơ đồ Nút Giao diện",
       inspectButtonsTitle: "Tra cứu chức năng của từng nút bấm trong mô hình thử nghiệm",
       modalTitle: "Sơ đồ Tương tác Nút Giao diện & Hành vi Dữ liệu Mẫu",
       modalDescription:
-        "Tài liệu đối chiếu chức năng của từng nút trên Trang chủ, Đăng nhập và Không gian OCR với trạng thái dữ liệu mô phỏng.",
+        "Tài liệu đối chiếu chức năng của từng nút trên Trang chủ, Đăng nhập, Không gian OCR và Quản lý Hồ sơ Bệnh án SLE (CRF).",
       modalThPage: "Trang / Chế độ",
       modalThButton: "Nút bấm / Điều khiển",
       modalThAction: "Hành động Dữ liệu Mẫu",
@@ -477,9 +480,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       metricPanelsTitle: "Bộ Xét nghiệm SLE Chuẩn hóa",
       metricPanelsVal: "3 Mẫu e-CRF Cốt lõi",
       metricPanelsSub: "Huyết thanh, Thận, Huyết học",
-      metricConfidenceTitle: "Ngưỡng Tin cậy HITL",
-      metricConfidenceVal: "≥ 85% Tự động",
-      metricConfidenceSub: "Cảnh báo kiểm tra thủ công dưới ngưỡng",
+      metricConfidenceTitle: "Phân tầng Tin cậy 3 Mức",
+      metricConfidenceVal: ">90% Tự động",
+      metricConfidenceSub: "80–90% Xác nhận • <80% Nhập tay",
       metricCommitsTitle: "Hồ sơ e-CRF Đã lưu Phiên này",
       metricCommitsVal: (count) => `${count} Hồ sơ`,
       metricCommitsSub: "Sẵn sàng trích xuất chuẩn FHIR / JSON",
@@ -565,8 +568,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       tableThRef: "Trị số Tham chiếu",
       orderingPhysician: "Bác sĩ chỉ định:",
       accreditedLab: "Phòng Xét nghiệm Đạt chuẩn ISO 15189",
-      legendVerified: "Đã xác thực (≥85%)",
-      legendReview: "Cần kiểm tra thủ công (<85%)",
+      legendVerified: "Tự động duyệt (>90%)",
+      legendReview: "Xác nhận (80–90%) / Nhập tay (<80%)",
       legendHint: "Nhấp vào khung để đồng bộ sang bảng bên phải →",
       extractionHeaderSuffix: "— Trích xuất e-CRF",
       sledaiImpactTitle: "Dự kiến Tác động Điểm SLEDAI-2K",
@@ -584,9 +587,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       categoryPrefix: "Nhóm:",
       clinicalNotePrefix: "Ghi chú Lâm sàng & OCR:",
       statusNeedsReview: (count) =>
-        `⚠ ${count} chỉ số có độ tin cậy OCR < 85% cần được Bác sĩ kiểm tra trước khi lưu vào e-CRF.`,
+        `⚠ ${count} chỉ số cần xử lý: <80% cần đối chiếu bản gốc để nhập tay, và 80–90% cần nhấn xác nhận trước khi lưu vào e-CRF.`,
       statusAllVerified: (count) =>
-        `✓ Toàn bộ ${count} chỉ số sinh học đã được xác thực, sẵn sàng lưu vào Cơ sở Dữ liệu e-CRF SLE.`,
+        `✓ Toàn bộ ${count} chỉ số sinh học đã được duyệt (>90% tự động hoặc đã xác thực), sẵn sàng lưu vào e-CRF SLE.`,
       exportJsonBtn: "Xem trước / Xuất e-CRF JSON",
       saveRegistryBtn: "Lưu vào Cơ sở Dữ liệu SLE (e-CRF) →",
       committedSectionTitle: (count) =>
@@ -710,7 +713,8 @@ export function getLocalizedLabReports(lang: Language): LabReportMock[] {
             name: "Bổ thể C3 (Đo độ đục Turbidimetry)",
             category: "Bổ thể",
             referenceRange: "0.90 – 1.80 g/L",
-            clinicalNote: "Độ tin cậy OCR thấp do dấu thập phân in mờ trên bản quét nhiệt — cần kiểm tra '0.58'.",
+            clinicalNote:
+              "Độ tin cậy OCR <80% do dấu thập phân in mờ trên bản quét nhiệt — vui lòng đối chiếu bản gốc ('0.58') và nhập tay.",
           };
         }
         if (f.id === "fld-c4") {
@@ -719,7 +723,8 @@ export function getLocalizedLabReports(lang: Language): LabReportMock[] {
             name: "Bổ thể C4 (Đo độ đục Turbidimetry)",
             category: "Bổ thể",
             referenceRange: "0.10 – 0.40 g/L",
-            clinicalNote: "Tiêu thụ bổ thể C4 mức ranh giới; cảnh báo <85% ngưỡng OCR để con người xác nhận.",
+            clinicalNote:
+              "Nhóm độ tin cậy OCR 80–90%: giá trị điền sẵn '0.09' cần người dùng nhấn xác nhận lại.",
           };
         }
         if (f.id === "fld-esr") {
@@ -771,7 +776,8 @@ export function getLocalizedLabReports(lang: Language): LabReportMock[] {
             name: "Tỷ lệ Protein/Creatinine Niệu (UPCR)",
             category: "Xét nghiệm Nước tiểu",
             referenceRange: "< 15 mg/mmol",
-            clinicalNote: "Có chữ viết tay cạnh kết quả — vui lòng xác nhận số liệu '148'.",
+            clinicalNote:
+              "Nhóm độ tin cậy OCR 80–90%: có chữ viết tay cạnh kết quả — vui lòng xác nhận số liệu '148'.",
           };
         }
         if (f.id === "fld-screat") {
@@ -798,7 +804,8 @@ export function getLocalizedLabReports(lang: Language): LabReportMock[] {
             name: "Hồng cầu Biến dạng trong Nước tiểu (Soi kính)",
             category: "Cặn lắng Nước tiểu",
             referenceRange: "0 – 4 tế bào/vi trường",
-            clinicalNote: "Dấu hiệu tiểu máu nguồn gốc cầu thận; cảnh báo để Bác sĩ xác nhận.",
+            clinicalNote:
+              "Độ tin cậy OCR <80% do bản in soi cặn mờ — vui lòng xem bản gốc ('18') và nhập tay.",
           };
         }
         return f;
@@ -994,8 +1001,36 @@ export function getLocalizedButtonActionMap(lang: Language): ButtonMappingItem[]
       page: "OCR Workspace (/ocr)",
       buttonLabel: "Lưu vào Cơ sở Dữ liệu SLE (e-CRF)",
       elementId: "ocr-btn-save-registry",
-      mockAction: "Kiểm tra toàn bộ hàng đã được xác thực và thêm bản ghi vào savedRecords.",
-      expectedOutcome: "Tăng bộ đếm Đăng ký, hiển thị tóm tắt tác động SLEDAI và ghi nhận thời gian lưu.",
+      mockAction: "Kiểm tra toàn bộ hàng <80% và 80–90% đã được xử lý, lưu vào savedRecords và đồng bộ sang /crf.",
+      expectedOutcome: "Tăng bộ đếm Đăng ký, đồng bộ chỉ số vào Hồ sơ Bệnh án SLE (CRF) và ghi nhận thời gian lưu.",
+    },
+    {
+      page: "SLE e-CRF Manager (/crf)",
+      buttonLabel: "Chạy AI OCR & Điền Hồ sơ Bệnh án (CRF)",
+      elementId: "crf-btn-run-ocr",
+      mockAction: "Quét hồ sơ bệnh án hoặc tệp tải lên và điền vào các trường CRF theo quy tắc độ tin cậy 3 mức.",
+      expectedOutcome: ">90% tự động duyệt, 80–90% đánh dấu để xác nhận lại, và <80% để trống yêu cầu xem bản gốc rồi nhập tay.",
+    },
+    {
+      page: "SLE e-CRF Manager (/crf)",
+      buttonLabel: "Bộ lọc Phân tầng 3 Mức (<80% Nhập tay / 80–90% Xác nhận / >90% Tự động)",
+      elementId: "crf-filter-*",
+      mockAction: "Lọc các trường trích xuất trong CRF theo tầng độ tin cậy hoặc nhảy tới trường chưa xử lý tiếp theo.",
+      expectedOutcome: "Giúp bác sĩ tập trung xử lý các trường <80% để trống và 80–90% cần xác nhận đối chiếu bản quét gốc.",
+    },
+    {
+      page: "SLE e-CRF Manager (/crf)",
+      buttonLabel: "Tự động Gợi ý Điểm EULAR/ACR 2019 & SLEDAI-2K",
+      elementId: "crf-btn-autoscore",
+      mockAction: "Đánh giá các chỉ số xét nghiệm và tổn thương cơ quan đã xác thực để tự động đánh dấu tiêu chuẩn EULAR/ACR và SLEDAI-2K.",
+      expectedOutcome: "Cập nhật tổng điểm phân loại EULAR/ACR (ngưỡng ≥10) và mức độ hoạt tính bệnh SLEDAI-2K.",
+    },
+    {
+      page: "SLE e-CRF Manager (/crf)",
+      buttonLabel: "Ký duyệt & Lưu Hồ sơ Bệnh án SLE (CRF)",
+      elementId: "crf-btn-signoff",
+      mockAction: "Kiểm tra toàn bộ trường <80% và 80–90% đã hoàn tất và ghi nhận chữ ký điện tử theo vai trò.",
+      expectedOutcome: "Đánh dấu Hồ sơ Bệnh án SLE đã Xác thực & Ký duyệt, sẵn sàng xuất file JSON toàn phần.",
     },
   ];
 }

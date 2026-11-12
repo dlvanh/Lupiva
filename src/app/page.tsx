@@ -52,9 +52,22 @@ export default function LandingPage() {
               {/* Hero Action Buttons */}
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Link
+                  href="/upload"
+                  id="hero-btn-launch-crf"
+                  className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-xs transition hover:bg-teal-800"
+                >
+                  <span>
+                    {language === "vi"
+                      ? "1. Bệnh nhân: Tải tài liệu lên"
+                      : "1. Patient: Upload your document"}
+                  </span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+
+                <Link
                   href="/ocr"
                   id="hero-btn-launch-ocr"
-                  className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-xs transition hover:bg-teal-800"
+                  className="inline-flex items-center gap-2 rounded-xl border border-teal-700/35 bg-teal-50 px-5 py-3 text-sm font-semibold text-teal-900 transition hover:bg-teal-100"
                 >
                   <span>{t.landing.launchOcrBtn}</span>
                   <span aria-hidden="true">→</span>
@@ -139,7 +152,11 @@ export default function LandingPage() {
 
                 <div className="space-y-3 p-4">
                   {localizedReports[0].fields.slice(0, 4).map((field) => {
-                    const needsReview = !field.verified || field.confidence < 85;
+                    const isManual = !field.verified && field.confidence < 80;
+                    const isVerify =
+                      !field.verified &&
+                      field.confidence >= 80 &&
+                      field.confidence <= 90;
                     const flagLabel =
                       field.flag === "Normal"
                         ? t.common.normal
@@ -153,7 +170,9 @@ export default function LandingPage() {
                       <div
                         key={field.id}
                         className={`flex items-center justify-between rounded-xl border p-3 text-xs ${
-                          needsReview
+                          isManual
+                            ? "border-rose-300 bg-rose-50/70"
+                            : isVerify
                             ? "border-amber-300 bg-amber-50/70"
                             : "border-slate-200 bg-white"
                         }`}
@@ -174,12 +193,22 @@ export default function LandingPage() {
 
                         <div className="text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            <span className="font-mono text-sm font-bold text-slate-900">
-                              {field.value}
-                            </span>
-                            <span className="font-mono text-[11px] text-slate-500">
-                              {field.unit}
-                            </span>
+                            {isManual ? (
+                              <span className="font-mono text-xs font-bold text-rose-700">
+                                {language === "vi"
+                                  ? "[Trống — Xem bản gốc]"
+                                  : "[Blank — Check Scan]"}
+                              </span>
+                            ) : (
+                              <>
+                                <span className="font-mono text-sm font-bold text-slate-900">
+                                  {field.value}
+                                </span>
+                                <span className="font-mono text-[11px] text-slate-500">
+                                  {field.unit}
+                                </span>
+                              </>
+                            )}
                           </div>
                           <div className="mt-1 flex items-center justify-end gap-1.5">
                             <span
@@ -193,12 +222,18 @@ export default function LandingPage() {
                             </span>
                             <span
                               className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
-                                needsReview
+                                isManual
+                                  ? "bg-rose-200 text-rose-950"
+                                  : isVerify
                                   ? "bg-amber-200/80 text-amber-950"
                                   : "bg-teal-100 text-teal-900"
                               }`}
                             >
-                              {field.confidence}% OCR
+                              {isManual
+                                ? `<80% (${field.confidence}%) Manual`
+                                : isVerify
+                                ? `80–90% (${field.confidence}%) Verify`
+                                : `>90% (${field.confidence}%) Auto`}
                             </span>
                           </div>
                         </div>

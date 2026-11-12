@@ -19,7 +19,10 @@ export interface BiomarkerField {
   code: string;
   name: string;
   category: string;
+  /** Current value in the input. Empty ("") initially when confidence < 80% */
   value: string;
+  /** Ground-truth value printed on the source lab scan sheet */
+  printedValue?: string;
   unit: string;
   referenceRange: string;
   flag: ClinicalFlag;
@@ -54,7 +57,12 @@ export interface LabReportMock {
 }
 
 export interface ButtonMappingItem {
-  page: "Global Navbar" | "Landing Page (/)" | "Login Page (/login)" | "OCR Workspace (/ocr)";
+  page:
+    | "Global Navbar"
+    | "Landing Page (/)"
+    | "Login Page (/login)"
+    | "OCR Workspace (/ocr)"
+    | "SLE e-CRF Manager (/crf)";
   buttonLabel: string;
   elementId: string;
   mockAction: string;
@@ -137,13 +145,15 @@ export const MOCK_LAB_REPORTS: LabReportMock[] = [
         code: "COMP-C3",
         name: "Complement C3 (Turbidimetry)",
         category: "Complement",
-        value: "0.58",
+        value: "",
+        printedValue: "0.58",
         unit: "g/L",
         referenceRange: "0.90 – 1.80 g/L",
         flag: "Low",
-        confidence: 78,
+        confidence: 76,
         verified: false,
-        clinicalNote: "Low OCR confidence due to faint decimal print on thermal scan — verify '0.58'.",
+        clinicalNote:
+          "<80% OCR confidence due to faint decimal print on thermal scan — check original document ('0.58') and enter manually.",
         bbox: { top: 49, left: 6, width: 88, height: 7.5 },
       },
       {
@@ -152,12 +162,14 @@ export const MOCK_LAB_REPORTS: LabReportMock[] = [
         name: "Complement C4 (Turbidimetry)",
         category: "Complement",
         value: "0.09",
+        printedValue: "0.09",
         unit: "g/L",
         referenceRange: "0.10 – 0.40 g/L",
         flag: "Low",
-        confidence: 82,
+        confidence: 84,
         verified: false,
-        clinicalNote: "Borderline low C4 consumption; flagged <85% OCR threshold for human check.",
+        clinicalNote:
+          "80–90% OCR confidence tier: pre-filled '0.09' requires user verification against scan.",
         bbox: { top: 58, left: 6, width: 88, height: 7.5 },
       },
       {
@@ -227,12 +239,14 @@ export const MOCK_LAB_REPORTS: LabReportMock[] = [
         name: "Urine Protein-to-Creatinine Ratio",
         category: "Urinalysis",
         value: "148",
+        printedValue: "148",
         unit: "mg/mmol",
         referenceRange: "< 15 mg/mmol",
         flag: "High",
-        confidence: 81,
+        confidence: 84,
         verified: false,
-        clinicalNote: "Handwritten lab annotation nearby — please verify numeric value '148'.",
+        clinicalNote:
+          "80–90% OCR confidence tier: handwritten lab annotation nearby — please verify numeric value '148'.",
         bbox: { top: 41, left: 6, width: 88, height: 8 },
       },
       {
@@ -268,13 +282,15 @@ export const MOCK_LAB_REPORTS: LabReportMock[] = [
         code: "URINE-RBC",
         name: "Urine Dysmorphic RBCs (Microscopy)",
         category: "Urinary Sediment",
-        value: "18",
+        value: "",
+        printedValue: "18",
         unit: "cells/HPF",
         referenceRange: "0 – 4 cells/HPF",
         flag: "High",
-        confidence: 79,
+        confidence: 74,
         verified: false,
-        clinicalNote: "Glomerular hematuria indicator; flagged for specialist confirmation.",
+        clinicalNote:
+          "<80% OCR confidence: smudged microscopy printout — check original document ('18') and enter manually.",
         bbox: { top: 71, left: 6, width: 88, height: 8 },
       },
     ],
@@ -494,7 +510,35 @@ export const BUTTON_ACTION_MAP: ButtonMappingItem[] = [
     page: "OCR Workspace (/ocr)",
     buttonLabel: "Save to SLE Registry (e-CRF)",
     elementId: "ocr-btn-save-registry",
-    mockAction: "Validates that all rows are verified and appends the report to savedRecords.",
-    expectedOutcome: "Increments the Registry counter, shows SLEDAI impact summary, and logs timestamp.",
+    mockAction: "Validates that all <80% manual-entry and 80–90% verify rows are resolved, saves to savedRecords, and syncs to /crf.",
+    expectedOutcome: "Increments the Registry counter, syncs values into the patient's SLE CRF, and logs timestamp.",
+  },
+  {
+    page: "SLE e-CRF Manager (/crf)",
+    buttonLabel: "Run AI OCR & Populate CRF",
+    elementId: "crf-btn-run-ocr",
+    mockAction: "Scans the selected clinical dossier or uploaded file and maps results into CRF fields using the 3-tier confidence rule.",
+    expectedOutcome: ">90% auto-approves, 80–90% highlights for verification, and <80% leaves blank for manual entry from the source scan.",
+  },
+  {
+    page: "SLE e-CRF Manager (/crf)",
+    buttonLabel: "3-Tier Triage Filter (<80% Manual / 80–90% Verify / >90% Auto)",
+    elementId: "crf-filter-*",
+    mockAction: "Filters CRF extracted fields by confidence tier or jumps to the next unresolved field.",
+    expectedOutcome: "Focuses clinician review on <80% blank fields and 80–90% verification fields with side-by-side scan grounding.",
+  },
+  {
+    page: "SLE e-CRF Manager (/crf)",
+    buttonLabel: "Auto-Suggest EULAR/ACR 2019 & SLEDAI-2K from Verified Data",
+    elementId: "crf-btn-autoscore",
+    mockAction: "Evaluates verified lab biomarkers and organ manifestations to pre-check matching EULAR/ACR and SLEDAI-2K criteria.",
+    expectedOutcome: "Updates domain-weighted EULAR/ACR score (≥10 threshold) and SLEDAI-2K disease activity total.",
+  },
+  {
+    page: "SLE e-CRF Manager (/crf)",
+    buttonLabel: "Sign Off & Commit SLE Case Report Form",
+    elementId: "crf-btn-signoff",
+    mockAction: "Verifies all <80% and 80–90% OCR fields are resolved and records role-attributed CRF sign-off.",
+    expectedOutcome: "Marks the patient's complete SLE Case Report Form as Verified & Signed and enables full JSON export.",
   },
 ];
