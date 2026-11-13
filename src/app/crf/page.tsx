@@ -620,25 +620,33 @@ export default function SleCrfManagerPage() {
           {/* 3-Tier Confidence Badge */}
           <div className="text-right">
             {isManualRequired ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-100 px-2 py-0.5 font-mono text-[10px] font-bold text-rose-900">
-                🔴 &lt;80% ({field.confidence}%) •{" "}
-                {isVi ? "Xem bản gốc & Nhập" : "Check Scan & Add"}
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-rose-100 px-2 py-0.5 font-mono text-[10px] font-bold text-rose-900">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-rose-600" />
+                <span>
+                  &lt;80% ({field.confidence}%) •{" "}
+                  {isVi ? "Xem bản gốc & Nhập" : "Check Scan & Add"}
+                </span>
               </span>
             ) : isNeedsVerify ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-950">
-                🟡 80–90% ({field.confidence}%) •{" "}
-                {isVi ? "Cần xác nhận lại" : "Verify Again"}
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-950">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                <span>
+                  80–90% ({field.confidence}%) •{" "}
+                  {isVi ? "Cần xác nhận lại" : "Verify Again"}
+                </span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-teal-800">
-                🟢{" "}
-                {field.status === "auto_approved"
-                  ? isVi
-                    ? `>90% Tự động duyệt (${field.confidence}%)`
-                    : `>90% Auto-Approved (${field.confidence}%)`
-                  : isVi
-                  ? `Đã xác nhận (${field.confidence}%)`
-                  : `User Verified (${field.confidence}%)`}
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-teal-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-teal-800">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-teal-600" />
+                <span>
+                  {field.status === "auto_approved"
+                    ? isVi
+                      ? `>90% Tự động duyệt (${field.confidence}%)`
+                      : `>90% Auto-Approved (${field.confidence}%)`
+                    : isVi
+                    ? `Đã xác nhận (${field.confidence}%)`
+                    : `User Verified (${field.confidence}%)`}
+                </span>
               </span>
             )}
           </div>
@@ -661,7 +669,7 @@ export default function SleCrfManagerPage() {
               onChange={(e) =>
                 handleUpdateOcrField(field.id, { value: e.target.value })
               }
-              className={`w-44 rounded-lg border px-2.5 py-1.5 font-mono text-xs font-bold focus:outline-none ${
+              className={`w-44 rounded-lg border px-2.5 py-1.5 font-mono text-xs font-bold ${
                 isManualRequired
                   ? "border-rose-400 bg-white text-rose-950 placeholder:font-sans placeholder:text-[10px] placeholder:font-normal placeholder:text-rose-500 focus:border-rose-600"
                   : isNeedsVerify
@@ -681,7 +689,7 @@ export default function SleCrfManagerPage() {
                     secondaryValue: e.target.value,
                   })
                 }
-                className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 font-mono text-xs font-semibold text-slate-700 focus:border-teal-700 focus:bg-white focus:outline-none"
+                className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 font-mono text-xs font-semibold text-slate-700 focus:border-teal-700 focus:bg-white"
               />
             )}
 
@@ -746,8 +754,8 @@ export default function SleCrfManagerPage() {
                 className="rounded-lg bg-amber-600 px-3 py-1 text-[11px] font-semibold text-white shadow-2xs hover:bg-amber-700 cursor-pointer"
               >
                 {isVi
-                  ? `✓ Xác nhận (${field.confidence}%)`
-                  : `✓ Verify (${field.confidence}%)`}
+                  ? `Xác nhận (${field.confidence}%)`
+                  : `Verify (${field.confidence}%)`}
               </button>
             )}
           </div>
@@ -850,7 +858,7 @@ export default function SleCrfManagerPage() {
   };
 
   return (
-    <main className="flex-1 bg-slate-100/80 pb-14">
+    <main id="main-content" tabIndex={-1} className="flex-1 bg-slate-100/80 pb-14">
       {/* Compact context bar: patient + status + utilities (one row) */}
       <div className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
@@ -884,8 +892,9 @@ export default function SleCrfManagerPage() {
                 ))}
               </select>
               {activePatient.signedOffBy ? (
-                <span className="rounded bg-teal-700 px-2 py-1 text-xs font-bold text-white">
-                  ✓ {isVi ? "Đã ký duyệt:" : "Signed off:"} {activePatient.signedOffBy}
+                <span className="inline-flex items-center gap-1.5 rounded bg-teal-700 px-2 py-1 text-xs font-bold text-white">
+                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-white" />
+                  {isVi ? "Đã ký duyệt:" : "Signed off:"} {activePatient.signedOffBy}
                 </span>
               ) : (
                 <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">
@@ -925,15 +934,25 @@ export default function SleCrfManagerPage() {
               <details className="relative">
                 <summary
                   aria-label={isVi ? "Thêm thao tác" : "More actions"}
-                  className="flex cursor-pointer list-none items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
-                  {isVi ? "Thêm ⋯" : "More ⋯"}
+                  <span>{isVi ? "Thêm" : "More"}</span>
+                  <svg
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 text-slate-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
                 </summary>
                 <div className="absolute right-0 z-30 mt-1 w-60 rounded-xl border border-slate-200 bg-white p-1.5 text-xs shadow-lg">
                   {[
                     {
                       id: "crf-menu-docx",
-                      label: isVi ? "📄 Xem bản .docx" : "📄 Preview .docx",
+                      label: isVi ? "Xem bản .docx" : "Preview .docx",
                       run: () => {
                         setWorkflowStep("step3_signoff");
                         setViewMode("clean");
@@ -941,7 +960,7 @@ export default function SleCrfManagerPage() {
                     },
                     {
                       id: "crf-btn-print",
-                      label: isVi ? "🖨 In" : "🖨 Print",
+                      label: isVi ? "In hồ sơ" : "Print CRF",
                       run: () => {
                         setWorkflowStep("step3_signoff");
                         setViewMode("clean");
@@ -950,12 +969,12 @@ export default function SleCrfManagerPage() {
                     },
                     {
                       id: "crf-btn-export-json",
-                      label: isVi ? "{ } Xem trước / Xuất JSON" : "{ } Preview / Export JSON",
+                      label: isVi ? "Xem trước / Xuất JSON" : "Preview / Export JSON",
                       run: () => setIsJsonModalOpen(true),
                     },
                     {
                       id: "crf-menu-rerun",
-                      label: isVi ? "⚡ Chạy lại AI OCR" : "⚡ Re-run AI OCR",
+                      label: isVi ? "Chạy lại AI OCR" : "Re-run AI OCR",
                       run: handleRunOcrOnCrf,
                     },
                     {
@@ -998,7 +1017,7 @@ export default function SleCrfManagerPage() {
                       ? isVi
                         ? `${triageStats.unresolved} cần xử lý`
                         : `${triageStats.unresolved} to resolve`
-                      : isVi ? "✓ Hoàn tất" : "✓ All resolved",
+                      : isVi ? "Hoàn tất" : "All resolved",
                   ok: triageStats.unresolved === 0,
                 },
                 {
@@ -1013,7 +1032,7 @@ export default function SleCrfManagerPage() {
                   n: 3,
                   title: isVi ? "Phê duyệt & xuất" : "Approve & export",
                   badge: activePatient.signedOffBy
-                    ? isVi ? "✓ Đã ký" : "✓ Signed"
+                    ? isVi ? "Đã ký" : "Signed"
                     : isVi ? "Chưa ký" : "Not signed",
                   ok: Boolean(activePatient.signedOffBy),
                 },
@@ -1426,16 +1445,19 @@ export default function SleCrfManagerPage() {
               {/* Viewer Legend */}
               <div className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-[11px] text-slate-600">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span>
-                    🔴 <strong>&lt;80%</strong>:{" "}
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-rose-600" />
+                    <strong>&lt;80%</strong>:{" "}
                     {isVi ? "Đọc số in & nhập tay" : "Read scan & add"}
                   </span>
-                  <span>
-                    🟡 <strong>80–90%</strong>:{" "}
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-500" />
+                    <strong>80–90%</strong>:{" "}
                     {isVi ? "Xác nhận lại" : "Verify"}
                   </span>
-                  <span>
-                    🟢 <strong>&gt;90%</strong>:{" "}
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-teal-600" />
+                    <strong>&gt;90%</strong>:{" "}
                     {isVi ? "Tự động duyệt" : "Auto-approve"}
                   </span>
                 </div>
@@ -1464,15 +1486,17 @@ export default function SleCrfManagerPage() {
                 </div>
 
                 {triageStats.unresolved === 0 && (
-                  <p className="rounded-xl bg-teal-50 p-4 text-sm font-semibold text-teal-900">
-                    ✓ {isVi ? "Mọi mục đã được xác thực. Tiếp tục sang Bước 2." : "Everything is resolved. Continue to Step 2."}
+                  <p className="flex items-center gap-2 rounded-xl bg-teal-50 p-4 text-sm font-semibold text-teal-900">
+                    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-teal-600" />
+                    {isVi ? "Mọi mục đã được xác thực. Tiếp tục sang Bước 2." : "Everything is resolved. Continue to Step 2."}
                   </p>
                 )}
 
                 {triageStats.manualUnder80 > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-rose-800">
-                      🔴 {isVi ? "Xem bản gốc & nhập tay (<80%)" : "Check scan & enter value (<80%)"}
+                    <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-rose-800">
+                      <span aria-hidden="true" className="h-2 w-2 rounded-full bg-rose-600" />
+                      {isVi ? "Xem bản gốc & nhập tay (<80%)" : "Check scan & enter value (<80%)"}
                     </h3>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       {activePatient.ocrFields
@@ -1526,7 +1550,7 @@ export default function SleCrfManagerPage() {
                               >
                                 {manual
                                   ? isVi ? `+ Nhập "${b.printedResult}"` : `+ Fill "${b.printedResult}"`
-                                  : isVi ? "✓ Xác nhận" : "✓ Verify"}
+                                  : isVi ? "Xác nhận" : "Verify"}
                               </button>
                             </div>
                           );
@@ -1538,15 +1562,16 @@ export default function SleCrfManagerPage() {
                 {triageStats.verify80to90 > 0 && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-amber-800">
-                        🟡 {isVi ? "Xác nhận giá trị điền sẵn (80–90%)" : "Confirm pre-filled values (80–90%)"}
+                      <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-800">
+                        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-500" />
+                        {isVi ? "Xác nhận giá trị điền sẵn (80–90%)" : "Confirm pre-filled values (80–90%)"}
                       </h3>
                       <button
                         type="button"
                         onClick={handleVerifyAll80To90}
                         className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-50 cursor-pointer"
                       >
-                        {isVi ? "✓ Xác nhận tất cả 80–90%" : "✓ Verify all 80–90%"}
+                        {isVi ? "Xác nhận tất cả 80–90%" : "Verify all 80–90%"}
                       </button>
                     </div>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -1558,8 +1583,11 @@ export default function SleCrfManagerPage() {
                 )}
 
                 <details className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-                  <summary className="cursor-pointer text-xs font-bold text-teal-900">
-                    🟢 {isVi ? "Đã tự động duyệt / xác nhận" : "Auto-approved & verified"} ({triageStats.approved})
+                  <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-bold text-teal-900">
+                    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-teal-600" />
+                    <span>
+                      {isVi ? "Đã tự động duyệt / xác nhận" : "Auto-approved & verified"} ({triageStats.approved})
+                    </span>
                   </summary>
                   <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                     {activePatient.ocrFields
@@ -1610,7 +1638,7 @@ export default function SleCrfManagerPage() {
                   >
                     {viewMode === "clean"
                       ? isVi ? "Ẩn bản .docx" : "Hide .docx preview"
-                      : isVi ? "📄 Xem bản .docx" : "📄 Show .docx preview"}
+                      : isVi ? "Xem bản .docx" : "Show .docx preview"}
                   </button>
                 </div>
               </section>
@@ -1651,11 +1679,15 @@ export default function SleCrfManagerPage() {
 
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">
+                    <label htmlFor="crf-study-id" className="block text-xs font-semibold text-slate-700">
                       Study ID (XX-XXXX-XX)
                     </label>
                     <input
+                      id="crf-study-id"
                       type="text"
+                      autoCorrect="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
                       value={activePatient.studyId}
                       onChange={(e) =>
                         patchPatient((p) => ({ ...p, studyId: e.target.value }))
@@ -1665,11 +1697,13 @@ export default function SleCrfManagerPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">
+                    <label htmlFor="crf-patient-name" className="block text-xs font-semibold text-slate-700">
                       {isVi ? "Họ và Tên Bệnh nhân" : "Patient Full Name"}
                     </label>
                     <input
+                      id="crf-patient-name"
                       type="text"
+                      autoComplete="name"
                       value={activePatient.patientName}
                       onChange={(e) =>
                         patchPatient((p) => ({
@@ -1683,10 +1717,11 @@ export default function SleCrfManagerPage() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700">
+                      <label htmlFor="crf-patient-age" className="block text-xs font-semibold text-slate-700">
                         {isVi ? "Tuổi (Age)" : "Age"}
                       </label>
                       <input
+                        id="crf-patient-age"
                         type="number"
                         value={activePatient.age}
                         onChange={(e) =>
@@ -1696,10 +1731,11 @@ export default function SleCrfManagerPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700">
+                      <label htmlFor="crf-patient-gender" className="block text-xs font-semibold text-slate-700">
                         {isVi ? "Giới tính" : "Gender"}
                       </label>
                       <select
+                        id="crf-patient-gender"
                         value={activePatient.gender}
                         onChange={(e) =>
                           patchPatient((p) => ({
@@ -1720,13 +1756,16 @@ export default function SleCrfManagerPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">
+                    <label htmlFor="crf-icf-date" className="block text-xs font-semibold text-slate-700">
                       {isVi
                         ? "Ngày ký ICF (DD/MM/YYYY)"
                         : "ICF Signed Date (DD/MM/YYYY)"}
                     </label>
                     <input
+                      id="crf-icf-date"
                       type="text"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={activePatient.icfSignedDate}
                       onChange={(e) =>
                         patchPatient((p) => ({
@@ -1740,10 +1779,11 @@ export default function SleCrfManagerPage() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700">
+                      <label htmlFor="crf-height-cm" className="block text-xs font-semibold text-slate-700">
                         {isVi ? "Chiều cao (cm)" : "Height (cm)"}
                       </label>
                       <input
+                        id="crf-height-cm"
                         type="number"
                         value={activePatient.heightCm}
                         onChange={(e) =>
@@ -1756,10 +1796,11 @@ export default function SleCrfManagerPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700">
+                      <label htmlFor="crf-weight-kg" className="block text-xs font-semibold text-slate-700">
                         {isVi ? "Cân nặng (kg)" : "Weight (kg)"}
                       </label>
                       <input
+                        id="crf-weight-kg"
                         type="number"
                         step="0.1"
                         value={activePatient.weightKg}
@@ -1775,10 +1816,11 @@ export default function SleCrfManagerPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">
+                    <label htmlFor="crf-bmi" className="block text-xs font-semibold text-slate-700">
                       {isVi ? "Chỉ số BMI (Tự động)" : "BMI (Auto-calculated)"}
                     </label>
                     <input
+                      id="crf-bmi"
                       type="text"
                       readOnly
                       value={`${calculatedBmi} kg/m²`}
@@ -1787,10 +1829,11 @@ export default function SleCrfManagerPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">
+                    <label htmlFor="crf-physician" className="block text-xs font-semibold text-slate-700">
                       {isVi ? "Bác sĩ điều trị (Physician)" : "Physician"}
                     </label>
                     <input
+                      id="crf-physician"
                       type="text"
                       value={activePatient.physician}
                       onChange={(e) =>
@@ -1804,10 +1847,11 @@ export default function SleCrfManagerPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">
+                    <label htmlFor="crf-nurse" className="block text-xs font-semibold text-slate-700">
                       {isVi ? "Điều dưỡng (Nurse)" : "Nurse"}
                     </label>
                     <input
+                      id="crf-nurse"
                       type="text"
                       value={activePatient.nurse}
                       onChange={(e) =>
@@ -2301,16 +2345,25 @@ export default function SleCrfManagerPage() {
                     </button>
                   </div>
 
-                  <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+                  <div
+                    tabIndex={0}
+                    role="region"
+                    aria-label={
+                      isVi
+                        ? "Bảng điều trị và tiêm chủng"
+                        : "Treatment and vaccination table"
+                    }
+                    className="mt-3 overflow-x-auto rounded-xl border border-slate-200"
+                  >
                     <table className="w-full border-collapse text-left text-xs">
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600">
-                          <th className="px-3 py-2">{isVi ? "Nhóm" : "Group"}</th>
-                          <th className="px-3 py-2">{isVi ? "Tên thuốc / Vắc-xin" : "Name"}</th>
-                          <th className="px-3 py-2">{isVi ? "Đường dùng" : "Route"}</th>
-                          <th className="px-3 py-2">{isVi ? "Liều" : "Dose"}</th>
-                          <th className="px-3 py-2">{isVi ? "Tần suất" : "Frequency"}</th>
-                          <th className="px-3 py-2">{isVi ? "Thời gian (Bắt đầu/Kết thúc)" : "Duration (Begin/End)"}</th>
+                          <th scope="col" className="px-3 py-2">{isVi ? "Nhóm" : "Group"}</th>
+                          <th scope="col" className="px-3 py-2">{isVi ? "Tên thuốc / Vắc-xin" : "Name"}</th>
+                          <th scope="col" className="px-3 py-2">{isVi ? "Đường dùng" : "Route"}</th>
+                          <th scope="col" className="px-3 py-2">{isVi ? "Liều" : "Dose"}</th>
+                          <th scope="col" className="px-3 py-2">{isVi ? "Tần suất" : "Frequency"}</th>
+                          <th scope="col" className="px-3 py-2">{isVi ? "Thời gian (Bắt đầu/Kết thúc)" : "Duration (Begin/End)"}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200">
@@ -3196,24 +3249,29 @@ export default function SleCrfManagerPage() {
                       <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-800">
                         {isVi ? titleVi : titleEn}
                       </h3>
-                      <div className="overflow-x-auto rounded-xl border border-slate-200">
+                      <div
+                        tabIndex={0}
+                        role="region"
+                        aria-label={isVi ? titleVi : titleEn}
+                        className="overflow-x-auto rounded-xl border border-slate-200"
+                      >
                         <table className="w-full border-collapse text-left text-xs">
                           <thead>
                             <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600">
-                              <th className="px-3 py-2">
+                              <th scope="col" className="px-3 py-2">
                                 {isVi ? "Kháng thể" : "Antibody"}
                               </th>
-                              <th className="px-3 py-2">
+                              <th scope="col" className="px-3 py-2">
                                 {isVi
                                   ? "Kết quả (Negative / Positive / Borderline)"
                                   : "Result (Negative / Positive / Borderline)"}
                               </th>
-                              <th className="px-3 py-2">
+                              <th scope="col" className="px-3 py-2">
                                 {isVi
                                   ? "Cường độ (Nếu Dương tính / Ranh giới)"
                                   : "Intensity (If Positive / Borderline)"}
                               </th>
-                              <th className="px-3 py-2 text-right">
+                              <th scope="col" className="px-3 py-2 text-right">
                                 {isVi ? "Phân tầng OCR" : "3-Tier OCR Status"}
                               </th>
                             </tr>
@@ -3309,12 +3367,15 @@ export default function SleCrfManagerPage() {
                                             status: "user_verified",
                                           })
                                         }
-                                        className="rounded bg-rose-600 px-2.5 py-1 font-mono text-[10px] font-bold text-white hover:bg-rose-700 cursor-pointer"
+                                        className="inline-flex items-center gap-1.5 rounded bg-rose-600 px-2.5 py-1 font-mono text-[10px] font-bold text-white hover:bg-rose-700 cursor-pointer"
                                       >
-                                        🔴 &lt;80% ({row.confidence}%) •{" "}
-                                        {isVi
-                                          ? `Nhập "${row.printedResult}"`
-                                          : `Add "${row.printedResult}"`}
+                                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-white" />
+                                        <span>
+                                          &lt;80% ({row.confidence}%) •{" "}
+                                          {isVi
+                                            ? `Nhập "${row.printedResult}"`
+                                            : `Add "${row.printedResult}"`}
+                                        </span>
                                       </button>
                                     ) : isVerify ? (
                                       <button
@@ -3324,19 +3385,24 @@ export default function SleCrfManagerPage() {
                                             status: "user_verified",
                                           })
                                         }
-                                        className="rounded bg-amber-600 px-2.5 py-1 font-mono text-[10px] font-bold text-white hover:bg-amber-700 cursor-pointer"
+                                        className="inline-flex items-center gap-1.5 rounded bg-amber-600 px-2.5 py-1 font-mono text-[10px] font-bold text-white hover:bg-amber-700 cursor-pointer"
                                       >
-                                        🟡{" "}
-                                        {isVi
-                                          ? `Xác nhận (${row.confidence}%)`
-                                          : `Verify (${row.confidence}%)`}
+                                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-white" />
+                                        <span>
+                                          {isVi
+                                            ? `Xác nhận (${row.confidence}%)`
+                                            : `Verify (${row.confidence}%)`}
+                                        </span>
                                       </button>
                                     ) : (
-                                      <span className="font-mono text-[10px] font-semibold text-teal-800">
-                                        🟢 {row.confidence}%{" "}
-                                        {row.status === "auto_approved"
-                                          ? "Auto"
-                                          : "Verified"}
+                                      <span className="inline-flex items-center justify-end gap-1.5 font-mono text-[10px] font-semibold text-teal-800">
+                                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-teal-600" />
+                                        <span>
+                                          {row.confidence}%{" "}
+                                          {row.status === "auto_approved"
+                                            ? "Auto"
+                                            : "Verified"}
+                                        </span>
                                       </span>
                                     )}
                                   </td>
@@ -3380,8 +3446,8 @@ export default function SleCrfManagerPage() {
                       className="rounded-xl border border-teal-700/40 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
                     >
                       {isVi
-                        ? "⚡ Tự động Gợi ý Điểm từ Xét nghiệm"
-                        : "⚡ Auto-Suggest from Verified CRF Data"}
+                        ? "Tự động Gợi ý Điểm từ Xét nghiệm"
+                        : "Auto-Suggest from Verified CRF Data"}
                     </button>
                     <div
                       className={`rounded-xl border px-3.5 py-2 text-right font-mono ${
@@ -3536,20 +3602,29 @@ export default function SleCrfManagerPage() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <div
+                  tabIndex={0}
+                  role="region"
+                  aria-label={
+                    isVi
+                      ? "Bảng thang điểm hoạt tính bệnh SLEDAI-2K"
+                      : "SLEDAI-2K Disease Activity Score table"
+                  }
+                  className="overflow-x-auto rounded-xl border border-slate-200"
+                >
                   <table className="w-full border-collapse text-left text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600">
-                        <th className="px-3 py-2 text-center">
+                        <th scope="col" className="px-3 py-2 text-center">
                           {isVi ? "Điểm" : "Score"}
                         </th>
-                        <th className="px-3 py-2">
+                        <th scope="col" className="px-3 py-2">
                           {isVi ? "Tiêu chuẩn" : "Criterion"}
                         </th>
-                        <th className="px-3 py-2">
+                        <th scope="col" className="px-3 py-2">
                           {isVi ? "Định nghĩa Lâm sàng" : "Definition"}
                         </th>
-                        <th className="px-3 py-2 text-center">
+                        <th scope="col" className="px-3 py-2 text-center">
                           {isVi ? "Chọn" : "Check"}
                         </th>
                       </tr>
@@ -3624,8 +3699,8 @@ export default function SleCrfManagerPage() {
                     ? `Còn ${triageStats.unresolved} mục OCR chưa xử lý (${triageStats.manualUnder80} <80%, ${triageStats.verify80to90} 80–90%).`
                     : `${triageStats.unresolved} OCR field(s) unresolved (${triageStats.manualUnder80} <80%, ${triageStats.verify80to90} 80–90%).`
                   : isVi
-                  ? `✓ Toàn bộ ${triageStats.total} trường OCR đã xác thực.`
-                  : `✓ All ${triageStats.total} OCR fields verified.`}
+                  ? `Toàn bộ ${triageStats.total} trường OCR đã xác thực.`
+                  : `All ${triageStats.total} OCR fields verified.`}
               </p>
 
               <div className="flex flex-wrap items-center gap-2.5">
@@ -3638,7 +3713,7 @@ export default function SleCrfManagerPage() {
                     }
                     className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer"
                   >
-                    ← {isVi ? "Quay lại" : "Back"}
+                    {isVi ? "Quay lại" : "Back"}
                   </button>
                 )}
                 {workflowStep === "step1_triage" && triageStats.unresolved > 0 && (
@@ -3658,7 +3733,7 @@ export default function SleCrfManagerPage() {
                     onClick={handleAutoSuggestScores}
                     className="rounded-xl border border-teal-700/40 bg-teal-50 px-4 py-2.5 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
                   >
-                    {isVi ? "⚡ Tự động tính điểm" : "⚡ Auto-calculate scores"}
+                    {isVi ? "Tự động tính điểm" : "Auto-calculate scores"}
                   </button>
                 )}
                 {workflowStep !== "step3_signoff" ? (
@@ -3671,8 +3746,8 @@ export default function SleCrfManagerPage() {
                     className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
                   >
                     {workflowStep === "step1_triage"
-                      ? isVi ? "Tiếp tục: Rà soát CRF →" : "Continue: Review CRF →"
-                      : isVi ? "Tiếp tục: Phê duyệt →" : "Continue: Approve →"}
+                      ? isVi ? "Tiếp tục: Rà soát CRF" : "Continue: Review CRF"
+                      : isVi ? "Tiếp tục: Phê duyệt" : "Continue: Approve"}
                   </button>
                 ) : (
                   <button
@@ -3681,7 +3756,7 @@ export default function SleCrfManagerPage() {
                     onClick={handleSignOffCrf}
                     className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
                   >
-                    {isVi ? "✓ Phê duyệt & Ký CRF" : "✓ Approve & Sign Off CRF"}
+                    {isVi ? "Phê duyệt & Ký CRF" : "Approve & Sign Off CRF"}
                   </button>
                 )}
               </div>
@@ -3696,12 +3771,13 @@ export default function SleCrfManagerPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="modal-new-crf-title"
         >
           <form
             onSubmit={handleCreatePatientSubmit}
             className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
           >
-            <h2 className="text-base font-bold text-slate-900">
+            <h2 id="modal-new-crf-title" className="text-base font-bold text-slate-900">
               {isVi
                 ? "Khởi tạo Hồ sơ Bệnh án SLE (CRF) Mới"
                 : "Create New SLE Case Report Form (CRF)"}
@@ -3713,11 +3789,15 @@ export default function SleCrfManagerPage() {
             </p>
             <div className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700">
+                <label htmlFor="modal-new-study-id" className="block text-xs font-semibold text-slate-700">
                   Study ID (XX-XXXX-XX)
                 </label>
                 <input
+                  id="modal-new-study-id"
                   type="text"
+                  autoCorrect="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
                   placeholder="VN-0125-26"
                   value={newStudyId}
                   onChange={(e) => setNewStudyId(e.target.value)}
@@ -3725,11 +3805,13 @@ export default function SleCrfManagerPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700">
+                <label htmlFor="modal-new-patient-name" className="block text-xs font-semibold text-slate-700">
                   {isVi ? "Họ và Tên Bệnh nhân" : "Patient Full Name"}
                 </label>
                 <input
+                  id="modal-new-patient-name"
                   type="text"
+                  autoComplete="name"
                   placeholder="Nguyen Thi Thu"
                   value={newPatientName}
                   onChange={(e) => setNewPatientName(e.target.value)}
@@ -3762,11 +3844,12 @@ export default function SleCrfManagerPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="modal-json-preview-title"
         >
           <div className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
               <div>
-                <h2 className="text-base font-bold text-slate-900">
+                <h2 id="modal-json-preview-title" className="text-base font-bold text-slate-900">
                   {isVi
                     ? "Dữ liệu Cấu trúc SLE Case Report Form (JSON)"
                     : "Structured SLE Case Report Form Payload (JSON)"}
@@ -3784,8 +3867,13 @@ export default function SleCrfManagerPage() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto bg-slate-900 p-5 text-slate-100">
-              <pre className="font-mono text-xs leading-relaxed">
-                {JSON.stringify(fullCrfJsonPayload, null, 2)}
+              <pre
+                role="region"
+                aria-label="SLE Case Report Form JSON payload"
+                tabIndex={0}
+                className="font-mono text-xs leading-relaxed"
+              >
+                <code>{JSON.stringify(fullCrfJsonPayload, null, 2)}</code>
               </pre>
             </div>
             <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-6 py-3">

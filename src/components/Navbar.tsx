@@ -44,6 +44,17 @@ export function Navbar() {
     };
   }, [toast, dismissToast]);
 
+  useEffect(() => {
+    if (!isActionGuideOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsActionGuideOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isActionGuideOpen, setIsActionGuideOpen]);
+
   const visibleToast = toast;
   const isFadingOut = Boolean(toast && fadingToastId === toast.id);
 
@@ -58,17 +69,24 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 backdrop-blur-md">
+      <a
+        href="#main-content"
+        className="skip-link fixed top-2 left-2 z-50 rounded-md bg-teal-800 px-3.5 py-2 text-xs font-semibold text-white shadow-md"
+      >
+        {language === "vi" ? "Chuyển tới nội dung chính" : "Skip to main content"}
+      </a>
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           {/* Brand Logo */}
           <div className="flex items-center gap-3">
             <Link
               href="/"
               id="nav-brand-logo"
-              className="group flex items-center gap-2.5 focus:outline-none"
+              className="group flex items-center gap-2.5 rounded-lg"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-700 text-white shadow-xs transition group-hover:bg-teal-800">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-teal-800/20 bg-teal-700 text-white shadow-2xs transition group-hover:bg-teal-800">
                 <svg
+                  aria-hidden="true"
                   className="h-5 w-5"
                   viewBox="0 0 24 24"
                   fill="none"
@@ -77,7 +95,7 @@ export function Navbar() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z" />
+                  <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3z" />
                 </svg>
               </div>
               <div>
@@ -85,7 +103,7 @@ export function Navbar() {
                   <span className="text-lg font-bold tracking-tight text-slate-900">
                     Lupiva
                   </span>
-                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-medium text-slate-700">
+                  <span className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-medium text-slate-700">
                     e-CRF v1.0
                   </span>
                 </div>
@@ -98,8 +116,8 @@ export function Navbar() {
 
           {/* Primary Navigation Links */}
           <nav
-            aria-label="Main navigation"
-            className="flex items-center gap-1 rounded-lg bg-slate-100/90 p-1"
+            aria-label="Primary"
+            className="flex items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-100/90 p-1"
           >
             {navLinks.map((item) => {
               const isActive = pathname === item.href;
@@ -108,9 +126,10 @@ export function Navbar() {
                   key={item.href}
                   href={item.href}
                   id={item.id}
+                  aria-current={isActive ? "page" : undefined}
                   className={`rounded-md px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
                     isActive
-                      ? "bg-white text-teal-800 shadow-xs"
+                      ? "bg-white text-teal-800 shadow-2xs"
                       : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
                   }`}
                 >
@@ -137,11 +156,12 @@ export function Navbar() {
                 type="button"
                 id="nav-btn-language-toggle"
                 onClick={toggleLanguage}
-                title={t.common.languageToggleTitle}
+                aria-label={t.common.languageToggleTitle}
                 className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200/60 cursor-pointer"
               >
                 {/* Globe Icon */}
                 <svg
+                  aria-hidden="true"
                   className="h-3.5 w-3.5 text-teal-700"
                   viewBox="0 0 24 24"
                   fill="none"
@@ -162,7 +182,7 @@ export function Navbar() {
                     }}
                     className={`rounded px-1.5 py-0.5 transition ${
                       language === "en"
-                        ? "bg-teal-700 font-bold text-white shadow-xs"
+                        ? "bg-teal-700 font-bold text-white shadow-2xs"
                         : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
@@ -176,7 +196,7 @@ export function Navbar() {
                     }}
                     className={`rounded px-1.5 py-0.5 transition ${
                       language === "vi"
-                        ? "bg-teal-700 font-bold text-white shadow-xs"
+                        ? "bg-teal-700 font-bold text-white shadow-2xs"
                         : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
@@ -192,9 +212,9 @@ export function Navbar() {
               id="nav-btn-action-guide"
               onClick={() => setIsActionGuideOpen(true)}
               className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-teal-600/40 hover:bg-teal-50/50 hover:text-teal-900 cursor-pointer"
-              title={t.navbar.inspectButtonsTitle}
             >
               <svg
+                aria-hidden="true"
                 className="h-3.5 w-3.5 text-teal-700"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -211,6 +231,7 @@ export function Navbar() {
             {currentUser ? (
               <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1 shadow-2xs">
                 <span
+                  aria-hidden="true"
                   className={`h-2 w-2 rounded-full ${
                     currentUser.role === "specialist"
                       ? "bg-teal-600"
@@ -266,7 +287,8 @@ export function Navbar() {
           }`}
         >
           <div
-            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+            aria-hidden="true"
+            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white ${
               visibleToast.tone === "teal"
                 ? "bg-teal-700"
                 : visibleToast.tone === "amber"
@@ -274,7 +296,18 @@ export function Navbar() {
                 : "bg-slate-800"
             }`}
           >
-            ✓
+            <svg
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
           </div>
           <div className="flex-1 text-xs">
             <p className="font-semibold text-slate-900">{visibleToast.title}</p>
@@ -283,10 +316,22 @@ export function Navbar() {
           <button
             type="button"
             onClick={dismissToast}
-            className="rounded p-1 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
             aria-label="Close notification"
           >
-            ✕
+            <svg
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
       )}
@@ -298,8 +343,11 @@ export function Navbar() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-button-map-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsActionGuideOpen(false);
+          }}
         >
-          <div className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+          <div className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
               <div>
                 <h2
@@ -323,20 +371,25 @@ export function Navbar() {
             </div>
 
             <div className="overflow-y-auto p-6">
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <div
+                tabIndex={0}
+                role="region"
+                aria-labelledby="modal-button-map-title"
+                className="overflow-x-auto rounded-lg border border-slate-200"
+              >
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-slate-700">
-                      <th className="px-3.5 py-2.5 font-semibold">
+                      <th scope="col" className="px-3.5 py-2.5 font-semibold">
                         {t.navbar.modalThPage}
                       </th>
-                      <th className="px-3.5 py-2.5 font-semibold">
+                      <th scope="col" className="px-3.5 py-2.5 font-semibold">
                         {t.navbar.modalThButton}
                       </th>
-                      <th className="px-3.5 py-2.5 font-semibold">
+                      <th scope="col" className="px-3.5 py-2.5 font-semibold">
                         {t.navbar.modalThAction}
                       </th>
-                      <th className="px-3.5 py-2.5 font-semibold">
+                      <th scope="col" className="px-3.5 py-2.5 font-semibold">
                         {t.navbar.modalThOutcome}
                       </th>
                     </tr>

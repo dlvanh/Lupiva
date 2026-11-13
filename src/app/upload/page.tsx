@@ -69,10 +69,10 @@ export default function PatientUploadPage() {
   };
 
   return (
-    <main className="flex-1 py-10">
+    <main id="main-content" tabIndex={-1} className="flex-1 py-10 focus:outline-none">
       <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-          <span className="font-mono text-xs font-semibold uppercase text-teal-800">
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs">
+          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
             {isVi ? "Cổng Bệnh nhân" : "Patient Portal"}
           </span>
           <h1 className="mt-1 text-2xl font-bold text-slate-900">
@@ -101,6 +101,25 @@ export default function PatientUploadPage() {
                 : "border-slate-300 bg-slate-50"
             }`}
           >
+            <div
+              aria-hidden="true"
+              className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-teal-700 shadow-2xs"
+            >
+              <svg
+                aria-hidden="true"
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </div>
             <p className="text-sm font-semibold text-slate-800">
               {isVi
                 ? "Kéo thả ảnh / PDF vào đây"
@@ -151,10 +170,12 @@ export default function PatientUploadPage() {
                       <img
                         src={f.url}
                         alt={f.name}
+                        width={40}
+                        height={40}
                         className="h-10 w-10 rounded object-cover"
                       />
                     ) : (
-                      <span className="flex h-10 w-10 items-center justify-center rounded bg-slate-100 font-mono text-[10px] font-bold text-slate-600">
+                      <span className="flex h-10 w-10 items-center justify-center rounded border border-slate-200 bg-slate-100 font-mono text-[10px] font-bold text-slate-600">
                         PDF
                       </span>
                     )}
@@ -165,10 +186,22 @@ export default function PatientUploadPage() {
                     onClick={() =>
                       setFiles((prev) => prev.filter((x) => x.id !== f.id))
                     }
-                    className="text-slate-500 hover:text-rose-700 cursor-pointer"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-700 cursor-pointer"
                     aria-label={`Remove ${f.name}`}
                   >
-                    ✕
+                    <svg
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
                   </button>
                 </li>
               ))}
@@ -180,13 +213,13 @@ export default function PatientUploadPage() {
             id="upload-btn-submit"
             disabled={files.length === 0}
             onClick={handleSubmit}
-            className="mt-5 w-full rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+            className="mt-5 w-full rounded-lg bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-2xs hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
           >
             {isVi ? "Tải lên & Gửi cho Bác sĩ" : "Upload & send to doctor"}
           </button>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs">
           <h2 className="text-base font-bold text-slate-900">
             {isVi ? "Trạng thái tài liệu đã gửi" : "Your submissions"}
           </h2>
@@ -196,7 +229,7 @@ export default function PatientUploadPage() {
               return (
                 <div
                   key={p.id}
-                  className="rounded-xl border border-slate-200 p-4 text-xs"
+                  className="rounded-lg border border-slate-200 p-4 text-xs"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -211,34 +244,67 @@ export default function PatientUploadPage() {
                     <button
                       type="button"
                       onClick={() => openAsDoctor(p.id)}
-                      className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer"
                     >
-                      {isVi
-                        ? "Chuyển sang góc nhìn Bác sĩ →"
-                        : "Switch to Doctor view →"}
+                      <span>
+                        {isVi
+                          ? "Chuyển sang góc nhìn Bác sĩ"
+                          : "Switch to Doctor view"}
+                      </span>
+                      <svg
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M5 12h14" />
+                        <path d="m12 5 7 7-7 7" />
+                      </svg>
                     </button>
                   </div>
                   <ol className="mt-3 grid grid-cols-3 gap-2 font-semibold">
-                    <li className="rounded bg-teal-50 px-2 py-1.5 text-teal-900">
-                      ✓ {isVi ? "Đã tải lên" : "Uploaded"}
+                    <li className="flex items-center gap-1.5 rounded border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-teal-900">
+                      <span
+                        aria-hidden="true"
+                        className="h-2 w-2 shrink-0 rounded-full bg-teal-600"
+                      />
+                      <span>{isVi ? "1. Đã tải lên" : "1. Uploaded"}</span>
                     </li>
-                    <li className="rounded bg-teal-50 px-2 py-1.5 text-teal-900">
-                      ✓ {isVi ? "AI đã trích xuất" : "AI OCR extracted"}
+                    <li className="flex items-center gap-1.5 rounded border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-teal-900">
+                      <span
+                        aria-hidden="true"
+                        className="h-2 w-2 shrink-0 rounded-full bg-teal-600"
+                      />
+                      <span>
+                        {isVi ? "2. AI đã trích xuất" : "2. AI OCR extracted"}
+                      </span>
                     </li>
                     <li
-                      className={`rounded px-2 py-1.5 ${
+                      className={`flex items-center gap-1.5 rounded border px-2.5 py-1.5 ${
                         approved
-                          ? "bg-teal-700 text-white"
-                          : "bg-amber-100 text-amber-900"
+                          ? "border-teal-700 bg-teal-700 text-white"
+                          : "border-amber-200 bg-amber-50 text-amber-900"
                       }`}
                     >
-                      {approved
-                        ? isVi
-                          ? "✓ Bác sĩ đã duyệt"
-                          : "✓ Approved by doctor"
-                        : isVi
-                        ? "Chờ bác sĩ xác minh"
-                        : "Pending doctor review"}
+                      <span
+                        aria-hidden="true"
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          approved ? "bg-white" : "bg-amber-500"
+                        }`}
+                      />
+                      <span>
+                        {approved
+                          ? isVi
+                            ? "3. Bác sĩ đã duyệt"
+                            : "3. Approved by doctor"
+                          : isVi
+                          ? "3. Chờ bác sĩ xác minh"
+                          : "3. Pending doctor review"}
+                      </span>
                     </li>
                   </ol>
                 </div>

@@ -22,7 +22,16 @@ interface Props {
   onUpdateBlot: (id: string, updates: Partial<CrfAntibodyBlotRow>) => void;
 }
 
-const box = (on: boolean) => (on ? "☑" : "☐");
+const box = (on: boolean) => (
+  <span
+    aria-hidden="true"
+    className={`mr-1 inline-flex h-3 w-3 items-center justify-center border border-black align-middle font-sans text-[8px] leading-none font-bold ${
+      on ? "bg-slate-900 text-white" : "bg-white text-transparent"
+    }`}
+  >
+    {on ? "X" : ""}
+  </span>
+);
 const TD = "border border-black px-2 py-1 align-top";
 const TH = "border border-black bg-slate-100 px-2 py-1 text-left font-bold";
 
@@ -103,16 +112,19 @@ export function DocxCrfView({
   ) => (
     <td className={`${TD} whitespace-nowrap font-sans`}>
       {isManual ? (
-        <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-900">
-          🔴 &lt;80% ({conf}%)
+        <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-900">
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-rose-600" />
+          <span>&lt;80% ({conf}%)</span>
         </span>
       ) : isVerify ? (
-        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
-          🟡 {conf}%
+        <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          <span>{conf}%</span>
         </span>
       ) : (
-        <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-900">
-          🟢 {conf}%
+        <span className="inline-flex items-center gap-1 rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-900">
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-teal-600" />
+          <span>{conf}%</span>
         </span>
       )}
       {isManual && onFill && (
@@ -130,7 +142,7 @@ export function DocxCrfView({
           onClick={onVerify}
           className="ml-1.5 rounded bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold text-white cursor-pointer"
         >
-          ✓ {isVi ? "Xác nhận" : "Verify"}
+          {isVi ? "Xác nhận" : "Verify"}
         </button>
       )}
     </td>
@@ -140,11 +152,11 @@ export function DocxCrfView({
     <table className="w-full border-collapse border border-black">
       <thead>
         <tr>
-          <th className={TH}>Test</th>
-          <th className={TH}>Result</th>
-          <th className={TH}>Unit</th>
-          <th className={TH}>Reference</th>
-          <th className={TH}>AI confidence</th>
+          <th scope="col" className={TH}>Test</th>
+          <th scope="col" className={TH}>Result</th>
+          <th scope="col" className={TH}>Unit</th>
+          <th scope="col" className={TH}>Reference</th>
+          <th scope="col" className={TH}>AI confidence</th>
         </tr>
       </thead>
       <tbody>
@@ -218,12 +230,12 @@ export function DocxCrfView({
     <table className="w-full border-collapse border border-black">
       <thead>
         <tr>
-          <th className={TH}>Antibody</th>
-          <th className={TH}>Negative</th>
-          <th className={TH}>Positive</th>
-          <th className={TH}>Borderline</th>
-          <th className={TH}>Intensity</th>
-          <th className={TH}>AI confidence</th>
+          <th scope="col" className={TH}>Antibody</th>
+          <th scope="col" className={TH}>Negative</th>
+          <th scope="col" className={TH}>Positive</th>
+          <th scope="col" className={TH}>Borderline</th>
+          <th scope="col" className={TH}>Intensity</th>
+          <th scope="col" className={TH}>AI confidence</th>
         </tr>
       </thead>
       <tbody>
@@ -365,9 +377,9 @@ export function DocxCrfView({
         <table className="mt-1 w-full border-collapse border border-black">
           <thead>
             <tr>
-              <th className={TH}>Factor</th>
-              <th className={TH}>Date of onset</th>
-              <th className={TH}>Date of normalization</th>
+              <th scope="col" className={TH}>Factor</th>
+              <th scope="col" className={TH}>Date of onset</th>
+              <th scope="col" className={TH}>Date of normalization</th>
             </tr>
           </thead>
           <tbody>
@@ -396,7 +408,7 @@ export function DocxCrfView({
             <tr>
               {["Group", "Name", "Administration route", "Dose", "Frequency", "Duration"].map(
                 (h) => (
-                  <th key={h} className={TH}>
+                  <th key={h} scope="col" className={TH}>
                     {h}
                   </th>
                 )
@@ -523,12 +535,12 @@ export function DocxCrfView({
       <table className="mt-1 w-full border-collapse border border-black">
         <thead>
           <tr>
-            <th className={TH}>Clinical domains</th>
-            <th className={TH}>Score</th>
-            <th className={TH}>Check</th>
-            <th className={TH}>Immunological domains</th>
-            <th className={TH}>Score</th>
-            <th className={TH}>Check</th>
+            <th scope="col" className={TH}>Clinical domains</th>
+            <th scope="col" className={TH}>Score</th>
+            <th scope="col" className={TH}>Check</th>
+            <th scope="col" className={TH}>Immunological domains</th>
+            <th scope="col" className={TH}>Score</th>
+            <th scope="col" className={TH}>Check</th>
           </tr>
         </thead>
         <tbody>
@@ -570,10 +582,10 @@ export function DocxCrfView({
       <table className="mt-1 w-full border-collapse border border-black">
         <thead>
           <tr>
-            <th className={TH}>Score</th>
-            <th className={TH}>Criterion</th>
-            <th className={TH}>Definition</th>
-            <th className={TH}>Check</th>
+            <th scope="col" className={TH}>Score</th>
+            <th scope="col" className={TH}>Criterion</th>
+            <th scope="col" className={TH}>Definition</th>
+            <th scope="col" className={TH}>Check</th>
           </tr>
         </thead>
         <tbody>

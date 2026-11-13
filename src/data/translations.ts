@@ -353,7 +353,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       filterReview: (count) => `Needs Review (${count})`,
       filterAbnormal: (count) => `Abnormal (${count})`,
       addRowBtn: "+ Add Biomarker Row",
-      verifyAllBtn: (count) => `✓ Verify All Flagged (${count})`,
+      verifyAllBtn: (count) => `Verify All Flagged (${count})`,
       tblHeaderBiomarker: "Biomarker / Assay",
       tblHeaderValue: "Extracted Value",
       tblHeaderUnitRef: "Unit & Ref",
@@ -363,9 +363,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       categoryPrefix: "Category:",
       clinicalNotePrefix: "Clinical & OCR Note:",
       statusNeedsReview: (count) =>
-        `⚠ ${count} field(s) require action: <80% must be entered from original scan, and 80–90% must be verified before commit.`,
+        `${count} field(s) require action: <80% must be entered from original scan, and 80–90% must be verified before commit.`,
       statusAllVerified: (count) =>
-        `✓ All ${count} biomarkers verified (>90% auto-approved or user-confirmed) and ready for SLE e-CRF commit.`,
+        `All ${count} biomarkers verified (>90% auto-approved or user-confirmed) and ready for SLE e-CRF commit.`,
       exportJsonBtn: "Preview / Export e-CRF JSON",
       saveRegistryBtn: "Save to SLE Registry (e-CRF) →",
       committedSectionTitle: (count) =>
@@ -577,7 +577,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       filterReview: (count) => `Cần Kiểm tra (${count})`,
       filterAbnormal: (count) => `Bất thường (${count})`,
       addRowBtn: "+ Thêm Hàng Chỉ số",
-      verifyAllBtn: (count) => `✓ Xác thực Tất cả (${count})`,
+      verifyAllBtn: (count) => `Xác thực Tất cả (${count})`,
       tblHeaderBiomarker: "Chỉ số / Xét nghiệm",
       tblHeaderValue: "Giá trị Trích xuất",
       tblHeaderUnitRef: "Đơn vị & Tham chiếu",
@@ -587,9 +587,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       categoryPrefix: "Nhóm:",
       clinicalNotePrefix: "Ghi chú Lâm sàng & OCR:",
       statusNeedsReview: (count) =>
-        `⚠ ${count} chỉ số cần xử lý: <80% cần đối chiếu bản gốc để nhập tay, và 80–90% cần nhấn xác nhận trước khi lưu vào e-CRF.`,
+        `${count} chỉ số cần xử lý: <80% cần đối chiếu bản gốc để nhập tay, và 80–90% cần nhấn xác nhận trước khi lưu vào e-CRF.`,
       statusAllVerified: (count) =>
-        `✓ Toàn bộ ${count} chỉ số sinh học đã được duyệt (>90% tự động hoặc đã xác thực), sẵn sàng lưu vào e-CRF SLE.`,
+        `Toàn bộ ${count} chỉ số sinh học đã được duyệt (>90% tự động hoặc đã xác thực), sẵn sàng lưu vào e-CRF SLE.`,
       exportJsonBtn: "Xem trước / Xuất e-CRF JSON",
       saveRegistryBtn: "Lưu vào Cơ sở Dữ liệu SLE (e-CRF) →",
       committedSectionTitle: (count) =>
