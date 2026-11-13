@@ -27,6 +27,8 @@ type ScanDossierFilter =
   | "infectious"
   | "pft";
 
+type DoctorWorkflowStep = "step1_triage" | "step2_review" | "step3_signoff";
+
 export default function SleCrfManagerPage() {
   const {
     language,
@@ -65,10 +67,12 @@ export default function SleCrfManagerPage() {
   const [newPatientName, setNewPatientName] = useState<string>("");
   const [newStudyId, setNewStudyId] = useState<string>("");
   const [isJsonModalOpen, setIsJsonModalOpen] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<"edit" | "clean">("clean");
+  const [viewMode, setViewMode] = useState<"edit" | "clean">("edit");
   const [viewerTabOverride, setViewerTabOverride] = useState<
     "uploaded" | "grounded" | null
   >(null);
+  const [workflowStep, setWorkflowStep] =
+    useState<DoctorWorkflowStep>("step1_triage");
   const [activeFileIdx, setActiveFileIdx] = useState<number>(0);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -290,6 +294,7 @@ export default function SleCrfManagerPage() {
 
   // Jump to the next unresolved (<80% or 80-90%) field and highlight on original scan
   const handleJumpNextUnresolved = () => {
+    setWorkflowStep("step1_triage");
     const nextField = activePatient.ocrFields.find(
       (f) =>
         f.status === "manual_required" ||
@@ -709,17 +714,6 @@ export default function SleCrfManagerPage() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowDocViewer(true);
-                    setSelectedGroundingId(field.id);
-                  }}
-                  className="rounded-lg border border-rose-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-rose-800 hover:bg-rose-50 cursor-pointer"
-                >
-                  {isVi ? "👁 Xem trên bản quét" : "👁 Highlight on Scan"}
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
                     handleUpdateOcrField(field.id, {
                       value: field.printedValue,
                       secondaryValue: field.printedSecondaryValue,
@@ -783,7 +777,7 @@ export default function SleCrfManagerPage() {
   const currentFile = uploadedFiles[activeFileIdx] ?? uploadedFiles[0];
 
   const showSection = (sec: CrfSectionId) =>
-    viewMode === "edit" && (activeSection === "all" || activeSection === sec);
+    workflowStep === "step2_review" && (activeSection === "all" || activeSection === sec);
 
   const fullCrfJsonPayload = {
     schema: "vinmec-mddu-sle-crf-2026-v1",
@@ -857,259 +851,247 @@ export default function SleCrfManagerPage() {
 
   return (
     <main className="flex-1 bg-slate-100/80 pb-14">
-      {/* Top Patient Cohort & AI OCR Scanner Header Bar */}
+      {/* Compact context bar: patient + status + utilities (one row) */}
       <div className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-            {/* Left: Patient Selector Pills & + New CRF */}
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="rounded bg-teal-50 px-2 py-0.5 font-mono text-[11px] font-bold text-teal-800">
-                  VINMEC MDDU • SLE CASE REPORT FORM (e-CRF)
+        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+          <div
+            role="toolbar"
+            aria-label={isVi ? "Bệnh nhân và công cụ" : "Patient and tools"}
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="sr-only" htmlFor="crf-patient-select">
+                {isVi ? "Chọn bệnh nhân" : "Select patient"}
+              </label>
+              <select
+                id="crf-patient-select"
+                value={activePatient.id}
+                onChange={(e) => {
+                  setActiveCrfPatientId(e.target.value);
+                  setViewerTabOverride(null);
+                  setActiveFileIdx(0);
+                }}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900"
+              >
+                {crfPatients.map((pat) => (
+                  <option key={pat.id} value={pat.id}>
+                    {pat.studyId} • {pat.patientName} ({pat.age}
+                    {pat.gender === "Female" ? "F" : "M"}) —{" "}
+                    {getSubmissionStatus(pat) === "approved"
+                      ? isVi ? "Đã duyệt" : "Approved"
+                      : isVi ? "Chờ duyệt" : "Pending"}
+                  </option>
+                ))}
+              </select>
+              {activePatient.signedOffBy ? (
+                <span className="rounded bg-teal-700 px-2 py-1 text-xs font-bold text-white">
+                  ✓ {isVi ? "Đã ký duyệt:" : "Signed off:"} {activePatient.signedOffBy}
                 </span>
-                {activePatient.signedOffBy ? (
-                  <span className="rounded bg-teal-700 px-2 py-0.5 font-mono text-[10px] font-bold text-white">
-                    ✓ {isVi ? "Đã Ký duyệt:" : "Signed Off:"}{" "}
-                    {activePatient.signedOffBy}
-                  </span>
-                ) : (
-                  <span className="rounded bg-amber-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-900">
-                    {isVi ? "Bản nháp Đang Rà soát" : "Draft Under HITL Review"}
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                <span className="font-mono text-[11px] font-bold uppercase text-slate-400">
-                  {isVi ? "Hàng đợi Bệnh nhân:" : "Patient Queue:"}
+              ) : (
+                <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">
+                  {isVi ? "Bản nháp" : "Draft"}
                 </span>
-                {crfPatients.map((pat) => {
-                  const isActive = pat.id === activePatient.id;
-                  return (
-                    <button
-                      key={pat.id}
-                      type="button"
-                      id={`crf-patient-tab-${pat.id}`}
-                      onClick={() => {
-                        setActiveCrfPatientId(pat.id);
-                        setViewerTabOverride(null);
-                        setActiveFileIdx(0);
-                      }}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
-                        isActive
-                          ? "bg-slate-900 text-white shadow-2xs"
-                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {pat.studyId} • {pat.patientName} ({pat.age}
-                      {pat.gender === "Female" ? "F" : "M"}){" "}
-                      <span
-                        className={`ml-1 rounded px-1.5 py-0.5 text-[10px] ${
-                          getSubmissionStatus(pat) === "approved"
-                            ? "bg-teal-100 text-teal-900"
-                            : "bg-amber-100 text-amber-900"
-                        }`}
-                      >
-                        {getSubmissionStatus(pat) === "approved"
-                          ? isVi
-                            ? "Đã duyệt"
-                            : "Approved"
-                          : isVi
-                          ? "Chờ duyệt"
-                          : "Pending"}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Right: View mode toggle, Print, Toggle Source Viewer */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 text-xs font-semibold">
-                <button
-                  type="button"
-                  id="crf-mode-edit"
-                  onClick={() => setViewMode("edit")}
-                  className={`rounded-md px-3 py-1.5 cursor-pointer ${viewMode === "edit" ? "bg-slate-900 text-white" : "text-slate-700"}`}
-                >
-                  {isVi ? "✎ Dạng biểu mẫu" : "✎ Form view"}
-                </button>
-                <button
-                  type="button"
-                  id="crf-mode-clean"
-                  onClick={() => setViewMode("clean")}
-                  className={`rounded-md px-3 py-1.5 cursor-pointer ${viewMode === "clean" ? "bg-slate-900 text-white" : "text-slate-700"}`}
-                >
-                  {isVi ? "📄 Bản .docx (chỉnh sửa được)" : "📄 .docx document view"}
-                </button>
-              </div>
-              {viewMode === "clean" && (
-                <button
-                  type="button"
-                  id="crf-btn-print"
-                  onClick={() => window.print()}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  {isVi ? "In" : "Print"}
-                </button>
               )}
-
-              <button
-                type="button"
-                id="crf-btn-toggle-viewer"
-                onClick={() => setShowDocViewer((v) => !v)}
-                className={`rounded-lg border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
-                  showDocViewer
-                    ? "border-teal-700/40 bg-teal-50 text-teal-900"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                }`}
-              >
-                {showDocViewer
-                  ? isVi
-                    ? "Ẩn Bản Quét Gốc"
-                    : "Hide Original Scan"
-                  : isVi
-                  ? "Hiện Bản Quét Gốc"
-                  : "Show Original Scan"}
-              </button>
-            </div>
-          </div>
-
-          {/* 3-Tier OCR Confidence Triage Bar & Live Clinical Scores */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-            {/* Left: 3-Tier Confidence Filter Pills */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 font-mono text-[10px] font-bold uppercase text-slate-500">
-                {isVi ? "Phân tầng OCR:" : "3-Tier OCR Triage:"}
-              </span>
-              <button
-                type="button"
-                id="crf-filter-all"
-                onClick={() => setTriageFilter("all")}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
-                  triageFilter === "all"
-                    ? "bg-slate-900 text-white"
-                    : "bg-white text-slate-700 hover:bg-slate-200/60"
-                }`}
-              >
-                {isVi
-                  ? `Tất cả (${triageStats.total})`
-                  : `All Extracted (${triageStats.total})`}
-              </button>
-
-              <button
-                type="button"
-                id="crf-filter-under80"
-                onClick={() => setTriageFilter("manual_under_80")}
-                className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
-                  triageFilter === "manual_under_80"
-                    ? "border-rose-700 bg-rose-600 text-white"
-                    : "border-rose-200 bg-rose-50 text-rose-900 hover:bg-rose-100"
-                }`}
-              >
-                🔴 &lt;80%{" "}
-                {isVi
-                  ? `Xem bản gốc & Nhập (${triageStats.manualUnder80})`
-                  : `Check Scan & Add (${triageStats.manualUnder80})`}
-              </button>
-
-              <button
-                type="button"
-                id="crf-filter-80to90"
-                onClick={() => setTriageFilter("verify_80_90")}
-                className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
-                  triageFilter === "verify_80_90"
-                    ? "border-amber-700 bg-amber-600 text-white"
-                    : "border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100"
-                }`}
-              >
-                🟡 80–90%{" "}
-                {isVi
-                  ? `Xác nhận lại (${triageStats.verify80to90})`
-                  : `Verify Again (${triageStats.verify80to90})`}
-              </button>
-
-              <button
-                type="button"
-                id="crf-filter-over90"
-                onClick={() => setTriageFilter("approved_over_90")}
-                className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
-                  triageFilter === "approved_over_90"
-                    ? "border-teal-800 bg-teal-700 text-white"
-                    : "border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100"
-                }`}
-              >
-                🟢 &gt;90%{" "}
-                {isVi
-                  ? `Tự động / Đã duyệt (${triageStats.approved})`
-                  : `Auto / Verified (${triageStats.approved})`}
-              </button>
-            </div>
-
-            {/* Right: Quick Resolution & Live EULAR/ACR + SLEDAI-2K Badges */}
-            <div className="flex flex-wrap items-center gap-2">
-              {triageStats.unresolved > 0 && (
-                <button
-                  type="button"
-                  onClick={handleJumpNextUnresolved}
-                  className="rounded-lg bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-700 cursor-pointer"
-                >
-                  {isVi
-                    ? `Chuyển tới mục cần xử lý tiếp theo (${triageStats.unresolved}) →`
-                    : `Next Unresolved Field (${triageStats.unresolved}) →`}
-                </button>
-              )}
-              {triageStats.verify80to90 > 0 && (
-                <button
-                  type="button"
-                  onClick={handleVerifyAll80To90}
-                  className="rounded-lg bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 cursor-pointer"
-                >
-                  {isVi
-                    ? `✓ Duyệt nhanh nhóm 80–90% (${triageStats.verify80to90})`
-                    : `✓ Verify All 80–90% (${triageStats.verify80to90})`}
-                </button>
-              )}
-
-              <div className="flex items-center gap-2 border-l border-slate-300 pl-2 font-mono text-xs">
+              <span className="hidden gap-2 font-mono text-xs sm:flex">
                 <span
-                  className={`rounded px-2 py-0.5 font-bold ${
+                  className={`rounded px-2 py-1 font-bold ${
                     eularSummary.isClassifiedSle
                       ? "bg-teal-100 text-teal-900"
                       : "bg-slate-200 text-slate-700"
                   }`}
                 >
-                  EULAR/ACR: {eularSummary.totalScore} pts
+                  EULAR/ACR {eularSummary.totalScore}
                 </span>
-                <span className="rounded bg-rose-100 px-2 py-0.5 font-bold text-rose-900">
-                  SLEDAI-2K: {sledaiSummary.totalScore} pts
+                <span className="rounded bg-rose-100 px-2 py-1 font-bold text-rose-900">
+                  SLEDAI-2K {sledaiSummary.totalScore}
                 </span>
-              </div>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                id="crf-btn-toggle-viewer"
+                aria-pressed={showDocViewer}
+                onClick={() => setShowDocViewer((v) => !v)}
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold cursor-pointer ${
+                  showDocViewer
+                    ? "border-teal-700/40 bg-teal-50 text-teal-900"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {isVi ? "Bản quét gốc" : "Original scan"}
+              </button>
+              <details className="relative">
+                <summary
+                  aria-label={isVi ? "Thêm thao tác" : "More actions"}
+                  className="flex cursor-pointer list-none items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  {isVi ? "Thêm ⋯" : "More ⋯"}
+                </summary>
+                <div className="absolute right-0 z-30 mt-1 w-60 rounded-xl border border-slate-200 bg-white p-1.5 text-xs shadow-lg">
+                  {[
+                    {
+                      id: "crf-menu-docx",
+                      label: isVi ? "📄 Xem bản .docx" : "📄 Preview .docx",
+                      run: () => {
+                        setWorkflowStep("step3_signoff");
+                        setViewMode("clean");
+                      },
+                    },
+                    {
+                      id: "crf-btn-print",
+                      label: isVi ? "🖨 In" : "🖨 Print",
+                      run: () => {
+                        setWorkflowStep("step3_signoff");
+                        setViewMode("clean");
+                        setTimeout(() => window.print(), 150);
+                      },
+                    },
+                    {
+                      id: "crf-btn-export-json",
+                      label: isVi ? "{ } Xem trước / Xuất JSON" : "{ } Preview / Export JSON",
+                      run: () => setIsJsonModalOpen(true),
+                    },
+                    {
+                      id: "crf-menu-rerun",
+                      label: isVi ? "⚡ Chạy lại AI OCR" : "⚡ Re-run AI OCR",
+                      run: handleRunOcrOnCrf,
+                    },
+                    {
+                      id: "crf-menu-new",
+                      label: isVi ? "+ Hồ sơ CRF mới" : "+ New patient CRF",
+                      run: () => setIsNewPatientModalOpen(true),
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      id={item.id}
+                      onClick={(e) => {
+                        item.run();
+                        e.currentTarget.closest("details")?.removeAttribute("open");
+                      }}
+                      className="block w-full rounded-lg px-3 py-2 text-left font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </details>
             </div>
           </div>
 
-          {/* Section Navigation Tabs */}
-          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-200 pt-3">
-            {crfSections.map((sec) => {
-              const isCurrent = activeSection === sec.id;
+          {/* Guided 3-step workflow stepper */}
+          <ol
+            aria-label={isVi ? "Quy trình" : "Workflow"}
+            className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-200 pt-3 sm:grid-cols-3"
+          >
+            {(
+              [
+                {
+                  key: "step1_triage",
+                  n: 1,
+                  title: isVi ? "Xử lý mục OCR cần kiểm tra" : "Resolve flagged OCR",
+                  badge:
+                    triageStats.unresolved > 0
+                      ? isVi
+                        ? `${triageStats.unresolved} cần xử lý`
+                        : `${triageStats.unresolved} to resolve`
+                      : isVi ? "✓ Hoàn tất" : "✓ All resolved",
+                  ok: triageStats.unresolved === 0,
+                },
+                {
+                  key: "step2_review",
+                  n: 2,
+                  title: isVi ? "Rà soát CRF & điểm số" : "Review CRF & scores",
+                  badge: `EULAR ${eularSummary.totalScore} • SLEDAI ${sledaiSummary.totalScore}`,
+                  ok: true,
+                },
+                {
+                  key: "step3_signoff",
+                  n: 3,
+                  title: isVi ? "Phê duyệt & xuất" : "Approve & export",
+                  badge: activePatient.signedOffBy
+                    ? isVi ? "✓ Đã ký" : "✓ Signed"
+                    : isVi ? "Chưa ký" : "Not signed",
+                  ok: Boolean(activePatient.signedOffBy),
+                },
+              ] as {
+                key: DoctorWorkflowStep;
+                n: number;
+                title: string;
+                badge: string;
+                ok: boolean;
+              }[]
+            ).map((s) => {
+              const current = workflowStep === s.key;
               return (
-                <button
-                  key={sec.id}
-                  type="button"
-                  id={`crf-sec-tab-${sec.id}`}
-                  onClick={() => setActiveSection(sec.id)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
-                    isCurrent
-                      ? "bg-teal-700 text-white shadow-2xs"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200/70"
-                  }`}
-                >
-                  {isVi ? sec.labelVi : sec.labelEn}
-                </button>
+                <li key={s.key}>
+                  <button
+                    type="button"
+                    id={`crf-step-${s.n}`}
+                    aria-current={current ? "step" : undefined}
+                    onClick={() => setWorkflowStep(s.key)}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left cursor-pointer ${
+                      current
+                        ? "border-teal-700 bg-teal-50 ring-1 ring-teal-700/30"
+                        : "border-slate-200 bg-white hover:bg-slate-50"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        current ? "bg-teal-700 text-white" : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {s.n}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-slate-900">
+                        {s.title}
+                      </span>
+                      <span
+                        className={`block text-[11px] font-medium ${
+                          s.ok ? "text-teal-800" : "text-rose-700"
+                        }`}
+                      >
+                        {s.badge}
+                      </span>
+                    </span>
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ol>
+
+          {/* Step 2 only: section tabs */}
+          {workflowStep === "step2_review" && (
+            <div
+              role="group"
+              aria-label={isVi ? "Mục CRF" : "CRF sections"}
+              className="mt-3 flex gap-1.5 overflow-x-auto border-t border-slate-200 pt-3"
+            >
+              {crfSections.map((sec) => {
+                const isCurrent = activeSection === sec.id;
+                return (
+                  <button
+                    key={sec.id}
+                    type="button"
+                    id={`crf-sec-tab-${sec.id}`}
+                    aria-pressed={isCurrent}
+                    onClick={() => setActiveSection(sec.id)}
+                    className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer ${
+                      isCurrent
+                        ? "bg-teal-700 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200/70"
+                    }`}
+                  >
+                    {isVi ? sec.labelVi : sec.labelEn}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1467,8 +1449,175 @@ export default function SleCrfManagerPage() {
               showDocViewer ? "lg:col-span-7" : "lg:col-span-12"
             }`}
           >
-            {/* .docx-FORMATTED DOCUMENT VIEW (editable OCR cells + AI confidence) */}
-            {viewMode === "clean" && (
+            {/* STEP 1: focused triage queue */}
+            {workflowStep === "step1_triage" && (
+              <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+                <div className="border-b border-slate-200 pb-3">
+                  <h2 className="text-base font-bold text-slate-900">
+                    {isVi ? "Bước 1 — Xử lý mục OCR cần kiểm tra" : "Step 1 — Resolve flagged OCR fields"}
+                  </h2>
+                  <p className="text-xs text-slate-600">
+                    {isVi
+                      ? `Đã xử lý ${triageStats.total - triageStats.unresolved}/${triageStats.total}. Đối chiếu từng mục với bản quét gốc.`
+                      : `${triageStats.total - triageStats.unresolved} of ${triageStats.total} resolved. Compare each item with the original scan.`}
+                  </p>
+                </div>
+
+                {triageStats.unresolved === 0 && (
+                  <p className="rounded-xl bg-teal-50 p-4 text-sm font-semibold text-teal-900">
+                    ✓ {isVi ? "Mọi mục đã được xác thực. Tiếp tục sang Bước 2." : "Everything is resolved. Continue to Step 2."}
+                  </p>
+                )}
+
+                {triageStats.manualUnder80 > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-rose-800">
+                      🔴 {isVi ? "Xem bản gốc & nhập tay (<80%)" : "Check scan & enter value (<80%)"}
+                    </h3>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {activePatient.ocrFields
+                        .filter((f) => f.status === "manual_required" || !f.value.trim())
+                        .map(renderOcrFieldRow)}
+                    </div>
+                  </div>
+                )}
+
+                {activePatient.antibodyBlots.some(
+                  (b) => b.status === "manual_required" || !b.result || b.status === "needs_verify"
+                ) && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-700">
+                      {isVi ? "Kháng thể immunoblot cần xử lý" : "Immunoblot antibodies to resolve"}
+                    </h3>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {activePatient.antibodyBlots
+                        .filter((b) => b.status === "manual_required" || !b.result || b.status === "needs_verify")
+                        .map((b) => {
+                          const manual = b.status === "manual_required" || !b.result;
+                          return (
+                            <div
+                              key={b.id}
+                              onClick={() => setSelectedGroundingId(b.id)}
+                              className={`flex items-center justify-between rounded-xl border p-3 text-xs ${
+                                manual ? "border-rose-300 bg-rose-50/40" : "border-amber-300 bg-amber-50/40"
+                              }`}
+                            >
+                              <span>
+                                <strong className="text-slate-900">{b.name}</strong>{" "}
+                                <span className="text-slate-500">({b.confidence}%)</span>
+                                <span className="block text-slate-600">
+                                  {isVi ? "Bản in" : "Printed"}: {b.printedResult} {b.printedIntensity}
+                                </span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateBlotRow(
+                                    b.id,
+                                    manual
+                                      ? { result: b.printedResult, intensity: b.printedIntensity, status: "user_verified" }
+                                      : { status: "user_verified" }
+                                  );
+                                }}
+                                className={`rounded-lg px-3 py-1.5 font-semibold text-white cursor-pointer ${
+                                  manual ? "bg-rose-600 hover:bg-rose-700" : "bg-amber-600 hover:bg-amber-700"
+                                }`}
+                              >
+                                {manual
+                                  ? isVi ? `+ Nhập "${b.printedResult}"` : `+ Fill "${b.printedResult}"`
+                                  : isVi ? "✓ Xác nhận" : "✓ Verify"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {triageStats.verify80to90 > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-amber-800">
+                        🟡 {isVi ? "Xác nhận giá trị điền sẵn (80–90%)" : "Confirm pre-filled values (80–90%)"}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={handleVerifyAll80To90}
+                        className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-50 cursor-pointer"
+                      >
+                        {isVi ? "✓ Xác nhận tất cả 80–90%" : "✓ Verify all 80–90%"}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {activePatient.ocrFields
+                        .filter((f) => f.status === "needs_verify" && f.value.trim())
+                        .map(renderOcrFieldRow)}
+                    </div>
+                  </div>
+                )}
+
+                <details className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                  <summary className="cursor-pointer text-xs font-bold text-teal-900">
+                    🟢 {isVi ? "Đã tự động duyệt / xác nhận" : "Auto-approved & verified"} ({triageStats.approved})
+                  </summary>
+                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {activePatient.ocrFields
+                      .filter(
+                        (f) =>
+                          (f.status === "auto_approved" || f.status === "user_verified") &&
+                          f.value.trim()
+                      )
+                      .map(renderOcrFieldRow)}
+                  </div>
+                </details>
+              </section>
+            )}
+
+            {/* STEP 3: readiness summary */}
+            {workflowStep === "step3_signoff" && (
+              <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+                <h2 className="text-base font-bold text-slate-900">
+                  {isVi ? "Bước 3 — Phê duyệt & xuất" : "Step 3 — Approve & export"}
+                </h2>
+                <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 p-3">
+                    <dt className="text-xs text-slate-500">{isVi ? "Xác thực OCR" : "OCR verification"}</dt>
+                    <dd className={`text-sm font-bold ${triageStats.unresolved ? "text-rose-700" : "text-teal-800"}`}>
+                      {triageStats.total - triageStats.unresolved}/{triageStats.total}
+                    </dd>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 p-3">
+                    <dt className="text-xs text-slate-500">EULAR/ACR 2019</dt>
+                    <dd className="text-sm font-bold text-slate-900">
+                      {eularSummary.totalScore} — {eularSummary.isClassifiedSle ? (isVi ? "Đủ tiêu chuẩn SLE" : "SLE classified") : (isVi ? "Chưa đủ" : "Below threshold")}
+                    </dd>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 p-3">
+                    <dt className="text-xs text-slate-500">SLEDAI-2K</dt>
+                    <dd className="text-sm font-bold text-slate-900">
+                      {sledaiSummary.totalScore} — {isVi ? sledaiSummary.activityTierVi : sledaiSummary.activityTierEn}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    id="crf-mode-clean"
+                    aria-pressed={viewMode === "clean"}
+                    onClick={() => setViewMode(viewMode === "clean" ? "edit" : "clean")}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer"
+                  >
+                    {viewMode === "clean"
+                      ? isVi ? "Ẩn bản .docx" : "Hide .docx preview"
+                      : isVi ? "📄 Xem bản .docx" : "📄 Show .docx preview"}
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* .docx-FORMATTED DOCUMENT VIEW (Step 3 only) */}
+            {workflowStep === "step3_signoff" && viewMode === "clean" && (
               <DocxCrfView
                 patient={activePatient}
                 isVi={isVi}
@@ -3463,46 +3612,78 @@ export default function SleCrfManagerPage() {
               </section>
             )}
 
-            {/* Bottom Sign-Off & Full CRF Export Bar */}
+            {/* Step-aware footer: one primary action per step */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="text-xs">
-                {triageStats.unresolved > 0 ? (
-                  <p className="font-semibold text-rose-800">
-                    ⚠{" "}
-                    {isVi
-                      ? `Còn ${triageStats.manualUnder80} mục <80% (cần xem bản gốc & nhập tay) và ${triageStats.verify80to90} mục 80–90% (cần xác nhận) trước khi Ký duyệt.`
-                      : `${triageStats.manualUnder80} field(s) <80% (check original scan & add) and ${triageStats.verify80to90} field(s) 80–90% (verify again) require resolution before Sign-Off.`}
-                  </p>
-                ) : (
-                  <p className="font-semibold text-teal-800">
-                    ✓{" "}
-                    {isVi
-                      ? `Toàn bộ ${triageStats.total} trường OCR trong CRF đã được xác thực. Sẵn sàng ký duyệt!`
-                      : `All ${triageStats.total} OCR-extracted fields resolved and verified. Ready for CRF Sign-Off!`}
-                  </p>
-                )}
-              </div>
+              <p
+                className={`text-xs font-semibold ${
+                  triageStats.unresolved > 0 ? "text-rose-800" : "text-teal-800"
+                }`}
+              >
+                {triageStats.unresolved > 0
+                  ? isVi
+                    ? `Còn ${triageStats.unresolved} mục OCR chưa xử lý (${triageStats.manualUnder80} <80%, ${triageStats.verify80to90} 80–90%).`
+                    : `${triageStats.unresolved} OCR field(s) unresolved (${triageStats.manualUnder80} <80%, ${triageStats.verify80to90} 80–90%).`
+                  : isVi
+                  ? `✓ Toàn bộ ${triageStats.total} trường OCR đã xác thực.`
+                  : `✓ All ${triageStats.total} OCR fields verified.`}
+              </p>
 
               <div className="flex flex-wrap items-center gap-2.5">
-                <button
-                  type="button"
-                  id="crf-btn-export-json"
-                  onClick={() => setIsJsonModalOpen(true)}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer"
-                >
-                  {isVi ? "Xem trước / Xuất CRF JSON" : "Preview / Export CRF JSON"}
-                </button>
-
-                <button
-                  type="button"
-                  id="crf-btn-signoff"
-                  onClick={handleSignOffCrf}
-                  className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
-                >
-                  {isVi
-                    ? "✓ Phê duyệt Kết quả OCR →"
-                    : "✓ Approve OCR Result →"}
-                </button>
+                {workflowStep !== "step1_triage" && (
+                  <button
+                    type="button"
+                    id="crf-btn-back"
+                    onClick={() =>
+                      setWorkflowStep(workflowStep === "step3_signoff" ? "step2_review" : "step1_triage")
+                    }
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer"
+                  >
+                    ← {isVi ? "Quay lại" : "Back"}
+                  </button>
+                )}
+                {workflowStep === "step1_triage" && triageStats.unresolved > 0 && (
+                  <button
+                    type="button"
+                    id="crf-btn-next-unresolved"
+                    onClick={handleJumpNextUnresolved}
+                    className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-xs font-semibold text-rose-800 hover:bg-rose-50 cursor-pointer"
+                  >
+                    {isVi ? "Tới mục tiếp theo" : "Next unresolved field"}
+                  </button>
+                )}
+                {workflowStep === "step2_review" && (
+                  <button
+                    type="button"
+                    id="crf-btn-autoscore"
+                    onClick={handleAutoSuggestScores}
+                    className="rounded-xl border border-teal-700/40 bg-teal-50 px-4 py-2.5 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
+                  >
+                    {isVi ? "⚡ Tự động tính điểm" : "⚡ Auto-calculate scores"}
+                  </button>
+                )}
+                {workflowStep !== "step3_signoff" ? (
+                  <button
+                    type="button"
+                    id="crf-btn-continue"
+                    onClick={() =>
+                      setWorkflowStep(workflowStep === "step1_triage" ? "step2_review" : "step3_signoff")
+                    }
+                    className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
+                  >
+                    {workflowStep === "step1_triage"
+                      ? isVi ? "Tiếp tục: Rà soát CRF →" : "Continue: Review CRF →"
+                      : isVi ? "Tiếp tục: Phê duyệt →" : "Continue: Approve →"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    id="crf-btn-signoff"
+                    onClick={handleSignOffCrf}
+                    className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
+                  >
+                    {isVi ? "✓ Phê duyệt & Ký CRF" : "✓ Approve & Sign Off CRF"}
+                  </button>
+                )}
               </div>
             </div>
           </div>
