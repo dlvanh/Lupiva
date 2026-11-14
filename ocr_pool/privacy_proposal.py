@@ -910,13 +910,6 @@ def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
                     dates.append(dict(kind='calendar_date',box=line['box'],raw=line['text'],mentions=mentions,
                                       policy='local_only_no_date_repair',masked_as_date_field=True,
                                       requires_review=True))
-                elif (_temporal_field_only(s, mentions) and line['box'][1] < crop[1] < line['box'][3]):
-                    # A date/time-only line cut by the crop's top edge lies outside
-                    # the result table; masking it can only remove information.
-                    masks.append(dict(box=list(line['box']),reasons=['date_line_at_crop_edge'],line_id=line['line_id']))
-                    dates.append(dict(kind='calendar_date',box=line['box'],raw=line['text'],mentions=mentions,
-                                      policy='local_only_no_date_repair',masked_as_date_field=True,
-                                      requires_review=any(m['short_year'] for m in mentions)))
                 else:
                     reviews.append(dict(code='date_without_context',line_ids=[line['line_id']],box=line['box']))
         if EMAIL.search(s):reasons.append('email')
