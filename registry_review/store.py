@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS reviews_by_candidate ON review_decisions(package_id,r
 HUMAN_ROLES={'source_reviewer','clinician'}
 ACTIONS={'accept','correct','reject','needs_clarification','withdraw','suggest'}
 EDITABLE={'numeric_value','comparator','qualitative_value','symbolic_value','pattern_raw','grade_raw',
-          'unit_raw','source_date','date_type','specimen','panel','method_raw','titre_raw','result_type','missing_reason'}
+          'unit_raw','source_date','date_type','specimen','panel','method_raw','titre_raw','result_type','missing_reason','source_flag_raw'}
 
 
 def now():
@@ -55,6 +55,18 @@ def actor_info(actor,role):
     return dict(name=actor,declared_role=role)
 
 
+def instruction_provenance(origin,recorded_by,authorization_quote):
+    if origin not in {'local_ui','user_instruction'}:
+        raise ValueError('Unknown review origin')
+    if origin=='user_instruction':
+        return dict(origin=origin,recorded_by=text(recorded_by,'Recorder'),
+            authorization_quote=text(authorization_quote,'Explicit user authorization'),
+            reviewer_identity_status='conversation_user_not_authenticated')
+    if recorded_by is not None or authorization_quote is not None:
+        raise ValueError('Proxy recording requires explicit user instruction provenance')
+    return {}
+
+
 def validate_values(values):
     if not isinstance(values,dict) or set(values)-EDITABLE:
         raise ValueError('Only explicit value attributes may be corrected')
@@ -66,6 +78,8 @@ def validate_values(values):
                 raise ValueError('Numeric correction requires a finite decimal string')
         if key=='comparator' and value not in {'=','<','<=','>','>=',None}:
             raise ValueError('Unknown comparator')
+        if key=='source_flag_raw' and value not in {'H','L','HH','LL','↑','↓',None}:
+            raise ValueError('Unknown printed result flag')
         if key=='source_date' and value:
             if not re.fullmatch(r'\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?',value):
                 raise ValueError('Source date requires an explicit ISO date or datetime')
@@ -89,7 +103,8 @@ def validate_result(values,component=None):
         raise ValueError('Only an explicit source placeholder can be accepted as missing')
     groups={'numeric_value':{'numeric','mixed'},'comparator':{'numeric','mixed'},
             'qualitative_value':{'qualitative','mixed'},'pattern_raw':{'pattern'},
-            'grade_raw':{'pattern'},'symbolic_value':{'semiquantitative'}}
+            'grade_raw':{'pattern'},'symbolic_value':{'semiquantitative'},
+            'source_flag_raw':{'numeric','mixed'}}
     if component=='intensity':
         groups['qualitative_value'].add('numeric')
     for key,kinds in groups.items():
@@ -104,13 +119,17 @@ def validate_result(values,component=None):
 
 
 class ReviewStore(SourceReviews):
-    def __init__(self,path):
-        self.registry=Registry(path)
+    def __init__(self,path,*,read_only=False):
+        self.registry=Registry(path,read_only=read_only)
         self.db=self.registry.db
+        if read_only:
+            return
         self.db.executescript(DDL)
         self.db.executescript(SOURCE_DDL)
+        from .crf_knowledge import install_knowledge
+        install_knowledge(self.db)
         for table in ('registry_cases','registry_encounters','document_identity_events','review_decisions',
-                      'source_review_batches','source_review_decisions'):
+                      'source_review_batches','source_review_decisions','source_corrections'):
             for operation in ('UPDATE','DELETE'):
                 self.db.execute(f"CREATE TRIGGER IF NOT EXISTS immutable_{table}_{operation} BEFORE {operation} ON {table} BEGIN SELECT RAISE(ABORT,'immutable review history'); END")
         self.db.commit()
@@ -121,7 +140,18 @@ class ReviewStore(SourceReviews):
     @contextmanager
     def transaction(self):
         if self.db.in_transaction:
-            raise RuntimeError('Nested review transaction is not supported')
+            if not getattr(self,'_atomic_batch',False):
+                raise RuntimeError('Nested review transaction is not supported')
+            savepoint='review_'+uuid4().hex
+            self.db.execute('SAVEPOINT '+savepoint)
+            try:
+                yield
+                self.db.execute('RELEASE '+savepoint)
+            except BaseException:
+                self.db.execute('ROLLBACK TO '+savepoint)
+                self.db.execute('RELEASE '+savepoint)
+                raise
+            return
         self.db.execute('BEGIN IMMEDIATE')
         try:
             yield
@@ -130,14 +160,26 @@ class ReviewStore(SourceReviews):
             self.db.rollback()
             raise
 
-    def create_case(self,registry_code,*,study_id=None,actor,role):
+    @contextmanager
+    def atomic_batch(self):
+        """Explicit outer transaction for a complete, authorized patient import."""
+        if self.db.in_transaction:
+            raise RuntimeError('Patient batch cannot nest in another transaction')
+        with self.transaction():
+            self._atomic_batch=True
+            try:yield
+            finally:self._atomic_batch=False
+
+    def create_case(self,registry_code,*,study_id=None,actor,role,
+                    origin='local_ui',recorded_by=None,authorization_quote=None):
         reviewer=actor_info(actor,role)
+        provenance=instruction_provenance(origin,recorded_by,authorization_quote)
         if role not in HUMAN_ROLES:
             raise ValueError('Case creation requires an explicit human operator')
         code=text(registry_code,'Registry code')
         study_id=text(study_id,'Study ID') if study_id is not None else None
         item=dict(case_id='case-'+uuid4().hex,registry_code=code,study_id=study_id,
-                  created_at_utc=now(),created_by=reviewer)
+                  created_at_utc=now(),created_by=reviewer,**provenance)
         with self.transaction():
             self.db.execute('INSERT INTO registry_cases VALUES(?,?,?,?)',(item['case_id'],code,study_id,encode(item)))
             self.registry._audit('case_created',item)
@@ -163,8 +205,10 @@ class ReviewStore(SourceReviews):
                             (document_id,)).fetchone()
         return json.loads(row[0]) if row else None
 
-    def assign_document(self,document_id,*,case_id,encounter_id=None,expected_assignment_id=None,actor,role,reason):
+    def assign_document(self,document_id,*,case_id,encounter_id=None,expected_assignment_id=None,actor,role,reason,
+                        origin='local_ui',recorded_by=None,authorization_quote=None):
         reviewer=actor_info(actor,role)
+        provenance=instruction_provenance(origin,recorded_by,authorization_quote)
         if role not in HUMAN_ROLES:
             raise ValueError('Document identity requires explicit human confirmation')
         reason=text(reason,'Identity confirmation reason')
@@ -181,7 +225,8 @@ class ReviewStore(SourceReviews):
             item=dict(assignment_id='identity-'+uuid4().hex,document_id=document_id,case_id=case_id,
                 encounter_id=encounter_id,identity_status='confirmed' if case_id else 'revoked',
                 previous_assignment_id=expected_assignment_id,confirmed_by=reviewer,reason=reason,
-                created_at_utc=now(),previous_identity=dict(case_id=old['case_id'],encounter_id=old['encounter_id']) if old else None)
+                created_at_utc=now(),previous_identity=dict(case_id=old['case_id'],encounter_id=old['encounter_id']) if old else None,
+                **provenance)
             self.db.execute('INSERT INTO document_identity_events(assignment_id,document_id,case_id,encounter_id,previous_assignment_id,payload) VALUES(?,?,?,?,?,?)',
                 (item['assignment_id'],document_id,case_id,encounter_id,expected_assignment_id,encode(item)))
             self.registry._audit('document_identity_confirmed' if case_id else 'document_identity_revoked',item)
@@ -198,8 +243,10 @@ class ReviewStore(SourceReviews):
 
     def review(self,package_id,revision,observation_id,*,action,actor,role,reason,
                changes=None,expected_review_id=None,expected_assignment_id=None,
-               verification_level='source_verified',replaces_review_ids=None):
+               verification_level='source_verified',replaces_review_ids=None,
+               origin='local_ui',recorded_by=None,authorization_quote=None,source_review_id=None):
         reviewer=actor_info(actor,role)
+        provenance=instruction_provenance(origin,recorded_by,authorization_quote)
         reason=text(reason,'Review reason')
         if action not in ACTIONS:
             raise ValueError('Unknown review action')
@@ -227,6 +274,10 @@ class ReviewStore(SourceReviews):
             original=next((o for o in package['observations'] if o['observation_id']==observation_id),None)
             if original is None:
                 raise ValueError('Observation is outside this package revision')
+            if source_review_id is not None:
+                source=self.source_review_index(package_id,revision).get(('observation',observation_id))
+                if (action!='accept' or not source or source['action']!='approve' or source['review_id']!=source_review_id):
+                    raise ValueError('Current source approval differs from the accepted source review')
             previous=self.latest_review(package_id,revision,observation_id)
             if (previous['review_id'] if previous else None)!=expected_review_id:
                 raise ValueError('Review changed; reload before saving')
@@ -271,7 +322,8 @@ class ReviewStore(SourceReviews):
                 date_review_method='explicit_human_source_review' if action in {'accept','correct'} else None,
                 previous_review_id=expected_review_id,assignment_id=identity['assignment_id'] if identity else None,
                 case_id=identity['case_id'] if identity else None,encounter_id=identity['encounter_id'] if identity else None,
-                replaces_review_ids=replaces_review_ids)
+                replaces_review_ids=replaces_review_ids,**provenance)
+            if source_review_id is not None:item['source_review_id']=source_review_id
             self.db.execute('INSERT INTO review_decisions(review_id,package_id,revision,observation_id,assignment_id,previous_review_id,payload) VALUES(?,?,?,?,?,?,?)',
                 (item['review_id'],package_id,revision,observation_id,item['assignment_id'],expected_review_id,encode(item)))
             self.registry._audit('review_decision_recorded',item)

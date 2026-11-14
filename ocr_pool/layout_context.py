@@ -3,12 +3,44 @@ import hashlib
 import re
 from decimal import Decimal, InvalidOperation
 
-from .metadata import fold
+from .metadata import fold, metadata_response_flags
 from .tables import parse_tables, TableError
 
 
-def round_symbol_agreement(class_raw, parsed, context):
-    """Resolve only a round-symbol OCR variant corroborated by a source range.
+def blood_table_context(table, columns):
+    """Recognize a coherent CBC table by labels and units, never result values.
+
+    This context belongs to this table only. Urine and mixed section tables
+    cannot acquire a blood specimen from a neighbouring CBC or isolated WBC.
+    """
+    from .rules import unit_key, strip_label_checkmarks
+    if 'name' not in columns or 'unit' not in columns:
+        return {}
+    expected = {'RBC': {'10^12/l'}, 'HGB': {'g/l'}, 'MCV': {'fl'},
+                'WBC': {'10^9/l'}, 'PLT': {'10^9/l'}}
+    hits = set()
+    marked_labels = False
+    for row in table.rows[table.header_rows:]:
+        raw_name = row[columns['name']].strip()
+        name = strip_label_checkmarks(raw_name)
+        if re.search(r'\b(?:urine|nuoc tieu|biochemistry|hoa sinh)\b', fold(name)):
+            return {}
+        for label, units in expected.items():
+            if (re.search(r'(?:^|[-\s])' + label + r'$', name, re.I)
+                    and unit_key(row[columns['unit']]) in units):
+                hits.add(label)
+                marked_labels |= name != raw_name
+    if len(hits) >= 4 and {'RBC', 'WBC'} <= hits:
+        context = {'specimen': 'blood', 'specimen_context_method': 'cbc_label_unit_cooccurrence',
+                   'specimen_context_labels': sorted(hits)}
+        if marked_labels:
+            context['specimen_context_label_normalization'] = 'edge_checkmarks_for_matching_only'
+        return context
+    return {}
+
+
+def round_class_reading(class_raw, parsed, context):
+    """Read a round Class symbol, independently corroborated by this legend.
 
     Never rewrite raw text or derive a class from intensity alone. An explicit
     same-document legend, supported panel and unique agreeing interval are
@@ -42,12 +74,22 @@ def round_symbol_agreement(class_raw, parsed, context):
     symbol = hits[0]
     if symbol not in {'o', 'O', '0'} or legend[symbol] != 'negative':
         return None
-    if '0' not in {symbol, class_raw} or symbol == class_raw:
-        return None
-    return dict(qualitative_value='negative', class_legend_symbol=symbol,
+    return dict(class_symbol='o', qualitative_value='negative', class_legend_symbol=symbol,
+                class_interpretation_origin='source_legend',
                 class_interpretation_method='source_legend_round_symbol_range_agreement',
                 class_interpretation_range=list(ranges[symbol]),
                 class_interpretation_evidence=evidence)
+
+
+def round_symbol_agreement(class_raw, parsed, context):
+    """Compatibility: report only digit/letter differences for review flags."""
+    reading = round_class_reading(class_raw, parsed, context)
+    if not reading:
+        return None
+    symbol = reading['class_legend_symbol']
+    if '0' not in {symbol, class_raw} or symbol == class_raw:
+        return None
+    return reading
 
 
 def explicit_panel(raw):
@@ -64,7 +106,8 @@ def explicit_panel(raw):
 
 def document_context(document):
     all_sources = [p for p in document.get('text_regions', []) + document.get('tables', [])
-                   if not p.get('truncated') and p.get('generation_status', 'ok') == 'ok']
+                   if not p.get('truncated') and p.get('generation_status', 'ok') == 'ok'
+                   and not metadata_response_flags(p['raw'])]
     # Parent headings remain useful, but parent legends must not override a
     # selected refinement. Keep conflicting selected legends unresolved.
     panels = {p for source in all_sources if (p := explicit_panel(source['raw']))}
@@ -78,8 +121,6 @@ def document_context(document):
         if explicit_panel(raw):
             provenance.append(dict(region_id=source['table_id'], raw_sha256=hashlib.sha256(raw.encode()).hexdigest(),
                                    purpose='explicit_panel_heading'))
-        if re.search(r'general[\s-]*h[ae]+matology', fold(raw)):
-            context['specimen'] = 'blood'
         if source.get('format') == 'text' or source.get('superseded_by'):
             continue
         try:

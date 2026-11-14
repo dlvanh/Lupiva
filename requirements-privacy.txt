@@ -1,0 +1,8 @@
+# Optional isolated environment for local image privacy proposals; CPU only.
+# Keep separate from the SenOCR/GPU environment.
+Pillow==13.0.0
+numpy==2.4.6
+opencv-python==5.0.0.93
+rapidocr==3.9.2
+onnxruntime==1.31.1
+zxing-cpp==3.1.1

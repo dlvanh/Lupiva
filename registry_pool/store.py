@@ -1,6 +1,8 @@
 """Transactional local registry. Immutable OCR imports, explicit later reviews."""
 import json
 import sqlite3
+from contextlib import contextmanager
+from pathlib import Path
 from datetime import datetime,timezone
 
 from .dictionary import digest
@@ -49,10 +51,30 @@ CREATE INDEX IF NOT EXISTS observations_field ON observations(field_id,document_
 
 
 class Registry:
-    def __init__(self,path):
-        self.db=sqlite3.connect(path,timeout=30)
+    @contextmanager
+    def import_transaction(self):
+        """Join a patient intake transaction without committing its outer scope."""
+        if self.db.in_transaction:
+            name='package_import'
+            self.db.execute('SAVEPOINT '+name)
+            try:
+                yield
+                self.db.execute('RELEASE '+name)
+            except BaseException:
+                self.db.execute('ROLLBACK TO '+name)
+                self.db.execute('RELEASE '+name)
+                raise
+        else:
+            with self.db:yield
+
+    def __init__(self,path,*,read_only=False):
+        self.db=(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,timeout=30)
+                 if read_only else sqlite3.connect(path,timeout=30))
         self.db.row_factory=sqlite3.Row
         self.db.execute('PRAGMA foreign_keys=ON')
+        if read_only:
+            self.db.execute('PRAGMA query_only=ON')
+            return
         self.db.executescript(DDL)
         # These are immutable source/revision records; later acceptance and
         # corrections belong in separate review records, never UPDATE here.
@@ -93,7 +115,7 @@ class Registry:
         validate_package(package,dictionary)
         pid,revision=package['package_id'],package['revision']
         checksum=digest(package)
-        with self.db:
+        with self.import_transaction():
             old=self.db.execute('SELECT sha256 FROM packages WHERE package_id=? AND revision=?',(pid,revision)).fetchone()
             if old:
                 if old[0]!=checksum:

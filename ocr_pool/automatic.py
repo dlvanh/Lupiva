@@ -3,8 +3,8 @@ import copy
 import hashlib
 import re
 
-from .layout_context import document_context
-from .metadata import DATE_VALUE, LABEL_PATTERN, fold, extract_metadata
+from .layout_context import document_context, explicit_panel, blood_table_context
+from .metadata import DATE_VALUE, LABEL_PATTERN, fold, extract_metadata, metadata_response_flags
 from .pipeline import roles, convert_documents
 from .rules import key, resolve
 from .tables import Table, TableError, parse_tables
@@ -22,7 +22,9 @@ def has_result_headers(payload):
                 if start+count>=len(table.rows):
                     continue
                 try:
-                    roles(Table(table.rows[start:],count).headers,payload.get('context',{}))
+                    context = {**({'panel': explicit_panel(payload['raw'])} if explicit_panel(payload['raw']) else {}),
+                               **payload.get('context', {})}
+                    roles(Table(table.rows[start:],count).headers,context)
                     return True
                 except TableError:
                     pass
@@ -68,8 +70,9 @@ def select_metadata_replacement(target, replacements, *, date_order=None, recons
             text_regions=regions,metadata_context={'date_order':date_order}))
         return {f['key'] for f in facts if f['value'] is not None and not f['flags']}
     required, available = valid_keys(old), valid_keys(replacements)
-    complete = replacements and all(not r.get('truncated') and r.get('generation_status','ok')=='ok' for r in replacements)
-    accepted = bool(complete and required <= available)
+    complete = replacements and all(not r.get('truncated') and r.get('generation_status','ok')=='ok'
+                                    and not metadata_response_flags(r['raw']) for r in replacements)
+    accepted = bool(complete and available and required <= available)
     if accepted:
         for region in old:
             region.update(purpose='superseded_context',superseded_by=sorted(new_ids))
@@ -82,9 +85,12 @@ def select_metadata_replacement(target, replacements, *, date_order=None, recons
             if region['table_id'] in new_ids:
                 region['purpose']='superseded_context'
                 region['replacement_rejected']=True
+                if metadata_response_flags(region['raw']):
+                    region['ocr_quality_flags'] = metadata_response_flags(region['raw'])
     return dict(document_id=target['document_id'],accepted=accepted,
                 required_keys=sorted(required),available_keys=sorted(available),
-                old_region_ids=[r['table_id'] for r in old],new_region_ids=sorted(new_ids))
+                old_region_ids=[r['table_id'] for r in old],new_region_ids=sorted(new_ids),
+                quality_flags=sorted({flag for r in replacements for flag in metadata_response_flags(r['raw'])}))
 
 
 def select_row_retries(document, catalog):
@@ -232,11 +238,21 @@ def adapt_document(original, *, date_order=None):
                     metadata_lines.append(dates[0][1] + ' ' + clocks[0][1])
                     origins.append(dict(parent_row_0based=row_index,
                                         parent_columns_0based=[dates[0][0], clocks[0][0]]))
+                # Some spirometers print one spanning title/date/time cell.
+                # Require the explicit panel heading and one complete date/time
+                # expression, never infer the measurement date from a DOB/SID.
+                if len(cells) == 1 and explicit_panel(cells[0][1]) == 'pft':
+                    stamps = list(DATE_VALUE.finditer(cells[0][1]))
+                    if len(stamps) == 1 and re.search(r'\d{1,2}:\d{2}', stamps[0][0]):
+                        metadata_lines.append(stamps[0][0])
+                        origins.append(dict(parent_row_0based=row_index,
+                                            parent_columns_0based=[cells[0][0]]))
         if metadata_lines:
             raw = payload['raw']
             derived.append(dict(table_id=payload['table_id'] + '-metadata', raw='\n'.join(metadata_lines),
                 format='text', purpose='metadata', generation_status='ok', truncated=False,
                 crop_source_id=payload['table_id'], region=payload.get('region'),
+                ocr_confidence=payload.get('ocr_confidence'),
                 context=dict(date_order=date_order, unlabelled_datetime_role='measurement_date' if context.get('panel') == 'pft' else None),
                 derivation=dict(method='explicit_table_metadata_cells', parent_table_id=payload['table_id'],
                     parent_raw_sha256=hashlib.sha256(raw.encode()).hexdigest(), source_cells=origins)))
@@ -255,5 +271,7 @@ def adapt_document(original, *, date_order=None):
             start, header_rows = min(candidates, key=lambda pair: (pair[0], pair[1]))
             payload.update(row_start=start, header_rows=header_rows,
                            header_selection_method='explicit_column_roles_in_saved_grid')
+            selected = Table(table.rows[start:], header_rows)
+            payload['context'].update(blood_table_context(selected, roles(selected.headers, payload['context'])))
     document.setdefault('text_regions', []).extend(derived)
     return document

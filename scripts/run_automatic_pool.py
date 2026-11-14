@@ -101,8 +101,10 @@ def main():
             finally:
                 registry.close()
         flow.complete(final)
-        print(json.dumps(dict(status='completed',final=str(final),bundle=str(bundle),
-            clinical_verification=False,reference_values_used=False)))
+        receipt=dict(status='completed',final=str(final),bundle=str(bundle),
+            clinical_verification=False,reference_values_used=False)
+        write(root/'result.json',receipt)
+        print(json.dumps(receipt))
 
 
 if __name__=='__main__':

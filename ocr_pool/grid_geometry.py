@@ -60,7 +60,7 @@ def refine_table(image, detection, panel, *, assay_grid=True):
     rows = clusters(sorted(row_samples), distance=6)
     left, top, right, bottom = 0, 0, width - 1, height - 1
     info = dict(rectified_size=[width, height], horizontal_lines=rows)
-    if panel in {'ana_profile_23', 'myositis'} and assay_grid:
+    if panel in {'ana_profile_23', 'myositis', 'antibody_grid'} and assay_grid:
         # Find the longest run of regularly ruled rows. The strip diagram above
         # the assay grid and its broad graphic column are not result columns.
         best = []

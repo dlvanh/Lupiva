@@ -18,7 +18,7 @@ def fold(text):
 
 LABELS = {
     'pid': r'\bpid', 'sid': r'\bsid',
-    'identity_number': r'\bidentity\s+number',
+    'identity_number': r'\b(?:identity\s+number|cmt|cmnd|cccd)',
     'unresolved_identifier': r'\b(?:bid|vidi|vid)',
     'birth_date': r'\b(?:ngay\s+sinh|date\s+of\s+birth)',
     'sex': r'\b(?:gioi\s+tinh|sex|gender)',
@@ -38,6 +38,15 @@ DATE_VALUE = re.compile(rf'(?:{DATE}(?:\s+{TIME})?|{TIME}\s+{DATE})', re.I)
 DATE_KEYS = {'sample_date', 'received_date', 'ordered_date', 'distributed_date', 'measurement_date', 'birth_date'}
 ADM_FIELDS = {'age': ('ADM02', 'years'), 'sex': ('ADM03', None),
               'height': ('ADM05', 'cm'), 'weight': ('ADM06', 'kg')}
+
+
+def metadata_response_flags(raw):
+    """Flag known model self-description, not a language or patient value."""
+    text = fold(raw)
+    markers = (r'\b(?:as an?|i am an?)\s+(?:artificial intelligence|ai|language)\s+(?:language\s+)?model\b',
+               r'\btoi la (?:mot )?mo hinh (?:ngon ngu|ai)\b',
+               r'作为一个人工智能语言模型')
+    return ['ocr_self_referential_response'] if any(re.search(p, text) for p in markers) else []
 
 
 def normalize_value(key, raw, label, context):
@@ -89,6 +98,11 @@ def extract_metadata(document, *, candidate_offset=0, evidence_offset=0):
     did = document['document_id']
     for index, payload in enumerate(document.get('text_regions', [])):
         rid = payload.get('table_id', f'TEXT{index + 1:03d}')
+        quality_flags = metadata_response_flags(payload['raw'])
+        if quality_flags:
+            issues.append(dict(document_id=did, table_id=rid, reason='ocr_region_needs_review',
+                               flags=quality_flags))
+            continue
         if payload.get('purpose', 'metadata') != 'metadata':
             continue
         if payload.get('truncated') or payload.get('generation_status', 'ok') != 'ok':
@@ -110,6 +124,9 @@ def extract_metadata(document, *, candidate_offset=0, evidence_offset=0):
                                  value_raw=value_raw, label_raw=label, table_sha256=sha,
                                  input_sha256=document.get('input_sha256'),
                                  source_context=context, region=payload.get('region'),
+                                 ocr_confidence=payload.get('ocr_confidence'),
+                                 generation_status=payload.get('generation_status', 'ok'),
+                                 truncated=bool(payload.get('truncated')),
                                  derivation=payload.get('derivation'),
                                  region_granularity='text_region' if payload.get('region') else 'unavailable',
                                  mapping_method=method))
@@ -145,6 +162,24 @@ def extract_metadata(document, *, candidate_offset=0, evidence_offset=0):
             offset += len(segment)
         if len(candidates) == candidate_count_before and not context.get('metadata_exclude_keys'):
             issues.append(dict(document_id=did, table_id=rid, reason='no_recognized_metadata'))
+    # A selected refinement may repeat metadata from its parent grid. Merge
+    # only agreeing, valid derived cells, retaining both source evidences.
+    derived_eids = {e['evidence_id'] for e in evidence
+                    if (e.get('derivation') or {}).get('method') == 'explicit_table_metadata_cells'}
+    merged, cell_facts = [], {}
+    for candidate in candidates:
+        signature = (candidate['key'], candidate['value'])
+        if (not candidate['flags'] and candidate['value'] is not None
+                and set(candidate['evidence_ids']) <= derived_eids):
+            if signature in cell_facts:
+                cell_facts[signature]['evidence_ids'].extend(candidate['evidence_ids'])
+                continue
+            cell_facts[signature] = candidate
+        merged.append(candidate)
+    candidates = merged
+    # Subsequent documents allocate IDs by candidate count.
+    for index, candidate in enumerate(candidates, candidate_offset + 1):
+        candidate['candidate_id'] = f'MD{index:05d}'
     by_key = defaultdict(list)
     for candidate in candidates:
         by_key[candidate['key']].append(candidate)
@@ -172,7 +207,15 @@ def select_fact(candidates, key):
     return items[0] if len({c['value'] for c in items}) == 1 else None
 
 
+def source_date_key(candidates, context):
+    # An invalid/conflicting preferred date must block fallback. Other date
+    # roles (birth/receipt/order) never substitute for collection or measurement.
+    if context.get('panel') == 'pft':
+        return 'measurement_date'
+    return 'sample_date' if any(c['key'] == 'sample_date' for c in candidates) else 'measurement_date'
+
+
 def select_source_date(candidates, context):
-    key = 'measurement_date' if context.get('panel') == 'pft' else 'sample_date'
+    key = source_date_key(candidates, context)
     fact = select_fact(candidates, key)
     return (fact['value'], key, fact['evidence_ids']) if fact else (None, None, [])

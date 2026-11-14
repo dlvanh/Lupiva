@@ -23,6 +23,48 @@ def document(raw, **payload_options):
 
 
 class MetadataTests(unittest.TestCase):
+    def test_lab_measurement_date_propagates_with_its_own_type_and_evidence(self):
+        d = document('Measurement date: 07/11/2026')
+        d['tables'] = [{'raw': 'Test\tResult\tUnit\nC3\t0.65\tg/L'}]
+        p = convert_documents([d], CATALOG)
+        obs = p['observations'][0]
+        self.assertEqual((obs['source_date'], obs['date_type']), ('2026-11-07', 'measurement_date'))
+        dates = [e for e in p['evidence'] if e['evidence_id'] in obs['date_evidence_ids']]
+        self.assertEqual(len(dates), 1)
+        self.assertEqual(dates[0]['label_raw'], 'Measurement date:')
+        self.assertEqual(dates[0]['document_id'], 'SYNTHETIC')
+
+    def test_sample_date_retains_priority_and_unresolved_sample_blocks_fallback(self):
+        for sample, expected in [('06/11/2026', '2026-11-06'), ('32/11/2026', None),
+                                 ('06/11/2026\nNgày lấy mẫu: 05/11/2026', None)]:
+            with self.subTest(sample=sample):
+                d = document('Ngày lấy mẫu: '+sample+'\nMeasurement date: 07/11/2026')
+                d['tables'] = [{'raw': 'Test\tResult\tUnit\nC3\t0.65\tg/L'}]
+                obs = convert_documents([d], CATALOG)['observations'][0]
+                self.assertEqual(obs['source_date'], expected)
+                self.assertEqual(obs['date_type'], 'sample_date' if expected else None)
+
+    def test_measurement_date_conflict_or_invalid_value_does_not_supply_date(self):
+        for raw in ('Measurement date: 32/11/2026',
+                    'Measurement date: 07/11/2026\nMeasurement date: 06/11/2026'):
+            d = document(raw)
+            d['tables'] = [{'raw': 'Test\tResult\tUnit\nC3\t0.65\tg/L',
+                            'context': {'source_date': '2026-11-07', 'date_type': 'measurement_date'}}]
+            p = convert_documents([d], CATALOG)
+            self.assertIsNone(p['observations'][0]['source_date'])
+            self.assertIn('source_date_conflict', p['observations'][0]['flags'])
+
+    def test_self_referential_response_cannot_supply_even_labelled_facts(self):
+        for response in ('As an AI language model, SID: INVENTED',
+                         '作为一个人工智能语言模型，SID: INVENTED',
+                         'Tôi là một mô hình ngôn ngữ. SID: INVENTED'):
+            p = convert_documents([document(response)], CATALOG)
+            self.assertFalse(p['metadata_candidates'])
+            self.assertEqual(p['issues'][0]['reason'], 'ocr_region_needs_review')
+            self.assertIn('ocr_self_referential_response', p['issues'][0]['flags'])
+        p = convert_documents([document('SID: SYN001\n中文实验室')], CATALOG)
+        self.assertEqual(p['metadata_candidates'][0]['value'], 'SYN001')
+
     def test_table_only_does_not_assert_absent_administrative_data(self):
         p = convert_documents([{'document_id': 'D', 'tables': [{'raw': 'Test\tResult\tUnit\nC3\t0.65\tg/L'}]}], CATALOG)
         self.assertEqual(p['fields']['ADM02']['extraction_status'], 'not_processed')

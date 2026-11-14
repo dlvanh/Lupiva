@@ -18,7 +18,13 @@ def refinable_panel(ocr):
     raw=fold(' '.join(t['raw'] for t in ocr.get('tables',[])))
     if all(label in raw for label in ('chi dinh','ket qua','don vi')):
         return None
-    panel=document_context(ocr).get('panel')
+    context=document_context(ocr)
+    panel=context.get('panel')
+    # A truncated graphic table can hide its panel title. A complete printed
+    # class/intensity legend warrants a geometry retry, never a guessed panel.
+    if (panel is None and context.get('class_legend') and
+            any(t.get('truncated') for t in ocr.get('tables', []))):
+        return 'antibody_grid'
     return panel if panel in {'ana_profile_23','myositis','pft'} else None
 
 
@@ -27,6 +33,8 @@ def main():
     p.add_argument('layout', type=Path)
     p.add_argument('--ocr-run', required=True, type=Path)
     p.add_argument('--output', required=True, type=Path)
+    p.add_argument('--incomplete-only', action='store_true',
+                   help='Retry only documents with an incomplete table generation')
     a = p.parse_args()
     if a.output.exists():
         raise FileExistsError('Use a new manifest')
@@ -38,6 +46,9 @@ def main():
         if doc['document_id'] not in saved:
             continue
         ocr = saved[doc['document_id']]
+        if a.incomplete_only and not any(t.get('truncated') or t.get('generation_status', 'ok') != 'ok'
+                                        for t in ocr.get('tables', [])):
+            continue
         if ocr['input_sha256'] != doc['input_sha256']:
             raise ValueError('Different OCR/layout source hash')
         context = document_context(ocr)
@@ -48,7 +59,21 @@ def main():
         largest = max(tables, key=lambda r: (r['bbox_xyxy'][2]-r['bbox_xyxy'][0]) * (r['bbox_xyxy'][3]-r['bbox_xyxy'][1]))
         image = ImageOps.exif_transpose(Image.open(ROOT / doc['input_path'])).convert('RGB')
         regions = []
+        if panel == 'antibody_grid':
+            # Recover the missing heading from the source above the first
+            # detected table; its text, not antigen counts, selects the panel.
+            first_top = min(t['bbox_xyxy'][1] for t in tables)
+            left = min(t['bbox_xyxy'][0] for t in tables)
+            right = max(t['bbox_xyxy'][2] for t in tables)
+            if first_top > image.height * .05:
+                regions.append(dict(region_id=doc['document_id']+'-grid-context',
+                    bbox_xyxy=[max(0, left-8), 0, min(image.width, right+8), first_top],
+                    task='text', purpose='source_context', max_pixels=1003520,
+                    layout_provenance=dict(method='truncated_table_missing_heading_band',
+                        detection_ids=[t['detection_id'] for t in tables])))
         for detection in tables:
+            if panel == 'antibody_grid' and detection is not largest:
+                continue
             try:
                 quad, info = refine_table(image, detection, panel, assay_grid=detection is largest)
             except ValueError as error:

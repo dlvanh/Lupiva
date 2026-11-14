@@ -1,7 +1,8 @@
 """Human source approvals independent of case identity and clinical assessment.
 
-These decisions verify a versioned OCR snapshot as recorded. They never fill
-missing attributes, assign patients, or replace case-bound clinical decisions.
+Original OCR snapshots remain immutable. An approval may explicitly select a
+separately recorded source transcription; identity and clinical decisions stay
+independent, and pending corrections never replace an approved value.
 """
 import copy
 import json
@@ -9,6 +10,7 @@ from uuid import uuid4
 
 from registry_pool.dictionary import digest
 from registry_pool.store import encode
+from .corrections import SourceCorrections,CORRECTION_DDL
 
 SOURCE_DDL='''
 CREATE TABLE IF NOT EXISTS source_review_batches(
@@ -24,7 +26,7 @@ CREATE TABLE IF NOT EXISTS source_review_decisions(
  FOREIGN KEY(package_id,revision) REFERENCES packages);
 CREATE INDEX IF NOT EXISTS source_review_candidate
  ON source_review_decisions(package_id,revision,candidate_type,candidate_id,sequence);
-'''
+'''+CORRECTION_DDL
 GROUPS={'observation':('observations','observation_id'),
         'metadata':('metadata_candidates','candidate_id'),
         'specimen':('specimen_candidates','sample_id')}
@@ -47,7 +49,7 @@ def incomplete_attributes(kind,item):
     return ['value'] if data.get('value') in (None,'') else []
 
 
-class SourceReviews:
+class SourceReviews(SourceCorrections):
     def source_review_index(self,package_id,revision):
         latest={}
         for row in self.db.execute('SELECT payload FROM source_review_decisions WHERE package_id=? AND revision=? ORDER BY sequence',
@@ -86,8 +88,10 @@ class SourceReviews:
         required={'candidate_type','candidate_id','action','expected_review_id','expected_candidate_sha256'}
         seen=set()
         for decision in decisions:
-            if not isinstance(decision,dict) or set(decision)!=required:
+            if not isinstance(decision,dict) or not required<=set(decision) or set(decision)-required-{'correction_id'}:
                 raise ValueError('Source review requires candidate and previous snapshot hashes')
+            if 'correction_id' in decision and (decision['action']!='approve' or not isinstance(decision['correction_id'],str)):
+                raise ValueError('A correction must be selected explicitly for approval')
             key=(decision['candidate_type'],decision['candidate_id'])
             if key in seen or key[0] not in GROUPS or decision['action'] not in SOURCE_ACTIONS:
                 raise ValueError('Unknown action/type or repeated source candidate')
@@ -118,10 +122,24 @@ class SourceReviews:
                 previous=latest.get((kind,cid))
                 if (previous['review_id'] if previous else None)!=decision['expected_review_id']:
                     raise ValueError('Source review changed; reload before saving')
+                effective_item=copy.deepcopy(item)
+                effective_item['source_data']=self.source_value(kind,item,previous)
+                correction_id=previous.get('correction_id') if previous and previous['action']=='approve' else None
+                if 'correction_id' in decision:
+                    current_revision=self.db.execute('SELECT MAX(revision) FROM packages WHERE package_id=?',(package_id,)).fetchone()[0]
+                    if revision!=current_revision:raise ValueError('Only the current revision can approve a correction')
+                    history=self.correction_history(package_id,revision,kind,cid)
+                    if not history or history[-1]['status']!='pending' or history[-1]['correction_id']!=decision['correction_id']:
+                        raise ValueError('Correction changed or outside candidate; reload before approving')
+                    correction=history[-1]
+                    if correction['expected_review_id']!=decision['expected_review_id'] or correction['before']!=effective_item['source_data']:
+                        raise ValueError('Correction base review changed; propose again after reloading')
+                    effective_item['source_data']=copy.deepcopy(correction['after'])
+                    correction_id=correction['correction_id']
                 if decision['action']=='approve':
                     if kind=='observation':
                         validate_result(item['source_data'],item['component'])
-                    if kind=='metadata' and item['source_data'].get('value') in (None,''):
+                    if kind=='metadata' and effective_item['source_data'].get('value') in (None,''):
                         raise ValueError('Missing metadata cannot be approved as a value')
                 records.append(dict(review_id='source-review-'+uuid4().hex,batch_id=batch_id,
                     package_id=package_id,revision=revision,candidate_type=kind,candidate_id=cid,
@@ -129,8 +147,11 @@ class SourceReviews:
                     verification_level='source_verified' if decision['action']=='approve' else None,
                     reason=reason,created_at_utc=timestamp,previous_review_id=decision['expected_review_id'],
                     source_candidate_sha256=digest(item),source_snapshot=copy.deepcopy(item),
-                    incomplete_attributes=incomplete_attributes(kind,item),missing_values_preserved=True,
+                    incomplete_attributes=incomplete_attributes(kind,effective_item),missing_values_preserved=not bool(correction_id),
+                    missing_values_policy='unchanged_except_explicit_source_correction',
                     identity_confirmed_by_this_decision=False,clinical_assessment=False))
+                if correction_id and decision['action']=='approve':
+                    records[-1].update(correction_id=correction_id,after=effective_item['source_data'])
             batch=dict(batch_id=batch_id,request_id=request_id,package_id=package_id,revision=revision,
                 package_sha256=expected_package_sha256,created_at_utc=timestamp,reviewer=reviewer,
                 reason=reason,origin=origin,recorded_by=recorded_by,authorization_quote=authorization_quote,
@@ -164,12 +185,15 @@ class SourceReviews:
                 if not decision or decision['action']!='approve':
                     continue
                 # Never expose OCR's pending flag as the effective review status.
-                value={k:copy.deepcopy(v) for k,v in item['source_data'].items()
+                value={k:copy.deepcopy(v) for k,v in self.source_value(kind,item,decision).items()
                        if k not in {'review_status','eligible_for_verified_pool','validation_status'}}
                 record={k:copy.deepcopy(v) for k,v in item.items() if k!='source_data'}
                 record.update(value=value,review_status='source_verified',source_review_id=decision['review_id'],
                     review_batch_id=decision['batch_id'],incomplete_attributes=decision['incomplete_attributes'],
                     eligible_for_verified_pool=False,case_acceptance_required=True)
+                if decision.get('correction_id'):
+                    record.update(correction_id=decision['correction_id'],
+                        correction_history=self.correction_history(package_id,revision,kind,item[key]))
                 result[group].append(record)
                 referenced.update(item['evidence_ids']+item.get('date_evidence_ids',[]))
         approved={o['observation_id'] for o in result['observations']}

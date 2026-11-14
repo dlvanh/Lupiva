@@ -21,6 +21,42 @@ def region(rid, raw, **kwargs):
 
 
 class AutomaticTests(unittest.TestCase):
+    def test_empty_or_self_referential_metadata_retry_cannot_replace_header(self):
+        for raw in ('', 'As an AI language model, PID: MADEUP',
+                    '作为一个人工智能语言模型，PID: MADEUP'):
+            old=region('old','ANA Profile 23',purpose='metadata')
+            retry=region('retry',raw,purpose='metadata')
+            doc=dict(document_id='S',tables=[],text_regions=[old,retry])
+            self.assertFalse(select_metadata_replacement(doc,[retry],date_order='DMY')['accepted'])
+            self.assertEqual(old['purpose'],'metadata')
+            self.assertEqual(retry['purpose'],'superseded_context')
+            if raw:
+                self.assertIn('ocr_self_referential_response',retry['ocr_quality_flags'])
+                pool=convert_documents([doc],CATALOG)
+                self.assertTrue(any(i['reason']=='ocr_region_needs_review' for i in pool['issues']))
+                self.assertEqual(document_context(doc)['panel'],'ana_profile_23')
+
+    def test_self_referential_response_cannot_inject_panel_context(self):
+        doc=dict(tables=[],text_regions=[region('header','ANA Profile 23'),
+            region('bad','As an AI language model, Myositis')])
+        self.assertEqual(document_context(doc)['panel'],'ana_profile_23')
+
+    def test_assay_header_band_avoids_larger_legend_and_empty_strip(self):
+        def detection(rid,label,box):
+            return dict(detection_id=rid,label=label,bbox_xyxy=box)
+        doc=dict(document_id='S',image_size=[1000,1500],detections=[
+            detection('assay','table',[50,400,950,600]),
+            detection('legend','table',[50,700,950,1200])])
+        ocr=dict(tables=[region('assay','Antigen\tIntensity\tClass\nKu\t8\t(+)'),
+                         region('legend','Class\tIntensity\tExplanation\n(+)\t8 - 14\tBorderline')],
+                 text_regions=[region('heading','ANA Profile 23')])
+        self.assertEqual(header_regions(doc,ocr),[])
+        doc['detections'].append(detection('sid','text',[700,360,940,385]))
+        regions=header_regions(doc,ocr)
+        self.assertEqual(len(regions),1)
+        self.assertEqual(regions[0]['layout_provenance']['detection_ids'],['assay'])
+        self.assertLess(regions[0]['bbox_xyxy'][3],450)
+
     def test_assay_word_in_lab_test_does_not_select_assay_grid_refinement(self):
         ocr=dict(tables=[region('lab','Chỉ định\tKết quả\tĐơn vị\nMyositis\tNegative\t')],text_regions=[])
         self.assertIsNone(refinable_panel(ocr))

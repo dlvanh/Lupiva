@@ -93,7 +93,8 @@ def extract_sample_collections(documents,*,date_order=None):
                 marker=re.match(r'([☑☒☐□])\s*(.*)',label)
                 text=marker[2] if marker else label
                 name=fold(text)
-                sample_type='blood' if name=='blood' else 'stool' if name=='stool' else 'other' if name.startswith('others, specify:') else None
+                sample_type=('blood' if name=='blood' else 'stool' if name=='stool' else
+                             'other' if re.match(r'^others?\s*(?:,\s*specify\s*)?:', name) else None)
                 if sample_type is None:
                     issues.append(dict(document_id=doc['document_id'],table_id=tid,row_index_0based=index,
                         reason='unmapped_sample_type',row_raw=row))

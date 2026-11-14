@@ -1,5 +1,13 @@
 # Chạy thử OCR bảng → pool lupus
 
+## Quy tắc ngày, nhãn mẫu và OCR header
+
+Phiếu xét nghiệm ưu tiên `sample_date`; khi không có candidate ngày lấy mẫu, có thể dùng `measurement_date` hợp lệ với đúng loại ngày và evidence cùng tài liệu. Candidate ngày lấy mẫu lỗi/mâu thuẫn chặn fallback. PFT vẫn dùng `measurement_date`. Ngày sinh, nhận mẫu và chỉ định không thay cho ngày lấy mẫu/ngày đo; ô ngày thu mẫu trong form không tự lấy ngày từ header.
+
+Nhãn `Other:`/`Others:` và `Other(s), specify:` được ánh xạ tường minh sang mẫu `other`, giữ nguyên chữ nguồn và checkbox. Thiếu dấu checkbox vẫn là `unreadable`, không suy thành bỏ chọn hay clinical No.
+
+Header retry chọn bảng kết quả trước bảng chú giải và chỉ chạy trên dải có text do detector phát hiện. Một số mẫu câu model tự giới thiệu thay vì OCR bị đánh dấu `ocr_self_referential_response`, giữ raw/crop, đưa vào `issues` và loại khỏi nguồn metadata/panel context. Đây là bộ phát hiện mẫu lỗi cụ thể, không bảo đảm bắt được mọi đoạn OCR bịa hoặc mọi giá trị sai. Header thay thế phải có metadata hợp lệ và giữ đủ các key hợp lệ của header cũ.
+
 ## Runner có xử lý phiếu thu mẫu — 07/11/2026
 
 Runner whole-image hiện dùng 30 stage: 22 stage clinical cũ, 5 stage form và 3 stage xuất SQLite/review/bundle. Sau clinical assembly, hệ thống tìm ô mẫu còn thiếu từ đường kẻ nguồn, đọc lại tối đa hai lượt (ô đầy đủ rồi vùng mực xanh), tích hợp specimen vào pool 0.3 và xuất exchange 1.1. Mỗi lượt OCR form giới hạn 512 token; lỗi geometry được giữ trong manifest. Manifest rỗng bỏ qua OCR, không nạp model. Clinical observations và metadata giữ nguyên; specimen vẫn pending, chưa xác nhận ca/lần thu mẫu.

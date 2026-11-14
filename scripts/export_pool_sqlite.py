@@ -18,7 +18,7 @@ def export_pool(package, target):
                 extraction_status TEXT NOT NULL, attributes_json TEXT NOT NULL);
             CREATE TABLE documents (document_id TEXT PRIMARY KEY, attributes_json TEXT NOT NULL);
             CREATE TABLE evidence (evidence_id TEXT PRIMARY KEY, document_id TEXT NOT NULL REFERENCES documents,
-                table_id TEXT NOT NULL, row_index INTEGER NOT NULL, result_column INTEGER,
+                table_id TEXT NOT NULL, row_index INTEGER, result_column INTEGER,
                 attributes_json TEXT NOT NULL);
             CREATE TABLE observations (observation_id TEXT PRIMARY KEY,
                 field_id TEXT NOT NULL REFERENCES catalog_fields,
@@ -62,8 +62,11 @@ def export_pool(package, target):
             for doc in package['source_documents']:
                 db.execute('INSERT INTO documents VALUES (?,?)', (doc['document_id'], encode(doc)))
             for ev in package['evidence']:
+                row_index=ev.get('row_index_0based')
+                if row_index is None and ev.get('evidence_kind')!='metadata':
+                    raise ValueError('Non-metadata evidence requires a source row index')
                 db.execute('INSERT INTO evidence VALUES (?,?,?,?,?,?)',
-                           (ev['evidence_id'], ev['document_id'], ev['table_id'], ev['row_index_0based'],
+                           (ev['evidence_id'], ev['document_id'], ev['table_id'], row_index,
                             ev.get('result_column_0based'), encode(ev)))
             columns = ['observation_id', 'field_id', 'document_id', 'component', 'numeric_value', 'comparator',
                        'qualitative_value', 'pattern_raw', 'grade_raw', 'symbolic_value', 'result_raw', 'unit_raw',

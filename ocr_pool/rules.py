@@ -2,7 +2,17 @@
 import re
 import unicodedata
 
-VERSION = 'lupus-table-rules-0.4'
+VERSION = 'lupus-table-rules-0.7'
+
+
+def strip_label_checkmarks(value):
+    """Ignore explicit edge checkmarks for label matching, never OCR values.
+
+    Do not strip words, ASCII v/x, crosses, clinical +/- signs or marks inside
+    an abbreviation. Raw labels and result cells stay untouched at call sites.
+    """
+    mark = r'[✓✔☑✅][\ufe0e\ufe0f]?'
+    return re.sub(r'^(?:' + mark + r'\s*)+|(?:\s*' + mark + r')+$', '', value.strip()).strip()
 
 
 def key(value):
@@ -39,7 +49,9 @@ def add(field, aliases, units=(), *, panel=None, specimen=None, kind='numeric'):
 add('HIS01', ['β-hCG', 'Beta hCG'], ['mIU/mL', 'IU/L'])
 add('MUS01', ['CK', 'Creatine kinase'], ['U/L'])
 add('MUS03', ['LDH', 'Lactate dehydrogenase'], ['U/L'])
-add('REN01', ['UPCR', 'Tỉ lệ Protein niệu / Creatinin niệu', 'Urine Protein Creatinine Ratio'], ['mg/mg', 'g/g', 'mg/g', 'mg/mmol'], specimen='urine')
+add('REN01', ['UPCR', 'Tỉ lệ Protein niệu / Creatinin niệu', 'Urine Protein Creatinine Ratio',
+              'Tỉ lệ Protein niệu / Creatinin niệu UPCR', 'Urine Protein Creatinine Ratio UPCR'],
+    ['mg/mg', 'g/g', 'mg/g', 'mg/mmol'], specimen='urine')
 add('REN02', ['RBC', 'Hồng cầu', 'Haematuria'], ['cells/uL', '/HPF'], specimen='urine', kind='mixed')
 add('REN03', ['WBC', 'Bạch cầu', 'Pyuria'], ['cells/uL', '/HPF'], specimen='urine', kind='mixed')
 add('REN04', ['Ure', 'Urea'], ['mmol/L', 'mg/dL'])
@@ -66,7 +78,9 @@ for field, aliases, units in [
 add('HEM13', ['Direct Coombs', 'Direct Coombs test'], kind='mixed')
 
 for field, aliases, units, kind in [
-    ('IMM01', ['ANA', 'Kháng thể kháng nhân (anti -ANA)', 'Kháng thể kháng nhân (anti -ANA) bằng kỹ thuật huỳnh quang'], [], 'pattern'),
+    ('IMM01', ['ANA', 'Kháng thể kháng nhân (anti -ANA)',
+               'Kháng thể kháng nhân (anti -ANA) bằng kỹ thuật huỳnh quang',
+               'Kháng thể kháng nhân (anti -ANA) bằng kỹ thuật huyền quang'], [], 'pattern'),
     ('IMM02', ['Anti-CCP', 'Anti CCP'], ['U/mL'], 'mixed'),
     ('IMM03', ['RF', 'Rheumatoid Factor'], ['IU/mL'], 'mixed'),
     ('IMM11', ['C3'], ['g/L', 'mg/dL'], 'numeric'),
@@ -126,7 +140,7 @@ for i, (name, aliases) in enumerate(PFT, 1):
 
 
 def resolve(name, context):
-    cleaned = re.sub(r'\[AC-[^\]]+\]', '', name, flags=re.I).strip(' .✓✔')
+    cleaned = strip_label_checkmarks(re.sub(r'\[AC-[^\]]+\]', '', name, flags=re.I)).strip(' .')
     # Strip display-only assay abbreviations, not PFT units or (Hb).
     abbreviated = re.sub(r'\s+\([^()]+\)$', '', cleaned)
     variants = {key(cleaned), key(abbreviated)}
@@ -134,7 +148,7 @@ def resolve(name, context):
     # diacritic OCR mistakes. Require the explicit dash and known blood panel;
     # never use substring matching (e.g. MCH must not become MCHC).
     if context.get('specimen') == 'blood':
-        suffix = re.search(r'-\s*(RBC|HGB|MCV|MCHC|WBC|NE[#%]|LY[#%]|MO[#%]|EO[#%]|BA[#%]|PLT)\s*[✓✔]*\s*$', cleaned, re.I)
+        suffix = re.search(r'-\s*(RBC|HGB|MCV|MCHC|WBC|NE[#%]|LY[#%]|MO[#%]|EO[#%]|BA[#%]|PLT)\s*$', cleaned, re.I)
         if suffix:
             variants.add(key(suffix[1]))
     candidates = [r for r in RULES if variants & r['aliases']]

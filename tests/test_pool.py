@@ -16,6 +16,51 @@ def convert(raw, context=None, **table_options):
 
 
 class PoolTests(unittest.TestCase):
+    def test_mixed_table_section_ends_urine_context_before_ana(self):
+        raw=('<table><tr><th>Test</th><th>Result</th><th>Unit</th></tr>'
+             '<tr><td colspan="3">Nước Tiểu/Urine</td></tr>'
+             '<tr><td>Tỉ lệ Protein niệu / Creatinin niệu UPCR</td><td>0.17</td><td>mg/mg</td></tr>'
+             '<tr><td colspan="3">Huyết Học/Hematology</td></tr>'
+             '<tr><td>Kháng thể kháng nhân (anti-ANA) bằng kỹ thuật huyền quang</td><td>Speckled</td><td></td></tr>'
+             '<tr><td colspan="3">Xét nghiệm tế bào trong nước tiểu (bằng máy tự động)</td></tr>'
+             '<tr><td>Bạch cầu</td><td>(+)</td><td></td></tr></table>')
+        for base in (None,'blood'):
+            p=convert(raw,{} if base is None else {'specimen':base},automatic_context=True)
+            rows={(o['field_id'],o['component']):o for o in p['observations']}
+            self.assertEqual(rows['REN01','result']['specimen'],'urine')
+            self.assertEqual(rows['IMM01','result']['specimen'],base)
+            self.assertEqual(rows['REN03','result']['specimen'],'urine')
+            self.assertEqual(rows['REN03','result']['symbolic_value'],'(+)')
+
+    def test_upcr_full_name_with_abbreviation_is_exact_and_urine_scoped(self):
+        for name in ('Tỉ lệ Protein niệu / Creatinin niệu UPCR',
+                     'Tỉ lệ Protein niệu / Creatinin niệu (UPCR)',
+                     'Urine Protein Creatinine Ratio - UPCR'):
+            with self.subTest(name=name):
+                p=convert('Test\tResult\tUnit\n'+name+'\t0.17\tmg/mg',{'specimen':'urine'})
+                self.assertEqual([(o['field_id'],o['numeric_value'],o['unit_raw']) for o in p['observations']],
+                                 [('REN01','0.17','mg/mg')])
+                self.assertFalse(p['observations'][0]['eligible_for_verified_pool'])
+        for context in ({},{'specimen':'blood'}):
+            self.assertFalse(convert('Test\tResult\tUnit\nTỉ lệ Protein niệu / Creatinin niệu UPCR\t0.17\tmg/mg',context)['observations'])
+        for name in ('Protein niệu 24 giờ UPCR','UPCR ghi chú','Not a UPCR result'):
+            self.assertFalse(convert('Test\tResult\tUnit\n'+name+'\t0.17\tmg/mg',{'specimen':'urine'})['observations'])
+
+    def test_ana_known_method_spelling_variant_retains_source_and_pattern(self):
+        name='Kháng thể kháng nhân (anti-ANA) bằng kỹ thuật huyền quang'
+        p=convert('Test\tResult\n'+name+'\tSpeckled')
+        pattern=next(o for o in p['observations'] if o['component']=='result')
+        method=next(o for o in p['observations'] if o['component']=='method')
+        self.assertEqual((pattern['field_id'],pattern['pattern_raw']),('IMM01','Speckled'))
+        self.assertIsNone(pattern['grade_raw'])
+        self.assertEqual(pattern['name_raw'],name)
+        self.assertEqual(method['qualitative_value'],'huỳnh quang')
+        self.assertIn('huyền quang',method['result_raw'])
+        self.assertIn('ocr_method_spelling_variant',method['flags'])
+        self.assertTrue(all(o['review_status']=='pending' and not o['eligible_for_verified_pool'] for o in p['observations']))
+        for name in ('Kháng thể khác bằng kỹ thuật huyền quang','Kháng thể kháng nhân (anti-ANA) bằng kỹ thuật không rõ'):
+            self.assertFalse(convert('Test\tResult\n'+name+'\tSpeckled')['observations'])
+
     def test_pattern_grade_continuation_keeps_both_source_rows(self):
         p = convert('Test\tResult\nKháng thể kháng nhân (anti -ANA)\tHomogeneous\n'
                     'bằng kỹ thuật huyền quang\t3+\nUnrecognized prose\tNonsense')

@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from ocr_pool import convert_documents
 from ocr_pool.regions import prepare_region
+from ocr_pool.confidence import greedy_collector, VERSION as CONFIDENCE_VERSION
 
 
 def save(path, value):
@@ -72,6 +73,7 @@ def main():
         'precision': args.precision, 'manifest_path': str(args.manifest),
         'manifest_sha256': sha(args.manifest), 'max_pixels': args.max_pixels,
         'max_new_tokens': args.max_new_tokens, 'use_cache': True, 'batch_size': 1,
+        'generation_confidence_version': CONFIDENCE_VERSION,
         'model_config_sha256': sha(args.model_dir / 'config.json'),
         'source_kind': 'actual_local_ocr', 'layout_method': spec.get('layout_method', 'declared_development_regions'),
         'layout_manifest_sha256': spec.get('layout_sha256'),
@@ -128,19 +130,21 @@ def main():
             item = {'region_id': region_id, 'document_id': document['document_id'],
                     'status': 'ok', 'crop_size': list(crop.size), 'prompt': prompt,
                     'max_pixels': region_max_pixels}
-            batch = generated = tokens = None
+            batch = generated = tokens = collector = None
             try:
                 batch = processor.apply_chat_template(messages, add_generation_prompt=True,
                     tokenize=True, return_dict=True, return_tensors='pt').to('cuda:0')
                 torch.cuda.synchronize()
                 item['preprocess_seconds'] = time.perf_counter() - start
                 generation_start = time.perf_counter()
+                collector = greedy_collector()
                 with torch.inference_mode():
                     generated = model.generate(**batch, max_new_tokens=args.max_new_tokens,
-                                               do_sample=False, use_cache=True)
+                                               do_sample=False, use_cache=True, logits_processor=[collector])
                 torch.cuda.synchronize()
                 tokens = generated[0, batch['input_ids'].shape[1]:]
                 raw = processor.decode(tokens, skip_special_tokens=True)
+                item['ocr_confidence'] = collector.finish(tokens)
                 item.update(generation_seconds=time.perf_counter() - generation_start,
                             output_tokens=len(tokens), input_tokens=batch['input_ids'].shape[1],
                             truncated=len(tokens) >= args.max_new_tokens)
@@ -151,7 +155,7 @@ def main():
                 raw = ''
                 item.update(status='error', error_type=type(error).__name__, error=str(error), truncated=False)
             finally:
-                del batch, generated, tokens
+                del batch, generated, tokens, collector
                 if item['status'] != 'ok':
                     torch.cuda.empty_cache()
             item.update(latency_seconds=time.perf_counter() - start,
@@ -166,6 +170,7 @@ def main():
                 'context': region.get('context', {}), 'truncated': item['truncated'],
                 'header_rows': region.get('header_rows'),
                 'generation_status': item['status'],
+                'ocr_confidence': item.get('ocr_confidence'),
             }
             if task == 'text':
                 record['purpose'] = region.get('purpose', 'metadata')

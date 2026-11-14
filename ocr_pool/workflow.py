@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 
 def sha(path):
@@ -25,7 +26,19 @@ def write(path,value):
     path=Path(path)
     temp=path.with_suffix(path.suffix+'.tmp')
     temp.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-    os.replace(temp,path)
+    # Windows readers/virus scanners can briefly prevent atomic replacement.
+    # Keep the old complete state and the recoverable new state if it persists.
+    for attempt in range(8):
+        try:
+            os.replace(temp,path)
+            break
+        except PermissionError:
+            if attempt==7:raise
+            time.sleep(min(.02*2**attempt,.25))
+
+
+def venv_python(folder):
+    return folder / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
 
 
 def process_token(pid):

@@ -1,5 +1,23 @@
 # Duyệt pool tại máy — bản thử 07/11/2026
 
+**Giao diện rút gọn09/11:** chọn bệnh nhân → xem/lọc giá trị → **Xem / sửa** mở khung đúng giá trị và ảnh → duyệt từng giá trị hoặc chọn nhiều để **Lưu duyệt**. Thêm ảnh nằm ở mục thu gọn **Thêm hồ sơ từ ảnh**. Quản lý gói/ca/liên kết/xuất kỹ thuật đã ẩn khỏi trang chính; các bước đó bên dưới là hướng dẫn của bản giao diện trước.
+
+**Luồng nhận ảnh mới09/11:** tại8773 chọn **Tạo hồ sơ bệnh nhân từ ảnh**. Mỗi lượt nhiều ảnh tạo một bệnh nhân, OCR chạy nền và dữ liệu chờ kiểm tra/duyệt. [Hướng dẫn nhận ảnh](PATIENT-IMAGE-INTAKE.md); liên kết/duyệt từng ảnh trước không còn là bước bắt buộc của luồng này.
+
+**Bản đang dùng sau bổ sung trích xuất 08/11: http://127.0.0.1:8773.** Chọn bộ lọc dữ liệu cần duyệt để xem66ứng viên mới; giữ175kết quả đã duyệt. Các địa chỉ8772 bên dưới là mốc cũ. Lệnh khởi động đủ3bundle và giải thích dữ liệu mới: [PATIENT-FIELDS-REVIEW.md](PATIENT-FIELDS-REVIEW.md), [SOURCE-EXTRACTION-IMPROVEMENTS.md](SOURCE-EXTRACTION-IMPROVEMENTS.md).
+
+## Cập nhật 08/11 — đủ trường theo bệnh nhân và duyệt hàng loạt
+
+Mở **http://127.0.0.1:8772** để dùng bản mới trên SQL thật. Bảng bệnh nhân hiện đủ261mục/377thành phần, kể cả chưa có dữ liệu, kèm tìm kiếm/lọc nhóm/trạng thái, ảnh/crop nguồn và tải toàn bộ trường JSON. Chọn nhiều giá trị hoặc tất cả giá trị trong bộ lọc, nhập ghi chú và xác nhận rồi lưu một đợt; có duyệt/cần làm rõ/loại/rút duyệt, lịch sử theo đợt, kiểm snapshot và giao dịch SQL hoàn tác trọn đợt khi lỗi. Không duyệt ô trống thành giá trị. Xem [hướng dẫn đầy đủ](PATIENT-FIELDS-REVIEW.md).
+
+Hồ sơ LUPUS-000001 giữ nguyên12tài liệu,175kết quả/91mục,56metadata,3mục mẫu và toàn bộ phê duyệt cũ. Đã kiểm213Python tests và2JS controller smoke; HTTP thật tải đủ234giá trị ứng viên và377thành phần, đối chiếu175kết quả cũ không đổi. Không chạy OCR hoặc tự lưu duyệt lại dữ liệu thật. Kiểm trực quan browser chưa thực hiện được vì native pipe của Computer Use không kết nối. Các cổng và hướng dẫn bên dưới là lịch sử.
+
+## Hồ sơ bệnh nhân từ 12 ảnh inputs — cập nhật mới nhất
+
+Người dùng đã xác nhận IN01–IN12 thuộc cùng một bệnh nhân và yêu cầu gom thành dữ liệu bệnh nhân. Kho chính hiện có **LUPUS-000001**, 12 liên kết tài liệu và175kết quả source_verified dùng lại từ phê duyệt nguồn đã lưu, cùng56metadata và3dòng mẫu. Ghi rõ người dùng xác nhận qua hội thoại và Codex ghi nhận thay; không gán Study ID, không suy lần khám hoặc đánh giá lâm sàng. Bản backup trước batch và receipt cục bộ ở `research/patient-inputs-20261107-01/` và `research/registry-pool/backups/`.
+
+Mở **http://127.0.0.1:8771** để xem giao diện mới. Hồ sơ duy nhất được chọn sẵn, bảng dữ liệu có lọc, ngày và ảnh nguồn. Xem trước rồi tạo CSV hoặc Word tổng hợp cả bệnh nhân; có thể chọn riêng visit khi sau này xác nhận visit. Các mục bên dưới ghi “chưa có ca” là lịch sử trước lần xác nhận này.
+
 ## Duyệt nguồn revision 5 đã được lưu — trạng thái mới nhất
 
 Người dùng đã đọc/kiểm tra và yêu cầu chuyển kết quả sang đã duyệt. Kho chính hiện có một batch **175 quan sát +56 metadata +3 dòng mẫu đã duyệt đối chiếu nguồn**, có snapshot/hash/thời điểm/quote và phân biệt người dùng duyệt với Codex ghi nhận thay. Các hướng dẫn “chưa có thao tác duyệt metadata/specimen” bên dưới là lịch sử. OCR gốc không bị UPDATE; xem trạng thái hiệu lực tại phần **Duyệt đối chiếu nguồn** và danh sách kết quả.
@@ -58,3 +76,6 @@ Kiểm thử dùng nguồn giả trong thư mục tạm: phân quyền khai báo
 Chưa duyệt/sửa metadata định danh/ngày như một đối tượng riêng, chưa tạo/map observation mới từ hàng unmapped, chưa hoàn thiện phát hiện mâu thuẫn giữa các entity/tài liệu khác nhau, chưa có luồng duyệt/chỉnh sửa chi tiết specimen/event. Form đã vào bundle/kho và phần xem UI, nhưng còn hai ngày chưa đọc được, chưa nối form stages vào runner whole-image. Dictionary/component semantics, kiểm tra chéo lâm sàng, parser thuốc/văn bản và mapping REDCap/Word vẫn nằm trong plan.
 
 HTTP đã được kiểm chứng bằng nguồn giả; JavaScript kiểm cú pháp bằng Node. **Chưa kiểm chứng hiển thị/tương tác trong trình duyệt thật**: lần thử công cụ ngày 07/11 không có browser host/native pipe. Không coi đây là UI đã qua visual QA hay sản phẩm vận hành hoàn chỉnh. Hồ sơ mới được rà độc lập vẫn cần để đánh giá chất lượng OCR ngoài bộ phát triển.
+# Đề xuất sửa thông tin nguồn
+
+[Hướng dẫn sửa và dùng với tài liệu mới](SOURCE-CORRECTIONS.md) mô tả editor metadata/thu mẫu, đề xuất chờ duyệt, lịch sử, API và giới hạn. Bản sửa đã duyệt được giữ khi duyệt lại giá trị hiện hành; OCR gốc không bị ghi đè. Sao lưu SQLite trước khi mở server mới để thêm bảng lịch sử đề xuất.

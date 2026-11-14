@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import sys
 
@@ -10,13 +11,18 @@ sys.path.insert(0, str(ROOT))
 from ocr_pool.layout import bounded_box, TEXT_LABELS
 from ocr_pool.layout_context import document_context
 from ocr_pool.metadata import fold
+from ocr_pool.automatic import has_result_headers
 
 
 def header_regions(doc, ocr):
     tables = [d for d in doc['detections'] if d['label']=='table']
     if not tables:
         return []
-    largest = max(tables, key=lambda d:(d['bbox_xyxy'][2]-d['bbox_xyxy'][0])*(d['bbox_xyxy'][3]-d['bbox_xyxy'][1]))
+    # A legend can be larger than its assay grid. Prefer a detected table whose
+    # saved OCR actually contains result headers before choosing a header band.
+    result_ids = {p['table_id'] for p in ocr.get('tables', []) if has_result_headers(p)}
+    result_tables = [d for d in tables if d['detection_id'] in result_ids]
+    largest = max(result_tables or tables, key=lambda d:(d['bbox_xyxy'][2]-d['bbox_xyxy'][0])*(d['bbox_xyxy'][3]-d['bbox_xyxy'][1]))
     l,t,r,b = largest['bbox_xyxy']
     w,h = doc['image_size']
     pad = max(12, round(w*.012))
@@ -27,7 +33,21 @@ def header_regions(doc, ocr):
     if context.get('panel') in {'myositis','ana_profile_23'} and not lab:
         # The source immediately above the detected assay table contains its
         # printed identifiers. Avoid the unrelated sheet beyond the table edge.
-        boxes.append(('table-header', [l, max(0,t-h*.04), r,t+8]))
+        band_top = max(0,t-h*.04)
+        header_text = [d for d in doc['detections'] if d['label'] in TEXT_LABELS
+                       and band_top <= (d['bbox_xyxy'][1]+d['bbox_xyxy'][3])/2 < t
+                       and d['bbox_xyxy'][0] < r and d['bbox_xyxy'][2] > l]
+        patient_ids = {p['table_id'] for p in ocr.get('tables', [])
+                       if re.search(r'\bpid\s*:', fold(p['raw']))
+                       and re.search(r'date of birth\s*:', fold(p['raw']))
+                       and not p.get('truncated')}
+        preceding = [d for d in tables if d['detection_id'] in patient_ids
+                     and 0 < t - d['bbox_xyxy'][3] < h*.08
+                     and d['bbox_xyxy'][0] < r and d['bbox_xyxy'][2] > l]
+        if preceding:
+            band_top = max(band_top, max(d['bbox_xyxy'][3] for d in preceding)-4)
+        if header_text or preceding:
+            boxes.append(('table-header', [l, band_top, r,t+8]))
     else:
         if not lab:
             return []
@@ -73,7 +93,9 @@ def main():
         if regions:
             documents.append(dict(document_id=doc['document_id'], input_path=doc['input_path'],
                 expected_input_sha256=doc['input_sha256'],regions=regions,
-                metadata_supersedes=[r['table_id'] for r in ocr.get('text_regions',[])]))
+                **(dict(focused_metadata_keys=['sid'])
+                   if all(r['region_id'].endswith('-table-header') for r in regions)
+                   else dict(metadata_supersedes=[r['table_id'] for r in ocr.get('text_regions',[])]))))
     a.output.write_text(json.dumps(dict(layout_method='PP-DocLayoutV3_header_refinement',
         layout_sha256=hashlib.sha256(a.layout.read_bytes()).hexdigest(),reference_annotations_used=False,
         documents=documents),ensure_ascii=False,indent=2)+'\n',encoding='utf-8')

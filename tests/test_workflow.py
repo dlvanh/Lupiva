@@ -4,8 +4,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from ocr_pool.workflow import Workflow,process_token,workflow_lock
+from ocr_pool.workflow import Workflow,process_token,workflow_lock,write,read
 from ocr_pool.automatic import merge_region
 
 
@@ -22,6 +23,31 @@ class WorkflowTests(unittest.TestCase):
 
     def outputs(self,folder):
         return [folder/'out.txt']
+
+    def test_atomic_state_write_retries_transient_windows_read_lock(self):
+        path=self.root/'workflow.json';write(path,dict(status='old'))
+        import os
+        replace=os.replace
+        calls=[]
+        def transient(source,target):
+            calls.append(1)
+            if len(calls)<3:
+                self.assertEqual(read(path),dict(status='old'))
+                raise PermissionError('Synthetic Windows reader lock')
+            replace(source,target)
+        with patch('ocr_pool.workflow.os.replace',side_effect=transient),patch('ocr_pool.workflow.time.sleep') as sleep:
+            write(path,dict(status='new'))
+        self.assertEqual(len(calls),3);self.assertEqual(sleep.call_count,2)
+        self.assertEqual(read(path),dict(status='new'))
+        self.assertFalse(path.with_suffix('.json.tmp').exists())
+
+    def test_persistent_state_lock_is_bounded_and_preserves_both_states(self):
+        path=self.root/'workflow.json';write(path,dict(status='old'))
+        with patch('ocr_pool.workflow.os.replace',side_effect=PermissionError('Persistent lock')) as replace,patch('ocr_pool.workflow.time.sleep'):
+            with self.assertRaises(PermissionError):write(path,dict(status='new',pid=123))
+        self.assertEqual(replace.call_count,8)
+        self.assertEqual(read(path),dict(status='old'))
+        self.assertEqual(read(path.with_suffix('.json.tmp')),dict(status='new',pid=123))
 
     def test_completed_resume_verifies_hashes_and_does_not_execute_again(self):
         flow=Workflow(self.root,dict(input_hash='original'))

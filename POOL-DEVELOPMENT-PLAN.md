@@ -1,5 +1,29 @@
 # Phát triển pool đầy đủ trường và chuẩn bị xuất REDCap/Word
 
+## Cập nhật tiếp 08/11 — tăng dữ liệu có nguồn
+
+Đã thêm66ứng viên pending vào SQL thật, giữ175kết quả đã duyệt. Hiện93/261mục có ứng viên, cùng35dòng xét nghiệm ngoài Word trong nhóm bổ sung. Có nhãn rõ bản trợ lý chép kết luận viết tay khi OCR thất bại, cảnh báo mapping vai trò người chỉ định và chẩn đoán nghi ngờ. **220Python tests và2JS smoke đạt**; HTTP45source/crop/rawlinks đạt. Server mới8773. Chi tiết và giới hạn: [SOURCE-EXTRACTION-IMPROVEMENTS.md](SOURCE-EXTRACTION-IMPROVEMENTS.md). Mốc213tests/8772 bên dưới là lịch sử.
+
+## Cập nhật 08/11 — bảng đủ trường và duyệt nhiều giá trị
+
+Theo yêu cầu người dùng, ưu tiên đủ trường và duyệt cùng lúc trước bố cục Word. Đã thêm workspace bệnh nhân đủ261mục/377thành phần, hiện cả ô chưa có dữ liệu với trạng thái rõ; không suy âm tính/Không/0. Bảng có các giá trị đang chờ hoặc đã loại/cần làm rõ, giữ nhiều nguồn/ngày, các mục metadata/mẫu bổ sung, lọc/tìm kiếm/chọn nhiều và tải JSON toàn danh mục. Bulk endpoint lưu một giao dịch có idempotency/snapshot/hash nguồn và audit theo đợt; giữ sửa tay cũ, không chấp nhận mâu thuẫn hoặc ô trống hàng loạt. **213Python tests và2JS smoke đạt**. SQL thật và175kết quả cũ không đổi;234giá trị có nguồn ở hồ sơ hiện tại. Server8772; xem [runbook](PATIENT-FIELDS-REVIEW.md). Word bindings vẫn63/261; đây là đủ cấu trúc trường, chưa phải trích đủ dữ liệu hoặc hoàn tất bài toán OCR261mục. Metadata/mẫu vẫn chưa có sửa giá trị trên UI; kiểm browser trực quan và import REDCap thật còn mở.
+
+## Cập nhật 07/11 — thử inputs trên một bệnh nhân thật
+
+Theo xác nhận IN01–IN12 cùng một bệnh nhân, đã tạo **LUPUS-000001** trong SQL chính:12tài liệu,175observations trên91mã,56metadata,3specimen entries. Liên kết/chấp nhận có provenance chỉ dẫn và backup; source_verified, không phải đánh giá lâm sàng. Không suy lần khám chung, Study ID hoặc ngày thiếu; dùng OCR revision5 đã duyệt, không inference mới. UI8771 có bảng tìm kiếm dữ liệu bệnh nhân và xuất toàn ca. CSV235dòng, một record_id; Word giữ175observations (53vào ô mẫu,122ở phụ lục), đã tự kiểm30trang. **202Python tests và JS controller smoke đạt**. Bản giao tại `outputs/patient-inputs-20261107-01/LUPUS-000001/`; chi tiết và verification trong SESSION-HANDOFF.md. Các mục0cases bên dưới là lịch sử.
+
+Đã hoàn thành thử luồng từ dữ liệu nguồn đã duyệt đến hồ sơ bệnh nhân và file xuất. Chưa coi toàn bài toán hoàn tất: còn thử import trên REDCap Development thật, mở rộng safe bindings Word (hiện63/261mục), trích thuốc/lâm sàng và đánh giá OCR độc lập. Không dùng91/261 làm độ chính xác OCR hoặc độ đầy đủ bệnh án.
+
+## Cập nhật 07/11 — xuất qua giao diện review
+
+Đã nối exporter vào màn hình review: chọn ca/lần ghi nhận, xem trước phạm vi và lý do loại, tạo/tải CSV REDCap hoặc Word kèm snapshot/report. CSV giữ toàn bộ visits của ca, Word chỉ lấy visit đã chọn. Preview có hash và hết hạn, nguồn kiểm lại trước xuất; ledger đối soát riêng ca không báo nhầm dữ liệu ca khác bị mất. **196 Python tests và kiểm controller JavaScript đạt**; live HTTP demo tạo/tải CSV2visits/4kết quả và Word5kết quả thành công. Word16trang render trùng bản đã kiểm trước. Kiểm trực quan UI còn thiếu vì công cụ trình duyệt không kết nối; import REDCap thực tế và198bindings Word còn mở. Xem [hướng dẫn thao tác](REGISTRY-EXPORT-RUNBOOK.md#xuất-trực-tiếp-trên-màn-hình-review).
+
+## Cập nhật 07/11 — exporter REDCap và Word dự thảo
+
+Theo lựa chọn **tạo bộ biến mới từ Word**, đã thêm exporter SQL chỉ đọc, mapping đủ 261 mục/377 component, Data Dictionary gồm 5 form/70 biến dùng chung và 4 repeating instruments. Cặp field_id/component giữ danh mục nghiệp vụ; mỗi kết quả là một instance riêng, không flatten theo giá trị mới nhất. Ledger SQL riêng giữ instance ổn định và báo các dòng cần đối chiếu khi rút duyệt. Word chỉ điền ô đã kiểm nhãn/placeholder/hash (63/261 mục); phần chưa gắn ô được giữ ở phụ lục. Đây là tiến triển Mốc D, **chưa xác nhận tương thích trên project REDCap thực tế hoặc hoàn thiện toàn bộ ô Word**.
+
+Pilot SQL giả lập: 3 ca, 4 lần khám, 9 kết quả được chấp nhận trong mô phỏng, 8 metadata đã duyệt nguồn; CSV 24 dòng. Word DEMO-002 điền 5 chỉ số, giữ 15 trang gốc và thêm 1 phụ lục; đã render/kiểm đủ trang, chỉ khác trang 1/6/9 và phụ lục. **188 tests đạt**, gồm 12 kiểm thử export mới. Kho thật giữ 234 phê duyệt nguồn, chưa có liên kết ca/lần khám nên chưa xuất thành bệnh nhân. Xem [runbook export](REGISTRY-EXPORT-RUNBOOK.md). Các phần tiến độ dưới giữ lịch sử.
+
 ## Yêu cầu hiện hành
 
 Lưu output thành pool có đủ các trường nghiệp vụ của Word lupus. Hiện chưa cần sắp thứ tự hoặc dựng bố cục Word. Dữ liệu cần giữ được cấu trúc để sau này ánh xạ sang form như REDCap hoặc xuất Word; không dùng vị trí ô Word làm khóa dữ liệu. Mọi xử lý và dữ liệu vẫn nội bộ.

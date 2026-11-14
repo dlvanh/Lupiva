@@ -12,6 +12,27 @@ def extract(body,**options):
 
 
 class SampleFormTests(unittest.TestCase):
+    def test_explicit_other_label_variants_keep_checkbox_and_raw_text(self):
+        for label in ('Others: skin', 'Other: skin', 'Others, specify: skin', 'Other , specify : skin'):
+            with self.subTest(label=label):
+                result=extract('☐ '+label+'\t\t\t\t\t')
+                self.assertFalse(result['issues'])
+                item=result['candidates'][0]
+                self.assertEqual(item['sample_type'],'other')
+                self.assertEqual(item['sample_type_raw'],label)
+                self.assertEqual(item['checkbox_state'],'unchecked')
+                self.assertIsNone(item['clinical_field_id'])
+                self.assertIsNone(item['collection_datetime']['date'])
+                self.assertEqual(result['evidence'][0]['row_raw'][0],'☐ '+label)
+
+    def test_other_label_does_not_match_arbitrary_prefixes_or_guess_checkbox(self):
+        for label in ('Otherwise: skin', 'Others unknown', 'Other blood result'):
+            result=extract(label+'\t\t\t\t\t')
+            self.assertFalse(result['candidates'])
+            self.assertEqual(result['issues'][0]['reason'],'unmapped_sample_type')
+        item=extract('Others: skin\t\t\t\t\t')['candidates'][0]
+        self.assertEqual(item['checkbox_state'],'unreadable')
+
     def test_rows_keep_independent_dates_times_and_explicit_markers(self):
         result=extract('☑ Blood\t10:30 05/08/2026\t10...mL\tPBMC:\t\t\n'
                        '☑ Stool\t05/08/2026\t01 sample\t\t\t\n'

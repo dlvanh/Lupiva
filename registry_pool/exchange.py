@@ -57,6 +57,7 @@ def convert_candidate(candidate,dictionary,*,package_id=None,revision=1,supersed
         mdmap[original['candidate_id']]=item['candidate_id']
         metadata.append(item)
     obsmap,observations={},[]
+    obs_by_id={}
     for original in candidate['observations']:
         item=dict(document_id=docmap[original['document_id']],source_observation_id=original['observation_id'],
             field_id=original['field_id'],component=original['component'],
@@ -66,7 +67,22 @@ def convert_candidate(candidate,dictionary,*,package_id=None,revision=1,supersed
             source_data=clean(original,{'observation_id','document_id','evidence_ids','date_evidence_ids','metadata_candidate_id'}))
         item['observation_id']=entity_id('obs',item,'observation_id','source_observation_id')
         obsmap[original['observation_id']]=item['observation_id']
-        observations.append(item)
+        if item['observation_id'] in obs_by_id:
+            # Content-identical source observations share one canonical package ID.
+            # Keep all source IDs for audit while emitting unique observation refs.
+            existing=observations[obs_by_id[item['observation_id']]]
+            existing['source_data'].setdefault('duplicate_source_observation_ids',[]).append(original['observation_id'])
+        else:
+            obs_by_id[item['observation_id']]=len(observations)
+            observations.append(item)
+    # Duplicate source IDs are part of the final immutable payload. Recompute
+    # its content ID after coalescing, before building field references.
+    final_ids={}
+    for item in observations:
+        previous=item['observation_id']
+        item['observation_id']=entity_id('obs',item,'observation_id','source_observation_id')
+        final_ids[previous]=item['observation_id']
+    obsmap={key:final_ids[value] for key,value in obsmap.items()}
     specimens=[]
     for original in candidate.get('specimen_candidates',[]):
         item=dict(document_id=docmap[original['document_id']],source_sample_candidate_id=original['sample_candidate_id'],
@@ -88,7 +104,7 @@ def convert_candidate(candidate,dictionary,*,package_id=None,revision=1,supersed
                     else None if items else 'parser_not_implemented_for_component' if not comp['parser_implemented'] else 'source_scope_incomplete')
             components[cid]=dict(status=status,reason=reason,observation_ids=[o['observation_id'] for o in items])
         pool_fields[fid]=dict(status=legacy['extraction_status'],reason=legacy.get('reason'),
-            observation_ids=[obsmap[o] for o in legacy['observation_ids']],components=components)
+            observation_ids=list(dict.fromkeys(obsmap[o] for o in legacy['observation_ids'])),components=components)
     package=dict(schema_version='lupus-pool-exchange-1.0',dictionary_version=dictionary['dictionary_version'],
         dictionary_sha256=digest(dictionary),package_id=package_id or 'pending',revision=revision,supersedes=supersedes,
         created_at_utc=candidate['created_at_utc'],case_id=None,identity_status='unconfirmed',
@@ -159,7 +175,9 @@ def verify_bundle(bundle,dictionary):
                 raise ValueError('Specimen row evidence differs from raw source table')
         if data.get('evidence_kind')=='sample_form_cell' and data.get('raw')!=raw:
             raise ValueError('Specimen cell evidence differs from raw OCR')
-        if data.get('evidence_kind') in {'sample_form_row','sample_form_cell'} and data.get('region'):
+        local_date = data.get('evidence_kind') == 'metadata' and data.get('mapping_method') in {
+            'local_ocr_date_label', 'local_ocr_explicit_label'}
+        if (local_date or data.get('evidence_kind') in {'sample_form_row','sample_form_cell'}) and data.get('region'):
             from PIL import Image,ImageOps
             from ocr_pool.regions import prepare_region,spec_from_provenance
             did=ev['document_id']
@@ -171,7 +189,7 @@ def verify_bundle(bundle,dictionary):
             with Image.open(safe_key(bundle,crop_key)) as crop:
                 actual=crop.convert('RGB')
             if actual.size!=expected.size or actual.tobytes()!=expected.tobytes():
-                raise ValueError('Specimen crop differs from its declared source image transform')
+                raise ValueError('Evidence crop differs from its declared source image transform')
     return package
 
 
@@ -191,7 +209,7 @@ def build_bundle(run,output,dictionary,workspace,**options):
         assets.append(dict(key=key,sha256=hashlib.sha256(target.read_bytes()).hexdigest(),size=target.stat().st_size,role=role))
     for doc in candidate['source_documents']:
         source=safe_key(workspace,doc['input_path'])
-        if source.suffix.lower() not in {'.png','.jpg','.jpeg','.tif','.tiff','.pdf'}:
+        if source.suffix.lower() not in {'.png','.jpg','.jpeg','.tif','.tiff','.pdf','.bmp','.webp'}:
             raise ValueError('Unsupported source asset type')
         if hashlib.sha256(source.read_bytes()).hexdigest()!=doc['input_sha256']:
             raise ValueError('Source image changed')

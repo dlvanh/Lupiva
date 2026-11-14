@@ -11,8 +11,8 @@ import re
 
 from .rules import RULES, VERSION, key, resolve, unit_key
 from .tables import Table, TableError, HeaderOnlyTableError, parse_tables
-from .metadata import ADM_FIELDS, extract_metadata, select_fact, select_source_date
-from .layout_context import round_symbol_agreement
+from .metadata import ADM_FIELDS, extract_metadata, select_fact, select_source_date, source_date_key
+from .layout_context import round_class_reading, round_symbol_agreement
 
 SCHEMA_VERSION = 'lupus-candidate-pool-0.2'
 HEADER_ALIASES = {
@@ -63,16 +63,28 @@ def roles(headers, context=None):
 
 def number(raw, decimal_separator=None):
     value = raw.strip().replace('−', '-')
-    match = re.fullmatch(r'([<>]=?|[≤≥])?\s*([+-]?\d+(?:[.,]\d+)?)', value)
+    match = re.fullmatch(r'([<>]=?|[≤≥])?\s*([+-]?[\d.,]+)', value)
     if not match:
         raise ValueError('Invalid or ambiguous numeric text')
     comparator, digits = match.groups()
-    if ',' in digits:
+    # Both marks disambiguate the convention only when every thousands group
+    # is structurally valid. A lone comma remains ambiguous without a source
+    # convention (1,234 could mean either 1234 or 1.234).
+    if ',' in digits and '.' in digits:
+        if re.fullmatch(r'[+-]?\d{1,3}(?:,\d{3})+\.\d+', digits) and decimal_separator != ',':
+            digits = digits.replace(',', '')
+        elif re.fullmatch(r'[+-]?\d{1,3}(?:\.\d{3})+,\d+', digits) and decimal_separator == ',':
+            digits = digits.replace('.', '').replace(',', '.')
+        else:
+            raise ValueError('Invalid or conflicting grouped number')
+    elif ',' in digits:
         if decimal_separator != ',':
             raise ValueError('Decimal comma requires an explicit source convention')
         digits = digits.replace(',', '.')
     elif '.' in digits and decimal_separator == ',':
         raise ValueError('Mixed decimal conventions in source')
+    if not re.fullmatch(r'[+-]?\d+(?:\.\d+)?', digits):
+        raise ValueError('Invalid numeric text')
     return {'numeric_value': format(Decimal(digits), 'f'),
             'comparator': {'≤': '<=', '≥': '>='}.get(comparator, comparator or '=')}
 
@@ -88,6 +100,15 @@ def result_value(raw, kind, context):
         return {'result_type': 'numeric', **number(value, context.get('decimal_separator'))}, []
     except ValueError:
         pass
+    # H/L are printed lab flags, not positive/negative interpretations.
+    marked = re.fullmatch(r'(.+?)\s+(H|L|HH|LL|↑|↓)', value)
+    if marked:
+        try:
+            return {'result_type': 'numeric',
+                    **number(marked[1], context.get('decimal_separator')),
+                    'source_flag_raw': marked[2]}, ['explicit_source_result_flag']
+        except ValueError:
+            pass
     if kind in ('mixed', 'panel'):
         if key(value) in QUAL:
             return {'result_type': 'qualitative', 'qualitative_value': QUAL[key(value)]}, []
@@ -111,10 +132,13 @@ def result_value(raw, kind, context):
             except ValueError:
                 pass
     if kind == 'pattern':
-        pattern = re.fullmatch(r'(Homogeneous|Speckled|Nucleolar|Centromere)(?:\s+([1-4]\+|\+{1,4}))?', value, re.I)
+        pattern = re.fullmatch(r'(Homogeneous|Speckled|Nucleolar|Centromere)'
+                              r'(?:\s+([1-4]\+|\+{1,4}))?'
+                              r'(?:\s+(1\s*:\s*[1-9]\d*))?', value, re.I)
         if pattern:
             return {'result_type': 'pattern', 'pattern_raw': pattern[1],
-                    'grade_raw': pattern[2]}, []
+                    'grade_raw': pattern[2],
+                    **({'titre_raw': pattern[3]} if pattern[3] else {})}, []
     return {'result_type': 'unparsed', 'numeric_value': None}, ['unparsed_result']
 
 
@@ -155,8 +179,9 @@ def convert_documents(documents, catalog, *, case_id=None):
                 continue
             table_id = payload.get('table_id', f'T{table_index + 1:03d}')
             context = table_context(payload, document.get('context', {}))
+            table_specimen = context.get('specimen')
             metadata_date, metadata_date_type, date_evidence_ids = select_source_date(facts, context)
-            requested_date_key = 'measurement_date' if context.get('panel') == 'pft' else 'sample_date'
+            requested_date_key = source_date_key(facts, context)
             unresolved_metadata_date = any(f['key'] == requested_date_key and (f['flags'] or f['value'] is None) for f in facts)
             date_conflict = bool(metadata_date and context.get('source_date') and
                                  (context['source_date'], context.get('date_type')) != (metadata_date, metadata_date_type))
@@ -203,6 +228,17 @@ def convert_documents(documents, catalog, *, case_id=None):
                     # not an independently stated result. OTSL expansion repeats
                     # its text; never map e.g. a handwritten UPCR label as a value.
                     if name and len(row) > 1 and len(set(row)) == 1:
+                        if payload.get('automatic_context'):
+                            section=key(name)
+                            if section in {'nuoctieu','urine','nuoctieuurine',
+                                           'xetnghiemtebaotrongnuoctieubangmaytudong'}:
+                                context={**context,'specimen':'urine'}
+                            elif section in {'hoasinh','biochemistry','hoasinhbiochemistry',
+                                             'huyethoc','hematology','huyethochematology'}:
+                                # A new explicit section ends the previous
+                                # urine context. Restore only declared table
+                                # context, without inferring a specimen type.
+                                context={**context,'specimen':table_specimen}
                         issues.append(dict(document_id=doc_id, table_id=region_table_id,
                                            row=row_index + row_offset, name_raw=name, row_raw=row,
                                            reason='non_result_merged_row'))
@@ -273,6 +309,12 @@ def convert_documents(documents, catalog, *, case_id=None):
                             class_raw = row[columns['class']].strip() if 'class' in columns else ''
                             attributes['class_raw'] = class_raw or None
                             if class_raw:
+                                # Keep OCR text intact. A separate Class reading
+                                # represents the round glyph only when both the
+                                # printed legend and its numeric interval agree.
+                                reading = round_class_reading(class_raw, parsed, context)
+                                if reading:
+                                    attributes.update(reading)
                                 # Symbol meanings must come from an explicit per-source legend.
                                 interpretation = context.get('class_legend', {}).get(class_raw)
                                 if interpretation is None and class_raw in ('o', 'O'):
@@ -312,6 +354,9 @@ def convert_documents(documents, catalog, *, case_id=None):
                                              table_id=region_table_id, row_index_0based=row_index + row_offset,
                                              result_column_0based=column, headers=table.headers,
                                              row_raw=row, table_sha256=raw_hash, source_context=context,
+                                             ocr_confidence=payload.get('ocr_confidence'),
+                                             generation_status=payload.get('generation_status', 'ok'),
+                                             truncated=bool(payload.get('truncated')),
                                              region=payload.get('region'), region_granularity='table' if payload.get('region') else 'unavailable'))
                         result_evidence_ids = [evidence_id]
                         if continuation is not None:
@@ -321,6 +366,9 @@ def convert_documents(documents, catalog, *, case_id=None):
                                 row_index_0based=row_index + row_offset + 1, result_column_0based=column,
                                 headers=table.headers, row_raw=continuation, table_sha256=raw_hash,
                                 source_context=context, region=payload.get('region'),
+                                ocr_confidence=payload.get('ocr_confidence'),
+                                generation_status=payload.get('generation_status', 'ok'),
+                                truncated=bool(payload.get('truncated')),
                                 region_granularity='table' if payload.get('region') else 'unavailable',
                                 evidence_role='explicit_method_and_grade_continuation'))
                             result_evidence_ids.append(continuation_id)
@@ -356,6 +404,22 @@ def convert_documents(documents, catalog, *, case_id=None):
                                      date_evidence_ids=list(adm_date_evidence), metadata_candidate_id=fact['candidate_id'],
                                      extraction_status='found', validation_status='structure_checks_passed',
                                      review_status='pending', eligible_for_verified_pool=False))
+    from .supplemental import enrich_sources
+    enrich_sources(documents, observations, metadata_candidates, evidence, issues)
+    # Keep contradictory source rows as separate pending candidates. A
+    # plausible value must never silently win over another printed value.
+    source_slots = defaultdict(list)
+    for item in observations:
+        source_slots[(item['document_id'], item['field_id'], item['component'],
+                      item.get('source_date'), item.get('specimen'))].append(item)
+    for items in source_slots.values():
+        signatures = {tuple(item.get(k) for k in ('numeric_value', 'comparator',
+                      'qualitative_value', 'pattern_raw', 'grade_raw', 'titre_raw', 'unit_raw'))
+                      for item in items}
+        if len(signatures) > 1:
+            for item in items:
+                item['flags'].append('conflicting_source_results')
+                item['validation_status'] = 'needs_review'
     by_field = defaultdict(list)
     for observation in observations:
         by_field[observation['field_id']].append(observation)
