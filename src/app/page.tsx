@@ -19,10 +19,11 @@ export default function LandingPage() {
   } = useLupiva();
 
   const localizedReports = getLocalizedLabReports(language);
+  const isSpecialist = currentUser?.role === "specialist";
 
   const handleOpenSampleReport = (reportId: string) => {
     setSelectedReportId(reportId);
-    router.push("/ocr");
+    router.push(isSpecialist ? "/ocr" : "/login");
   };
 
   return (
@@ -76,26 +77,28 @@ export default function LandingPage() {
                   </svg>
                 </Link>
 
-                <Link
-                  href="/ocr"
-                  id="hero-btn-launch-ocr"
-                  className="inline-flex items-center gap-2 rounded-lg border border-teal-700/35 bg-teal-50 px-5 py-2.5 text-sm font-semibold text-teal-900 transition hover:bg-teal-100"
-                >
-                  <span>{t.landing.launchOcrBtn}</span>
-                  <svg
-                    aria-hidden="true"
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                {isSpecialist && (
+                  <Link
+                    href="/ocr"
+                    id="hero-btn-launch-ocr"
+                    className="inline-flex items-center gap-2 rounded-lg border border-teal-700/35 bg-teal-50 px-5 py-2.5 text-sm font-semibold text-teal-900 transition hover:bg-teal-100"
                   >
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
-                </Link>
+                    <span>{t.landing.launchOcrBtn}</span>
+                    <svg
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </Link>
+                )}
 
                 <Link
                   href="/login"
@@ -265,15 +268,17 @@ export default function LandingPage() {
                     );
                   })}
 
-                  <button
-                    type="button"
-                    id="preview-card-btn-open-ocr"
-                    onClick={() => handleOpenSampleReport(localizedReports[0].id)}
-                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 cursor-pointer"
-                  >
-                    <span>{t.landing.previewOpenOcrBtn}</span>
-                    <span aria-hidden="true">→</span>
-                  </button>
+                  {isSpecialist && (
+                    <button
+                      type="button"
+                      id="preview-card-btn-open-ocr"
+                      onClick={() => handleOpenSampleReport(localizedReports[0].id)}
+                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 cursor-pointer"
+                    >
+                      <span>{t.landing.previewOpenOcrBtn}</span>
+                      <span aria-hidden="true">→</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -293,10 +298,14 @@ export default function LandingPage() {
             </p>
           </div>
           <Link
-            href="/ocr"
+            href={isSpecialist ? "/ocr" : "/upload"}
             className="text-xs font-semibold text-teal-800 hover:underline"
           >
-            {t.landing.workflowJumpLink}
+            {isSpecialist
+              ? t.landing.workflowJumpLink
+              : language === "vi"
+              ? "Tới cổng tải tài liệu →"
+              : "Go to Patient Upload →"}
           </Link>
         </div>
 

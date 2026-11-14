@@ -109,9 +109,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     return "en";
   });
 
-  const [currentUser, setCurrentUser] = useState<DemoUser | null>(() => {
-    return getLocalizedDemoUsers("en").specialist;
-  });
+  const [currentUser, setCurrentUser] = useState<DemoUser | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<string>(
     MOCK_LAB_REPORTS[0].id
   );

@@ -565,9 +565,9 @@ export function buildDefaultSledai2kCriteria(
       criterionEn: "Psychosis",
       criterionVi: "Loạn thần",
       definitionEn:
-        "Altered ability to function in normal activities due to a severe disturbance in reality testing. Excludes uremia and drug-related causes.",
+        "Altered ability to function in normal activities due to a severe disturbance in reality testing. Includes hallucinations, incoherence, loose associations, illogical thinking, poor thought content, or bizarre/disorganized behavior. Excludes uremia and drug-related causes.",
       definitionVi:
-        "Rối loạn khả năng hoạt động bình thường do suy giảm nghiêm trọng nhận thức thực tại (ảo giác, hoang tưởng). Loại trừ tăng ure máu và do thuốc.",
+        "Rối loạn khả năng hoạt động bình thường do suy giảm nghiêm trọng nhận thức thực tại (ảo giác, rời rạc, tư duy phi logic, hành vi kỳ dị/vô tổ chức). Loại trừ tăng ure máu và do thuốc.",
     },
     {
       id: "sledai-obs",
@@ -575,9 +575,9 @@ export function buildDefaultSledai2kCriteria(
       criterionEn: "Organic Brain Syndrome",
       criterionVi: "Hội chứng não thực tổn",
       definitionEn:
-        "Altered mental function with impaired orientation, memory, or other intellectual functions, with rapid onset and fluctuating clinical features.",
+        "Altered mental function with impaired orientation, memory, or other intellectual functions, with rapid onset and fluctuating clinical features, plus at least two of the following: perceptual disturbance, incoherent speech, insomnia or daytime drowsiness, or increased/decreased psychomotor activity. Excludes drug-related, infectious, or metabolic causes.",
       definitionVi:
-        "Thay đổi chức năng tâm thần kèm suy giảm định hướng, trí nhớ hoặc trí tuệ, khởi phát nhanh và diễn biến dao động.",
+        "Thay đổi chức năng tâm thần kèm suy giảm định hướng, trí nhớ hoặc trí tuệ, khởi phát nhanh và diễn biến dao động, kèm ít nhất 2 dấu hiệu: rối loạn tri giác, nói rời rạc, mất ngủ/buồn ngủ ban ngày, hoặc tăng/giảm hoạt động tâm thần vận động. Loại trừ do thuốc, nhiễm trùng hoặc chuyển hóa.",
     },
     {
       id: "sledai-visual",
@@ -585,9 +585,9 @@ export function buildDefaultSledai2kCriteria(
       criterionEn: "Visual Disturbance",
       criterionVi: "Rối loạn thị giác",
       definitionEn:
-        "SLE-related retinal changes (cytoid bodies, retinal hemorrhages, serous exudates, or optic neuritis).",
+        "SLE-related retinal changes. Includes cytoid bodies, retinal hemorrhages, serous exudates or choroidal bleeding, or optic neuritis. Excludes drug-related, hypertensive, or infectious causes.",
       definitionVi:
-        "Biến đổi võng mạc liên quan SLE (thể cytoid, xuất huyết võng mạc, tiết dịch thanh dịch hoặc viêm dây thần kinh thị giác).",
+        "Biến đổi võng mạc liên quan SLE (thể cytoid, xuất huyết võng mạc, tiết dịch thanh dịch hoặc xuất huyết hắc mạc, hoặc viêm dây thần kinh thị giác). Loại trừ do thuốc, tăng huyết áp hoặc nhiễm trùng.",
     },
     {
       id: "sledai-cranial",
@@ -744,8 +744,8 @@ export function buildDefaultSledai2kCriteria(
       criterionEn: "Increased DNA binding",
       criterionVi: "Tăng gắn kết DNA (Anti-dsDNA)",
       definitionEn:
-        "Increased DNA binding above the normal range.",
-      definitionVi: "Tăng kháng thể kháng dsDNA vượt giới hạn bình thường.",
+        "Increased DNA binding by Farr assay above the normal range.",
+      definitionVi: "Tăng gắn kết DNA theo xét nghiệm Farr vượt giới hạn bình thường.",
     },
     {
       id: "sledai-fever",
@@ -2729,5 +2729,144 @@ export function calculateSledai2kSummary(criteria: Sledai2kCriterionItem[]) {
     activityTierEn,
     activityTierVi,
     badgeTone,
+  };
+}
+
+/**
+ * Syncs 2019 EULAR/ACR and SLEDAI-2K classification/activity criteria from
+ * verified OCR lab biomarkers and structured organ findings.
+ */
+export function syncCriteriaFromVerifiedCrf(
+  prev: SleCrfPatientRecord
+): SleCrfPatientRecord {
+  const getField = (code: string) =>
+    prev.ocrFields.find((f) => f.code === code);
+  const getFieldVal = (code: string) => getField(code)?.value || "";
+  const numVal = (code: string) => parseFloat(getFieldVal(code));
+
+  const anaField = getField("ANA-HEP2");
+  const anaEntryCriterionMet = anaField
+    ? anaField.flag === "Positive" ||
+      (anaField.value.trim().length > 0 &&
+        !anaField.value.toLowerCase().includes("neg"))
+    : prev.anaEntryCriterionMet;
+
+  const hasFever =
+    prev.fever === "YES" && parseFloat(prev.feverTempC || "0") > 38.0;
+  const wbc = numVal("WBC-TOTAL");
+  const plt = numVal("PLT-COUNT");
+  const up24 = numVal("UPROT-24H");
+  const upcr = numVal("UPCR-SPOT");
+  const c3 = numVal("COMP-C3");
+  const c4 = numVal("COMP-C4");
+  const dsdna = numVal("ANTI-DSDNA");
+  const urineRbc = numVal("URINE-RBC");
+  const urineWbc = numVal("URINE-WBC");
+  const coombsPos = getFieldVal("DAT-COOMBS").toLowerCase().includes("pos");
+  const smPos = prev.antibodyBlots.some(
+    (b) => b.name === "Sm" && b.result === "Positive"
+  );
+  const aplPos =
+    numVal("ACL-IGG") > 20 ||
+    numVal("ACL-IGM") > 20 ||
+    numVal("B2GP1-IGG") > 20 ||
+    getFieldVal("LAC-CONFIRM").toLowerCase().includes("pos");
+
+  const malarChecked = prev.skinMucosaItems.some(
+    (i) => i.id === "skin-malar" && i.checked
+  );
+  const alopeciaChecked = prev.skinMucosaItems.some(
+    (i) => i.id === "skin-alopecia" && i.checked
+  );
+  const oralUlcerChecked = prev.skinMucosaItems.some(
+    (i) => i.id === "skin-oral-ulcers" && i.checked
+  );
+  const pericarditisChecked = prev.cardiovascularItems.some(
+    (i) => i.id === "cv-pericarditis" && i.checked
+  );
+  const effusionChecked =
+    prev.cardiovascularItems.some(
+      (i) => i.id === "cv-effusion" && i.checked
+    ) || prev.lungPleuritis;
+  const arthritisChecked =
+    prev.jointsDamage === "YES" &&
+    (parseInt(prev.swollenJointsCount || "0", 10) >= 2 ||
+      parseInt(prev.tenderJointsCount || "0", 10) >= 2);
+  const biopsyClass3or4 = prev.renalBiopsyClasses.some((c) =>
+    [
+      "Class III",
+      "Class IV",
+      "IIIA",
+      "IVA",
+      "IIIC",
+      "IVC",
+      "IIIA/C",
+      "IVA/C",
+    ].includes(c)
+  );
+  const biopsyClass2or5 = prev.renalBiopsyClasses.some((c) =>
+    ["Class II", "Class V"].includes(c)
+  );
+
+  const lowC3 = !isNaN(c3) && c3 < 0.9;
+  const lowC4 = !isNaN(c4) && c4 < 0.1;
+
+  const nextEular = prev.eularAcrCriteria.map((item) => {
+    let shouldCheck = item.checked;
+    if (item.id === "eular-fever") shouldCheck = hasFever;
+    if (item.id === "eular-leukopenia") shouldCheck = !isNaN(wbc) && wbc < 4.0;
+    if (item.id === "eular-thrombocytopenia")
+      shouldCheck = !isNaN(plt) && plt < 100;
+    if (item.id === "eular-hemolysis") shouldCheck = coombsPos;
+    if (item.id === "eular-alopecia") shouldCheck = alopeciaChecked;
+    if (item.id === "eular-oral-ulcers") shouldCheck = oralUlcerChecked;
+    if (item.id === "eular-acute-cutaneous") shouldCheck = malarChecked;
+    if (item.id === "eular-effusion") shouldCheck = effusionChecked;
+    if (item.id === "eular-pericarditis") shouldCheck = pericarditisChecked;
+    if (item.id === "eular-joint") shouldCheck = arthritisChecked;
+    if (item.id === "eular-proteinuria")
+      shouldCheck =
+        (!isNaN(up24) && up24 > 0.5) || (!isNaN(upcr) && upcr > 50);
+    if (item.id === "eular-biopsy-2-5") shouldCheck = biopsyClass2or5;
+    if (item.id === "eular-biopsy-3-4") shouldCheck = biopsyClass3or4;
+    if (item.id === "eular-apl") shouldCheck = aplPos;
+    if (item.id === "eular-comp-single")
+      shouldCheck = (lowC3 || lowC4) && !(lowC3 && lowC4);
+    if (item.id === "eular-comp-both") shouldCheck = lowC3 && lowC4;
+    if (item.id === "eular-sle-ab")
+      shouldCheck = (!isNaN(dsdna) && dsdna >= 30) || smPos;
+    return { ...item, checked: shouldCheck };
+  });
+
+  const nextSledai = prev.sledai2kCriteria.map((item) => {
+    let shouldCheck = item.checked;
+    if (item.id === "sledai-arthritis") shouldCheck = arthritisChecked;
+    if (item.id === "sledai-hematuria")
+      shouldCheck = !isNaN(urineRbc) && urineRbc > 5;
+    if (item.id === "sledai-proteinuria")
+      shouldCheck = !isNaN(up24) && up24 > 0.5;
+    if (item.id === "sledai-pyuria")
+      shouldCheck = !isNaN(urineWbc) && urineWbc > 5;
+    if (item.id === "sledai-rash") shouldCheck = malarChecked;
+    if (item.id === "sledai-alopecia") shouldCheck = alopeciaChecked;
+    if (item.id === "sledai-ulcers") shouldCheck = oralUlcerChecked;
+    if (item.id === "sledai-pleurisy") shouldCheck = prev.lungPleuritis;
+    if (item.id === "sledai-pericarditis") shouldCheck = pericarditisChecked;
+    if (item.id === "sledai-low-comp") shouldCheck = lowC3 || lowC4;
+    if (item.id === "sledai-dna")
+      shouldCheck = !isNaN(dsdna) && dsdna >= 30;
+    if (item.id === "sledai-fever") shouldCheck = hasFever;
+    if (item.id === "sledai-thrombocytopenia")
+      shouldCheck = !isNaN(plt) && plt < 100;
+    if (item.id === "sledai-leukopenia")
+      shouldCheck = !isNaN(wbc) && wbc < 3.0;
+    return { ...item, checked: shouldCheck };
+  });
+
+  return {
+    ...prev,
+    anaEntryCriterionMet,
+    eularAcrCriteria: nextEular,
+    sledai2kCriteria: nextSledai,
   };
 }

@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
 import {
   CrfSectionId,
@@ -14,9 +16,11 @@ import {
   calculateSledai2kSummary,
   getInitialOcrTierStatus,
   getSubmissionStatus,
+  syncCriteriaFromVerifiedCrf,
 } from "@/data/crfData";
 import { ClinicalFlag } from "@/data/mockData";
 import { DocxCrfView } from "@/components/DocxCrfView";
+import { SleScoreTables } from "@/components/SleScoreTables";
 
 type TriageFilter = "all" | "manual_under_80" | "verify_80_90" | "approved_over_90";
 type ScanDossierFilter =
@@ -30,6 +34,7 @@ type ScanDossierFilter =
 type DoctorWorkflowStep = "step1_triage" | "step2_review" | "step3_signoff";
 
 export default function SleCrfManagerPage() {
+  const router = useRouter();
   const {
     language,
     currentUser,
@@ -42,6 +47,13 @@ export default function SleCrfManagerPage() {
   } = useLupiva();
 
   const isVi = language === "vi";
+  const isSpecialist = currentUser?.role === "specialist";
+
+  useEffect(() => {
+    if (!isSpecialist) {
+      router.replace("/login");
+    }
+  }, [isSpecialist, router]);
 
   const activePatient = useMemo(
     () =>
@@ -337,123 +349,7 @@ export default function SleCrfManagerPage() {
 
   // Auto-suggest 2019 EULAR/ACR & SLEDAI-2K checkboxes from verified CRF labs & clinical findings
   const handleAutoSuggestScores = () => {
-    patchPatient((prev) => {
-      const getFieldVal = (code: string) =>
-        prev.ocrFields.find((f) => f.code === code)?.value || "";
-      const numVal = (code: string) => parseFloat(getFieldVal(code));
-
-      const hasFever =
-        prev.fever === "YES" && parseFloat(prev.feverTempC || "0") > 38.0;
-      const wbc = numVal("WBC-TOTAL");
-      const plt = numVal("PLT-COUNT");
-      const up24 = numVal("UPROT-24H");
-      const upcr = numVal("UPCR-SPOT");
-      const c3 = numVal("COMP-C3");
-      const c4 = numVal("COMP-C4");
-      const dsdna = numVal("ANTI-DSDNA");
-      const urineRbc = numVal("URINE-RBC");
-      const urineWbc = numVal("URINE-WBC");
-      const coombsPos = getFieldVal("DAT-COOMBS")
-        .toLowerCase()
-        .includes("pos");
-      const smPos = prev.antibodyBlots.some(
-        (b) => b.name === "Sm" && b.result === "Positive"
-      );
-      const aplPos =
-        numVal("ACL-IGG") > 20 ||
-        numVal("ACL-IGM") > 20 ||
-        numVal("B2GP1-IGG") > 20 ||
-        getFieldVal("LAC-CONFIRM").toLowerCase().includes("pos");
-
-      const malarChecked = prev.skinMucosaItems.some(
-        (i) => i.id === "skin-malar" && i.checked
-      );
-      const alopeciaChecked = prev.skinMucosaItems.some(
-        (i) => i.id === "skin-alopecia" && i.checked
-      );
-      const oralUlcerChecked = prev.skinMucosaItems.some(
-        (i) => i.id === "skin-oral-ulcers" && i.checked
-      );
-      const pericarditisChecked = prev.cardiovascularItems.some(
-        (i) => i.id === "cv-pericarditis" && i.checked
-      );
-      const effusionChecked =
-        prev.cardiovascularItems.some(
-          (i) => i.id === "cv-effusion" && i.checked
-        ) || prev.lungPleuritis;
-      const arthritisChecked =
-        prev.jointsDamage === "YES" &&
-        (parseInt(prev.swollenJointsCount || "0", 10) >= 2 ||
-          parseInt(prev.tenderJointsCount || "0", 10) >= 2);
-      const biopsyClass3or4 = prev.renalBiopsyClasses.some((c) =>
-        ["Class III", "Class IV", "IIIA", "IVA", "IIIC", "IVC", "IIIA/C", "IVA/C"].includes(c)
-      );
-      const biopsyClass2or5 = prev.renalBiopsyClasses.some((c) =>
-        ["Class II", "Class V"].includes(c)
-      );
-
-      const lowC3 = !isNaN(c3) && c3 < 0.9;
-      const lowC4 = !isNaN(c4) && c4 < 0.1;
-
-      const nextEular = prev.eularAcrCriteria.map((item) => {
-        let shouldCheck = item.checked;
-        if (item.id === "eular-fever") shouldCheck = hasFever;
-        if (item.id === "eular-leukopenia")
-          shouldCheck = !isNaN(wbc) && wbc < 4.0;
-        if (item.id === "eular-thrombocytopenia")
-          shouldCheck = !isNaN(plt) && plt < 100;
-        if (item.id === "eular-hemolysis") shouldCheck = coombsPos;
-        if (item.id === "eular-alopecia") shouldCheck = alopeciaChecked;
-        if (item.id === "eular-oral-ulcers") shouldCheck = oralUlcerChecked;
-        if (item.id === "eular-acute-cutaneous") shouldCheck = malarChecked;
-        if (item.id === "eular-effusion") shouldCheck = effusionChecked;
-        if (item.id === "eular-pericarditis") shouldCheck = pericarditisChecked;
-        if (item.id === "eular-joint") shouldCheck = arthritisChecked;
-        if (item.id === "eular-proteinuria")
-          shouldCheck = (!isNaN(up24) && up24 > 0.5) || (!isNaN(upcr) && upcr > 50);
-        if (item.id === "eular-biopsy-2-5") shouldCheck = biopsyClass2or5;
-        if (item.id === "eular-biopsy-3-4") shouldCheck = biopsyClass3or4;
-        if (item.id === "eular-apl") shouldCheck = aplPos;
-        if (item.id === "eular-comp-single")
-          shouldCheck = (lowC3 || lowC4) && !(lowC3 && lowC4);
-        if (item.id === "eular-comp-both") shouldCheck = lowC3 && lowC4;
-        if (item.id === "eular-sle-ab")
-          shouldCheck = (!isNaN(dsdna) && dsdna >= 30) || smPos;
-        return { ...item, checked: shouldCheck };
-      });
-
-      const nextSledai = prev.sledai2kCriteria.map((item) => {
-        let shouldCheck = item.checked;
-        if (item.id === "sledai-arthritis") shouldCheck = arthritisChecked;
-        if (item.id === "sledai-hematuria")
-          shouldCheck = !isNaN(urineRbc) && urineRbc > 5;
-        if (item.id === "sledai-proteinuria")
-          shouldCheck = !isNaN(up24) && up24 > 0.5;
-        if (item.id === "sledai-pyuria")
-          shouldCheck = !isNaN(urineWbc) && urineWbc > 5;
-        if (item.id === "sledai-rash") shouldCheck = malarChecked;
-        if (item.id === "sledai-alopecia") shouldCheck = alopeciaChecked;
-        if (item.id === "sledai-ulcers") shouldCheck = oralUlcerChecked;
-        if (item.id === "sledai-pleurisy") shouldCheck = prev.lungPleuritis;
-        if (item.id === "sledai-pericarditis")
-          shouldCheck = pericarditisChecked;
-        if (item.id === "sledai-low-comp") shouldCheck = lowC3 || lowC4;
-        if (item.id === "sledai-dna")
-          shouldCheck = !isNaN(dsdna) && dsdna >= 30;
-        if (item.id === "sledai-fever") shouldCheck = hasFever;
-        if (item.id === "sledai-thrombocytopenia")
-          shouldCheck = !isNaN(plt) && plt < 100;
-        if (item.id === "sledai-leukopenia")
-          shouldCheck = !isNaN(wbc) && wbc < 3.0;
-        return { ...item, checked: shouldCheck };
-      });
-
-      return {
-        ...prev,
-        eularAcrCriteria: nextEular,
-        sledai2kCriteria: nextSledai,
-      };
-    });
+    patchPatient(syncCriteriaFromVerifiedCrf);
 
     showToast(
       isVi
@@ -489,20 +385,31 @@ export default function SleCrfManagerPage() {
       : "Clinical Specialist Evaluator";
     const signerRole = currentUser ? currentUser.role : "specialist";
 
-    patchPatient((prev) => ({
-      ...prev,
-      signedOffBy: signerName,
-      signedOffRole: signerRole,
-      submissionStatus: "approved" as const,
-    }));
+    const syncedPreview = syncCriteriaFromVerifiedCrf(activePatient);
+    const nextEular = calculateEularAcrSummary(
+      syncedPreview.eularAcrCriteria,
+      syncedPreview.anaEntryCriterionMet
+    );
+    const nextSledai = calculateSledai2kSummary(syncedPreview.sledai2kCriteria);
+
+    patchPatient((prev) => {
+      const synced = syncCriteriaFromVerifiedCrf(prev);
+      return {
+        ...synced,
+        signedOffBy: signerName,
+        signedOffRole: signerRole,
+        submissionStatus: "approved" as const,
+      };
+    });
+    setViewMode("edit");
 
     showToast(
       isVi
-        ? `Đã Ký duyệt Hồ sơ Bệnh án SLE (${activePatient.studyId})`
-        : `Signed Off SLE Case Report Form (${activePatient.studyId})`,
+        ? `Đã Phê duyệt OCR & Tính điểm SLE (${activePatient.studyId})`
+        : `Approved OCR & Computed SLE Scores (${activePatient.studyId})`,
       isVi
-        ? `Người ký: ${signerName} • EULAR/ACR: ${eularSummary.totalScore} điểm • SLEDAI-2K: ${sledaiSummary.totalScore} điểm.`
-        : `Signed by ${signerName} • EULAR/ACR: ${eularSummary.totalScore} pts • SLEDAI-2K: ${sledaiSummary.totalScore} pts.`,
+        ? `Người ký: ${signerName} • EULAR/ACR: ${nextEular.totalScore} điểm • SLEDAI-2K: ${nextSledai.totalScore} điểm.`
+        : `Signed by ${signerName} • EULAR/ACR: ${nextEular.totalScore} pts • SLEDAI-2K: ${nextSledai.totalScore} pts.`,
       "teal"
     );
   };
@@ -857,6 +764,10 @@ export default function SleCrfManagerPage() {
     );
   };
 
+  if (!isSpecialist) {
+    return null;
+  }
+
   return (
     <main id="main-content" tabIndex={-1} className="flex-1 bg-slate-100/80 pb-14">
       {/* Compact context bar: patient + status + utilities (one row) */}
@@ -1030,7 +941,7 @@ export default function SleCrfManagerPage() {
                 {
                   key: "step3_signoff",
                   n: 3,
-                  title: isVi ? "Phê duyệt & xuất" : "Approve & export",
+                  title: isVi ? "Phê duyệt & Bảng điểm" : "Approve & Scores",
                   badge: activePatient.signedOffBy
                     ? isVi ? "Đã ký" : "Signed"
                     : isVi ? "Chưa ký" : "Not signed",
@@ -1051,7 +962,12 @@ export default function SleCrfManagerPage() {
                     type="button"
                     id={`crf-step-${s.n}`}
                     aria-current={current ? "step" : undefined}
-                    onClick={() => setWorkflowStep(s.key)}
+                    onClick={() => {
+                      if (s.key === "step3_signoff") {
+                        patchPatient(syncCriteriaFromVerifiedCrf);
+                      }
+                      setWorkflowStep(s.key);
+                    }}
                     className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left cursor-pointer ${
                       current
                         ? "border-teal-700 bg-teal-50 ring-1 ring-teal-700/30"
@@ -1602,49 +1518,84 @@ export default function SleCrfManagerPage() {
               </section>
             )}
 
-            {/* STEP 3: readiness summary */}
+            {/* STEP 3: readiness summary & Post-Approval Scores */}
             {workflowStep === "step3_signoff" && (
               <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-                <h2 className="text-base font-bold text-slate-900">
-                  {isVi ? "Bước 3 — Phê duyệt & xuất" : "Step 3 — Approve & export"}
-                </h2>
-                <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-slate-200 p-3">
-                    <dt className="text-xs text-slate-500">{isVi ? "Xác thực OCR" : "OCR verification"}</dt>
-                    <dd className={`text-sm font-bold ${triageStats.unresolved ? "text-rose-700" : "text-teal-800"}`}>
-                      {triageStats.total - triageStats.unresolved}/{triageStats.total}
-                    </dd>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">
+                      {isVi
+                        ? "Bước 3 — Phê duyệt OCR & Xem Bảng điểm EULAR/ACR / SLEDAI-2K"
+                        : "Step 3 — Approve OCR & Review EULAR/ACR & SLEDAI-2K Scores"}
+                    </h2>
+                    <p className="mt-0.5 text-xs text-slate-600">
+                      {isVi
+                        ? "Sau khi đối chiếu và phê duyệt kết quả OCR, bảng điểm phân loại (Bảng 1) và hoạt tính bệnh (Bảng 2) được hiển thị ngay bên dưới."
+                        : "After reviewing and approving the OCR results, the 2019 EULAR/ACR (Table 1) and SLEDAI-2K (Table 2) score breakdown appears below."}
+                    </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 p-3">
-                    <dt className="text-xs text-slate-500">EULAR/ACR 2019</dt>
-                    <dd className="text-sm font-bold text-slate-900">
-                      {eularSummary.totalScore} — {eularSummary.isClassifiedSle ? (isVi ? "Đủ tiêu chuẩn SLE" : "SLE classified") : (isVi ? "Chưa đủ" : "Below threshold")}
-                    </dd>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAutoSuggestScores}
+                      className="rounded-lg border border-teal-700/40 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
+                    >
+                      {isVi ? "Đồng bộ lại điểm từ OCR" : "Re-sync Scores from OCR"}
+                    </button>
+                    <Link
+                      href="/scores"
+                      id="crf-link-full-scores"
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                    >
+                      {isVi ? "Mở trang Bảng điểm →" : "Open Scores Page →"}
+                    </Link>
+                    <button
+                      type="button"
+                      id="crf-mode-clean"
+                      aria-pressed={viewMode === "clean"}
+                      onClick={() => setViewMode(viewMode === "clean" ? "edit" : "clean")}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer"
+                    >
+                      {viewMode === "clean"
+                        ? isVi ? "Xem Bảng điểm" : "Show Score Tables"
+                        : isVi ? "Xem bản .docx" : "Show .docx CRF"}
+                    </button>
                   </div>
-                  <div className="rounded-xl border border-slate-200 p-3">
-                    <dt className="text-xs text-slate-500">SLEDAI-2K</dt>
-                    <dd className="text-sm font-bold text-slate-900">
-                      {sledaiSummary.totalScore} — {isVi ? sledaiSummary.activityTierVi : sledaiSummary.activityTierEn}
-                    </dd>
-                  </div>
-                </dl>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    id="crf-mode-clean"
-                    aria-pressed={viewMode === "clean"}
-                    onClick={() => setViewMode(viewMode === "clean" ? "edit" : "clean")}
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer"
-                  >
-                    {viewMode === "clean"
-                      ? isVi ? "Ẩn bản .docx" : "Hide .docx preview"
-                      : isVi ? "Xem bản .docx" : "Show .docx preview"}
-                  </button>
                 </div>
               </section>
             )}
 
-            {/* .docx-FORMATTED DOCUMENT VIEW (Step 3 only) */}
+            {/* POST-APPROVAL CLINICAL SCORE TABLES (Step 3 default) */}
+            {workflowStep === "step3_signoff" && viewMode !== "clean" && (
+              <SleScoreTables
+                patient={activePatient}
+                isVi={isVi}
+                onToggleAnaEntry={(checked) =>
+                  patchPatient((p) => ({
+                    ...p,
+                    anaEntryCriterionMet: checked,
+                  }))
+                }
+                onToggleEular={(criterionId, checked) =>
+                  patchPatient((p) => ({
+                    ...p,
+                    eularAcrCriteria: p.eularAcrCriteria.map((c) =>
+                      c.id === criterionId ? { ...c, checked } : c
+                    ),
+                  }))
+                }
+                onToggleSledai={(criterionId, checked) =>
+                  patchPatient((p) => ({
+                    ...p,
+                    sledai2kCriteria: p.sledai2kCriteria.map((c) =>
+                      c.id === criterionId ? { ...c, checked } : c
+                    ),
+                  }))
+                }
+              />
+            )}
+
+            {/* .docx-FORMATTED DOCUMENT VIEW (Step 3 toggle) */}
             {workflowStep === "step3_signoff" && viewMode === "clean" && (
               <DocxCrfView
                 patient={activePatient}
@@ -3740,14 +3691,21 @@ export default function SleCrfManagerPage() {
                   <button
                     type="button"
                     id="crf-btn-continue"
-                    onClick={() =>
-                      setWorkflowStep(workflowStep === "step1_triage" ? "step2_review" : "step3_signoff")
-                    }
+                    onClick={() => {
+                      const nextStep =
+                        workflowStep === "step1_triage"
+                          ? "step2_review"
+                          : "step3_signoff";
+                      if (nextStep === "step3_signoff") {
+                        patchPatient(syncCriteriaFromVerifiedCrf);
+                      }
+                      setWorkflowStep(nextStep);
+                    }}
                     className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
                   >
                     {workflowStep === "step1_triage"
                       ? isVi ? "Tiếp tục: Rà soát CRF" : "Continue: Review CRF"
-                      : isVi ? "Tiếp tục: Phê duyệt" : "Continue: Approve"}
+                      : isVi ? "Tiếp tục: Phê duyệt & Bảng điểm" : "Continue: Approve & Scores"}
                   </button>
                 ) : (
                   <button

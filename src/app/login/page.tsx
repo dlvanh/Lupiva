@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { UserRole } from "@/data/mockData";
 import { useLupiva } from "@/context/LupivaContext";
 import { getLocalizedDemoUsers } from "@/data/translations";
@@ -234,13 +233,6 @@ export default function LoginPage() {
                 >
                   {t.login.submitBtn(activePersona.name)}
                 </button>
-                <Link
-                  href="/ocr"
-                  id="login-btn-skip-guest"
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                >
-                  {t.login.skipBtn}
-                </Link>
               </div>
             </form>
           </div>
