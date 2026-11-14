@@ -3,6 +3,44 @@ import hashlib
 import math
 
 
+def text_ink_band(image, box):
+    """Tighten a loose OCR box only around a separated, unclipped text band."""
+    if image is None:
+        return None
+    import cv2
+    import numpy as np
+    gray = cv2.cvtColor(np.asarray(image.crop(box).convert('RGB')),cv2.COLOR_RGB2GRAY)
+    _, ink = cv2.threshold(gray,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    # Long rules are not characters; a rule must not join neighboring rows.
+    rules = cv2.morphologyEx(ink,cv2.MORPH_OPEN,np.ones((1,max(12,gray.shape[1]//2)),np.uint8))
+    ink = cv2.subtract(ink,rules)
+    occupied = (ink > 0).sum(axis=1) >= max(2,gray.shape[1]*.015)
+    edges = np.diff(np.r_[False,occupied,False].astype('int8'))
+    bands = list(zip(np.flatnonzero(edges == 1),np.flatnonzero(edges == -1)))
+    bands = [(a,b) for a,b in bands if b-a >= .25*gray.shape[0]
+             and a >= 2 and b <= gray.shape[0]-2
+             and abs((a+b)/2-gray.shape[0]/2) < .3*gray.shape[0]
+             and (ink[a:b]>0).any(axis=0).sum() >= .65*gray.shape[1]]
+    if len(bands) != 1:
+        return None
+    a,b = bands[0]
+    return [box[0],int(box[1]+a),box[2],int(box[1]+b)]
+
+
+def blue_ink_bounds(image, region):
+    """Bound signing ink; reject a search window that cuts through the ink."""
+    if image is None:
+        return None
+    import numpy as np
+    rgb = np.asarray(image.crop(region).convert('RGB')).astype('int16')
+    red, green, blue = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    ys, xs = np.nonzero((blue-red >= 13) & (blue-green >= 4) & (red < 205))
+    if len(xs) < 32 or xs.min() == 0 or ys.min() == 0 or xs.max() == rgb.shape[1]-1 or ys.max() == rgb.shape[0]-1:
+        return None
+    return [int(xs.min()+region[0]), int(ys.min()+region[1]),
+            int(xs.max()+region[0]+1), int(ys.max()+region[1]+1)]
+
+
 def vertical_segments(image):
     import cv2
     import numpy as np

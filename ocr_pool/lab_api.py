@@ -19,7 +19,8 @@ MAX_TOKENS = 16000
 PANEL_CODES = {'ana_profile_23': 'ANA', 'myositis': 'MYO'}
 CONTROL_LABEL = re.compile(r'(?:control|label)(?:\s*\([a-z]{1,4}\))?', re.I)
 CBC_LABEL = re.compile(r'\b(?:NE|LY|MO|EO|BA)\s*([#%])\s*$', re.I)
-CBC_MARKER = re.compile(r'(?:^|-)\s*(WBC|RBC|HGB|PLT|MCV|MCHC|NE[#%]|LY[#%])\s*$', re.I)
+CBC_MARKER = re.compile(r'(?:^|-)\s*(WBC|RBC|HGB|PLT|MCV|MCHC|NE[#%]|LY[#%]|MO[#%]|EO[#%]|BA[#%])\s*$', re.I)
+CBC_DIFFERENTIAL = frozenset({'NE#', 'NE%', 'LY#', 'LY%', 'MO#', 'MO%', 'EO#', 'EO%', 'BA#', 'BA%'})
 CBC_CONTINUATION = {'EO%': ('HEM09', '%', 'percentage'), 'BA%': ('HEM10', '%', 'percentage'),
                     'PLT': ('HEM11', '10^9/l', 'result')}
 FLUORESCENCE = re.compile(r'huynh\s*quang|immunofluorescen|homogeneous|speckled|nucleolar', re.I)
@@ -118,12 +119,17 @@ def lab_crop_evidence(scan, plan, *, routing=None):
             kinds != {'panel'} and any(FLUORESCENCE.search(fold(line['text'])) for line in lines)):
         return reject('fluorescence_or_unidentified_panel')
     markers = {match[1].upper() for line in lines if (match := CBC_MARKER.search(line['text']))}
-    blood = len(markers) >= 3 and bool(markers & {'HGB','MCV','MCHC'})
+    red_cells = bool(markers & {'HGB', 'MCV', 'MCHC'})
+    differential = len(markers & CBC_DIFFERENTIAL) >= 2
+    blood = len(markers) >= 3 and red_cells
     continuation = Counter()
-    if not blood and not panel and kinds == {'lab'} and not any(
+    if not panel and kinds == {'lab'} and not any(
             re.search(r'\b(?:nuoc tieu|urinalysis|vi sinh|benh pham phan)\b', fold(line['text'])) for line in lines):
         continuation = cbc_continuation_rows(lines)
-        blood = bool(continuation)
+        # A differential tail page carries no red-cell rows; printed differential
+        # markers or aligned continuation cells are blood-specific evidence. The
+        # urine/stool guard above keeps mixed-specimen pages on the standard route.
+        blood = blood or bool(continuation) or (len(markers) >= 3 and differential)
     context = dict(panel=panel, specimen='blood' if blood else None)
     required, required_slots = set(), set()
     occurrences = {}

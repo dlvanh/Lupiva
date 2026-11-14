@@ -155,3 +155,65 @@ class FastLaboratoryTests(unittest.TestCase):
         row = cell('ESR','21',code='IMM20',number='21',op='=',unit='mm/lh')
         with self.assertRaisesRegex(InvalidAPIResponse,'outside the known field units'):
             _expand(dict(rows=[row],notes=[]),dict(panel=None,layout='lab'),{'IMM20'})
+
+    def test_cbc_differential_tail_without_red_cells_is_blood(self):
+        plan = dict(crop=[0, 0, 800, 400])
+        lines = [line('Chỉ định', 30, 20), line('Kết quả', 250, 20),
+                 line('Đơn vị', 370, 20), line('Tham chiếu', 490, 20)]
+        rows = [('Số lượng bạch cầu-WBC', '6.7', 'G/L'),
+                ('Số lượng bạch cầu-WBC', '6.8', 'G/L'),
+                ('Số lượng bạch cầu trung tính-NE#', '4.8', 'G/L'),
+                ('Số lượng bạch cầu lympho-LY#', '1.5', 'G/L'),
+                ('%Bạch cầu trung tính-NE%', '62.9', '%'),
+                ('%Bạch cầu lympho-LY%', '23.3', '%'),
+                ('%Bạch cầu mono-MO%', '7.0', '%')]
+        for i, (label, value, unit) in enumerate(rows):
+            y = 55 + 25 * i
+            lines.extend([line(label, 30, y), line(value, 250, y), line(unit, 370, y)])
+        scan = dict(plan=dict(size=[800, 400]), lines=lines)
+        routing = {}
+        evidence = lab_crop_evidence(scan, plan, routing=routing)
+        self.assertEqual(routing['lab'], 'eligible')
+        self.assertTrue(evidence['blood'])
+        self.assertIsNone(evidence['panel'])
+        self.assertTrue({'HEM05', 'HEM06', 'HEM07', 'HEM08'} <= evidence['required_fields'])
+        self.assertEqual(evidence['repeated_slots'], {('HEM05', 'result'): 2})
+        self.assertIn(('HEM06', 'percentage'), evidence['required_slots'])
+        self.assertIn(('HEM06', 'absolute_count'), evidence['required_slots'])
+
+    def test_bare_cbc_markers_without_differential_or_red_cells_are_not_blood(self):
+        plan = dict(crop=[0, 0, 800, 400])
+        lines = [line('Chỉ định', 30, 20), line('Kết quả', 250, 20), line('Đơn vị', 370, 20)]
+        for i, (label, value, unit) in enumerate([('RBC', '4.5', 'T/L'), ('WBC', '6.7', 'G/L'), ('PLT', '288', 'G/L')]):
+            y = 55 + 25 * i
+            lines.extend([line(label, 30, y), line(value, 250, y), line(unit, 370, y)])
+        scan = dict(plan=dict(size=[800, 400]), lines=lines)
+        routing = {}
+        self.assertIsNone(lab_crop_evidence(scan, plan, routing=routing))
+        self.assertEqual(routing['lab'], 'insufficient_or_conflicting_analyte_labels')
+
+    def test_single_differential_marker_is_insufficient_for_blood(self):
+        plan = dict(crop=[0, 0, 800, 400])
+        lines = [line('Chỉ định', 30, 20), line('Kết quả', 250, 20), line('Đơn vị', 370, 20)]
+        for i, (label, value, unit) in enumerate([('%Bạch cầu trung tính-NE%', '62.9', '%'),
+                                                  ('Số lượng tiểu cầu-PLT', '288', 'G/L'),
+                                                  ('Số lượng bạch cầu-WBC', '6.7', 'G/L')]):
+            y = 55 + 25 * i
+            lines.extend([line(label, 30, y), line(value, 250, y), line(unit, 370, y)])
+        scan = dict(plan=dict(size=[800, 400]), lines=lines)
+        routing = {}
+        self.assertIsNone(lab_crop_evidence(scan, plan, routing=routing))
+        self.assertEqual(routing['lab'], 'insufficient_or_conflicting_analyte_labels')
+
+    def test_red_cell_cbc_markers_still_recognize_blood(self):
+        plan = dict(crop=[0, 0, 800, 400])
+        lines = [line('Chỉ định', 30, 20), line('Kết quả', 250, 20), line('Đơn vị', 370, 20)]
+        for i, (label, value, unit) in enumerate([('Số lượng hồng cầu-RBC', '4.5', 'T/L'),
+                                                  ('Lượng huyết sắc tố-HGB', '142', 'g/L'),
+                                                  ('Số lượng bạch cầu-WBC', '6.7', 'G/L')]):
+            y = 55 + 25 * i
+            lines.extend([line(label, 30, y), line(value, 250, y), line(unit, 370, y)])
+        scan = dict(plan=dict(size=[800, 400]), lines=lines)
+        evidence = lab_crop_evidence(scan, plan)
+        self.assertTrue(evidence['blood'])
+        self.assertTrue({'HEM01', 'HEM02', 'HEM05'} <= evidence['required_fields'])

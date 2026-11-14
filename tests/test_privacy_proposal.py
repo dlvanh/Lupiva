@@ -2,7 +2,7 @@
 import importlib.util
 import io
 import unittest
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from ocr_pool.privacy_proposal import date_mentions, propose, render,collection_headers,outgoing_review_items
 from ocr_pool.privacy_geometry import vertical_segments, inspect_barcodes
 
@@ -26,6 +26,157 @@ def specimen_lines(offset=0):
 
 
 class PrivacyProposalTests(unittest.TestCase):
+    def test_mixed_date_uses_word_boxes_and_preserves_neighboring_result(self):
+        mixed = line(10,'Date: 23/06/2032 CRP: 8.4 mg/L',[35,115,565,145])
+        mixed['words'] = [dict(text=text,box=box,confidence=.98) for text,box in [
+            ('Date:',[35,115,90,145]),('23/06/2032',[110,115,255,145]),
+            ('CRP:',[285,115,355,145]),('8.4',[375,115,420,145]),('mg/L',[445,115,505,145])]]
+        image = Image.new('RGB',(650,400),'#657483')
+        plan = propose([mixed],[],image.size,image=image)
+        self.assertFalse(plan['review_items'])
+        mask = plan['masks'][0]
+        self.assertEqual(['contextual_calendar_date_token'],mask['reasons'])
+        self.assertLess(mask['box'][2],285)
+        out = render(image,plan)
+        self.assertEqual((255,255,255),out.getpixel((180,130)))
+        self.assertEqual(image.getpixel((390,130)),out.getpixel((390,130)))
+        self.assertTrue(plan['dates_local'][0]['masked_as_date_field'])
+        for words in ([],mixed['words'][:-1],
+                      [{**w,'confidence':.4} if w['text']=='23/06/2032' else w for w in mixed['words']]):
+            with self.subTest(words=words):
+                blocked = propose([{**mixed,'words':words}],[],image.size)
+                self.assertIn('date_shares_line_with_other_content',[r['code'] for r in blocked['review_items']])
+        conflict = line(11,'9.7',[240,130,280,155])
+        self.assertTrue(propose([mixed,conflict],[],image.size)['review_items'])
+
+    def test_date_character_tokens_short_year_and_reference_guards(self):
+        mixed = line(1,'Date: 25/08/34 CRP',[25,85,400,110])
+        words = [dict(text='Date:',box=[25,85,75,110],confidence=.99)]
+        words += [dict(text=c,box=[100+12*i,85,110+12*i,110],confidence=.99)
+                  for i,c in enumerate('25/08/34')]
+        words.append(dict(text='CRP',box=[250,85,300,110],confidence=.99))
+        mixed['words'] = words
+        plan = propose([mixed],[],(500,300))
+        self.assertFalse(plan['review_items'])
+        self.assertIsNone(plan['dates_local'][0]['mentions'][0]['normalized'])
+        self.assertTrue(plan['dates_local'][0]['requires_review'])
+        reference = {**mixed,'text':'Reference range: 25/08/34 CRP'}
+        self.assertFalse(propose([reference],[],(500,300))['masks'])
+        for text in ('Date: 31/02/2034 CRP','Date: 4.7-8.9 CRP'):
+            self.assertFalse(propose([{**mixed,'text':text}],[],(500,300))['masks'])
+
+    def test_overlapping_ocr_date_boxes_need_separate_source_ink_bands(self):
+        mixed = line(1,'Date: 27/09/2036 CRP',[30,118,440,174])
+        mixed['words'] = [dict(text=t,box=b,confidence=c) for t,b,c in [
+            ('Date:',[30,118,95,174],.6),('27/09/2036',[180,118,325,174],.99),
+            ('CRP',[380,118,440,174],.98)]]
+        previous = line(2,'Previous',[180,90,325,138])
+        image = Image.new('RGB',(520,350),'white'); draw = ImageDraw.Draw(image)
+        font = ImageFont.load_default(size=22)
+        draw.text((180,100),'10/08/2035',font=font,fill='black')
+        draw.text((180,142),'27/09/2036',font=font,fill='black')
+        plan = propose([mixed,previous],[],image.size,image=image)
+        self.assertFalse(plan['review_items'])
+        self.assertGreater(plan['masks'][0]['box'][1],138)
+        mask_top = plan['masks'][0]['box'][1]
+        self.assertEqual(image.crop((0,0,520,mask_top)).tobytes(),
+                         render(image,plan).crop((0,0,520,mask_top)).tobytes())
+        touching = line(3,'Clinical annotation',[180,140,325,174])
+        self.assertTrue(propose([mixed,previous,touching],[],image.size,image=image)['review_items'])
+
+    def test_unlabeled_date_token_is_masked_but_not_given_clinical_context(self):
+        date = line(1,'18/12/2037 note',[45,95,350,122])
+        date['words'] = [dict(text='18/12/2037',box=[45,95,190,122],confidence=.99),
+                         dict(text='note',box=[250,95,305,122],confidence=.99)]
+        plan = propose([date],[],(500,300))
+        self.assertFalse(plan['review_items'])
+        self.assertTrue(plan['dates_local'][0]['requires_review'])
+        self.assertEqual(['calendar_date_token'],plan['masks'][0]['reasons'])
+
+    def test_header_date_needs_separable_geometry_and_stays_local(self):
+        title = line(1,'Spirometry - Plethysmography',[35,110,290,138])
+        date = line(2,'19/07/2033',[365,110,505,138])
+        date['words'] = [dict(text=date['text'],box=date['box'],confidence=.99)]
+        heads = [line(3,'Pred.val.',[165,145,240,170]),line(4,'%Pre',[310,145,365,170])]
+        plan = propose([title,date,*heads],[],(630,540))
+        self.assertFalse(plan['review_items'])
+        self.assertEqual('2033-07-19',plan['dates_local'][0]['mentions'][0]['normalized'])
+        self.assertTrue(plan['masks'])
+        for changed in ({**date,'words':[]},{**date,'box':[365,350,505,378]}):
+            blocked = propose([title,changed,*heads],[],(630,540))
+            self.assertIn('date_without_context',[r['code'] for r in blocked['review_items']])
+
+    def test_lab_footer_ink_below_real_results_is_masked_with_margin(self):
+        heads = [line(1,'Test',[40,95,130,120]),line(2,'Result',[220,95,300,120]),
+                 line(3,'Unit',[360,95,405,120])]
+        rows = [line(4,'Ure',[45,170,100,195]),line(5,'6.9',[235,170,280,195]),
+                line(6,'CK',[45,225,100,250]),line(7,'87',[235,225,280,250])]
+        signer = line(8,'Dr. Alpha Beta',[400,460,570,487])
+        image = Image.new('RGB',(700,650),'#eeeeee')
+        draw = ImageDraw.Draw(image)
+        draw.line([(425,425),(475,399),(515,438)],fill='#1838a2',width=4)
+        plan = propose([*heads,*rows,signer],[],image.size,image=image)
+        self.assertFalse(plan['review_items'])
+        mask = next(m for m in plan['masks'] if 'staff_signature_footer' in m['reasons'])
+        self.assertGreater(mask['box'][1],250)
+        self.assertLess(mask['box'][1],399)
+        out = render(image,plan); top = plan['crop'][1]
+        self.assertEqual((255,255,255),out.getpixel((475,399-top)))
+        self.assertEqual(image.getpixel((250,180)),out.getpixel((250,180-top)))
+        for changed in ([*heads,signer], [*heads,*rows,signer,line(9,'CRP 9.6 mg/L',[450,420,580,447])],
+                        [*heads,*rows,{**signer,'box':[240,210,410,237]}],
+                        [*heads,*rows,{**signer,'text':'Dr. Alpha Beta CRP 9.6 mg/L'}],
+                        [*heads,*rows,signer,line(10,'Unknown assay',[45,510,170,536]),
+                         line(11,'9.7',[235,510,280,536])]):
+            with self.subTest(lines=changed):
+                blocked = propose(changed,[],image.size,image=image)
+                self.assertIn('staff_signature_needs_review',[r['code'] for r in blocked['review_items']])
+        no_ink = propose([*heads,*rows,signer],[],image.size,image=Image.new('RGB',image.size,'white'))
+        self.assertTrue(no_ink['review_items'])
+        draw.line([(319,400),(380,416)],fill='#1838a2',width=4)
+        self.assertTrue(propose([*heads,*rows,signer],[],image.size,image=image)['review_items'])
+
+    def test_missing_result_header_needs_unit_reference_and_repeated_clinical_rows(self):
+        heads = [line(1,'Xét nghiệm',[35,125,135,151]),line(2,'Đơn vị',[355,125,410,151]),
+                 line(3,'Khoảng tham chiếu',[450,125,610,151])]
+        rows = [line(4,'Ure',[40,195,100,220]),line(5,'5.6',[230,195,280,220]),
+                line(6,'CK',[40,250,100,275]),line(7,'93',[230,250,280,275])]
+        plan = propose([*heads,*rows],[],(680,550))
+        self.assertEqual('detected_lab_table_header',plan['crop_reason'])
+        self.assertEqual(109,plan['crop'][1])
+        self.assertFalse(plan['review_items'])
+        for changed in ([*heads,*rows[:2]], [*heads[:2],*rows],
+                        [*heads,*[r for r in rows if r['line_id'] not in {4,6}]],
+                        [line(1,'Result',[230,125,310,151]),line(2,'Flow volume graph',[50,180,240,210])]):
+            with self.subTest(lines=changed):
+                self.assertEqual('no_reliable_result_header_keep_page',propose(changed,[],(680,550))['crop_reason'])
+        lost_value = outgoing_review_items([*heads,*rows],plan['crop'],[{'box':rows[1]['box']}],plan['crop_reason'])
+        self.assertIn('outgoing_table_header_needs_review',[r['code'] for r in lost_value])
+        extra = [*heads,*rows,line(8,'CRP',[40,305,100,330]),line(9,'7.2',[230,305,280,330])]
+        lost_value = outgoing_review_items(extra,plan['crop'],[{'box':[240,200,260,215]}],plan['crop_reason'])
+        self.assertIn('outgoing_result_needs_review',[r['code'] for r in lost_value])
+
+    def test_echo_measurement_fallback_requires_ordered_sections_and_units(self):
+        lines = [line(1,'SIÊU ÂM TIM, MÀNG TIM QUA THÀNH NGỰC',[180,45,630,75]),
+                 line(2,'Kỹ thuật: Siêu âm tim',[55,105,330,134]),
+                 line(3,'Mô tả: Thất trái',[55,145,310,173]),
+                 line(4,'LVEDD 51 mm LVESD 33 mm EF 62%',[55,185,490,216]),
+                 line(5,'Chức năng tâm trương',[55,285,350,314]),
+                 line(6,'MV E 75 cm/s',[55,330,265,356]),
+                 line(7,'Kích thước và chức năng buồng tim phải',[55,430,510,460]),
+                 line(8,'TAPSE 24 mm',[55,480,250,508])]
+        plan = propose(lines,[],(750,600))
+        self.assertEqual('detected_echo_report_sections',plan['crop_reason'])
+        self.assertEqual([0,105,750,600],plan['crop'])
+        self.assertFalse(plan['review_items'])
+        ocr_variant = [{**r,'text':r['text'].replace('Chức năng','Chưrc nng').replace('chức năng','chưrc nng')}
+                       for r in lines]
+        self.assertEqual(plan['crop'],propose(ocr_variant,[],(750,600))['crop'])
+        for changed in (lines[1:],lines[:4], [r for r in lines if r['line_id'] not in {4,6,8}],
+                        [*lines,line(9,'Mô tả: Trang khác',[55,520,310,548])]):
+            with self.subTest(lines=changed):
+                self.assertEqual('no_reliable_result_header_keep_page',propose(changed,[],(750,600))['crop_reason'])
+
     def test_skewed_lab_header_masks_administrative_fields_without_cutting_headings(self):
         header = [line(1,'Chỉ định',[20,121,80,144]),line(2,'Kết quả',[150,109,210,130]),
                   line(3,'Đơn vị',[245,103,286,125]),line(4,'Tham chiếu',[331,100,386,121])]

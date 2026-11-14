@@ -19,6 +19,7 @@ def analyze(image, models):
     engine = RapidOCR(params={
         'Global.model_root_dir': str(models), 'Global.log_level': 'warning',
         'Global.text_score': .35, 'Global.max_side_len': 2400, 'Global.use_cls': True,
+        'Global.return_word_box': True,
         'Det.engine_type': EngineType.ONNXRUNTIME, 'Det.lang_type': LangDet.CH,
         'Det.model_type': ModelType.MOBILE, 'Det.ocr_version': OCRVersion.PPOCRV5,
         'Det.limit_side_len': 1280, 'Det.limit_type': 'max',
@@ -38,7 +39,16 @@ def analyze(image, models):
             bounds = [max(0, math.floor(box[:, 0].min())), max(0, math.floor(box[:, 1].min())),
                       min(image.width, math.ceil(box[:, 0].max())), min(image.height, math.ceil(box[:, 1].max()))]
             if bounds[0] < bounds[2] and bounds[1] < bounds[3]:
-                lines.append(dict(line_id=i, text=text, confidence=float(score), box=bounds))
+                line = dict(line_id=i, text=text, confidence=float(score), box=bounds)
+                words = getattr(result, 'word_results', ())
+                if words and i < len(words):
+                    line['words'] = [dict(text=token, confidence=float(confidence),
+                        box=[max(0, math.floor(min(p[0] for p in quad))),
+                             max(0, math.floor(min(p[1] for p in quad))),
+                             min(image.width, math.ceil(max(p[0] for p in quad))),
+                             min(image.height, math.ceil(max(p[1] for p in quad)))])
+                        for token, confidence, quad in words[i] if quad is not None]
+                lines.append(line)
     codes = inspect_barcodes(image)
     grid = vertical_segments(image) if collection_headers(lines) else []
     return propose(lines, codes, image.size, vertical_segments=grid, image=image), lines

@@ -9,7 +9,7 @@ import math
 import re
 import unicodedata
 
-VERSION = 'privacy-proposal-0.19'
+VERSION = 'privacy-proposal-0.20'
 IDENTITY = re.compile(
     r'\b(?:ho\s*(?:va\s*)?ten|ten benh nhan|patient\s*name|full\s*name|l\s*name|f\s*name|'
     r'ngay\s*sinh|date\s*of\s*birth|birth\s*date|dob|dia\s*chi|address|dien\s*thoai|phone|mobile|'
@@ -79,6 +79,70 @@ def _temporal_field_only(text, mentions):
              'date','of','birth','birthdate','dob','collection','collected','received','reported',
              'report','time','at','on','printed','result','sampling'}
     return not re.search(r'\d',remaining) and set(re.findall(r'[a-z]+',remaining))<=allowed
+
+
+def _date_token_boxes(line, mentions, lines, size, image=None):
+    """Use OCR token positions, never a proportional guess across a mixed line."""
+    text = fold(line['text'])
+    tokens = []
+    cursor = 0
+    for word in line.get('words', []):
+        token = fold(word['text'])
+        start = text.find(token, cursor) if token else -1
+        box = word['box']
+        a,b,c,d = box
+        if (start < 0 or text[cursor:start].strip() or not 0 <= a < c <= size[0]
+                or not 0 <= b < d <= size[1]
+                or a < line['box'][0]-3 or b < line['box'][1]-3
+                or c > line['box'][2]+3 or d > line['box'][3]+3):
+            return None
+        tokens.append((start, start+len(token), box, word.get('confidence') or 0))
+        cursor = start+len(token)
+    if not tokens or text[cursor:].strip():
+        return None
+    masks = []
+    for mention in mentions:
+        start, end = mention['span']
+        chosen = [(a,b,box) for a,b,box,score in tokens if a < end and start < b and score >= .90]
+        if not chosen or chosen[0][0] != start or chosen[-1][1] != end:
+            return None
+        if any(a < end and start < b and score < .90 for a,b,box,score in tokens):
+            return None
+        bounds = [min(b[0] for _,_,b in chosen), min(b[1] for _,_,b in chosen),
+                  max(b[2] for _,_,b in chosen), max(b[3] for _,_,b in chosen)]
+        pad = max(2,min(3,round(.10*_height(bounds))))
+        mask = expanded(bounds,size,pad=pad)
+        neighbors = [box for a,b,box,_ in tokens if b <= start or a >= end]
+        neighbors.extend(other['box'] for other in lines if other is not line)
+        if any(_overlap(mask,other) for other in neighbors):
+            from .privacy_geometry import text_ink_band
+            tight = text_ink_band(image,bounds)
+            if not tight:
+                return None
+            mask = expanded(tight,size,pad=pad)
+            for other in neighbors:
+                if not _overlap(mask,other):
+                    continue
+                other_ink = text_ink_band(image,other)
+                if not other_ink or _overlap(mask,expanded(other_ink,size,pad=1)):
+                    return None
+        masks.append(mask)
+    return masks
+
+
+def _date_header_context(line, lines, crop, crop_reason):
+    """A date in a verified header/sample row has context, not in the body."""
+    if not re.fullmatch(r'detected_\w+_table_header', crop_reason):
+        return False
+    box = line['box']
+    if not _overlap(box, crop) or _center(box)[1] > crop[1]+3*_height(box):
+        return False
+    # Require a nearby heading in the same horizontal band. An ordinary date
+    # above a skewed header still needs its administrative label.
+    row = _row(line, lines)
+    context = ' '.join(fold(other['text']) for other in row if other is not line)
+    return bool(re.search(r'\b(?:spirometry|plethysmography|sample\s*type|amount|antigen|intensity)\b', context)
+                or any(other['box'] in [b for _,b in _lab_headings(lines)] for other in row))
 
 
 def expanded(box, size, pad=10):
@@ -185,6 +249,61 @@ def _lab_signed_block(anchor, lines, crop, *, technician=False):
     return region
 
 
+def _isolated_lab_footer(anchor, lines, crop, crop_reason, size, image):
+    """Bound signing ink below actual result rows, never a signature-only page."""
+    if crop_reason != 'detected_lab_table_header' or image is None:
+        return None
+    text = fold(anchor['text']).strip()
+    if FOOTER_CLINICAL.search(text) or re.search(r'\d',STAFF_TITLE.sub('',text,count=1)):
+        return None
+    from .rules import resolve
+    from .privacy_geometry import blue_ink_bounds
+    results = [box for role,box in _lab_headings(lines) if role == 'result']
+    rows = []; clinical_rows = 0
+    for value in lines:
+        x,y = _center(value['box'])
+        if not re.fullmatch(r'(?:[<>≤≥]?\s*\d+(?:[.,]\d+)?|positive|negative|am tinh|duong tinh)',
+                            fold(value['text']).strip()):
+            continue
+        if not any(y > head[3] and head[0]-_height(head) <= x <= head[2]+_height(head) for head in results):
+            continue
+        row = _row(value, lines)
+        rows.append(row)
+        if any(other['box'][2] <= value['box'][0] and resolve(other['text'], {})[0] for other in row):
+            clinical_rows += 1
+    if clinical_rows < 2:
+        return None
+    last_bottom = max(other['box'][3] for row in rows for other in row)
+    box = anchor['box']; height = _height(box)
+    if box[1] <= last_bottom+height:
+        return None
+    search = [max(crop[0],box[0]-3*height), max(last_bottom+1,box[1]-5*height),
+              min(crop[2],box[2]+3*height), min(crop[3],box[3]+4*height)]
+    ink = blue_ink_bounds(image, search)
+    if not ink:
+        return None
+    block = expanded([min(box[0],ink[0]),min(box[1],ink[1]),
+                      max(box[2],ink[2]),max(box[3],ink[3])],size,pad=max(4,round(.2*height)))
+    if block[1] <= last_bottom:
+        return None
+    for other in lines:
+        if other is anchor or not _overlap(other['box'], block):
+            continue
+        text = fold(other['text']).strip()
+        if not (_name_like(other['text']) or STAFF_TITLE.match(text) or SIGNATURE_LABEL.match(text)):
+            return None
+        if FOOTER_CLINICAL.search(text) or re.search(r'\d',text):
+            return None
+        # Do not leave a name partially outside the final block.
+        block = expanded([min(block[0],other['box'][0]),min(block[1],other['box'][1]),
+                          max(block[2],other['box'][2]),max(block[3],other['box'][3])],size,pad=2)
+    if any(other is not anchor and _overlap(other['box'],block)
+           and not (_name_like(other['text']) or STAFF_TITLE.match(fold(other['text']))
+                    or SIGNATURE_LABEL.match(fold(other['text']))) for other in lines):
+        return None
+    return block if block[1] > last_bottom else None
+
+
 def _staff_privacy(lines, crop, crop_reason, size, image):
     masks, reviews, covered = [], [], set()
     for line in lines:
@@ -193,7 +312,8 @@ def _staff_privacy(lines, crop, crop_reason, size, image):
             continue
         technician = LAB_TECHNICIAN.fullmatch(text) is not None
         if crop_reason == 'detected_lab_table_header' and (LAB_SIGNER.match(text) or technician):
-            block = _lab_signed_block(line,lines,crop,technician=technician)
+            block = (_lab_signed_block(line,lines,crop,technician=technician)
+                     or _isolated_lab_footer(line,lines,crop,crop_reason,size,image))
             if block:
                 masks.append(dict(box=block,reasons=['staff_signature_footer'],line_id=line['line_id']))
             else:
@@ -205,7 +325,8 @@ def _staff_privacy(lines, crop, crop_reason, size, image):
                          and _center(line['box'])[1] >= crop[1]+.55*(crop[3]-crop[1]))
         titled = STAFF_TITLE.match(text) and not STAFF_ROLE.match(text)
         if footer_marker or titled or SIGNATURE_LABEL.match(text):
-            footer = _staff_footer(line,lines,crop,crop_reason,image)
+            footer = (_staff_footer(line,lines,crop,crop_reason,image)
+                      or _isolated_lab_footer(line,lines,crop,crop_reason,size,image))
             if footer:
                 masks.append(dict(box=footer,reasons=['staff_signature_footer'],line_id=line['line_id']))
                 covered.update(other['line_id'] for other in lines if _overlap(other['box'],footer))
@@ -294,6 +415,33 @@ def _lab_header(lines):
     return min(tops, default=None)
 
 
+def _lab_header_fallback(lines):
+    """Recover a missing result label using columns and repeated result rows."""
+    from .rules import resolve
+    headings = _lab_headings(lines)
+    for role, unit in headings:
+        if role != 'unit':
+            continue
+        refs = [box for name,box in headings if name == 'reference' and box[0] >= unit[2]
+                and abs(box[1]-unit[1]) <= _height(unit)]
+        tests = [box for name,box in headings if name == 'test' and box[2] < unit[0]
+                 and abs(box[1]-unit[1]) <= _height(unit)]
+        if len(refs) != 1 or len(tests) != 1:
+            continue
+        test = tests[0]; reference = refs[0]
+        bottom = max(unit[3], test[3], reference[3])
+        values = [line for line in lines if line['box'][1] > bottom
+                  and test[2] < line['box'][0] < line['box'][2] < unit[0]
+                  and re.fullmatch(r'[<>≤≥]?\s*\d+(?:[.,]\d+)?',line['text'].strip())
+                  and (line.get('confidence') or 0) >= .90]
+        rows = [value for value in values if any(
+                other['box'][2] <= value['box'][0] and resolve(other['text'], {})[0]
+                for other in _row(value,lines))]
+        if len(rows) >= 2 and max(v['box'][1] for v in rows)-min(v['box'][1] for v in rows) > _height(unit):
+            return min(test[1],unit[1],reference[1])
+    return None
+
+
 def _staff_inline_value(text):
     without_title = re.sub(r'^(?:cn|bs|ktv|ths)\.\s*', '', text, flags=re.I)
     return _name_like(without_title)
@@ -343,6 +491,8 @@ def table_header_anchors(lines):
             anchors.append((min(r['box'][1] for r in row),
                             'panel' if panel>=2 else 'pft' if pft>=2 else 'sample'))
     lab_top = _lab_header(lines)
+    if lab_top is None:
+        lab_top = _lab_header_fallback(lines)
     if lab_top is not None:
         anchors.append((lab_top, 'lab'))
     return anchors
@@ -484,6 +634,32 @@ def _echo_report_crop(lines, size):
     return crop
 
 
+def _echo_measurement_crop(lines, size):
+    """Recognize an initial echo report from ordered sections and measurement units."""
+    labels = [(line,fold(line['text']).strip()) for line in lines
+              if (line.get('confidence') or 0) >= .85]
+    patterns = (r'^sieu\s+am\s+tim,?\s+mang\s+tim\s+qua\s+thanh\b',
+                r'^ky\s*thuat\s*:', r'^mo\s*ta\s*:',
+                r'^chu[r]?c\s+n[a]?ng\s+tam\s+truong\b',
+                r'^kich\s+thuoc\s+va\s+chu[r]?c\s+n[a]?ng\s+buong\s+tim\s+ph[a]?i\b')
+    matches = [[line for line,text in labels if re.search(pattern,text)] for pattern in patterns]
+    if any(len(found) != 1 for found in matches):
+        return None
+    title, technique, findings, diastolic, right = [found[0] for found in matches]
+    ordered = [title,technique,findings,diastolic,right]
+    if not all(_center(a['box'])[1] < _center(b['box'])[1] for a,b in zip(ordered,ordered[1:])):
+        return None
+    top = technique['box'][1]
+    content = [line for line in lines if line['box'][1] >= top]
+    text = ' '.join(fold(line['text']) for line in content)
+    markers = sum(bool(re.search(r'\b'+marker+r'\b',text)) for marker in ('lvedd','lvesd','ef','tapse','lvmi'))
+    units = sum(bool(re.search(pattern,text)) for pattern in (r'\bmm\b',r'\bcm/s\b',r'\bml?/m',r'%'))
+    if (markers < 3 or units < 2 or not re.search(r'\d',text) or top <= 0
+            or any(line is not title and line['box'][1] < top < line['box'][3] for line in lines)):
+        return None
+    return [0,top,*size]
+
+
 def _pft_crop_top(lines, top):
     """Exclude a device timestamp above the Pre/Post table headings."""
     titles = [line for line in lines if (line.get('confidence') or 0) >= .90
@@ -527,6 +703,8 @@ def _crop(lines, size):
         if ecg:
             return ecg, 'detected_ecg_report_sections', None
         echo = _echo_report_crop(lines, size)
+        if not echo:
+            echo = _echo_measurement_crop(lines, size)
         if echo:
             return echo, 'detected_echo_report_sections', None
         return [0, 0, *size], 'no_reliable_result_header_keep_page', None
@@ -561,6 +739,12 @@ def outgoing_review_items(lines, crop, masks, crop_reason):
     result_pattern = LAB_HEADINGS[0][1]
     result_heads = [line['box'] for line in retained
                     if kind == 'lab' and re.fullmatch(result_pattern, fold(line['text']).strip(' .:'))]
+    if kind == 'lab' and not result_heads and _lab_header_fallback(retained) is not None:
+        headings = _lab_headings(retained)
+        result_heads = [[test[2],min(test[1],unit[1]),unit[0],max(test[3],unit[3])]
+                        for role,test in headings if role == 'test'
+                        for other,unit in headings if other == 'unit' and test[2] < unit[0]
+                        and abs(test[1]-unit[1]) <= _height(unit)]
     for line in inside:
         confidence = line.get('confidence')
         if (line['line_id'] in retained_ids or not isinstance(confidence, (int, float))
@@ -681,7 +865,10 @@ def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
         # Only a nearby label to the left can qualify another OCR chunk.
         context=s+' '+' '.join(fold(a['text']) for a in row
                                  if a['box'][2]<=line['box'][0] and line['box'][0]-a['box'][2]<4*_height(line['box']))
-        contextual=bool(DATE_CONTEXT.search(context));mentions=date_mentions(s,contextual=contextual)
+        header_context = (_date_header_context(line, lines, crop, crop_reason)
+                          and bool(_date_token_boxes(line, date_mentions(s,contextual=True), lines, size, image)))
+        contextual=bool(DATE_CONTEXT.search(context)) or header_context
+        mentions=date_mentions(s,contextual=contextual)
         if IDENTITY.search(s):reasons.append('identity_label')
         if mentions:
             if REFERENCE.search(context):
@@ -689,22 +876,42 @@ def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
             elif (crop_reason == 'detected_lab_table_header' and not contextual
                   and _overlap(line['box'], crop) and _temporal_field_only(s, mentions)):
                 mask = _skewed_lab_timestamp(line, row, lines, crop, size)
+                token_boxes = None if mask else _date_token_boxes(line, mentions, lines, size, image)
                 if mask:
                     masks.append(dict(box=mask,reasons=['contextual_calendar_date'],line_id=line['line_id']))
                     dates.append(dict(kind='calendar_date',box=line['box'],raw=line['text'],mentions=mentions,
                                       policy='local_only_no_date_repair',masked_as_date_field=True,
                                       requires_review=any(m['short_year'] for m in mentions)))
+                elif token_boxes:
+                    masks.extend(dict(box=box,reasons=['calendar_date_token'],line_id=line['line_id'])
+                                 for box in token_boxes)
+                    dates.append(dict(kind='calendar_date',box=line['box'],raw=line['text'],mentions=mentions,
+                                      policy='local_only_no_date_repair',masked_as_date_field=True,
+                                      requires_review=True))
                 else:
                     reviews.append(dict(code='date_without_context',line_ids=[line['line_id']],box=line['box']))
             elif contextual:
                 safe_field=_temporal_field_only(s,mentions)
-                if safe_field:reasons.append('contextual_calendar_date')
+                token_boxes = _date_token_boxes(line, mentions, lines, size, image) if not safe_field or header_context else None
+                if token_boxes:
+                    masks.extend(dict(box=box,reasons=['contextual_calendar_date_token'],line_id=line['line_id'])
+                                 for box in token_boxes)
+                elif safe_field:reasons.append('contextual_calendar_date')
                 else:reviews.append(dict(code='date_shares_line_with_other_content',line_ids=[line['line_id']],box=line['box']))
+                safe_field = safe_field or bool(token_boxes)
                 dates.append(dict(kind='calendar_date',box=line['box'],raw=line['text'],mentions=mentions,
                                   policy='local_only_no_date_repair',masked_as_date_field=safe_field,
                                   requires_review=not safe_field or any(m['short_year'] for m in mentions)))
             else:
-                reviews.append(dict(code='date_without_context',line_ids=[line['line_id']],box=line['box']))
+                token_boxes = _date_token_boxes(line, mentions, lines, size, image)
+                if token_boxes:
+                    masks.extend(dict(box=box,reasons=['calendar_date_token'],line_id=line['line_id'])
+                                 for box in token_boxes)
+                    dates.append(dict(kind='calendar_date',box=line['box'],raw=line['text'],mentions=mentions,
+                                      policy='local_only_no_date_repair',masked_as_date_field=True,
+                                      requires_review=True))
+                else:
+                    reviews.append(dict(code='date_without_context',line_ids=[line['line_id']],box=line['box']))
         if EMAIL.search(s):reasons.append('email')
         if PHONE.search(s):reasons.append('phone_like')
         if not reasons:continue
