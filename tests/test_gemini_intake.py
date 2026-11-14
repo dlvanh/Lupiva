@@ -11,7 +11,8 @@ import unittest
 from PIL import Image
 from ocr_pool.gemini import (InvalidAPIResponse, configuration, public_configuration, privacy_plan,
                              prepare_image, extract_image, response_schema, request_json)
-from ocr_pool.gemini_workflow import ct_ild_finding, echo_pericardial_finding, run
+from ocr_pool.gemini_workflow import (build_candidate, ct_ild_finding, echo_pericardial_finding,
+                                     pleural_effusion_finding, run)
 from ocr_pool.local_dates import date_facts, observation_date
 from registry_pool.exchange import verify_bundle, read
 from registry_review.store import ReviewStore
@@ -42,6 +43,135 @@ class GeminiIntakeTests(unittest.TestCase):
     setUp=intake_fixture.PatientIntakeTests.setUp
     tearDown=intake_fixture.PatientIntakeTests.tearDown
     wait=intake_fixture.PatientIntakeTests.wait
+
+    def report_scan(self, statement, *, echo=False, technique='Chụp CLVT lồng ngực'):
+        texts = [statement] if echo else ['Kỹ thuật:', technique, statement, 'Kết luận:',
+                                         'Không thấy tổn thương gợi ý bệnh phổi kẽ trên phim.']
+        return dict(plan=dict(size=[800,300], crop=[10,90,800,300], crop_reason=(
+            'detected_echo_report_sections' if echo else 'detected_diagnostic_report_sections')),
+            lines=[dict(text=text,confidence=.96,box=[25,100+25*i,750,121+25*i])
+                   for i,text in enumerate(texts)])
+
+    def candidate_from_record(self, record, folder='candidate'):
+        body = image_bytes('synthetic-local-report')
+        privacy = dict(crop=[10,90,800,300], masks=[], reviewed=True,
+                       sha256=hashlib.sha256(body).hexdigest())
+        outgoing = prepare_image(body, privacy)
+        record.update(outgoing_bytes=outgoing, outgoing_sha256=hashlib.sha256(outgoing).hexdigest())
+        doc = dict(document_id='SYNTHETIC',input_path='synthetic.png',
+                   input_sha256=privacy['sha256'],privacy=privacy)
+        return build_candidate([doc], [record], DICTIONARY, self.root/folder)
+
+    def test_ct_pleural_effusion_requires_explicit_statement(self):
+        privacy = dict(crop=[10,90,800,300],masks=[])
+        for statement, choice in (
+                ('Không thấy tràn dịch, tràn khí khoang màng phổi hai bên.', 'no'),
+                ('Không tràn dịch màng phổi', 'no'),
+                ('Có tràn dịch màng phổi.', 'yes'),
+                ('Tràn dịch màng phổi', 'yes'),
+                ('Không tràn dich mang phi', 'no')):
+            with self.subTest(statement=statement):
+                finding = pleural_effusion_finding(self.report_scan(statement), privacy)
+                self.assertEqual((finding['field_id'],finding['qualitative_value']),('LUNG04',choice))
+                self.assertEqual(finding['raw_result'],statement)
+        self.assertIsNone(pleural_effusion_finding(self.report_scan(
+            'Không tràn dịch màng phổi', technique='Siêu âm đàn hồi mô gan'), privacy))
+
+    def test_echo_pleural_effusion_allows_outside_heart_trailing_clause(self):
+        privacy = dict(crop=[10,90,800,300],masks=[])
+        statement = 'Ngoài tim: Không tràn dịch màng phổi, không thấy dịch tự do'
+        finding = pleural_effusion_finding(self.report_scan(statement,echo=True),privacy)
+        self.assertEqual((finding['field_id'],finding['qualitative_value']),('LUNG04','no'))
+        self.assertEqual(finding['source_label'],'Ngoài tim')
+        for statement in ('Không tràn dịch màng phổi, không thấy dịch tự do',
+                          'Ngoài tim: Không tràn dịch màng phổi, có tràn dịch màng phổi'):
+            self.assertIsNone(pleural_effusion_finding(self.report_scan(statement,echo=True),privacy))
+
+    def test_pleural_effusion_rejects_hedged_or_ambiguous_lines(self):
+        privacy = dict(crop=[10,90,800,300],masks=[])
+        for statement in ('Nghi tràn dịch màng phổi', 'Ít tràn dịch màng phổi',
+                          'Không loại trừ tràn dịch màng phổi', 'Màng phổi: Chưa rõ',
+                          'Không tràn dịch màng phổi, đề nghị đánh giá thêm',
+                          'Không thấy bất thường màng phổi'):
+            with self.subTest(statement=statement):
+                self.assertIsNone(pleural_effusion_finding(self.report_scan(statement),privacy))
+        scan = self.report_scan('Không tràn dịch màng phổi')
+        scan['lines'].append(dict(text='Tràn dịch màng phổi',confidence=.96,box=[25,240,750,261]))
+        self.assertIsNone(pleural_effusion_finding(scan,privacy))
+
+    def test_pleural_effusion_requires_unmasked_confident_line(self):
+        privacy = dict(crop=[10,90,800,300],masks=[])
+        scan = self.report_scan('Không tràn dịch màng phổi')
+        self.assertIsNone(pleural_effusion_finding(scan,{**privacy,'masks':[[25,150,750,171]]}))
+        scan['lines'][2]['confidence'] = .89
+        self.assertIsNone(pleural_effusion_finding(scan,privacy))
+        scan['lines'][2]['confidence'] = .90
+        self.assertEqual(pleural_effusion_finding(scan,privacy)['qualitative_value'],'no')
+
+    def test_ct_document_carries_both_local_lung_findings(self):
+        self.setup_config()
+        body = image_bytes('synthetic-ct-report')
+        (self.root/'synthetic.png').write_bytes(body)
+        privacy = dict(crop=[10,90,800,300],masks=[],reviewed=True,
+                       sha256=hashlib.sha256(body).hexdigest())
+        doc = dict(document_id='SYNTHETIC',input_path='synthetic.png',
+                   input_sha256=privacy['sha256'],privacy=privacy)
+        scan = self.report_scan('Không thấy tràn dịch, tràn khí khoang màng phổi hai bên')
+        with patch('ocr_pool.gemini_workflow.scan_source_dates',return_value=('preview_ocr',scan)):
+            bundle = run(dict(documents=[doc]),self.root/'ct-output',self.root,extractor=lambda *_:result())
+        package = verify_bundle(bundle,DICTIONARY)
+        findings = [o for o in package['observations'] if o['field_id'] in ('LUNG02','LUNG04')]
+        self.assertEqual({o['field_id'] for o in findings},{'LUNG02','LUNG04'})
+        self.assertEqual(len(findings),2)
+        for finding in findings:
+            self.assertEqual(finding['source_data']['qualitative_value'],'no')
+            self.assertEqual(finding['source_data']['flags'],['explicit_report_finding'])
+            self.assertEqual(finding['source_data']['extraction_method'],'local_ocr')
+            evidence = next(e for e in package['evidence'] if e['evidence_id']==finding['evidence_ids'][0])
+            self.assertEqual(evidence['source_data']['extraction_method'],'local_ocr')
+        saved = read(self.root/'ct-output/api-responses/image-001.json')
+        self.assertEqual(len(saved['local_report_findings']),2)
+        raw = read(self.root/'ct-output/candidate-pool.json')
+        indices = [e['row_index_0based'] for e in raw['evidence'] if e.get('table_id')=='G0000.result']
+        self.assertEqual(indices,[0,1,2,3])
+        self.assertFalse(any(o['field_id'] in ('EAC12','SDA18') for o in package['observations']))
+
+    def test_legacy_singular_local_report_finding_still_works(self):
+        record = result()
+        finding = pleural_effusion_finding(self.report_scan('Không tràn dịch màng phổi'),
+                                          dict(crop=[10,90,800,300],masks=[]))
+        record['local_report_finding'] = finding
+        candidate = self.candidate_from_record(record)
+        observation = next(o for o in candidate['observations'] if o['field_id']=='LUNG04')
+        self.assertEqual(observation['extraction_method'],'local_ocr')
+        self.assertEqual(observation['flags'],['explicit_report_finding'])
+        record['local_report_findings'] = [finding]
+        candidate = self.candidate_from_record(record,'both-keys')
+        self.assertEqual(len([o for o in candidate['observations'] if o['field_id']=='LUNG04']),1)
+
+    def test_empty_api_additional_row_is_dropped_with_issue(self):
+        record = result()
+        record['extraction']['specimens'] = []
+        empty = row(field_id=None,source_label='Empty source heading',raw_result='',
+                    numeric_value=None,unit_raw='unit only')
+        record['extraction']['rows'] = [empty, {**empty,'field_id':'UNKNOWN','raw_result':'  '}]
+        candidate = self.candidate_from_record(record)
+        self.assertEqual(candidate['metadata_candidates'],[])
+        self.assertEqual(candidate['evidence'],[])
+        self.assertEqual(candidate['issues'],[dict(document_id='SYNTHETIC',table_id='G0000',
+            reason='empty_api_row_dropped',detail='Empty source heading')]*2)
+
+    def test_additional_api_rows_with_any_value_are_retained(self):
+        record = result()
+        base = row(field_id=None,source_label='Novel source assay',raw_result='',numeric_value=None)
+        values = [dict(raw_result='Unparsed source result'), dict(numeric_value='0'),
+                  dict(qualitative_value='negative'),dict(pattern_raw='speckled'),
+                  dict(grade_raw='1+'),dict(titre_raw='1:80'),dict(class_raw='II'),
+                  dict(pre_percent_predicted='83.19')]
+        record['extraction']['rows'] = [{**base,**value} for value in values]
+        candidate = self.candidate_from_record(record)
+        self.assertEqual(len(candidate['metadata_candidates']),len(values))
+        self.assertEqual(candidate['issues'],[])
 
     def test_ct_ild_requires_complete_explicit_chest_ct_impression(self):
         plan=dict(crop=[10,80,780,280],masks=[])

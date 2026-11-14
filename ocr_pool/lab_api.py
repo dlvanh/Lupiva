@@ -29,6 +29,38 @@ BLOCKING_ISSUES = {'invalid_numeric_decimal_string', 'invalid_comparator_without
                    'comparator_on_nonnumeric_result', 'class_without_printed_column',
                    'unknown_crf_field', 'component_not_in_crf_field', 'component_conflicts_with_source_column'}
 KNOWN_UNITS = {rule['field_id']: rule['units'] for rule in RULES if rule['units']}
+NON_BLOOD_CONTEXT = re.compile(r'\b(?:nuoc tieu|urinalysis|vi sinh|benh pham phan)\b')
+
+
+def rows_before_panel_heading(lines, headings):
+    """Detect table content preceding a later explicit panel heading."""
+    anchors = table_header_anchors(lines)
+    result_columns = [line['box'] for line in lines
+                      if header_role(line['text']) in ('result', 'intensity')]
+    for heading in headings:
+        for top, _ in anchors:
+            if top >= heading['box'][1]:
+                continue
+            header_bottom = max(line['box'][3] for line in lines if line['box'][1] == top)
+            for line in lines:
+                box = line['box']
+                if not header_bottom <= box[1] < heading['box'][1] or explicit_panel(line['text']):
+                    continue
+                # Recognize analytes without imposing the later heading's panel.
+                if any(resolve(line['text'], {'panel': panel, 'specimen': 'blood'})[0]
+                       for panel in (None, *PANEL_CODES)):
+                    return True
+                # Unknown analytes also count when a measured cell is aligned
+                # with the printed result column (not the reference column).
+                measured = re.fullmatch(r'[<>≤≥]?\s*\d+(?:[.,]\d+)?|[+−-]+', line['text'].strip())
+                paired_label = any(other['box'][2] <= box[0]
+                                   and min(other['box'][3], box[3]) > max(other['box'][1], box[1])
+                                   and other['text'].strip() and not explicit_panel(other['text'])
+                                   for other in lines)
+                if (line['text'].strip() and (measured or paired_label)
+                        and any(col[0] < box[2] and box[0] < col[2] for col in result_columns)):
+                    return True
+    return False
 
 
 def _object(properties):
@@ -111,10 +143,13 @@ def lab_crop_evidence(scan, plan, *, routing=None):
     kinds = {kind for _, kind in table_header_anchors(lines)}
     if kinds and kinds not in ({'lab'}, {'panel'}):
         return reject('mixed_or_unsupported_table')
-    panels = {panel for line in _valid_lines(scan) if (panel := explicit_panel(line['text']))}
+    headings = [line for line in _valid_lines(scan) if explicit_panel(line['text'])]
+    panels = {explicit_panel(line['text']) for line in headings}
     if len(panels) > 1 or panels - PANEL_CODES.keys():
         return reject('mixed_or_unsupported_panel')
     panel = next(iter(panels), None)
+    if panel and rows_before_panel_heading(lines, headings):
+        return reject('rows_before_panel_heading')
     if (not panel and kinds == {'panel'}) or (
             kinds != {'panel'} and any(FLUORESCENCE.search(fold(line['text'])) for line in lines)):
         return reject('fluorescence_or_unidentified_panel')
@@ -124,7 +159,7 @@ def lab_crop_evidence(scan, plan, *, routing=None):
     blood = len(markers) >= 3 and red_cells
     continuation = Counter()
     if not panel and kinds == {'lab'} and not any(
-            re.search(r'\b(?:nuoc tieu|urinalysis|vi sinh|benh pham phan)\b', fold(line['text'])) for line in lines):
+            NON_BLOOD_CONTEXT.search(fold(line['text'])) for line in lines):
         continuation = cbc_continuation_rows(lines)
         # A differential tail page carries no red-cell rows; printed differential
         # markers or aligned continuation cells are blood-specific evidence. The

@@ -198,6 +198,17 @@ def calculated_bmi(workspace):
     return None
 
 
+def suggestion_configuration(workspace):
+    """Use the configured API engine: Gemini first, then Token Harbor."""
+    errors = []
+    for engine in ('gemini', 'tokenharbor'):
+        try:
+            return configuration(workspace, engine=engine)
+        except ValueError as error:
+            errors.append(str(error))
+    raise ValueError(errors[0])
+
+
 def request_suggestions(config, facts, targets):
     data = json.dumps(dict(facts=facts, targets=targets), ensure_ascii=False)
     if config['native']:
@@ -206,9 +217,17 @@ def request_suggestions(config, facts, targets):
                 maxOutputTokens=8000, responseMimeType='application/json', responseJsonSchema=SCHEMA))
         headers = {'x-goog-api-key': config['key']}
     else:
+        prompt = PROMPT
+        if config.get('engine') == 'tokenharbor':
+            prompt += ('\nReturn one JSON object matching this JSON Schema exactly:\n'
+                       + json.dumps(SCHEMA, ensure_ascii=False, separators=(',', ':')))
         payload = dict(model=config['model'], max_tokens=8000, stream=False,
             response_format=dict(type='json_schema', json_schema=dict(name='crf_suggestions', strict=True, schema=SCHEMA)),
-            messages=[{'role': 'system', 'content': PROMPT}, {'role': 'user', 'content': data}])
+            messages=[{'role': 'system', 'content': prompt}, {'role': 'user', 'content': data}])
+        if config.get('engine') == 'tokenharbor':
+            payload['response_format'] = {'type': 'json_object'}
+            if config['model'] in {'deepseek-v4.1-flash', 'deepseek-v4.1-flash:free'}:
+                payload['thinking'] = {'type': 'disabled'}
         headers = {'Authorization': 'Bearer ' + config['key']}
     raw, _, model, usage, _ = request_json(config, payload, headers, SCHEMA, timeout=180)
     return raw['suggestions'], model or config['model'], usage
@@ -365,7 +384,7 @@ class CRFReview:
         facts, index = model_facts(dictionary, workspace, references)
         if not facts or not targets:
             raise ValueError('Chưa có dữ kiện phù hợp để tạo đề xuất cho các ô trống.')
-        config = configuration(self.application.intakes.workspace)
+        config = suggestion_configuration(self.application.intakes.workspace)
         with self.lock:
             if self.jobs.get(case_id, {}).get('status') == 'running':
                 return self.jobs[case_id]

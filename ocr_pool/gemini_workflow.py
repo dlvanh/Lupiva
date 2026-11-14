@@ -11,6 +11,7 @@ import time
 from PIL import Image
 from form_pool.sample_collection import extract_sample_collections, HEADERS
 from registry_pool.exchange import build_bundle
+from .catalog_alias import CatalogAliases
 from .gemini import InvalidAPIResponse, configuration, privacy_plan, prepare_image, extract_image
 from .lab_api import extract_lab_image, lab_crop_evidence
 from .lab_reference_cells import attach_complement_ranges
@@ -48,8 +49,8 @@ def echo_pericardial_finding(scan, privacy):
     return local_report_row('CV06', label, raw, choice, line, privacy)
 
 
-def ct_ild_finding(scan, privacy):
-    """Carry the explicit chest CT impression into review without inferring a diagnosis."""
+def _chest_ct_lines(scan, privacy):
+    """Recognize a chest CT from its visible technique and impression headings."""
     if not scan or scan['plan']['crop_reason'] != 'detected_diagnostic_report_sections':
         return None
     lines = sorted(unmasked_crop_lines(scan, privacy), key=lambda line: line['box'][1])
@@ -62,6 +63,15 @@ def ct_ild_finding(scan, privacy):
     chest_ct = r'\b(?:chup\s+clvt|chup\s+cat\s+lop\s+vi\s+tinh)\s+long\s+nguc\b'
     if not any(re.search(chest_ct, text) for text in headings[start:min(start+2,end)]):
         return None
+    return lines, end
+
+
+def ct_ild_finding(scan, privacy):
+    """Carry the explicit chest CT impression into review without inferring a diagnosis."""
+    recognized = _chest_ct_lines(scan, privacy)
+    if not recognized:
+        return None
+    lines, end = recognized
     label, _, inline = lines[end]['text'].strip().partition(':')
     # Match a complete, single-line impression so nearby qualifiers cannot be lost.
     if inline.strip() and end+1 == len(lines):
@@ -79,6 +89,43 @@ def ct_ild_finding(scan, privacy):
     return None
 
 
+def pleural_effusion_finding(scan, privacy):
+    """Read one explicit pleural effusion statement from a recognized CT or echo."""
+    if not scan:
+        return None
+    echo = scan['plan']['crop_reason'] == 'detected_echo_report_sections'
+    if not echo and not _chest_ct_lines(scan, privacy):
+        return None
+    # Tolerate a dropped vowel, as in the CT impression matcher, but require
+    # the complete pleural phrase and a complete, unqualified statement.
+    pleura = r'(?:khoang\s+)?m(?:a)?ng\s+ph(?:o)?i'
+    matches = [line for line in unmasked_crop_lines(scan, privacy)
+               if re.search(pleura, fold(line['text']))]
+    if len(matches) != 1 or matches[0].get('confidence', 0) < .90:
+        return None
+    line = matches[0]
+    raw = line['text'].strip()
+    label = 'Màng phổi'
+    text = fold(raw).strip()
+    outside_heart = re.match(r'^(?:\d+\.\s*)?ngo(?:a)?i\s+tim\s*:', text) if echo else None
+    if outside_heart:
+        label, _, raw = raw.partition(':')
+        text = fold(raw).strip()
+    text = text.rstrip('.').strip()
+    if len(re.findall(pleura, text)) != 1 or re.search(r'\b(?:nghi|it|khong\s+loai\s+tru)\b', text):
+        return None
+    negative = r'khong\s+(?:thay\s+)?(?:co\s+)?tran\s+dich(?:,?\s+tran\s+khi)?\s+' + pleura + r'(?:\s+hai\s+ben)?'
+    if outside_heart:
+        negative += r'(?:,\s*[^,]+(?:,\s*[^,]+)*)?'
+    if re.fullmatch(negative, text):
+        choice = 'no'
+    elif re.fullmatch(r'(?:co\s+)?tran\s+dich\s+' + pleura + r'(?:\s+hai\s+ben)?', text):
+        choice = 'yes'
+    else:
+        return None
+    return local_report_row('LUNG04', label, raw, choice, line, privacy)
+
+
 def local_report_row(field, label, raw, choice, line, privacy):
     left, top, right, bottom = privacy['crop']
     x0,y0,x1,y1 = line['box']
@@ -86,6 +133,19 @@ def local_report_row(field, label, raw, choice, line, privacy):
            round(1000*(x1-left)/(right-left)), round(1000*(y1-top)/(bottom-top))]
     return dict(field_id=field, component='result', source_label=label, raw_result=raw.strip(),
                 qualitative_value=choice, table_kind='other', row_box=box)
+
+
+def _comparator_literal(row):
+    """Recover the number when the printed cell is only a comparator and a number (e.g. '<10')."""
+    if row.get('numeric_value') is not None or row.get('qualitative_value'):
+        return None
+    match = re.fullmatch(r'\s*(<=|>=|≤|≥|<|>|=)?\s*(\d+(?:[.,]\d+)?)\s*', str(row.get('raw_result') or ''))
+    if not match or (row.get('comparator') not in (None, '=') and match[1] is None):
+        return None
+    comparator = {'≤': '<=', '≥': '>='}.get(match[1], match[1]) or row.get('comparator') or '='
+    if row.get('comparator') not in (None, comparator):
+        return None
+    return dict(numeric_value=match[2].replace(',', '.'), comparator=comparator)
 
 
 def _value(row):
@@ -111,6 +171,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
     run = Path(run); (run/'raw').mkdir(parents=True, exist_ok=True); (run/'crops').mkdir(exist_ok=True)
     observations, metadata, evidence, issues, specimens = [], [], [], [], []
     definitions = {f['field_id']: f for f in dictionary['fields']}
+    aliases = CatalogAliases(dictionary)
     pending = dict(review_status='pending', eligible_for_verified_pool=False)
     local_dates = local_dates or {}
     local_metadata = local_metadata or {}
@@ -154,9 +215,12 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
             raw_source = dict(initial_extraction=result['raw_extraction'],
                               verified_extraction=result.get('verified_raw_extraction'),
                               verification=result['verification'])
-        local_finding = result.get('local_report_finding')
-        if local_finding:
-            raw_source = dict(api_extraction=raw_source, local_report_finding=local_finding)
+        local_findings = list(result.get('local_report_findings') or [])
+        legacy_finding = result.get('local_report_finding')
+        if legacy_finding and legacy_finding not in local_findings:
+            local_findings.append(legacy_finding)
+        if local_findings:
+            raw_source = dict(api_extraction=raw_source, local_report_findings=local_findings)
         raw = json.dumps(raw_source, ensure_ascii=False, indent=2)
         (run/'raw'/(tid+'.txt')).write_text(raw, encoding='utf-8')
         with Image.open(io.BytesIO(result['outgoing_bytes'])) as crop:
@@ -188,18 +252,44 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 }
             return eid
         rows = result['extraction']['rows']
-        for n, row in enumerate(rows + ([local_finding] if local_finding else [])):
-            eid = ev(n, row); value = _value(row)
+        for n, row in enumerate(rows + local_findings):
+            literal = _comparator_literal(row)
+            if literal:
+                row = dict(row, **literal)
+            value = _value(row)
+            field = row.get('field_id'); component = row['component']
+            panel_mismatch = n < len(rows) and aliases.panel_mismatch(row)
+            if panel_mismatch:
+                field = None
+            alias_mapping = (aliases.match(dict(row, field_id=None) if panel_mismatch else row, result['extraction'])
+                             if n < len(rows) else None)
+            if alias_mapping:
+                field, component = alias_mapping
+            allowed = {c['component_id'] for c in definitions.get(field, {}).get('components', [])}
+            value_keys = ('numeric_value', 'qualitative_value', 'pattern_raw', 'grade_raw', 'titre_raw', 'class_raw')
+            has_value = any(value.get(key) is not None and str(value[key]).strip() for key in value_keys)
+            has_secondary = any(_value(dict(numeric_value=row.get(key), comparator='='))['numeric_value'] is not None
+                                for key in ('pre_percent_predicted', 'post_percent_predicted'))
+            if (n < len(rows) and not (field in definitions and component in allowed)
+                    and not _cell(row.get('raw_result')).strip() and not has_value and not has_secondary):
+                issues.append(dict(document_id=did, table_id=tid, reason='empty_api_row_dropped',
+                                   detail=row.get('source_label')))
+                continue
+            eid = ev(n, row)
             flags = [extraction_flag] + [i['code'] for i in result['validation_issues'] if i['row_index']==n]
+            if alias_mapping:
+                flags.append('catalog_alias_mapped')
+            if panel_mismatch:
+                flags.append('panel_label_mismatch_unmapped')
+            if literal:
+                flags.append('numeric_from_source_cell')
             method = extraction_method
-            if row is local_finding:
+            if n >= len(rows):
                 method = 'local_ocr'
                 flags = ['explicit_report_finding']
                 evidence[-1].update(extraction_method=method, model_requested=None, model_returned=None)
             if value['result_type']=='unparsed': flags.append('unparsed_result')
             if row.get('warning'): flags.append('api_source_warning')
-            field = row.get('field_id'); component = row['component']
-            allowed = {c['component_id'] for c in definitions.get(field, {}).get('components', [])}
             date = observation_date(date_facts, row.get('table_kind'))
             date_links = date['evidence_ids'] if date else []
             common = dict(document_id=did, flags=flags, source_date=date['value'] if date else None,
@@ -354,7 +444,7 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                 local_dates[did] = local_date_evidence(doc, source, scan, output, index)
                 local_metadata[did] = local_metadata_evidence(doc, source, scan, output, index)
         stage('local_source_dates', 'completed');stage('gemini_extract', 'running')
-        results=[];(output/'api-responses').mkdir(exist_ok=True)
+        results=[];failed_documents={};(output/'api-responses').mkdir(exist_ok=True)
         for index, (doc, body) in enumerate(zip(documents, prepared)):
             if body is None: results.append(None);continue
             start=time.monotonic()
@@ -390,21 +480,43 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                 break
             if result is None:
                 standard_config = {**config, 'max_output_tokens': 32000} if fast_error else config
-                result = (extractor(body,dictionary,workspace) if extractor else
-                          extract_image(body,dictionary,workspace,config=standard_config))
+                if extractor:
+                    result = extractor(body,dictionary,workspace)
+                else:
+                    # One bounded retry for a malformed response; a second
+                    # failure isolates this image instead of failing the patient.
+                    errors = []
+                    for attempt in range(2):
+                        try:
+                            result = extract_image(body,dictionary,workspace,config=standard_config)
+                            break
+                        except InvalidAPIResponse as error:
+                            errors.append(str(error))
+                            write(output/'api-responses'/f'image-{index+1:03}-rejected-{attempt+1}.json',
+                                  dict(error=str(error), raw_response=getattr(error, 'response', None)))
+                    if result is None:
+                        failed_documents[doc['document_id']] = '; '.join(errors)
+                        results.append(None)
+                        continue
+                    if errors:
+                        result['api_retry'] = errors
                 if fast_error:
                     result['fast_profile_fallback'] = fast_error
                 if extractor is None:
                     from .llm_verification import verify_extraction
-                    result=verify_extraction(body,result,dictionary,workspace,config=standard_config)
+                    try:
+                        result=verify_extraction(body,result,dictionary,workspace,config=standard_config)
+                    except InvalidAPIResponse as error:
+                        result['verification'] = dict(attempted=True, status='failed_kept_initial', error=str(error))
             if extractor is None:
                 from .llm_row_anchors import anchor_row_boxes
                 if scan:
                     anchor_row_boxes(result,scan,doc['privacy'])
                     attach_complement_ranges(result, scan, doc['privacy'])
-            finding = echo_pericardial_finding(scan, doc['privacy']) or ct_ild_finding(scan, doc['privacy'])
-            if finding:
-                result['local_report_finding'] = finding
+            findings = [finding for helper in (echo_pericardial_finding, ct_ild_finding, pleural_effusion_finding)
+                        if (finding := helper(scan, doc['privacy'])) is not None]
+            if findings:
+                result['local_report_findings'] = findings
             result.update(elapsed_seconds=round(time.monotonic()-start,3),outgoing_sha256=hashlib.sha256(body).hexdigest())
             if profiles:
                 result['fast_routing'] = routing
@@ -413,6 +525,11 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
         stage('gemini_extract', 'completed');stage('gemini_bundle','running')
         candidate=build_candidate(documents,results,dictionary,output,local_dates=local_dates,
                                   local_metadata=local_metadata,engine=engine)
+        if len(failed_documents) == sum(body is not None for body in prepared):
+            raise ValueError('API extraction failed for every sent image; originals and privacy selections are retained')
+        for did, detail in failed_documents.items():
+            candidate['issues'].append(dict(document_id=did, table_id=None, reason='api_extraction_failed',
+                                            detail=detail[:500]))
         write(output/'candidate-pool.json',candidate)
         provenance=dict(engine=engine, llm_contract_version=LLM_CONTRACT_VERSION,
             api_model_requested=config['model'] if config else 'synthetic',

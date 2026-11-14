@@ -22,6 +22,45 @@ def cell(label, value, **overrides):
 
 
 class FastLaboratoryTests(unittest.TestCase):
+    def panel_scan(self, heading_y):
+        lines = [line('Antigen',30,20), line('Intensity',250,20), line('Class',370,20),
+                 line('Panel Viêm đa cơ tự miễn 16 Ag',30,heading_y),
+                 line('PM-Scl100',30,70),line('7',250,70),
+                 line('PM-Scl75',30,100),line('8',250,100),line('Jo-1',30,200)]
+        return dict(plan=dict(size=[800,400]),lines=lines), dict(crop=[0,0,800,400])
+
+    def test_continuation_rows_before_panel_heading_reject_fast_route(self):
+        scan, plan = self.panel_scan(160)
+        routing = {}
+        self.assertIsNone(lab_crop_evidence(scan, plan, routing=routing))
+        self.assertEqual(routing['lab'], 'rows_before_panel_heading')
+        scan['lines'] = [item for item in scan['lines'] if item['box'][1] not in (70,100)]
+        scan['lines'].extend([line('Synthetic unknown analyte',30,70),line('Negative',250,70)])
+        self.assertIsNone(lab_crop_evidence(scan, plan, routing=routing))
+        self.assertEqual(routing['lab'], 'rows_before_panel_heading')
+        # Unknown analytes with aligned result cells also precede the panel.
+        scan, plan = self.panel_scan(160)
+        scan['lines'] = [item for item in scan['lines'] if item['text'] not in ('PM-Scl100','PM-Scl75')]
+        self.assertIsNone(lab_crop_evidence(scan, plan, routing=routing))
+        self.assertEqual(routing['lab'], 'rows_before_panel_heading')
+
+    def test_panel_heading_at_top_remains_eligible(self):
+        scan, plan = self.panel_scan(40)
+        routing = {}
+        self.assertEqual(lab_crop_evidence(scan, plan, routing=routing)['panel'], 'myositis')
+        self.assertEqual(routing['lab'], 'eligible')
+
+    def test_route_preview_uses_same_panel_continuation_guard(self):
+        from registry_review.privacy import PrivacyProposals
+        preview = PrivacyProposals.__new__(PrivacyProposals)
+        preview.workspace = None
+        with patch('registry_review.privacy.configuration', return_value=dict(
+                model='deepseek-v4.1-flash:free',fast_labs=True)):
+            for heading_y, expected in ((160,'standard'), (40,'fast_labs')):
+                scan, plan = self.panel_scan(heading_y)
+                with patch('registry_review.privacy._read_scan', return_value=scan):
+                    self.assertEqual(preview.route_preview(None, {**plan,'sha256':'synthetic'}),expected)
+
     def test_repeated_analytes_require_each_printed_row_and_keep_literal_results(self):
         plan = dict(crop=[0,0,800,400])
         lines = [line('Chỉ định',30,20),line('Kết quả',250,20),line('Đơn vị',370,20),
