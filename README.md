@@ -108,7 +108,7 @@ npm run lint
 | Phase | Date | Milestone / Deliverable | Status |
 | :--- | :--- | :--- | :---: |
 | **Week 2** | **Nov 10, 2026** | Complete Clinical CRF schema & Lab Result Extraction engine | ✅ Implemented in Prototype |
-| | **Nov 11, 2026** | **Abstract Submission Deadline** - *Vinmec Innovation Challenge* | 🎯 Milestone |
+| | **Nov 11, 2026** | **Abstract Submission Deadline** - *Vinmec Innovation Challenge* | ✅ Submitted |
 | **Week 3** | **Nov 18, 2026** | SLE Registry Web Prototype Completion | 🔄 Active Refinement |
 | | **Nov 22, 2026** | **Pitch Deck / Slide Submission Deadline** | 🎯 Upcoming |
 | | *TBD* | **ROI & Clinical Feasibility Review** with the Practical AI Evaluation Board | 📅 Pending |
