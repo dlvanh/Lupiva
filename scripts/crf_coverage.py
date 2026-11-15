@@ -10,9 +10,10 @@ and evidence_proposals), into exactly one state:
 - candidate: extracted values with sources are waiting for review (the view's
              options; the case study id offered on ADM01 is not a candidate).
 - suggested: the knowledge base proposes an answer from other values: a form
-             finding rule, the calculated BMI, an EULAR/ACR score evidence
-             proposal, or an already stored LLM draft for the current
-             snapshot. This script never calls a model or the network.
+             finding rule, a lab-derived finding rule, the calculated BMI, an
+             EULAR/ACR score evidence proposal, or an already stored LLM draft
+             for the current snapshot. This script never calls a model or the
+             network.
 - blocked:   a knowledge rule targets the slot's result component but cannot
              fire. Missing inputs are the rule's input fields that have no
              current extracted result (the same source population the rule
@@ -29,13 +30,16 @@ fields is reviewed, candidate or suggested (blocked rules are potential, not
 pre-filled content), so a case with no data has every section entirely empty.
 
 Not derivable from stored data alone, and therefore not invented here:
-- SLEDAI-2K rules need the doctor's assessment date, entered at scoring time
-  rather than stored as a field value. Without it they cannot fire, so those
-  score fields are blocked even when every lab input is present.
-- Judgment-only finding rules (REN07, MUS02, HEM12) list no input fields; they
-  are blocked with an empty missing-input list.
-- Low-complement rules need reference ranges; a missing range is not a field
-  input and is not listed.
+- SLEDAI-2K rules (score evidence and lab-derived alike) need the doctor's
+  assessment date, entered at scoring time rather than stored as a field value.
+  Without it they cannot fire, so those score fields are blocked even when every
+  lab input is present.
+- A slot targeted by several libraries lists the lab-derived rule's inputs when
+  one exists (REN07, MUS02, HEM12, LUNG01), otherwise the form-finding or score
+  rule's inputs. Judgment-only rules with no input fields are blocked with an
+  empty missing-input list.
+- Low-complement and above-reference rules need reference ranges; a missing range
+  is not a field input and is not listed.
 The report contains field ids, labels, sections, states and counts only: no
 extracted values, no source text, no patient identifiers except the case id.
 """
@@ -47,7 +51,8 @@ import sys
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from registry_review.crf import CRFReview, current_sources
-from registry_review.crf_knowledge import FINDINGS_VERSION, load_knowledge, read_knowledge
+from registry_review.crf_knowledge import FINDINGS_VERSION, LAB_FINDINGS_VERSION, load_knowledge, read_knowledge
+from registry_review.crf_lab_findings import lab_finding_proposals
 from registry_review.crf_scores import evidence_proposals
 from registry_review.exports import ExportManager
 from registry_review.references import matched_references
@@ -67,23 +72,35 @@ class ReadOnlyApplication:
         self.exports=ExportManager(self)
 
 
-def classify_slots(view,workspace,references,rules,finding_rules):
+def lab_missing_inputs(rule,present_slots):
+    missing=[]
+    for criterion in rule['criteria']:
+        field=criterion['field']
+        if (field,criterion.get('component','result')) not in present_slots and field not in missing:
+            missing.append(field)
+    return missing
+
+
+def classify_slots(view,workspace,references,rules,finding_rules,lab_rules):
     sources=current_sources(workspace)
     present={s['field_id'] for s in sources if s['kind']=='observation' and s['component']=='result'}
+    present_slots={(s['field_id'],s['component']) for s in sources if s['kind']=='observation'}
     score_suggestions=evidence_proposals(sources,references,None,rules)
+    lab_suggestions=lab_finding_proposals(workspace,references,lab_rules)
     reviewed=(view['review'] or {}).get('values',{})
     slots={}
     for field in view['fields']:
         fid,component=field['slot'].split('/',1)
-        rule=(finding_rules.get(fid) or rules.get(fid)) if component=='result' else None
+        rule=(lab_rules.get(fid) or finding_rules.get(fid) or rules.get(fid)) if component=='result' else None
         if field['slot'] in reviewed:
             state,missing='reviewed',[]
         elif any(option['sources'] for option in field['options']):
             state,missing='candidate',[]
-        elif field.get('proposal') or (component=='result' and fid in score_suggestions):
+        elif field.get('proposal') or (component=='result' and fid in score_suggestions) or field['slot'] in lab_suggestions:
             state,missing='suggested',[]
         elif rule is not None:
-            state,missing='blocked',[f for f in rule['fields'] if f not in present]
+            state='blocked'
+            missing=lab_missing_inputs(rule,present_slots) if 'criteria' in rule else [f for f in rule['fields'] if f not in present]
         else:
             state,missing='empty',[]
         slots[field['slot']]=dict(field_id=fid,component=component,label=field['label'],
@@ -101,7 +118,7 @@ def fill_rate(counts):
     return round(sum(counts[state] for state in FILLED)/total,4) if total else 0.0
 
 
-def case_coverage(crf,store,dictionary,rules,finding_rules,case_id):
+def case_coverage(crf,store,dictionary,rules,finding_rules,lab_rules,case_id):
     store.db.execute('BEGIN')
     try:
         view=crf.view(store,case_id)
@@ -109,7 +126,7 @@ def case_coverage(crf,store,dictionary,rules,finding_rules,case_id):
         references=matched_references(store,workspace)
     finally:
         store.db.execute('ROLLBACK')
-    slots=classify_slots(view,workspace,references,rules,finding_rules)
+    slots=classify_slots(view,workspace,references,rules,finding_rules,lab_rules)
     rank={state:i for i,state in enumerate(STATES)}
     fields=[]
     for definition in dictionary['fields']:
@@ -157,8 +174,9 @@ def coverage(database,case_ids=None):
             selected=[c for c in known if c in set(case_ids)]
         rules=load_knowledge(store.db)
         finding_rules=read_knowledge(store.db,FINDINGS_VERSION)['rules']
+        lab_rules=read_knowledge(store.db,LAB_FINDINGS_VERSION)['rules']
         crf=CRFReview(app)
-        cases=[case_coverage(crf,store,dictionary,rules,finding_rules,cid) for cid in selected]
+        cases=[case_coverage(crf,store,dictionary,rules,finding_rules,lab_rules,cid) for cid in selected]
     finally:
         store.close()
     cross=[dict(section=section,entirely_empty_cases=sum(

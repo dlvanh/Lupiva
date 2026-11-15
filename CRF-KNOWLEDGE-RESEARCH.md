@@ -28,6 +28,27 @@ Kho `crf-form-findings-1` dùng các dữ kiện đã đọc trong hồ sơ đ�
 
 Các mục tổn thương thận, tổn thương cơ và rối loạn huyết học có hướng dẫn đối chiếu. Kết quả đơn lẻ như eGFR, CK hoặc công thức máu chỉ là dữ kiện hỗ trợ. Tiền sử, điều trị và các mục còn lại cần thông tin được ghi nhận trong hồ sơ hoặc đánh giá của người duyệt. [KDIGO 2024 về viêm thận lupus](https://kdigo.org/wp-content/uploads/2024/01/KDIGO-2024-Lupus-Nephritis-Guideline.pdf) · [KDIGO 2024 về bệnh thận mạn](https://doi.org/10.1016/j.kint.2023.10.016)
 
+### Kho phát hiện từ xét nghiệm `crf-lab-findings-1`
+
+Kho thứ ba suy ra các ô định tính ngay từ trị số xét nghiệm đã đọc, chạy cục bộ mỗi lần dựng khung nhìn CRF. Mỗi mục gồm ô đích, danh sách tiêu chí (bất kỳ tiêu chí nào đạt cũng đề xuất), định nghĩa, lời xác nhận, chuẩn và nguồn. Nguyên tắc bắt buộc: chỉ đề xuất `yes`, không bao giờ đề xuất `no` hay coi thiếu dữ liệu là âm tính; mọi đề xuất đều cần bác sĩ xác nhận (`requires_confirmation=True`) kèm lời xác nhận tiếng Việt, giữ bằng chứng `sources`, `reason`, `knowledge_version` và `source_url`; ô đã có giá trị đọc trực tiếp không bị ghi đè. Chỉ dùng nguồn hiện hành vượt qua cùng bộ bảo vệ như `matches_rule` (không mâu thuẫn, không chờ sửa, không blocker, không thiếu/chưa đọc) và dấu so sánh None hoặc '='. Khác đơn vị thì quy đổi hoặc bỏ qua, không so sánh đơn vị không tương thích.
+
+| Ô đích | Tiêu chí (bất kỳ) | Nguồn |
+|---|---|---|
+| HEM12 (kèm ô chi tiết) | HEM02 Hb <120 g/L (đổi g/dL ×10); HEM05 WBC <4,0 ×10⁹/L; HEM07 `absolute_count` <1,0 ×10⁹/L; HEM11 PLT <100 ×10⁹/L; HEM13 Coombs trực tiếp dương tính rõ | [WHO 2011](https://www.who.int/publications/i/item/WHO-NMH-NHD-MNM-11.1) · [EULAR/ACR 2019](https://acrjournals.onlinelibrary.wiley.com/doi/10.1002/art.40930) · [SLICC 2012](https://pubmed.ncbi.nlm.nih.gov/22553077/) |
+| REN07 | REN08 >0,5 g/24h hoặc 500 mg/24h; REN01 theo `PROTEIN_LIMITS`; REN02 >5 RBC/HPF; REN06 eGFR <60 mL/min/1.73m²; REN05 creatinine trên cận trên khoảng tham chiếu in trên phiếu | [KDIGO 2024 LN](https://kdigo.org/wp-content/uploads/2024/01/KDIGO-2024-Lupus-Nephritis-Guideline.pdf) · [KDIGO 2024 CKD](https://doi.org/10.1016/j.kint.2023.10.016) |
+| MUS02 | MUS01 CK trên cận trên khoảng tham chiếu in trên phiếu | [SLEDAI-2K](https://cdn.clinicaltrials.gov/large-docs/00/NCT02908100/Prot_SAP_000.pdf) |
+| LUNG01 | PFT11 DLCO `pre_percent_predicted` <80; PFT02 FVC `pre_percent_predicted` <80; IMM18 KL-6 >500 U/mL | [ATS/ERS 2022](https://doi.org/10.1183/13993003.01499-2021) · [KL-6](https://pubmed.ncbi.nlm.nih.gov/16371657/) |
+| EAC21 | IMM04 anti-dsDNA trên cận trên khoảng tham chiếu hoặc dương tính rõ; ANA01 dsDNA (line blot) dương tính rõ | [EULAR/ACR 2019](https://acrjournals.onlinelibrary.wiley.com/doi/10.1002/art.40930) |
+| SDA21 | IMM04 trên cận trên khoảng tham chiếu (cửa sổ 10 ngày) | [SLEDAI-2K](https://cdn.clinicaltrials.gov/large-docs/00/NCT02908100/Prot_SAP_000.pdf) |
+| EAC04 | HEM13 Coombs trực tiếp dương tính rõ | [EULAR/ACR 2019](https://acrjournals.onlinelibrary.wiley.com/doi/10.1002/art.40930) |
+| EAC01 | HIS12 thân nhiệt >38,3 °C | [EULAR/ACR 2019](https://acrjournals.onlinelibrary.wiley.com/doi/10.1002/art.40930) |
+| SDA22 | HIS12 >38 °C (cửa sổ 10 ngày) | [SLEDAI-2K](https://cdn.clinicaltrials.gov/large-docs/00/NCT02908100/Prot_SAP_000.pdf) |
+| HIS11 | HIS12 ≥38 °C | Mẫu CRF Lupiva |
+
+Ô chi tiết của HEM12 ghép các phát hiện đạt bằng "; ", ví dụ "Thiếu máu (Hb 110 g/L); Giảm tiểu cầu (PLT 90 10⁹/L)"; số in đúng như giá trị lưu, không làm tròn. "Trên cận trên khoảng tham chiếu" đọc khoảng in `reference_range_raw` hoặc khoảng đã xác nhận trong `references`, nhận dạng `A – B` (cận trên B) và `< X` / `<= X` (cận trên X); bỏ qua khi thiếu hoặc không đọc được. "Dương tính rõ" dùng giá trị định tính trong tập `EXPLICIT_POSITIVE` kèm kiểm tra văn bản gốc như quy tắc `anti_smith`. Các tiêu chí xét nghiệm của EAC21/SDA21 không thêm vào `RULES`; bộ chấm điểm giữ định nghĩa riêng. Đề xuất cho ô điểm (EAC*, SDA*) hiện ở đúng ô đó như bằng chứng điểm hiện có (qua bản xem trước điểm), và chỉ vào phiếu đã duyệt khi người duyệt chọn tiêu chí; `evaluate_scores` không thay đổi.
+
+ Khi dựng bản nháp LLM, ô chỉ bị loại khỏi yêu cầu nếu đã có đề xuất cục bộ; mọi ô còn gửi kèm `criteria` là định nghĩa và lời xác nhận của các quy tắc nhắm vào ô đó (RULES, FORM_FINDINGS, LAB_FINDINGS). `PROMPT_VERSION` là `crf-suggestions-3`. Báo cáo phủ (`scripts/crf_coverage.py`) đếm đề xuất phát hiện từ xét nghiệm là `suggested` và liệt kê đầu vào còn thiếu của quy tắc bị chặn.
+
 ### Các tiêu chí chấm điểm
 
 Trong **Chấm điểm EULAR/ACR 2019 và SLEDAI-2K**, mở **Tiêu chí và nguồn** ở từng mục để tra lại quy tắc. Bấm **Tính điểm nháp** để so dữ liệu của hồ sơ với quy tắc và mở ảnh nguồn. Với các mục cần quy kết hoặc loại trừ, đọc điều kiện rồi bấm **Xác nhận và chọn Có**. Chức năng điền theo nhóm dùng cho các mục còn trống có đủ dữ liệu mà không cần bước xác nhận riêng. **Duyệt phiếu CRF** lưu kết quả cuối cùng.

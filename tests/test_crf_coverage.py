@@ -90,14 +90,17 @@ class CrfCoverageTests(unittest.TestCase):
         self.assertEqual(slots['HEM11/result']['state'],'candidate')
         # Platelets 87.6543 < 100 -> EAC03 evidence proposal from the knowledge base.
         self.assertEqual(slots['EAC03/result']['state'],'suggested')
+        # The same platelet value fires the lab-derived HEM12 finding (result + detail).
+        self.assertEqual(slots['HEM12/result']['state'],'suggested')
+        self.assertEqual(slots['HEM12/detail']['state'],'suggested')
         # C3 present but no reference range and C4 absent -> complement rules blocked.
         self.assertEqual(slots['EAC19/result']['state'],'blocked')
         self.assertEqual(slots['EAC19/result']['missing_inputs'],['IMM12'])
         self.assertEqual(slots['EAC02/result']['state'],'blocked')
         self.assertEqual(slots['EAC02/result']['missing_inputs'],['HEM05'])
-        # Judgment-only finding rule has no input fields.
+        # The lab-derived renal rule lists its absent lab inputs.
         self.assertEqual(slots['REN07/result']['state'],'blocked')
-        self.assertEqual(slots['REN07/result']['missing_inputs'],[])
+        self.assertEqual(slots['REN07/result']['missing_inputs'],['REN08','REN01','REN02','REN06','REN05'])
         # SLEDAI platelet rule needs an assessment date, not a field input.
         self.assertEqual(slots['SDA23/result']['state'],'blocked')
         self.assertEqual(slots['SDA23/result']['missing_inputs'],[])
@@ -114,24 +117,30 @@ class CrfCoverageTests(unittest.TestCase):
         filled=sum(case['totals']['fields'][s] for s in ('reviewed','candidate','suggested'))
         self.assertEqual(case['fill_rate']['fields'],round(filled/261,4))
         self.assertEqual(case['totals']['fields']['candidate'],2)
-        self.assertEqual(case['totals']['fields']['suggested'],1)
+        self.assertEqual(case['totals']['fields']['suggested'],2)
         self.assertEqual(case['totals']['fields']['reviewed'],0)
 
     def test_missing_input_ranking(self):
         report=COVERAGE.coverage(self.db)
         ranking=self.case_report(report)['missing_inputs']
         top=ranking[0]
-        # IMM12 (C4) is the single missing input of EAC19, EAC20 and SDA20.
-        self.assertEqual(top['field_id'],'IMM12')
+        # HIS12 (temperature) is the single missing input of EAC01, SDA22 and HIS11.
+        self.assertEqual(top['field_id'],'HIS12')
         self.assertEqual(top['unblocks'],3)
         self.assertEqual(top['needed_by'],3)
-        self.assertEqual(top['targets'],['EAC19','EAC20','SDA20'])
+        self.assertEqual(top['targets'],['EAC01','HIS11','SDA22'])
+        # IMM12 (C4) is the single missing input of EAC19, EAC20 and SDA20.
+        second=ranking[1]
+        self.assertEqual(second['field_id'],'IMM12')
+        self.assertEqual(second['unblocks'],3)
+        self.assertEqual(second['needed_by'],3)
+        self.assertEqual(second['targets'],['EAC19','EAC20','SDA20'])
         by_id={item['field_id']:item for item in ranking}
         self.assertEqual(by_id['CV06']['targets'],['CV01','EAC12'])
         self.assertEqual(by_id['HEM05']['targets'],['EAC02','SDA24'])
-        # REN08/REN01 are both required by the proteinuria rules, so neither alone unblocks.
+        # REN08/REN01 are required by both proteinuria rules and REN07, so neither alone unblocks.
         self.assertEqual(by_id['REN08']['unblocks'],0)
-        self.assertEqual(by_id['REN08']['needed_by'],2)
+        self.assertEqual(by_id['REN08']['needed_by'],3)
         self.assertTrue(all(a['unblocks']>=b['unblocks'] for a,b in zip(ranking,ranking[1:])))
 
     def test_form_review_marks_slot_reviewed(self):

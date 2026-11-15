@@ -13,11 +13,12 @@ from registry_pool.specimens import evidence_region_id
 from .store import HUMAN_ROLES, ReviewStore, actor_info, now
 from .workspace import StalePatient, patient_workspace
 from .references import matched_references, record_references, reference_view
-from .crf_scores import SCORE_FIELDS, assessment_form, evaluate_scores
-from .crf_knowledge import FINDINGS_VERSION, load_knowledge, read_knowledge
+from .crf_scores import SCORE_FIELDS, assessment_form, evaluate_scores, iso_date
+from .crf_knowledge import FINDINGS_VERSION, LAB_FINDINGS_VERSION, load_knowledge, read_knowledge
+from .crf_lab_findings import lab_finding_proposals
 
 
-PROMPT_VERSION = 'crf-suggestions-2'
+PROMPT_VERSION = 'crf-suggestions-3'
 PROMPT = '''Bạn hỗ trợ chuẩn bị bản nháp CRF tiếng Việt cho người duyệt chuyên môn.
 Chỉ trả đề xuất cho các ô trong targets. Mỗi đề xuất phải có các mã facts thực sự hỗ trợ
 giá trị và lý do ngắn bằng tiếng Việt. Bỏ qua ô nếu thiếu dữ kiện mà chính tiêu chí đó
@@ -27,7 +28,8 @@ Không xem thiếu bằng
 chứng là âm tính. Không gộp kết quả khác lần ghi nhận. Các mã nhóm chỉ cho biết các
 kết quả có cùng lần ghi nhận và ngày hay không; nhóm không rõ không xác nhận cùng thời điểm.
 Chỉ đề xuất một tiêu chí chuyên môn nếu các dữ kiện đáp ứng chính tiêu chí đó, kể cả
-cửa sổ thời gian hoặc quy kết nguyên nhân nếu tiêu chí yêu cầu. Một xét nghiệm bất
+cửa sổ thời gian hoặc quy kết nguyên nhân nếu tiêu chí yêu cầu. Nếu ô có 'criteria',
+chỉ đề xuất khi dữ kiện đáp ứng đúng tiêu chí đó. Một xét nghiệm bất
 thường riêng lẻ không xác nhận chẩn đoán, tổn thương cơ quan hay hoạt tính bệnh.
 Không tính điểm tổng, kết luận phân loại SLE, đề xuất điều trị hay suy diễn tiền sử.
 Chỉ dùng giá trị yes hoặc no cho ô có hai lựa chọn. Nếu không có đề xuất, trả mảng rỗng.
@@ -289,7 +291,15 @@ class CRFReview:
             raise StalePatient('Nguồn CRF đã thay đổi. Tải lại trước khi chấm điểm.')
         if not assessment_form(dictionary):
             raise ValueError('Mẫu CRF chưa có đủ trường chấm điểm.')
-        return evaluate_scores(assessment, current_sources(workspace), references, rules=load_knowledge(store.db))
+        report = evaluate_scores(assessment, current_sources(workspace), references, rules=load_knowledge(store.db))
+        lab_rules = read_knowledge(store.db, LAB_FINDINGS_VERSION)['rules']
+        lab_proposals = lab_finding_proposals(workspace, references, lab_rules,
+                                              assessment_date=iso_date(assessment.get('date', '')))
+        for slot, proposal in lab_proposals.items():
+            field_id = slot.split('/', 1)[0]
+            if field_id in SCORE_FIELDS and field_id not in report['suggestions']:
+                report['suggestions'][field_id] = proposal
+        return report
 
     @staticmethod
     def _snapshot(workspace, references):
@@ -315,16 +325,19 @@ class CRFReview:
             layout = None
         bmi = calculated_bmi(workspace)
         finding_rules = read_knowledge(store.db, FINDINGS_VERSION)['rules']
+        lab_rules = read_knowledge(store.db, LAB_FINDINGS_VERSION)['rules']
         finding_proposals = form_finding_proposals(workspace, finding_rules)
+        lab_proposals = lab_finding_proposals(workspace, references, lab_rules)
+        proposals = {**lab_proposals, **finding_proposals}
         for field in fields:
             slot = field['slot']
             field_id, component = slot.split('/', 1)
             if component == 'result' and field_id in finding_rules:
                 field['knowledge'] = finding_rules[field_id]
-            proposal = finding_proposals.get(slot)
-            if proposal is None and 'knowledge' not in field:
+            proposal = proposals.get(slot)
+            if proposal is None:
                 proposal = (draft or {}).get('suggestions', {}).get(slot)
-            if proposal and field['eligible']:
+            if proposal and (field['eligible'] or (component == 'detail' and slot in lab_proposals)):
                 field['proposal'] = dict(**proposal, id=digest(proposal))
             if bmi and field['slot'] == bmi['slot'] and not field['options']:
                 field['proposal'] = dict(**bmi, id=digest(bmi))
@@ -378,9 +391,30 @@ class CRFReview:
         references = matched_references(store, workspace)
         snapshot = self._snapshot(workspace, references)
         fields = list(form_fields(dictionary, workspace))
-        locally_evaluated = read_knowledge(store.db, FINDINGS_VERSION)['rules']
-        targets = [{key: field[key] for key in ('slot', 'label', 'section', 'choices')}
-                   for field in fields if field['eligible'] and field['slot'].split('/', 1)[0] not in locally_evaluated]
+        finding_rules = read_knowledge(store.db, FINDINGS_VERSION)['rules']
+        lab_rules = read_knowledge(store.db, LAB_FINDINGS_VERSION)['rules']
+        local_proposals = {**lab_finding_proposals(workspace, references, lab_rules),
+                           **form_finding_proposals(workspace, finding_rules)}
+        libraries = (load_knowledge(store.db), finding_rules, lab_rules)
+        targets = []
+        for field in fields:
+            field_id = field['slot'].split('/', 1)[0]
+            if not field['eligible'] or field['slot'] in local_proposals:
+                continue
+            target = {key: field[key] for key in ('slot', 'label', 'section', 'choices')}
+            criteria = []
+            for library in libraries:
+                rule = library.get(field_id)
+                if not rule:
+                    continue
+                item = dict(definition=rule['definition'])
+                confirmation = rule.get('confirmation') or rule.get('exclude')
+                if confirmation:
+                    item['confirmation'] = confirmation
+                criteria.append(item)
+            if criteria:
+                target['criteria'] = criteria
+            targets.append(target)
         facts, index = model_facts(dictionary, workspace, references)
         if not facts or not targets:
             raise ValueError('Chưa có dữ kiện phù hợp để tạo đề xuất cho các ô trống.')

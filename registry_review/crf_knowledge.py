@@ -6,15 +6,24 @@ from registry_pool.dictionary import digest
 
 VERSION = 'crf-clinical-evidence-2'
 FINDINGS_VERSION = 'crf-form-findings-1'
+LAB_FINDINGS_VERSION = 'crf-lab-findings-1'
 EULAR = 'https://acrjournals.onlinelibrary.wiley.com/doi/10.1002/art.40930'
 SLEDAI = 'https://pubmed.ncbi.nlm.nih.gov/11838846/'
 SLEDAI_DEFINITIONS = 'https://cdn.clinicaltrials.gov/large-docs/00/NCT02908100/Prot_SAP_000.pdf'
 KDIGO = 'https://kdigo.org/wp-content/uploads/2024/01/KDIGO-2024-Lupus-Nephritis-Guideline.pdf'
+KDIGO_CKD = 'https://doi.org/10.1016/j.kint.2023.10.016'
+WHO_ANEMIA = 'https://www.who.int/publications/i/item/WHO-NMH-NHD-MNM-11.1'
+SLICC_2012 = 'https://pubmed.ncbi.nlm.nih.gov/22553077/'
+ATS_ERS_2022 = 'https://doi.org/10.1183/13993003.01499-2021'
+KL6_SOURCE = 'https://pubmed.ncbi.nlm.nih.gov/16371657/'
 ATTRIBUTION = 'Xác nhận không có nguyên nhân hợp lý hơn SLE.'
 DRUGS = 'Loại trừ nguyên nhân do thuốc.'
 PROTEIN = 'Protein niệu trên 0,5 g/24 giờ hoặc UPCR mẫu nước tiểu tương đương trên 500 mg/g.'
 PROTEIN_LIMITS = {'REN08': {'g/24h': '0.5', 'mg/24h': '500'},
                   'REN01': {'g/g': '0.5', 'mg/mg': '0.5', 'mg/g': '500'}}
+CELSIUS_UNITS = ['°c', '℃', 'c']
+EGFR_UNITS = ['ml/min/1.73m2', 'ml/min/1,73m2', 'ml/phút/1.73m2', 'ml/phút/1,73m2', 'ml/ph/1.73m2']
+PERCENT_UNITS = ['%']
 
 EULAR_RULES = {
     'EAC02': dict(field='HEM05', below='4', label='Bạch cầu thấp',
@@ -88,7 +97,101 @@ FORM_FINDINGS = {
 for rule in FORM_FINDINGS.values():
     rule.update(standard='Mẫu CRF Lupiva', location='Mục tương ứng của phiếu', requires_confirmation=True)
 
-LIBRARIES = {VERSION: RULES, FINDINGS_VERSION: FORM_FINDINGS}
+# Lab-derived findings: any criterion met proposes 'yes' for the target, always
+# with the doctor's confirmation. Score-engine definitions (RULES) stay separate.
+LAB_FINDINGS = {
+    'HEM12': dict(
+        criteria=[
+            dict(field='HEM02', kind='hemoglobin', below='120',
+                 detail='Thiếu máu (Hb {v} {unit})', standard='WHO 2011', source=WHO_ANEMIA),
+            dict(field='HEM05', kind='blood_count', below='4',
+                 detail='Giảm bạch cầu (WBC {v} {unit})', standard='EULAR/ACR 2019', source=EULAR),
+            dict(field='HEM07', component='absolute_count', kind='blood_count', below='1',
+                 detail='Giảm lympho (LY {v} {unit})', standard='SLICC 2012', source=SLICC_2012),
+            dict(field='HEM11', kind='blood_count', below='100',
+                 detail='Giảm tiểu cầu (PLT {v} {unit})', standard='EULAR/ACR 2019', source=EULAR),
+            dict(field='HEM13', kind='positive',
+                 detail='Coombs trực tiếp dương tính', standard='EULAR/ACR 2019', source=EULAR),
+        ],
+        definition='Rối loạn huyết học khi có một trong các dấu hiệu: Hb <120 g/L, bạch cầu <4 ×10⁹/L, '
+                   'lympho <1 ×10⁹/L, tiểu cầu <100 ×10⁹/L hoặc Coombs trực tiếp dương tính. '
+                   'Một chỉ số đơn lẻ chỉ hỗ trợ đánh giá lâm sàng.',
+        confirmation='Xác nhận rối loạn huyết học không do thuốc hoặc nguyên nhân khác.',
+        standard='WHO 2011; EULAR/ACR 2019; SLICC 2012', source=WHO_ANEMIA,
+        location='Ngưỡng huyết học của từng tiêu chí'),
+    'REN07': dict(
+        criteria=[
+            dict(field='REN08', kind='proteinuria', above_by_unit=PROTEIN_LIMITS),
+            dict(field='REN01', kind='proteinuria', above_by_unit=PROTEIN_LIMITS),
+            dict(field='REN02', kind='urine_microscopy', above='5', cell_unit='rbc/hpf'),
+            dict(field='REN06', kind='below', below='60', units=EGFR_UNITS),
+            dict(field='REN05', kind='above_reference'),
+        ],
+        definition='Tổn thương thận khi có một trong các dấu hiệu: protein niệu >0,5 g/24 giờ (hoặc UPCR '
+                   'tương đương >500 mg/g), hồng cầu niệu >5 RBC/HPF, eGFR <60 mL/min/1.73m² hoặc '
+                   'creatinine trên giới hạn trên của khoảng tham chiếu áp dụng.',
+        confirmation='Xác nhận tổn thương thận theo bối cảnh lâm sàng và diễn biến.',
+        standard='KDIGO 2024', source=KDIGO, supporting_source=KDIGO_CKD,
+        location='KDIGO 2024 viêm thận lupus và bệnh thận mạn'),
+    'MUS02': dict(
+        criteria=[dict(field='MUS01', kind='above_reference')],
+        definition='Tổn thương cơ khi CK trên giới hạn trên của khoảng tham chiếu áp dụng. '
+                   'CK tăng đơn lẻ chỉ hỗ trợ; cần đối chiếu biểu hiện cơ trên lâm sàng.',
+        confirmation='Xác nhận có biểu hiện cơ trên lâm sàng; CK tăng đơn lẻ chỉ hỗ trợ.',
+        standard='SLEDAI-2K', source=SLEDAI_DEFINITIONS, location='Phụ lục 10'),
+    'LUNG01': dict(
+        criteria=[
+            dict(field='PFT11', component='pre_percent_predicted', kind='below', below='80',
+                 units=PERCENT_UNITS, standard='ATS/ERS 2022', source=ATS_ERS_2022),
+            dict(field='PFT02', component='pre_percent_predicted', kind='below', below='80',
+                 units=PERCENT_UNITS, standard='ATS/ERS 2022', source=ATS_ERS_2022),
+            dict(field='IMM18', kind='above', above='500', units=['u/ml'],
+                 standard='KL-6', source=KL6_SOURCE),
+        ],
+        definition='Tổn thương phổi khi DLCO hoặc FVC trước giãn phế quản <80% dự đoán, hoặc KL-6 >500 U/mL. '
+                   'Cần đối chiếu hình ảnh/HRCT và loại trừ nguyên nhân khác.',
+        confirmation='Xác nhận bằng hình ảnh/HRCT và loại trừ nguyên nhân khác.',
+        standard='ATS/ERS 2022; KL-6', source=ATS_ERS_2022, supporting_source=KL6_SOURCE,
+        location='DLCO/FVC <80% dự đoán; KL-6 >500 U/mL'),
+    'EAC21': dict(
+        criteria=[
+            dict(field='IMM04', kind='above_reference'),
+            dict(field='IMM04', kind='positive'),
+            dict(field='ANA01', kind='positive'),
+        ],
+        definition='Anti-dsDNA trên giới hạn trên của khoảng tham chiếu hoặc ghi rõ dương tính '
+                   '(ImmunoCAP hoặc line blot), bằng xét nghiệm có độ đặc hiệu SLE ≥90% với nhóm chứng bệnh phù hợp.',
+        confirmation='Xác nhận xét nghiệm anti-dsDNA có độ đặc hiệu ≥90% với nhóm chứng bệnh phù hợp.',
+        standard='EULAR/ACR 2019', source=EULAR, location='Bảng 1'),
+    'SDA21': dict(
+        criteria=[dict(field='IMM04', kind='above_reference')],
+        definition='Anti-dsDNA (IMM04) trên giới hạn trên của khoảng tham chiếu áp dụng, '
+                   'trong cửa sổ 10 ngày trước ngày đánh giá.',
+        confirmation='Xác nhận phương pháp và kết quả trong cửa sổ 10 ngày trước ngày đánh giá.',
+        standard='SLEDAI-2K', source=SLEDAI_DEFINITIONS, location='Phụ lục 10', days=10),
+    'EAC04': dict(
+        criteria=[dict(field='HEM13', kind='positive')],
+        definition='Coombs trực tiếp dương tính; kết luận tan máu tự miễn cần kèm bằng chứng tan máu.',
+        confirmation='Cần bằng chứng tan máu (hồng cầu lưới tăng, haptoglobin giảm, bilirubin gián tiếp hoặc LDH tăng) kèm Coombs dương tính.',
+        standard='EULAR/ACR 2019', source=EULAR, location='Bảng 1'),
+    'EAC01': dict(
+        criteria=[dict(field='HIS12', kind='above', above='38.3', units=CELSIUS_UNITS)],
+        definition='Sốt trên 38,3 °C.',
+        confirmation=ATTRIBUTION,
+        standard='EULAR/ACR 2019', source=EULAR, location='Bảng 1'),
+    'SDA22': dict(
+        criteria=[dict(field='HIS12', kind='above', above='38', units=CELSIUS_UNITS)],
+        definition='Sốt trên 38 °C trong cửa sổ 10 ngày trước ngày đánh giá.',
+        confirmation='Loại trừ nguyên nhân nhiễm trùng.',
+        standard='SLEDAI-2K', source=SLEDAI_DEFINITIONS, location='Phụ lục 10', days=10),
+    'HIS11': dict(
+        criteria=[dict(field='HIS12', kind='at_least', at_least='38', units=CELSIUS_UNITS)],
+        definition='Ghi nhận thân nhiệt cao nhất từ 38 °C trở lên trong hồ sơ.',
+        confirmation='Xác nhận thân nhiệt đo trong hồ sơ.',
+        standard='Lupiva CRF', source=None, location='Mục sốt và nhiễm trùng'),
+}
+
+LIBRARIES = {VERSION: RULES, FINDINGS_VERSION: FORM_FINDINGS, LAB_FINDINGS_VERSION: LAB_FINDINGS}
 
 
 def install_knowledge(db):
@@ -117,5 +220,6 @@ def load_knowledge(db):
 
 def knowledge_library(db):
     return dict(**read_knowledge(db), form_findings=read_knowledge(db, FINDINGS_VERSION),
+                lab_findings=read_knowledge(db, LAB_FINDINGS_VERSION),
                 available_versions=[row[0] for row in db.execute(
         'SELECT version FROM crf_knowledge ORDER BY rowid DESC')])
