@@ -282,12 +282,20 @@ class GeminiIntakeTests(unittest.TestCase):
         with patch.object(gemini, 'SLEEP', waits.append):
             opener.reset_mock()
             opener.open.side_effect = [HTTPError(config['endpoint'], 429, '', {'Retry-After': '20'},
-                                                 io.BytesIO(b'{"error":"rate_limit_exceeded"}')) for _ in range(4)]
-            with self.assertRaisesRegex(ValueError, 'HTTP 429'):
+                                                 io.BytesIO(b'{"error":"rate_limit_exceeded"}')) for _ in range(8)]
+            with self.assertRaisesRegex(ValueError, 'HTTP 429 for every configured key'):
                 request_json(config, payload, headers, schema, opener=opener)
-            self.assertEqual(opener.open.call_count, 4)
-            self.assertEqual(waits, [20.0, 20.0, 20.0])
-            self.assertEqual({c.args[0].get_header('Authorization') for c in opener.open.call_args_list}, {'Bearer second'})
+            # Each remaining key gets its retries, then the next backup key is used.
+            self.assertEqual(opener.open.call_count, 8)
+            self.assertEqual(waits, [20.0]*6)
+            self.assertEqual([c.args[0].get_header('Authorization') for c in opener.open.call_args_list],
+                             ['Bearer second']*4 + ['Bearer third']*4)
+            waits.clear(); opener.reset_mock()
+            opener.open.side_effect = [*[HTTPError(config['endpoint'], 429, '', {'Retry-After': '1'},
+                                                   io.BytesIO(b'{}')) for _ in range(4)],
+                                       io.BytesIO(json.dumps(response).encode())]
+            self.assertEqual(request_json(config, payload, headers, schema, opener=opener)[0], {})
+            self.assertEqual(opener.open.call_args_list[-1].args[0].get_header('Authorization'), 'Bearer third')
             opener.reset_mock()
             opener.open.side_effect = [HTTPError(config['endpoint'], 503, '', {}, io.BytesIO(b'')),
                                        io.BytesIO(json.dumps(response).encode())]

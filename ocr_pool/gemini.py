@@ -219,8 +219,10 @@ def request_json(config, payload, headers, schema, *, opener=None, timeout=300):
     name = API_NAMES[config.get('engine', 'gemini')]
     opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
-    fallback = (config.get('fallback_keys', ()) if config.get('engine') == 'tokenharbor'
-                and config.get('model', '').endswith(':free') else ())
+    # Backup keys serve any Token Harbor model: a key that stays rate limited
+    # after its retries, or whose allowance is spent, hands over to the next one.
+    fallback = config.get('fallback_keys', ()) if config.get('engine') == 'tokenharbor' else ()
+    last_code = None
     exhausted = config.get('exhausted_keys', set())
     attempts = (key for key in (config.get('key'), *fallback) if not fallback or key not in exhausted)
     for key in attempts:
@@ -246,13 +248,19 @@ def request_json(config, payload, headers, schema, *, opener=None, timeout=300):
             break
         except urllib.error.HTTPError as error:
             with error:
+                last_code = error.code
                 if fallback and tokenharbor_allowance_exhausted(error):
-                    exhausted.add(key)
+                    exhausted.add(key)          # spent for this run: never retried
                     continue
+                if fallback and error.code in {402, 429}:
+                    continue                    # rate limited or unpaid: try the next key
             raise ValueError(f'{name} API returned HTTP {error.code}; originals and privacy selections are retained') from None
         except Exception:
             raise ValueError(f'Cannot complete {name} API request; check the server connection and configuration') from None
     else:
+        if last_code in {402, 429}:
+            raise ValueError(f'{name} API returned HTTP {last_code} for every configured key; '
+                             'originals and privacy selections are retained')
         raise ValueError('Token Harbor free allowance exhausted for all configured keys; originals and privacy selections are retained')
     phase = 'response envelope'
     finish = None
