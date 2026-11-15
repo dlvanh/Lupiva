@@ -14,6 +14,7 @@ from registry_pool.exchange import build_bundle
 from .catalog_alias import CatalogAliases
 from .gemini import InvalidAPIResponse, configuration, privacy_plan, prepare_image, extract_image
 from .lab_api import extract_lab_image, lab_crop_evidence
+from .outgoing_gate import check_outgoing
 from .lab_reference_cells import attach_complement_ranges
 from .llm_extraction import VERSION as LLM_CONTRACT_VERSION, valid_row_box
 from .local_dates import local_date_evidence, local_metadata_evidence, observation_date, scan_source_dates, unmasked_crop_lines
@@ -475,7 +476,26 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                 local_scans[did] = scan
                 local_dates[did] = local_date_evidence(doc, source, scan, output, index)
                 local_metadata[did] = local_metadata_evidence(doc, source, scan, output, index)
-        stage('local_source_dates', 'completed');stage('gemini_extract', 'running')
+        stage('local_source_dates', 'completed')
+        # Final local gate: automatic crops are re-read from the exact outgoing
+        # bytes; readable staff text blocks that image from being sent.
+        stage('outgoing_privacy_check', 'running')
+        blocked = {}
+        (output/'local-ocr').mkdir(parents=True, exist_ok=True)
+        for index, (doc, outgoing) in enumerate(zip(documents, prepared)):
+            if outgoing is None or not doc['privacy'].get('automatic'):
+                continue
+            method, hits = check_outgoing(outgoing, doc['privacy'], local_scans.get(doc['document_id']),
+                                          workspace/'models/privacy')
+            write(output/'local-ocr'/f'image-{index+1:03}-outgoing-check.json',
+                  dict(method=method, blocked=bool(hits), hit_count=len(hits)))
+            if hits:
+                blocked[doc['document_id']] = method
+                prepared[index] = None
+        if blocked and all(body is None for body in prepared):
+            raise ValueError('Outgoing privacy check found staff text in every automatic image; '
+                             'review the crop and masks manually')
+        stage('outgoing_privacy_check', 'completed');stage('gemini_extract', 'running')
         results=[];failed_documents={};(output/'api-responses').mkdir(exist_ok=True)
         for index, (doc, body) in enumerate(zip(documents, prepared)):
             if body is None: results.append(None);continue
@@ -562,6 +582,10 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
         for did, detail in failed_documents.items():
             candidate['issues'].append(dict(document_id=did, table_id=None, reason='api_extraction_failed',
                                             detail=detail[:500]))
+        for did, method in blocked.items():
+            candidate['issues'].append(dict(document_id=did, table_id=None, reason='outgoing_privacy_blocked',
+                                            detail=f'Staff text readable in the automatic crop ({method}); '
+                                                   'not sent. Review crop/masks manually.'))
         write(output/'candidate-pool.json',candidate)
         provenance=dict(engine=engine, llm_contract_version=LLM_CONTRACT_VERSION,
             api_model_requested=config['model'] if config else 'synthetic',
