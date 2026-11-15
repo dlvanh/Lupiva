@@ -138,7 +138,7 @@ def ct_ild_finding(scan, privacy):
     # negation and the disease phrase anchored exactly; allow only a small,
     # near-identical difference in between.
     anchored = re.fullmatch(r'khong thay ton th\S*\s+(.{1,8}?)\s+b(?:e)?nh phoi k(?:e)? tren phim', text)
-    if anchored and SequenceMatcher(None, text, 'khong thay ton thuong goi y benh phoi ke tren phim').ratio() >= .88:
+    if anchored and _near_negative(text, ('khong thay ton thuong goi y benh phoi ke tren phim',), threshold=.88):
         return local_report_row('LUNG02', label, raw, 'no', line, privacy)
     return None
 

@@ -220,7 +220,7 @@ class PatientIntakeTests(unittest.TestCase):
         folder=self.manager.path(job['job_id']);(folder/'workflow-1').mkdir(parents=True)
         (folder/'manifest.json').write_text('{}',encoding='utf-8')
         self.assertTrue(self.manager.may_be_running(job))            # launch state unknown, recent
-        with patch('registry_review.intake.INTAKE_STALE_SECONDS',0):
+        with patch('registry_review.intake.INTAKE_STALE_SECONDS',-60):  # file times can be slightly ahead
             self.assertFalse(self.manager.may_be_running(job))       # unknown but long idle
         state=dict(stages={'ocr':dict(attempts=[dict(status='running')])})
         (folder/'workflow-1'/'workflow.json').write_text(json.dumps(state),encoding='utf-8')
