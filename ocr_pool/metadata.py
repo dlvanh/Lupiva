@@ -31,7 +31,7 @@ LABELS = {
     'distributed_date': r'\b(?:gio|ngay)\s+phan\s+mau',
     'measurement_date': r'\b(?:measurement\s+date|ngay\s+do)',
 }
-LABEL_PATTERN = re.compile('|'.join(f'(?P<{key}>{pattern})\s*:' for key, pattern in LABELS.items()))
+LABEL_PATTERN = re.compile('|'.join(rf'(?P<{key}>{pattern})\s*:' for key, pattern in LABELS.items()))
 DATE = r'\d{1,2}/\d{1,2}/\d{4}'
 TIME = r'\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM))?'
 DATE_VALUE = re.compile(rf'(?:{DATE}(?:\s+{TIME})?|{TIME}\s+{DATE})', re.I)

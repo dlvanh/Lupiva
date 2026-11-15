@@ -230,6 +230,21 @@ class PatientIntakeTests(unittest.TestCase):
         with patch('registry_review.intake.process_token',return_value=None):
             self.assertFalse(self.manager.may_be_running(job))       # recorded child has ended
 
+    def test_api_health_warns_on_failure_streak_failed_images_and_slow_calls(self):
+        def job(status,health=None):
+            j=dict(job_id='intake-'+os.urandom(16).hex(),engine='tokenharbor',status=status,output='workflow-1')
+            if health is not None:
+                folder=self.manager.path(j['job_id'])/'workflow-1';folder.mkdir(parents=True)
+                (folder/'api-health.json').write_text(json.dumps(health),encoding='utf-8')
+            return j
+        healthy=[job('completed',dict(sent=3,failed=0,retried=0,seconds=[20,30,25]))]
+        self.assertEqual(self.manager.api_health(healthy)['warnings'],[])
+        self.assertEqual(self.manager.api_health([dict(healthy[0],engine='local',status='failed')]*3)['warnings'],[])
+        jobs=[job('failed'),job('failed'),job('completed',dict(sent=4,failed=1,retried=1,seconds=[20,400,30]))]
+        warnings=self.manager.api_health(jobs)['warnings']
+        self.assertEqual(len(warnings),3)
+        self.assertIn('2 lượt',warnings[0]);self.assertIn('1/4',warnings[1]);self.assertIn('180',warnings[2])
+
     def test_processing_child_past_time_limit_is_stopped(self):
         from unittest.mock import Mock
         job=self.uploaded();self.manager.close()

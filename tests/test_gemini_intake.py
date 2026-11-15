@@ -69,7 +69,8 @@ class GeminiIntakeTests(unittest.TestCase):
                 ('Không tràn dịch màng phổi', 'no'),
                 ('Có tràn dịch màng phổi.', 'yes'),
                 ('Tràn dịch màng phổi', 'yes'),
-                ('Không tràn dich mang phi', 'no')):
+                ('Không tràn dich mang phi', 'no'),
+                ('Không thấy tràn djch, tràn khí khoang màng phổi hai bên.', 'no')):
             with self.subTest(statement=statement):
                 finding = pleural_effusion_finding(self.report_scan(statement), privacy)
                 self.assertEqual((finding['field_id'],finding['qualitative_value']),('LUNG04',choice))
@@ -92,7 +93,8 @@ class GeminiIntakeTests(unittest.TestCase):
         for statement in ('Nghi tràn dịch màng phổi', 'Ít tràn dịch màng phổi',
                           'Không loại trừ tràn dịch màng phổi', 'Màng phổi: Chưa rõ',
                           'Không tràn dịch màng phổi, đề nghị đánh giá thêm',
-                          'Không thấy bất thường màng phổi'):
+                          'Không thấy bất thường màng phổi', 'Không tràn dịch màng phổi phải',
+                          'Không nghi tràn dịch màng phổi'):
             with self.subTest(statement=statement):
                 self.assertIsNone(pleural_effusion_finding(self.report_scan(statement),privacy))
         scan = self.report_scan('Không tràn dịch màng phổi')
@@ -205,6 +207,10 @@ class GeminiIntakeTests(unittest.TestCase):
         self.assertIsNone(echo_pericardial_finding(scan,{**plan,'masks':[[30,140,570,174]]}))
         unknown={**scan,'lines':[{**line,'text':'12. Màng ngoài tim: Chưa rõ'}]}
         self.assertIsNone(echo_pericardial_finding(unknown,plan))
+        garbled={**scan,'lines':[{**line,'text':'12. Màng ngoài tim: Không thấy bất thường/ Không có djch'}]}
+        self.assertEqual(echo_pericardial_finding(garbled,plan)['qualitative_value'],'no')
+        for text in ('12. Màng ngoài tim: Không loại trừ tràn dịch màng ngoài tim','12. Màng ngoài tim: Có djch'):
+            self.assertIsNone(echo_pericardial_finding({**scan,'lines':[{**line,'text':text}]},plan))
         def runner(job,files,folder):
             with patch('ocr_pool.gemini_workflow.scan_source_dates',return_value=('preview_ocr',scan)):
                 return run(read(folder/'manifest.json'),folder/job['output'],self.root,

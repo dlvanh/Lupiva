@@ -28,6 +28,8 @@ MAX_FILES=50
 INTAKE_TIME_LIMIT=int(os.environ.get('LUPIVA_INTAKE_TIME_LIMIT','3600'))
 # A record with unclear launch state stops blocking once its workflow is idle this long.
 INTAKE_STALE_SECONDS=int(os.environ.get('LUPIVA_INTAKE_STALE_SECONDS','7200'))
+# One image taking longer than this through the API marks the service as slow.
+API_SLOW_SECONDS=int(os.environ.get('LUPIVA_API_SLOW_SECONDS','180'))
 FORMATS={'JPEG':('.jpg','image/jpeg'),'PNG':('.png','image/png'),
          'TIFF':('.tif','image/tiff'),'BMP':('.bmp','image/bmp'),'WEBP':('.webp','image/webp')}
 DDL='''
@@ -115,7 +117,8 @@ class IntakeManager:
     def list(self):
         store=ReviewStore(self.application.database,read_only=True)
         try:
-            return dict(jobs=[self.public(store,json.loads(r[0])) for r in store.db.execute('SELECT payload FROM patient_intakes ORDER BY rowid DESC')],
+            jobs=[json.loads(r[0]) for r in store.db.execute('SELECT payload FROM patient_intakes ORDER BY rowid DESC')]
+            return dict(jobs=[self.public(store,job) for job in jobs],api_health=self.api_health(jobs),
                 limits=dict(max_files=MAX_FILES,max_image_bytes=MAX_IMAGE,max_batch_bytes=MAX_BATCH),
                 engines=dict(local=dict(available=True),**{engine:public_configuration(self.workspace,engine=engine)
                                                            for engine in API_ENGINES}))
@@ -303,6 +306,29 @@ class IntakeManager:
                     elif not attempt.get('launch_failed'):
                         raise RuntimeError('Child launch state uncertain; inspect local process before recovery')
         return False
+
+    def api_health(self,jobs,recent=5):
+        """Warnings about the external API from the most recent finished API submissions (newest first)."""
+        finished=[j for j in jobs if j.get('engine') in API_ENGINES and j['status'] in {'completed','failed','needs_attention'}][:recent]
+        warnings=[]
+        streak=0
+        for job in finished:
+            if job['status']=='completed':break
+            streak+=1
+        if streak>=2:
+            warnings.append(f'{streak} lượt gửi API gần nhất đều lỗi; kiểm tra kết nối hoặc khóa API trước khi gửi tiếp.')
+        failed=sent=0;slow=[]
+        for job in finished:
+            path=self.path(job['job_id'])/job.get('output','not-started')/'api-health.json'
+            try:health=read(path)
+            except (OSError,ValueError):continue
+            failed+=int(health.get('failed') or 0);sent+=int(health.get('sent') or 0)
+            slow+=[s for s in health.get('seconds',[]) if isinstance(s,(int,float)) and s>API_SLOW_SECONDS]
+        if failed:
+            warnings.append(f'{failed}/{sent} ảnh trong các lượt gần đây không đọc được qua API (đã tách riêng, cần chạy lại).')
+        if slow:
+            warnings.append(f'{len(slow)} ảnh gần đây mất hơn {API_SLOW_SECONDS} giây qua API; dịch vụ đang chậm.')
+        return dict(checked=len(finished),warnings=warnings)
 
     def may_be_running(self,job):
         """A job needing attention blocks the queue only while a child process could still run.

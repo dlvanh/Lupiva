@@ -76,9 +76,25 @@ def echo_pericardial_finding(scan, privacy):
         choice = 'no'
     elif re.fullmatch(r'(?:co dich|tran dich mang ngoai tim)', value):
         choice = 'yes'
+    elif _near_negative(value, ('khong thay bat thuong/ khong co dich', 'khong co dich',
+                                'khong tran dich mang ngoai tim')):
+        choice = 'no'
     else:
         return None
     return local_report_row('CV06', label, raw, choice, line, privacy)
+
+
+HEDGE = re.compile(r'\b(?:nghi|it|loai\s+tru|co\s+the|theo\s+doi|chua\s+ro)\b')
+
+
+def _near_negative(text, canonical, *, threshold=.9):
+    """A complete negative statement with one or two OCR-garbled characters.
+
+    Only negatives are tolerated, the sentence must start with "khong", and any
+    hedge word rejects it; positives always need an exact match.
+    """
+    return (text.startswith('khong ') and not HEDGE.search(text)
+            and max(SequenceMatcher(None, text, form).ratio() for form in canonical) >= threshold)
 
 
 def _chest_ct_lines(scan, privacy):
@@ -159,6 +175,11 @@ def pleural_effusion_finding(scan, privacy):
         choice = 'no'
     elif re.fullmatch(r'(?:co\s+)?tran\s+dich\s+' + pleura + r'(?:\s+hai\s+ben)?', text):
         choice = 'yes'
+    # A one-sided statement ("phai"/"trai") says nothing about the other lung.
+    elif not outside_heart and not re.search(r'\b(?:phai|trai)\b', text) and _near_negative(text, (
+            'khong tran dich mang phoi', 'khong tran dich mang phoi hai ben', 'khong co tran dich mang phoi',
+            'khong thay tran dich mang phoi hai ben', 'khong thay tran dich, tran khi khoang mang phoi hai ben')):
+        choice = 'no'
     else:
         return None
     return local_report_row('LUNG04', label, raw, choice, line, privacy)
@@ -588,6 +609,11 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                 result['fast_routing'] = routing
             write(output/'api-responses'/f'image-{index+1:03}.json', result)
             result['outgoing_bytes']=body;results.append(result)
+        # Per-run API health for the operator banner: counts and timings only.
+        write(output/'api-health.json', dict(
+            sent=sum(body is not None for body in prepared), failed=len(failed_documents),
+            retried=sum(1 for r in results if r and r.get('api_retry')),
+            seconds=[r['elapsed_seconds'] for r in results if r]))
         stage('gemini_extract', 'completed');stage('gemini_bundle','running')
         candidate=build_candidate(documents,results,dictionary,output,local_dates=local_dates,
                                   local_metadata=local_metadata,engine=engine)
