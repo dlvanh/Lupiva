@@ -69,6 +69,19 @@ class OcrNumberCrossCheckTests(unittest.TestCase):
             rows[3]['numeric_value'] = '0'          # model dropped a digit
             self.assertEqual(number_disagreements(rows, scan, privacy), [3], skew)
 
+    def test_values_shifted_by_a_slanted_photo_are_paired_by_row_order(self):
+        from ocr_pool.ocr_crosscheck import number_disagreements
+        # Each value sits half a row above its label; a model that pairs every
+        # label with the value printed just below it is off by one row.
+        rows, scan, privacy = self.page(15)
+        shifted = [dict(row, numeric_value=rows[k+1]['numeric_value']) if k < 5 else row
+                   for k, row in enumerate(rows)]
+        self.assertEqual(number_disagreements(rows, scan, privacy), [])
+        self.assertEqual(number_disagreements(shifted, scan, privacy), [0, 1, 2, 3, 4])
+        # An unread value cell makes the column incomplete: no order-based claim.
+        scan['lines'] = [l for l in scan['lines'] if l['text'] != '10 Negative']
+        self.assertNotIn(0, number_disagreements(shifted, scan, privacy))
+
     def test_label_read_with_slightly_lower_confidence_is_still_checked(self):
         from ocr_pool.ocr_crosscheck import number_disagreements
         rows, scan, privacy = self.page(9)
