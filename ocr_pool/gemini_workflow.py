@@ -235,17 +235,18 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
     local_dates = local_dates or {}
     local_metadata = local_metadata or {}
 
+    administrative_done = set()
+
     def add_administrative_observations(doc, facts, date_facts):
-        # A sex label repeated in laboratory headers is source metadata. Map
-        # it to the CRF only on a profile that also prints an anthropometric
-        # administrative measurement, avoiding repeated ADM03 observations.
-        if not any(select_fact(facts, key) for key in ('age', 'height', 'weight')):
-            return
+        # Printed age/sex/height/weight read locally from a page header. Laboratory
+        # headers repeat the sex label on every page, so each field is mapped once
+        # per submission (first clean fact); further pages remain source metadata.
         source_date = observation_date(date_facts, 'pft')
         for key, (field_id, unit) in ADM_FIELDS.items():
             fact = select_fact(facts, key)
-            if not fact:
+            if not fact or field_id in administrative_done:
                 continue
+            administrative_done.add(field_id)
             values = (dict(result_type='qualitative', qualitative_value=fact['value']) if key == 'sex' else
                       dict(result_type='numeric', numeric_value=fact['value'], comparator='='))
             observations.append(dict(observation_id='GOBS'+str(len(observations)).zfill(6),

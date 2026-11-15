@@ -137,7 +137,10 @@ class CRFReviewTests(PatientWorkspaceTests):
                       value=dict(numeric_value='3.5', unit_raw='10⁹/L', comparator='=',
                                  source_date='2026-11-04'))
         report = evaluate_scores({'date':'2026-11-13'}, [source], {}, rules=rules)
-        self.assertEqual(set(report['suggestions']), {'EAC02'})
+        # 3.5 is leukopenia for EULAR/ACR (<4) and a measured "no" for SLEDAI-2K (<3).
+        self.assertEqual(set(report['suggestions']), {'EAC02', 'SDA24'})
+        self.assertEqual(report['suggestions']['SDA24']['value'], 'no')
+        self.assertTrue(report['suggestions']['SDA24']['requires_confirmation'])
         proposal = report['suggestions']['EAC02']
         self.assertEqual(proposal['knowledge_version'], KNOWLEDGE_VERSION)
         self.assertTrue(proposal['requires_confirmation'])
@@ -175,7 +178,9 @@ class CRFReviewTests(PatientWorkspaceTests):
                           flags=['explicit_report_finding'])]
         assessment = {'date':'2026-11-14'}
         report = evaluate_scores(assessment, sources, {}, rules=library['rules'])
-        self.assertEqual(set(report['suggestions']), {'EAC12','EAC15','EAC18','EAC21','SDA12','SDA13'})
+        self.assertEqual(set(report['suggestions']), {'EAC12','EAC15','EAC18','EAC21','SDA12','SDA13','SDA14'})
+        self.assertEqual(report['suggestions']['SDA14']['value'], 'no')     # 5 WBC/HPF is not above 5
+        self.assertEqual({k for k, v in report['suggestions'].items() if v['value'] == 'no'}, {'SDA14'})
         self.assertTrue(all(item['requires_confirmation'] for item in report['suggestions'].values()))
         self.assertFalse(report['values'])
         sources[3]['value']['result_raw'] = '17 Không dương tính'
@@ -184,7 +189,24 @@ class CRFReviewTests(PatientWorkspaceTests):
                                         dict(qualitative_value='(+)', class_raw='(+)'), dict(unit_raw='U/mL'),
                                         dict(extraction_method='gemini_api')]):
             row['value'].update(value)
-        self.assertFalse(evaluate_scores(assessment, sources, {})['suggestions'])
+        # No positive evidence remains; only the unchanged normal pyuria count gives a SLEDAI "no".
+        self.assertEqual({k: v['value'] for k, v in evaluate_scores(assessment, sources, {})['suggestions'].items()},
+                         {'SDA14': 'no'})
+
+    def test_sledai_normal_laboratory_results_suggest_no_only_inside_window(self):
+        def comp(fid, number, day='2026-11-10'):
+            return dict(kind='observation', field_id=fid, component='result', selection_id=fid, document_id='d',
+                        confidence={}, review_status='pending',
+                        value=dict(numeric_value=number, unit_raw='g/L', comparator='=', source_date=day,
+                                   reference_range_raw='0.9 - 1.8' if fid == 'IMM11' else '0.1 - 0.4'))
+        c3, c4 = comp('IMM11', '1.2'), comp('IMM12', '0.25')
+        no = lambda sources, day='2026-11-13': {k for k, v in evaluate_scores({'date': day}, sources, {})['suggestions'].items()
+                                                if v['value'] == 'no'}
+        self.assertIn('SDA20', no([c3, c4]))
+        self.assertNotIn('SDA20', no([c3]))                          # C4 not measured: no claim
+        self.assertNotIn('SDA20', no([c3, c4], day='2026-11-25'))    # outside the 10-day window
+        self.assertNotIn('SDA20', no([c3, comp('IMM12', '0.05')]))   # low C4 is not normal
+        self.assertEqual(evaluate_scores({}, [c3, c4], {})['suggestions'], {})  # no date, no SLEDAI claim
 
     def test_manual_crf_unknown_saves_without_inventing_source_evidence(self):
         app = SimpleNamespace(bundles={}, exports=SimpleNamespace(configuration=lambda: (DICTIONARY, None, {})))

@@ -114,6 +114,78 @@ def matches_rule(source, references, rule):
     return False
 
 
+NORMAL_CONFIRMATION = ('Mọi kết quả của chỉ số này trong 10 ngày trước ngày đánh giá đều không đạt ngưỡng. '
+                       'Xác nhận không có kết quả bất thường nào khác trong cửa sổ đánh giá.')
+
+
+def normal_for_rule(source, references, rule):
+    """True when a measured value clearly does not meet a SLEDAI-2K laboratory rule.
+
+    Only measured, comparable values qualify: missing, conflicting, unit-incompatible
+    or comparator results return False (no claim), never "normal".
+    """
+    value = source['value']
+    if (source['review_status'] == 'conflict' or source.get('pending_correction')
+            or source['confidence'].get('blockers') or value.get('missing_reason')
+            or value.get('result_type') in {'missing', 'unparsed'}):
+        return False
+    kind = rule['rule']
+    if kind == 'low_complement':
+        return low_complement(source, references) is False
+    number = value.get('numeric_value')
+    if (not isinstance(number, str) or not NUMBER.fullmatch(number)
+            or value.get('comparator') not in (None, '=')):
+        return False
+    measured = Decimal(number.replace(',', '.'))
+    unit = value.get('unit_raw') or ''
+    compact_unit = ''.join(unit.casefold().split())
+    if kind == 'blood_count':
+        return bool(not re.fullmatch(r'g\s*/\s*[Ll]', unit.strip())
+                    and COUNT_UNIT.fullmatch(unit_key(unit.replace('⁹', '^9')))
+                    and measured >= Decimal(rule['below']))
+    if kind == 'proteinuria':
+        limit = rule['above_by_unit'][source['field_id']].get(compact_unit)
+        return limit is not None and measured <= Decimal(limit)
+    if kind == 'urine_microscopy':
+        return compact_unit in {'/hpf', 'cells/hpf', 'cell/hpf', 'tếbào/hpf', rule['cell_unit']} and (
+            measured <= Decimal(rule['above']))
+    return False
+
+
+def normal_proposals(sources, references, assessment_date, rules, positive):
+    """Suggest "no" for SLEDAI-2K laboratory items measured normal in the 10-day window.
+
+    SLEDAI-2K scores only the window before the assessment, so a measured normal
+    result there is evidence for "no". EULAR/ACR items count any past occurrence
+    and never receive a "no" from a single normal result.
+    """
+    if not assessment_date:
+        return {}
+    window = defaultdict(list)
+    for source in sources:
+        if source['kind'] != 'observation' or source['component'] != 'result':
+            continue
+        stamp = source['value'].get('source_date')
+        day = iso_date(stamp[:10]) if isinstance(stamp, str) else None
+        if day and 0 <= (assessment_date - day).days <= 10:
+            window[source['field_id']].append(source)
+    proposals = {}
+    for fid, rule in rules.items():
+        if (not fid.startswith('SDA') or fid in positive
+                or rule.get('rule') not in {'blood_count', 'proteinuria', 'urine_microscopy', 'low_complement'}):
+            continue
+        present = [field for field in rule['fields'] if window[field]]
+        if not present or (rule.get('all_fields') or rule['rule'] == 'low_complement') and len(present) != len(rule['fields']):
+            continue
+        evidence = [source for field in present for source in window[field]]
+        if all(normal_for_rule(source, references, rule) for source in evidence):
+            proposals[fid] = dict(value='no', sources=sorted(source['selection_id'] for source in evidence),
+                                  reason='Kết quả đo trong cửa sổ đánh giá không đạt định nghĩa: ' + rule['definition'],
+                                  requires_confirmation=True, confirmation=NORMAL_CONFIRMATION,
+                                  knowledge_version=KNOWLEDGE_VERSION, source_url=rule['source'])
+    return proposals
+
+
 def evidence_proposals(sources, references, assessment_date, rules):
     grouped = defaultdict(lambda: defaultdict(list))
     for source in sources:
@@ -139,6 +211,7 @@ def evidence_proposals(sources, references, assessment_date, rules):
             proposals[fid] = dict(value='yes', sources=sorted(evidence), reason=rule['definition'],
                                   requires_confirmation=bool(condition), confirmation=condition,
                                   knowledge_version=KNOWLEDGE_VERSION, source_url=rule['source'])
+    proposals.update(normal_proposals(sources, references, assessment_date, rules, set(proposals)))
     return proposals
 
 

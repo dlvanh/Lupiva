@@ -406,11 +406,12 @@ function renderCrfScoreStatus(reviewed){
   const hint=$('score-evidence-'+field.field_id);hint.replaceChildren();
   const suggestion=reviewed?.values?.[field.field_id+'/result']||crfScorePreview?.suggestions?.[field.field_id];
   if(suggestion&&!reviewed){
-   hint.append(node('small',(suggestion.requires_confirmation?'Có dữ kiện hỗ trợ · ':'Đề xuất Có · ')+
+   const answer=suggestion.value==='no'?'Không':'Có';
+   hint.append(node('small',(suggestion.requires_confirmation?'Có dữ kiện hỗ trợ '+answer+' · ':'Đề xuất '+answer+' · ')+
     suggestion.reason,'notice'),crfEvidence(suggestion));
    const control=$('score-'+field.field_id);
    if(suggestion.requires_confirmation&&!control.value){
-    const confirm=node('button','Xác nhận và chọn Có');confirm.type='button';confirm.disabled=crfBusy;
+    const confirm=node('button','Xác nhận và chọn '+answer);confirm.type='button';confirm.disabled=crfBusy;
     confirm.onclick=()=>{control.value=suggestion.value;control.onchange()};
     hint.append(node('p',suggestion.confirmation),confirm);
    }

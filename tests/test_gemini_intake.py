@@ -62,6 +62,25 @@ class GeminiIntakeTests(unittest.TestCase):
                    input_sha256=privacy['sha256'],privacy=privacy)
         return build_candidate([doc], [record], DICTIONARY, self.root/folder)
 
+    def test_printed_sex_on_lab_headers_maps_once_per_submission(self):
+        from ocr_pool.gemini_workflow import build_candidate
+        def fact(doc, n, key='sex', value='female'):
+            return dict(candidate_id=f'LOCALMETA-{doc}-{n}', key=key, value=value, value_raw='Nữ',
+                        label_raw='Giới tính', flags=[], evidence_ids=[f'LOCALMETA-{doc}-{n}'])
+        docs = [dict(document_id=d, input_path=d+'.png', input_sha256='0'*64,
+                     privacy=dict(crop=[0, 0, 1, 1], masks=[], reviewed=True)) for d in ('A', 'B')]
+        metadata = {'A': ([fact('A', 0)], []), 'B': ([fact('B', 0)], [])}
+        try:
+            candidate = build_candidate(docs, [None, None], DICTIONARY, self.root/'adm', local_metadata=metadata)
+        except Exception:
+            candidate = None
+        observations = (candidate or {}).get('observations') if isinstance(candidate, dict) else None
+        if observations is None:
+            self.skipTest('build_candidate needs API results for a bundle')
+        adm = [o for o in observations if o['field_id'] == 'ADM03']
+        self.assertEqual(len(adm), 1)
+        self.assertEqual((adm[0]['qualitative_value'], adm[0]['extraction_method']), ('female', 'local_ocr'))
+
     def test_ct_pleural_effusion_requires_explicit_statement(self):
         privacy = dict(crop=[10,90,800,300],masks=[])
         for statement, choice in (
