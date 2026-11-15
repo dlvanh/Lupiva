@@ -366,6 +366,19 @@ def _staff_privacy(lines, crop, crop_reason, size, image):
                 if mask:
                     masks.append(dict(box=mask,reasons=['staff_name_field'],line_id=line['line_id']))
                     continue
+        if box[1] < crop[1] < box[3]:
+            # The role row is cut by the crop's top edge: only a sliver of the
+            # administrative header remains. Mask that full-width sliver when every
+            # line touching it is also cut by the edge (never content inside the crop).
+            strip = [crop[0], crop[1], crop[2], min(crop[3], box[3]+max(3,round(.12*_height(box))))]
+            def administrative(other):
+                inside = lambda m: (m[0] <= other['box'][0] and m[1] <= other['box'][1]
+                                    and other['box'][2] <= m[2] and other['box'][3] <= m[3])
+                return (other['box'][1] < crop[1] or STAFF_ROLE.match(fold(other['text']).strip())
+                        or any(inside(m['box']) for m in masks))
+            if all(administrative(other) for other in lines if _overlap(other['box'],strip)):
+                masks.append(dict(box=strip,reasons=['staff_name_field'],line_id=line['line_id']))
+                continue
         if _overlap(box,crop):
             reviews.append(dict(code='staff_name_needs_review',box=box,line_ids=[line['line_id']]))
     return masks,reviews

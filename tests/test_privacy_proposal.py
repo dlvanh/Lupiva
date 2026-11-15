@@ -398,6 +398,20 @@ class PrivacyProposalTests(unittest.TestCase):
         reviewed = any('staff' in item['code'] for item in plan['review_items'])
         self.assertTrue(masked or reviewed)
 
+    def test_role_row_cut_by_crop_top_masks_the_administrative_sliver_only(self):
+        header = [line(1,'Chỉ định',[30,120,90,140]),line(2,'Kết quả',[170,120,233,140]),
+                  line(3,'Đơn vị',[260,120,305,140]),line(4,'CRP 4.81',[30,160,140,180]),
+                  line(5,'WBC 6.70',[30,190,140,210])]
+        role = line(6,'Ngròi lấy mẫu:',[30,92,120,112])
+        image = Image.new('RGB',(400,400),'#dddddd')
+        plan = propose([role,*header],[],image.size,image=image)
+        if plan['crop'][1] > role['box'][1]:
+            strip = [m for m in plan['masks'] if m.get('line_id') == 6]
+            reviewed = [r for r in plan['review_items'] if 6 in r.get('line_ids', [])]
+            self.assertTrue(strip or reviewed)
+            for mask in strip:
+                self.assertLessEqual(mask['box'][3], 120)
+
     def test_staff_names_are_masked_from_inline_and_adjacent_role_fields(self):
         items = [line(0,'Bác sĩ chỉ định: Nguyễn Văn An',[20,30,290,55]),
                  line(1,'Người lấy mẫu:',[20,76,150,99]),
