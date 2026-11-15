@@ -58,6 +58,23 @@ class OcrNumberCrossCheckTests(unittest.TestCase):
             rows[3]['numeric_value'] = '0'          # model dropped a digit
             self.assertEqual(number_disagreements(rows, scan, privacy), [3], skew)
 
+    def test_label_read_with_slightly_lower_confidence_is_still_checked(self):
+        from ocr_pool.ocr_crosscheck import number_disagreements
+        rows, scan, privacy = self.page(9)
+        scan['lines'][10]['confidence'] = .85      # short code label, e.g. "cN-1A"
+        rows[5]['numeric_value'] = '1'             # model took the next row's number
+        self.assertEqual(number_disagreements(rows, scan, privacy), [5])
+        scan['lines'][10]['confidence'] = .7
+        self.assertEqual(number_disagreements(rows, scan, privacy), [])
+
+    def test_bare_reference_limit_is_not_evidence_against_the_api_number(self):
+        from ocr_pool.ocr_crosscheck import number_disagreements
+        rows, scan, privacy = self.page(0)
+        scan['lines'][7]['text'] = '<35'           # result cell unread, only the limit is left
+        self.assertEqual(number_disagreements(rows, scan, privacy), [])
+        rows[3]['numeric_value'] = '35'
+        self.assertEqual(number_disagreements(rows, scan, privacy), [])
+
     def test_too_few_rows_are_not_judged(self):
         from ocr_pool.ocr_crosscheck import number_disagreements
         rows, scan, privacy = self.page(0)

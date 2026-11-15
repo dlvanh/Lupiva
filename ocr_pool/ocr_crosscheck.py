@@ -11,7 +11,7 @@ import re
 from .llm_row_anchors import label_key
 from .local_dates import _valid_lines
 
-NUMBER = re.compile(r'(?<![\w.,])[<>≤≥]?\s*(\d+(?:[.,]\d+)?)(?![\w.,]*\d)')
+NUMBER = re.compile(r'(?<![\w.,])([<>≤≥]?)\s*(\d+(?:[.,]\d+)?)(?![\w.,]*\d)')
 
 
 def _number(value):
@@ -21,8 +21,14 @@ def _number(value):
         return None
 
 
-def number_disagreements(rows, scan, privacy, *, min_confidence=.9):
-    """Indexes of API rows whose number is absent from the same-row local OCR numbers."""
+def number_disagreements(rows, scan, privacy, *, min_confidence=.9, label_confidence=.8):
+    """Indexes of API rows whose number is absent from the same-row local OCR numbers.
+
+    Numbers must be read with ``min_confidence``. The row label only anchors the
+    row and must already equal the API label exactly (once on the page), so it
+    may be read with the lower ``label_confidence``: short codes such as "cN-1A"
+    are often read correctly with a slightly lower score.
+    """
     if not scan:
         return []
     left, top, right, bottom = privacy['crop']
@@ -42,7 +48,7 @@ def number_disagreements(rows, scan, privacy, *, min_confidence=.9):
         if value is None or len(key) < 3 or counts[key] != 1 or len(labels[key]) != 1:
             continue
         anchor = labels[key][0]
-        if (anchor.get('confidence') or 0) >= min_confidence:
+        if (anchor.get('confidence') or 0) >= label_confidence:
             checked.append((index, value, anchor))
 
     def numbers_near(anchor, offset, tolerance):
@@ -55,15 +61,18 @@ def number_disagreements(rows, scan, privacy, *, min_confidence=.9):
                 continue
             dy = (line['box'][1]+line['box'][3])/2 - cy
             if abs(dy) <= tolerance*height:
-                found += [(n, dy) for match in NUMBER.finditer(line['text'])
-                          if (n := _number(match[1])) is not None]
+                found += [(n, dy, bool(match[1])) for match in NUMBER.finditer(line['text'])
+                          if (n := _number(match[2])) is not None]
         return found
 
     # Photographed pages are often slanted: the result column sits a fraction
     # of a row above or below its label. Estimate that offset from rows whose
-    # API number is the nearest same-band OCR number, then check every row.
+    # API number is the nearest same-band OCR number (labels read with full
+    # confidence only), then check every row.
     offsets = []
     for index, value, anchor in checked:
+        if (anchor.get('confidence') or 0) < min_confidence:
+            continue
         near = numbers_near(anchor, 0, 1.0)
         if near:
             nearest = min(near, key=lambda item: abs(item[1]))
@@ -75,7 +84,10 @@ def number_disagreements(rows, scan, privacy, *, min_confidence=.9):
     offset = offsets[len(offsets)//2]
     flagged = []
     for index, value, anchor in checked:
-        numbers = [n for n, _ in numbers_near(anchor, offset, .4)]
-        if numbers and not any(abs(n - value) < 1e-9 for n in numbers):
+        near = numbers_near(anchor, offset, .4)
+        # A bare "<35" next to an unread result is usually the reference
+        # limit: it may confirm the API number but is not evidence against it.
+        if (any(not limit for _, _, limit in near)
+                and not any(abs(n - value) < 1e-9 for n, _, _ in near)):
             flagged.append(index)
     return flagged
