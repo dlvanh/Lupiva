@@ -9,7 +9,7 @@ import math
 import re
 import unicodedata
 
-VERSION = 'privacy-proposal-0.20'
+VERSION = 'privacy-proposal-0.21'
 IDENTITY = re.compile(
     r'\b(?:ho\s*(?:va\s*)?ten|ten benh nhan|patient\s*name|full\s*name|l\s*name|f\s*name|'
     r'ngay\s*sinh|date\s*of\s*birth|birth\s*date|dob|dia\s*chi|address|dien\s*thoai|phone|mobile|'
@@ -777,6 +777,24 @@ def _crop(lines, size):
     return [0, top, *size], 'detected_'+kind+'_table_header', None
 
 
+def _trim_to_text(crop, crop_reason, lines):
+    """Cut the sides and bottom of a table crop back to the text local OCR detected.
+
+    Past the last detected line there is only desk, blank paper, or ink that OCR
+    did not see at all (a signature or stamp), which nothing else can check.
+    Every detected line inside the crop is kept whatever its confidence.
+    """
+    if not re.fullmatch(r'detected_\w+_table_header', crop_reason):
+        return crop
+    boxes = [line['box'] for line in lines if _overlap(line['box'], crop)]
+    if not boxes:
+        return crop
+    margin = max(12, round(sorted(_height(box) for box in boxes)[len(boxes)//2]))
+    return [max(crop[0], min(box[0] for box in boxes)-margin), crop[1],
+            min(crop[2], max(box[2] for box in boxes)+margin),
+            min(crop[3], max(box[3] for box in boxes)+margin)]
+
+
 def outgoing_review_items(lines, crop, masks, crop_reason):
     """Flag lost table headings or visible result labels before automatic send."""
     from .rules import resolve
@@ -1072,6 +1090,8 @@ def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
             continue
         (visible if not boxes or any(min(b[2],crop[2])>max(b[0],crop[0]) and min(b[3],crop[3])>max(b[1],crop[1]) for b in boxes) else resolved).append(review)
     visible.extend(outgoing_review_items(lines, crop, list(merged.values()), crop_reason))
+    # Every decision above used the full crop; only the outgoing extent shrinks.
+    crop=_trim_to_text(crop,crop_reason,lines)
     return dict(version=VERSION,crop=crop,crop_reason=crop_reason,masks=list(merged.values()),
                 dates_local=dates,review_items=visible,resolved_by_crop=resolved,ignored_items=ignored,
                 reviewed=False,outbound_allowed=False,

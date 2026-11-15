@@ -150,10 +150,11 @@ class PrivacyProposalTests(unittest.TestCase):
                         [line(1,'Result',[230,125,310,151]),line(2,'Flow volume graph',[50,180,240,210])]):
             with self.subTest(lines=changed):
                 self.assertEqual('no_reliable_result_header_keep_page',propose(changed,[],(680,550))['crop_reason'])
-        lost_value = outgoing_review_items([*heads,*rows],plan['crop'],[{'box':rows[1]['box']}],plan['crop_reason'])
+        full = [0,plan['crop'][1],680,550]
+        lost_value = outgoing_review_items([*heads,*rows],full,[{'box':rows[1]['box']}],plan['crop_reason'])
         self.assertIn('outgoing_table_header_needs_review',[r['code'] for r in lost_value])
         extra = [*heads,*rows,line(8,'CRP',[40,305,100,330]),line(9,'7.2',[230,305,280,330])]
-        lost_value = outgoing_review_items(extra,plan['crop'],[{'box':[240,200,260,215]}],plan['crop_reason'])
+        lost_value = outgoing_review_items(extra,full,[{'box':[240,200,260,215]}],plan['crop_reason'])
         self.assertIn('outgoing_result_needs_review',[r['code'] for r in lost_value])
 
     def test_echo_measurement_fallback_requires_ordered_sections_and_units(self):
@@ -532,8 +533,9 @@ class PrivacyProposalTests(unittest.TestCase):
         mask = next(m for m in plan['masks'] if 'staff_signature_footer' in m['reasons'])
         self.assertEqual(495,mask['box'][2])
         out = render(image,plan)
-        self.assertEqual((255,255,255),out.getpixel((405,464-plan['crop'][1])))
-        self.assertEqual(image.getpixel((500,521)),out.getpixel((500,521-plan['crop'][1])))
+        left,top = plan['crop'][:2]
+        self.assertEqual((255,255,255),out.getpixel((405-left,464-top)))
+        self.assertEqual(image.getpixel((500,521)),out.getpixel((500-left,521-top)))
 
         draw.line([(480,480),(511,475)],fill='#1838a2',width=4)
         crossing = propose(lines,[],image.size,image=image)
@@ -594,7 +596,8 @@ class PrivacyProposalTests(unittest.TestCase):
                  line(6, 'Albumin', [32, 212, 120, 232])]
         plan = propose(items, [], (500, 650))
         self.assertEqual('detected_lab_table_header', plan['crop_reason'])
-        self.assertEqual([0, 143, 500, 650], plan['crop'])
+        # Sides and bottom stop one line height past the detected text.
+        self.assertEqual([11, 143, 500, 253], plan['crop'])
         self.assertFalse(plan['outbound_allowed'])
 
     def test_wrapped_fragments_from_different_columns_do_not_form_a_header(self):
@@ -627,12 +630,30 @@ class PrivacyProposalTests(unittest.TestCase):
         p=propose(specimen_lines(),[],(600,500),vertical_segments=[[140,90,140,355],[400,90,400,355]])
         self.assertFalse(any('collection_datetime_column' in m['reasons'] for m in p['masks']))
 
+    def test_table_crop_stops_at_detected_text_but_keeps_every_detected_line(self):
+        heads = [line(1,'Xét nghiệm',[235,125,335,151]),line(2,'Kết quả',[430,125,500,151]),
+                 line(3,'Đơn vị',[555,125,610,151]),line(4,'Khoảng tham chiếu',[650,125,810,151])]
+        rows = [line(5,'Ure',[240,195,300,220]),line(6,'5.6',[430,195,480,220]),
+                line(7,'CK',[240,250,300,275]),line(8,'93',[430,250,480,275])]
+        faint = dict(line(9,'~~~',[240,300,330,325]),confidence=.2)
+        plan = propose([*heads,*rows,faint],[],(1000,900))
+        self.assertEqual('detected_lab_table_header',plan['crop_reason'])
+        left,top,right,bottom = plan['crop']
+        # Ink that OCR never detected (below, left or right of all text) is not sent.
+        self.assertEqual((210,835,350),(left,right,bottom))
+        for item in [*heads,*rows,faint]:
+            self.assertTrue(left <= item['box'][0] and item['box'][2] <= right and item['box'][3] <= bottom)
+        # A page without a detected table keeps its whole extent for manual review.
+        kept = propose([line(1,'Ghi chú',[235,125,335,151])],[],(1000,900))
+        self.assertEqual([0,0,1000,900],kept['crop'])
+
     def test_raster_masks_leave_sample_amount_and_lower_table_unchanged(self):
         original=Image.new('RGB',(600,500),'#426587')
         p=propose(specimen_lines(),[],original.size,vertical_segments=[[140,90,140,305],[250,90,250,355]])
         out=render(original,p);y0=p['crop'][1]
         self.assertEqual((255,255,255),out.getpixel((190,185-y0)))
-        for x,y in [(50,195),(310,185),(310,255),(190,325),(190,400)]:
+        self.assertEqual([0,79,425,360],p['crop'],'Outgoing extent ends one line past the detected text')
+        for x,y in [(50,195),(310,185),(310,255),(190,325),(190,350)]:
             self.assertEqual(original.getpixel((x,y)),out.getpixel((x,y-y0)))
         self.assertEqual((66,101,135),original.getpixel((190,185)))
 
