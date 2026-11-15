@@ -24,6 +24,35 @@ from .metadata import ADM_FIELDS, fold, select_fact
 from .workflow import write
 
 
+INTENSITY_CLASS = {'negative': 0, 'am tinh': 0, 'borderline': 1, 'positive': 2, 'duong tinh': 2}
+
+
+def _intensity_class_outliers(rows):
+    """Row indexes whose printed number contradicts the class order of most rows on the same page.
+
+    Line-blot pages print "<intensity> <class>"; on one page a higher class never
+    has a lower intensity. A row that conflicts with most of the others is
+    probably misread (e.g. "10 Borderline" returned as "0 Borderline"). The
+    value is kept; the flag only directs the reviewer to the source cell.
+    """
+    graded = []
+    for n, row in enumerate(rows):
+        grade = INTENSITY_CLASS.get(fold(str(row.get('qualitative_value') or '')).strip())
+        try:
+            number = float(str(row.get('numeric_value')))
+        except ValueError:
+            continue
+        if grade is not None and row.get('component', 'result') == 'result':
+            graded.append((n, grade, number))
+    outliers = set()
+    for n, grade, number in graded:
+        others = [(g, x) for m, g, x in graded if m != n and g != grade]
+        conflicts = sum((g < grade and x > number) or (g > grade and x < number) for g, x in others)
+        if len(others) >= 3 and conflicts * 2 > len(others):
+            outliers.add(n)
+    return outliers
+
+
 def _cell(value): return str(value or '').replace('\t', ' ').replace('\r', ' ').replace('\n', ' ')
 
 
@@ -252,6 +281,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 }
             return eid
         rows = result['extraction']['rows']
+        class_outliers = _intensity_class_outliers(rows)
         for n, row in enumerate(rows + local_findings):
             literal = _comparator_literal(row)
             if literal:
@@ -283,6 +313,8 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 flags.append('panel_label_mismatch_unmapped')
             if literal:
                 flags.append('numeric_from_source_cell')
+            if n in class_outliers:
+                flags.append('intensity_class_inconsistent_on_page')
             method = extraction_method
             if n >= len(rows):
                 method = 'local_ocr'

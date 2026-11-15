@@ -30,6 +30,17 @@ class CatalogAliasTests(unittest.TestCase):
         self.assertIsNone(_comparator_literal(dict(raw_result='10 (+)', numeric_value=None, comparator=None)))
         self.assertIsNone(_comparator_literal(dict(raw_result='<10', numeric_value='10', comparator='<')))
 
+    def test_intensity_contradicting_page_class_order_is_flagged_not_changed(self):
+        from ocr_pool.gemini_workflow import _intensity_class_outliers
+        cell = lambda number, grade: dict(numeric_value=number, qualitative_value=grade, component='result')
+        page = [cell('2', 'Negative'), cell('3', 'Negative'), cell('0', 'Borderline'), cell('4', 'Negative'),
+                cell('2', 'Negative'), cell('1', 'Negative')]
+        self.assertEqual(_intensity_class_outliers(page), {2})
+        consistent = [cell('2', 'Negative'), cell('10', 'Borderline'), cell('50', 'Positive'),
+                      cell('22', 'Positive'), cell('4', 'Negative')]
+        self.assertEqual(_intensity_class_outliers(consistent), set())
+        self.assertEqual(_intensity_class_outliers([cell('0', 'Borderline'), cell('3', 'Negative')]), set())
+
     def test_generic_request_prefix_and_panel_label_guard(self):
         self.assertEqual(self.aliases.match(row('Định lượng CRP'), {}), ('IMM19', 'result'))
         self.assertEqual(self.aliases.match(row('Định lượng IgE (Immunoglobuline E)'), {}), ('IMM13', 'result'))
