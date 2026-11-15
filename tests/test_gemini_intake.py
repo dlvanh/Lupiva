@@ -189,6 +189,9 @@ class GeminiIntakeTests(unittest.TestCase):
         self.assertEqual(finding['raw_result'],impression)
         self.assertIsNone(ct_ild_finding(scan('Siêu âm đàn hồi mô gan',impression),plan))
         self.assertIsNone(ct_ild_finding(scan(technique,'Không loại trừ bệnh phổi kẽ.'),plan))
+        garbled=ct_ild_finding(scan(technique,'Không thấy tổn thurong gi § bnh phổi k trên phim.'),plan)
+        self.assertEqual((garbled['field_id'], garbled['qualitative_value']), ('LUNG02', 'no'))
+        self.assertIsNone(ct_ild_finding(scan(technique,'Có tổn thương gợi ý bệnh phổi kẽ trên phim.'),plan))
         self.assertIsNone(ct_ild_finding(scan(technique,impression,'Đề nghị đánh giá thêm.'),plan))
         self.assertIsNone(ct_ild_finding(scan(technique,impression),{**plan,'masks':[[25,190,600,211]]}))
 

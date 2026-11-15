@@ -1,6 +1,7 @@
 """Reviewed image regions -> Gemini -> immutable pending review bundle."""
 from collections import defaultdict
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 import hashlib
 import io
 import json
@@ -116,6 +117,12 @@ def ct_ild_finding(scan, privacy):
     if line.get('confidence', 0) < .90:
         return None
     if re.fullmatch(r'khong thay ton th(?:uo|uro)ng goi y b(?:e)?nh phoi k(?:e)? tren phim', text):
+        return local_report_row('LUNG02', label, raw, 'no', line, privacy)
+    # Local OCR sometimes garbles one middle word ("goi y" -> "gi §"). Keep the
+    # negation and the disease phrase anchored exactly; allow only a small,
+    # near-identical difference in between.
+    anchored = re.fullmatch(r'khong thay ton th\S*\s+(.{1,8}?)\s+b(?:e)?nh phoi k(?:e)? tren phim', text)
+    if anchored and SequenceMatcher(None, text, 'khong thay ton thuong goi y benh phoi ke tren phim').ratio() >= .88:
         return local_report_row('LUNG02', label, raw, 'no', line, privacy)
     return None
 
