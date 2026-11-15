@@ -34,6 +34,7 @@ STAFF_ROLE = re.compile(
 # Academic prefixes (PGS/GS/ThS/TS) and physician grades (BSCK1/2, BSNT = resident).
 STAFF_TITLE = re.compile(r'^(?:(?:p?gs|thss?|ts)\s*[.\s]+)*(?:bs\s*\.?\s*(?:ck\s*[12i]+|nt)?|bac\s*s[iy]|dr)\s*(?:[.:]|\s)')
 LAB_SIGNER = re.compile(r'^ckt\s*[.:]\s*\S')
+PAGE_NUMBER = re.compile(r'(?:trang|page)\s*\d+\s*(?:/|of|tren)\s*\d+')
 LAB_TECHNICIAN = re.compile(r'^cn\s*\.\s*[^\W\d_]+(?:\s+[^\W\d_]+){1,5}$')
 SIGNATURE_LABEL = re.compile(r'^(?:chu\s*ky|ky\s*ten|da\s*ky|signature|signed\s*by|nguoi\s*ky)\b')
 FOOTER_CLINICAL = re.compile(
@@ -237,6 +238,12 @@ def _lab_signed_block(anchor, lines, crop, *, technician=False):
     region = [max(crop[0],min(left,x0)-2*height), heading_bottom,
               min(crop[2],max(right,x1)+2*height), min(crop[3],y1+height)]
     overlaps = [line for line in lines if line is not anchor and _overlap(line['box'],region)]
+    # A printed page number just below the signer only bounds the block.
+    pages = [line['box'][1] for line in overlaps
+             if PAGE_NUMBER.fullmatch(fold(line['text']).strip()) and line['box'][1] >= y1]
+    if pages:
+        region[3] = min(pages)
+        overlaps = [line for line in overlaps if _overlap(line['box'],region)]
     if technician:
         if len(overlaps) != 1 or top < crop[1] + 5*height:
             return None
@@ -328,6 +335,7 @@ def _staff_privacy(lines, crop, crop_reason, size, image):
         titled = STAFF_TITLE.match(text) and not STAFF_ROLE.match(text)
         if footer_marker or titled or SIGNATURE_LABEL.match(text):
             footer = (_staff_footer(line,lines,crop,crop_reason,image)
+                      or (crop_reason == 'detected_lab_table_header' and _lab_signed_block(line,lines,crop))
                       or _isolated_lab_footer(line,lines,crop,crop_reason,size,image))
             if footer:
                 masks.append(dict(box=footer,reasons=['staff_signature_footer'],line_id=line['line_id']))

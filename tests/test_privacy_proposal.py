@@ -227,6 +227,21 @@ class PrivacyProposalTests(unittest.TestCase):
             plan=propose(ambiguous,[],[400,440])
             self.assertIn('staff_signature_needs_review',[r['code'] for r in plan['review_items']])
 
+    def test_titled_lab_signer_block_stops_at_page_number_below(self):
+        header=[line(1,'Chỉ định',[30,90,90,115]),line(2,'Kết quả',[170,90,233,115]),
+                line(3,'Đơn vị',[260,90,305,115])]
+        department=line(4,'Khoa xét nghiệm',[210,275,315,293])
+        signer=line(5,'Ths.BSNT Tên Giả Lập',[200,333,320,353])
+        page=line(6,'Trang 1/1',[300,362,345,380])
+        plan=propose([*header,department,signer,page],[],[400,440])
+        mask=next(m for m in plan['masks'] if 'staff_signature_footer' in m['reasons'])
+        self.assertEqual(mask['box'],[160,293,360,362])
+        self.assertFalse(plan['review_items'])
+        # Any other text in the block still requires review.
+        note=line(7,'Kết quả khác',[250,300,295,322])
+        plan=propose([*header,department,note,signer,page],[],[400,440])
+        self.assertIn('staff_signature_needs_review',[r['code'] for r in plan['review_items']])
+
     def test_lab_technician_stamp_requires_isolated_signature_below_department(self):
         header = [line(1,'Chỉ định',[30,90,90,115]),line(2,'Kết quả',[170,90,233,115]),
                   line(3,'Đơn vị',[260,90,305,115])]
