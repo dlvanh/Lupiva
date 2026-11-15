@@ -383,6 +383,11 @@ class PrivacyProposalTests(unittest.TestCase):
             self.assertTrue(STAFF_TITLE.match(fold(text)), text)
         for text in ('BSA 1.7', 'Basophil 0.6', 'Bsl 12'):
             self.assertFalse(STAFF_TITLE.match(fold(text)), text)
+        from ocr_pool.privacy_proposal import STAFF_ROLE
+        for text in ('Ngròi nhân mu: CN. Tên Giả', 'Nguròi nhân mãu: Tên Giả', 'Nguòi láy mãu:'):
+            self.assertTrue(STAFF_ROLE.match(fold(text)), text)
+        for text in ('Ngày nhận mẫu: 07/09', 'Ngoại vi: 5', 'Nguồn: abc'):
+            self.assertFalse(STAFF_ROLE.match(fold(text)), text)
         header = [line(1,'Chỉ định',[30,90,90,115]),line(2,'Kết quả',[170,90,233,115]),
                   line(3,'Đơn vị',[260,90,305,115])]
         image = Image.new('RGB',(400,650),'#dddddd')

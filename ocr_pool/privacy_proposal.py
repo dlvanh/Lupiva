@@ -24,7 +24,8 @@ DMY = re.compile(r'(?<![\w./-])(\d{1,2})([/.\-])\s*(\d{1,2})\2\s*(\d{4}|\d{2})(?
 ISO = re.compile(r'(?<![\w./-])(\d{4})-(\d{2})-(\d{2})(?![\w./-])')
 VI_DATE = re.compile(r'\bngay\s+(\d{1,2})\s+thang\s+(\d{1,2})\s+na?m\s+(\d{4})\b')
 STAFF_ROLE = re.compile(
-    r'^(?:(?:nguoi|ngui)\s*(?:chi\s*dinh|la[yi]\s*ma?u|nha?n\s*ma?u|thu\s*ma?u|'
+    # "Người" is often misread (Nguòi/Ngròi/Nguròi); the role phrase after it stays required.
+    r'^(?:ng[a-z]{0,3}i\s*(?:chi\s*dinh|la[yi]\s*ma?u|nha?n\s*ma?u|thu\s*ma?u|'
     r'thuc\s*hien|duyet|doc\s*ket\s*qua|kiem\s*tra|in\s*ket\s*qua)|'
     r'bac\s*s[iy](?:\s*(?:chi\s*dinh|doc\s*ket\s*qua|dieu\s*tri))?|'
     r'ky\s*thuat\s*vien|dieu\s*duong|nhan\s*vien|truong\s*khoa|phu\s*trach(?:\s*khoa)?|'
