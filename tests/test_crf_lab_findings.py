@@ -45,6 +45,26 @@ def proposals(*sources, references=None, assessment_date=None):
 
 
 class LabFindingRuleTests(unittest.TestCase):
+    def test_complete_normal_blood_count_on_one_report_suggests_hem12_no(self):
+        cbc = [source('HEM02', numeric_value='128', unit_raw='g/L', comparator='='),
+               source('HEM05', numeric_value='6.1', unit_raw='G/L', comparator='='),
+               source('HEM07', component='absolute_count', numeric_value='1.8', unit_raw='G/L', comparator='='),
+               source('HEM11', numeric_value='240', unit_raw='G/L', comparator='=')]
+        fired = proposals(*cbc)
+        self.assertEqual(fired['HEM12/result']['value'], 'no')
+        self.assertTrue(fired['HEM12/result']['requires_confirmation'])
+        self.assertEqual(sorted(fired['HEM12/result']['sources']), sorted(s['selection_id'] for s in cbc))
+        self.assertNotIn('HEM12/detail', fired)
+        self.assertNotIn('HEM12/result', proposals(*cbc[:3]))                 # platelets missing: no claim
+        low = dict(cbc[3], value=dict(cbc[3]['value'], numeric_value='90'))
+        self.assertEqual(proposals(*cbc[:3], low)['HEM12/result']['value'], 'yes')
+        other = dict(cbc[3], document_id='second-report')                     # not on the same report
+        self.assertNotIn('HEM12/result', proposals(*cbc[:3], other))
+        coombs = source('HEM13', qualitative_value='Positive', result_raw='Positive')
+        self.assertEqual(proposals(*cbc, coombs)['HEM12/result']['value'], 'yes')
+        gdl = dict(cbc[0], value=dict(cbc[0]['value'], numeric_value='12.8', unit_raw='g/dL'))
+        self.assertEqual(proposals(gdl, *cbc[1:])['HEM12/result']['value'], 'no')
+
     def test_thresholds_fire_just_past_not_at(self):
         cases = [
             ('HEM12/result', source('HEM02', numeric_value='119', unit_raw='g/L', comparator='='),

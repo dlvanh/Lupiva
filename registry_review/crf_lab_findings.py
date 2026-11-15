@@ -141,4 +141,55 @@ def lab_finding_proposals(workspace, references, rules, assessment_date=None):
                    for criterion, source in matched if 'detail' in criterion]
         if details and not by_slot[target, 'detail']:
             proposals[target + '/detail'] = dict(proposal, value='; '.join(details))
+    if 'HEM12' in rules and not by_slot['HEM12', 'result'] and 'HEM12/result' not in proposals:
+        normal = normal_blood_count(by_slot, references, rules['HEM12'])
+        if normal:
+            proposals['HEM12/result'] = normal
     return proposals
+
+
+NORMAL_CBC = ('Công thức máu đầy đủ trên cùng phiếu (Hb, bạch cầu, lympho, tiểu cầu) đều không đạt ngưỡng '
+              'rối loạn huyết học của kho quy tắc tại thời điểm xét nghiệm.')
+NORMAL_CBC_CONFIRMATION = ('Chỉ phản ánh lần xét nghiệm này. Xác nhận không có tiền sử thiếu máu tan máu, '
+                           'giảm bạch cầu, giảm lympho hay giảm tiểu cầu và Coombs không dương tính.')
+
+
+def normal_blood_count(by_slot, references, rule):
+    """Suggest HEM12 'no' when one document holds a complete, normal blood count.
+
+    Every HEM12 criterion field (Hb, WBC, lymphocytes, platelets) must be measured
+    on the same document with comparable units and be on the normal side of the
+    library thresholds; no source in the case may meet any HEM12 criterion and
+    no Coombs result may be positive. Missing values never become 'no'.
+    """
+    from .crf_scores import normal_for_rule
+    criteria = {c['field']: c for c in rule['criteria'] if c['field'] != 'HEM13'}
+    sources = {field: by_slot[field, c.get('component', 'result')] for field, c in criteria.items()}
+    if any(matches(source, references, criteria[field]) for field, group in sources.items() for source in group):
+        return None
+    if any(matches(source, references, c) for c in rule['criteria'] if c['field'] == 'HEM13'
+           for source in by_slot['HEM13', 'result']):
+        return None
+
+    def normal(source, criterion):
+        if not usable(source):
+            return False
+        if criterion['kind'] == 'hemoglobin':
+            unit = (source['value'].get('unit_raw') or '').strip(); number = measured(source)
+            if number is None or not MASS_UNIT.fullmatch(unit):
+                return False
+            return (number*10 if DECILITRE.fullmatch(unit) else number) >= Decimal(criterion['below'])
+        return normal_for_rule(source, references, dict(rule='blood_count', below=criterion['below']))
+
+    documents = defaultdict(dict)
+    for field, group in sources.items():
+        for source in group:
+            documents[source['document_id']].setdefault(field, []).append(source)
+    for document, found in documents.items():
+        if set(found) == set(criteria) and all(normal(source, criteria[field])
+                                               for field, group in found.items() for source in group):
+            return dict(value='no', sources=sorted(source['selection_id'] for group in found.values() for source in group),
+                        reason=NORMAL_CBC, requires_confirmation=True, confirmation=NORMAL_CBC_CONFIRMATION,
+                        origin='knowledge_rule', knowledge_version=LAB_FINDINGS_VERSION,
+                        source_url=rule.get('source') or criteria['HEM05'].get('source'))
+    return None
