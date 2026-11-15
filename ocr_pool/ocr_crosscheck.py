@@ -6,7 +6,9 @@ number, the row is reported so the reviewer opens the source cell. Values are
 never changed here.
 """
 from collections import Counter, defaultdict
+from difflib import SequenceMatcher
 import re
+import unicodedata
 
 from .llm_row_anchors import label_key
 from .local_dates import _valid_lines
@@ -67,6 +69,40 @@ def _rank_disagreements(rows, lines, checked, min_confidence):
             if id(anchor) in paired and abs(paired[id(anchor)] - value) > 1e-9]
 
 
+def _loose_key(text):
+    """Fold Vietnamese marks and punctuation: OCR often misreads the marks only."""
+    plain = unicodedata.normalize('NFD', text or '')
+    plain = ''.join(c for c in plain if not unicodedata.combining(c)).casefold().replace('đ', 'd')
+    return re.sub(r'[^a-z0-9]+', '', plain)
+
+
+def _near_label(label, lines, loose):
+    """The one OCR line whose folded label nearly equals the API label, e.g. "Dinh luęng IgE".
+
+    Long labels only (8+ letters), similarity ≥ 0.9, and a single candidate,
+    so a short code never anchors to a different analyte.
+    """
+    key = _loose_key(label)
+    if len(key) < 8:
+        return None
+    if len(loose.get(key, ())) == 1:
+        return loose[key][0]
+    codes = _codes(label)
+    near = [line for line in lines if len(_loose_key(line['text'])) >= 8 and _codes(line['text']) == codes
+            and SequenceMatcher(None, key, _loose_key(line['text'])).ratio() >= .9]
+    return near[0] if len(near) == 1 else None
+
+
+def _codes(text):
+    """Analyte codes in a label (IgE, C3, KL-6): tokens with a capital or a digit.
+
+    They must match exactly; only the Vietnamese words around them may differ,
+    so "IgA" can never anchor an "IgE" row.
+    """
+    return sorted(_loose_key(token) for token in re.findall(r'[\w-]+', text or '')
+                  if re.search(r'\d', token) or re.search(r'[A-Z]', token[1:]) or (len(token) == 1 and token.isupper()))
+
+
 def number_disagreements(rows, scan, privacy, *, min_confidence=.9, label_confidence=.8):
     """Indexes of API rows whose number is absent from the same-row local OCR numbers.
 
@@ -88,12 +124,23 @@ def number_disagreements(rows, scan, privacy, *, min_confidence=.9, label_confid
         labels[label_key(line['text'])].append(line)
     counts = Counter(label_key(row.get('source_label')) for row in rows)
     checked = []
+    loose = defaultdict(list)
+    for line in lines:
+        loose[_loose_key(line['text'])].append(line)
     for index, row in enumerate(rows):
         value = _number(row.get('numeric_value'))
         key = label_key(row.get('source_label'))
-        if value is None or len(key) < 3 or counts[key] != 1 or len(labels[key]) != 1:
+        if value is None or len(key) < 3 or counts[key] != 1:
             continue
-        anchor = labels[key][0]
+        if len(labels[key]) == 1:
+            anchor = labels[key][0]
+        else:
+            # Tolerant anchors only for plain numeric results: "Negative (<2)" style
+            # cells carry bracketed numbers that pair poorly with a loose label.
+            plain = re.fullmatch(r'[<>≤≥]?\s*\d+(?:[.,]\d+)?', str(row.get('raw_result') or row.get('numeric_value') or '').strip())
+            anchor = None if labels[key] or not plain else _near_label(row.get('source_label'), lines, loose)
+            if anchor is None:
+                continue
         if (anchor.get('confidence') or 0) >= label_confidence:
             checked.append((index, value, anchor))
 

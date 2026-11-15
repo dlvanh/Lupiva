@@ -4,6 +4,7 @@ import hashlib
 import io
 import ipaddress
 import json
+import time
 from pathlib import Path
 import re
 import urllib.error
@@ -201,6 +202,19 @@ def tokenharbor_allowance_exhausted(error):
     return False
 
 
+TRANSIENT_CODES = {429, 500, 502, 503, 504}
+TRANSIENT_RETRIES = 3
+SLEEP = time.sleep
+
+
+def retry_delay(retry_after, attempt):
+    """Seconds to wait before retrying: the server's Retry-After (capped), else 5, 15, 45 s."""
+    try:
+        return min(60.0, max(0.0, float(retry_after)))
+    except (TypeError, ValueError):
+        return 5.0 * 3 ** attempt
+
+
 def request_json(config, payload, headers, schema, *, opener=None, timeout=300):
     name = API_NAMES[config.get('engine', 'gemini')]
     opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
@@ -215,8 +229,20 @@ def request_json(config, payload, headers, schema, *, opener=None, timeout=300):
             request_headers['Authorization'] = 'Bearer ' + key
         request = urllib.request.Request(config['endpoint'], data=data, headers=request_headers)
         try:
-            with opener.open(request, timeout=timeout) as response:
-                result = json.load(response)
+            result = None
+            for retry in range(TRANSIENT_RETRIES + 1):
+                try:
+                    with opener.open(request, timeout=timeout) as response:
+                        result = json.load(response)
+                    break
+                except urllib.error.HTTPError as error:
+                    # A rate limit or temporary outage is retried after a pause; an
+                    # exhausted free allowance moves to the next key instead.
+                    if (error.code not in TRANSIENT_CODES or retry == TRANSIENT_RETRIES
+                            or (fallback and error.code == 429 and not error.headers.get('Retry-After'))):
+                        raise
+                    error.close()
+                    SLEEP(retry_delay(error.headers.get('Retry-After') if error.headers else None, retry))
             break
         except urllib.error.HTTPError as error:
             with error:

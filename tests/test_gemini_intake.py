@@ -275,12 +275,24 @@ class GeminiIntakeTests(unittest.TestCase):
         self.assertEqual([r.get_header('Authorization') for r in requests],
                          ['Bearer first', 'Bearer second', 'Bearer second'])
         self.assertTrue(all(r.data == requests[0].data for r in requests))
-        opener.reset_mock()
-        opener.open.side_effect = HTTPError(config['endpoint'], 429, '', {'Retry-After': '20'},
-                                           io.BytesIO(b'{"error":"rate_limit_exceeded"}'))
-        with self.assertRaisesRegex(ValueError, 'HTTP 429'):
-            request_json(config, payload, headers, schema, opener=opener)
-        opener.open.assert_called_once()
+        # A rate limit with Retry-After is a pause, not an exhausted allowance:
+        # the same key is retried (no key switch) and the request fails after the retries.
+        import ocr_pool.gemini as gemini
+        waits = []
+        with patch.object(gemini, 'SLEEP', waits.append):
+            opener.reset_mock()
+            opener.open.side_effect = [HTTPError(config['endpoint'], 429, '', {'Retry-After': '20'},
+                                                 io.BytesIO(b'{"error":"rate_limit_exceeded"}')) for _ in range(4)]
+            with self.assertRaisesRegex(ValueError, 'HTTP 429'):
+                request_json(config, payload, headers, schema, opener=opener)
+            self.assertEqual(opener.open.call_count, 4)
+            self.assertEqual(waits, [20.0, 20.0, 20.0])
+            self.assertEqual({c.args[0].get_header('Authorization') for c in opener.open.call_args_list}, {'Bearer second'})
+            opener.reset_mock()
+            opener.open.side_effect = [HTTPError(config['endpoint'], 503, '', {}, io.BytesIO(b'')),
+                                       io.BytesIO(json.dumps(response).encode())]
+            self.assertEqual(request_json(config, payload, headers, schema, opener=opener)[0], {})
+            self.assertEqual(waits[-1], 5.0)
 
     def setup_config(self):
         (self.root/'.env').write_text('GEMINI_API_KEY=synthetic-secret\nGEMINI_MODEL=synthetic-model\nGEMINI_BASE_URL=http://localhost:8317\n')

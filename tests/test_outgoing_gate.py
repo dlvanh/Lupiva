@@ -82,6 +82,23 @@ class OcrNumberCrossCheckTests(unittest.TestCase):
         scan['lines'] = [l for l in scan['lines'] if l['text'] != '10 Negative']
         self.assertNotIn(0, number_disagreements(shifted, scan, privacy))
 
+    def test_label_with_misread_vietnamese_marks_still_anchors_but_codes_must_match(self):
+        from ocr_pool.ocr_crosscheck import number_disagreements
+        rows, scan, privacy = self.page(0)
+        names = ['Định lượng IgE (Immunoglobuline E)', 'Định lượng IgA (Immunoglobuline A)',
+                 'Định lượng IgG (Immunoglobuline G)', 'Định lượng IgM (Immunoglobuline M)',
+                 'Định lượng KL-6 (#)', 'Định lượng CRP (#)']
+        misread = ['Dinh luęng IgE (Immunoglobuline E)', 'Dinh luęng IgA (Immunoglobuline A)',
+                   'Dinh luçng IgG (Immunoglobuline G)', 'Dinh luęng IgM (Immunoglobuline M)',
+                   'Dinh lugng KL-6 (#)', 'Dinh luęng CRP (#)']
+        for row, name, ocr_line in zip(rows, names, scan['lines'][0::2]):
+            row['source_label'] = name; ocr_line['text'] = misread[names.index(name)]
+        self.assertEqual(number_disagreements(rows, scan, privacy), [])
+        rows[2]['numeric_value'] = '9'                 # IgG misread by the model
+        self.assertEqual(number_disagreements(rows, scan, privacy), [2])
+        scan['lines'][4]['text'] = 'Dinh luęng IgA (Immunoglobuline A)'   # IgG line now reads IgA
+        self.assertNotIn(2, number_disagreements(rows, scan, privacy))
+
     def test_label_read_with_slightly_lower_confidence_is_still_checked(self):
         from ocr_pool.ocr_crosscheck import number_disagreements
         rows, scan, privacy = self.page(9)

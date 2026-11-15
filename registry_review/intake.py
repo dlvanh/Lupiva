@@ -408,7 +408,13 @@ class IntakeManager:
                 return
             if self.live_process(job):return
             output=folder/job['output'];receipt=output/'result.json'
-            if not receipt.is_file():raise ValueError('OCR stopped without completed output; originals are retained')
+            if not receipt.is_file():
+                # Surface our own API failure message (never source text) when the run logged one.
+                logs=sorted(folder.glob('attempt-*.log'))
+                tail=logs[-1].read_text(encoding='utf-8',errors='replace')[-4000:] if logs else ''
+                reason=re.findall(r'[A-Za-z ]{0,40}API returned HTTP \d{3}',tail)
+                raise ValueError((reason[-1].strip()+'; ' if reason else 'OCR stopped without completed output; ')
+                                 +'originals are retained')
             result=read(receipt)
             if result.get('status')!='completed' or read(output/'workflow.json').get('status')!='completed':
                 raise ValueError('OCR did not complete')
