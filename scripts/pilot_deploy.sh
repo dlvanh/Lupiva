@@ -39,6 +39,10 @@ mkdir -p "$BACKUP"
 "$PY" -c "import sqlite3,sys;s=sqlite3.connect('pilot.sqlite');d=sqlite3.connect(sys.argv[1]);s.backup(d);d.close()" "$BACKUP/pilot.sqlite"
 tar czf "$BACKUP/code.tgz" ocr_pool registry_review registry_export registry_pool form_pool schemas scripts
 echo "backup: $BACKUP"
+# Rotate automatic backups (exact backup-YYYYMMDD-HHMMSS names only; labelled ones are kept).
+KEEP_BACKUPS=${KEEP_BACKUPS:-5}
+ls -1d "$(dirname "$PWD")"/backup-* 2>/dev/null | grep -E '/backup-[0-9]{8}-[0-9]{6}$' | sort -r \
+  | tail -n +$((KEEP_BACKUPS+1)) | while read -r old; do rm -rf -- "$old"; echo "removed old backup: $old"; done
 
 # Re-check right before replacing code: a submission may have arrived during backup.
 if busy; then echo "an intake started during backup; rerun the deploy" >&2; exit 4; fi
