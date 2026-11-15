@@ -9,7 +9,7 @@ import math
 import re
 import unicodedata
 
-VERSION = 'privacy-proposal-0.21'
+VERSION = 'privacy-proposal-0.22'
 IDENTITY = re.compile(
     r'\b(?:ho\s*(?:va\s*)?ten|ten benh nhan|patient\s*name|full\s*name|l\s*name|f\s*name|'
     r'ngay\s*sinh|date\s*of\s*birth|birth\s*date|dob|dia\s*chi|address|dien\s*thoai|phone|mobile|'
@@ -777,6 +777,38 @@ def _crop(lines, size):
     return [0, top, *size], 'detected_'+kind+'_table_header', None
 
 
+def _above_header(lines, crop, crop_reason, size):
+    """Mask every line whose centre lies above the table header inside the crop.
+
+    The crop starts a fixed margin above the header, so on a small or skewed photo
+    the row above it (often "Người nhận mẫu" with a name) falls inside. Rows above
+    the header never belong to the table, whatever OCR reads them as, so they are
+    masked without relying on the role label being read correctly. Heading words
+    of a skewed header row are kept. PFT crops keep their title rows on purpose.
+    """
+    kind = crop_reason.removeprefix('detected_').removesuffix('_table_header')
+    if kind not in {'lab', 'panel', 'sample'}:
+        return []
+    tops = [top for top, table in table_header_anchors(lines) if table == kind]
+    if not tops:
+        return []
+    header = min(tops)
+    headings = [pattern for _, full, wrapped in LAB_HEADINGS
+                for pattern in (full, *(wrapped or ()))]
+    masks = []
+    for line in lines:
+        box = line['box']
+        if not _overlap(box, crop) or _center(box)[1] >= header:
+            continue
+        label = fold(line['text']).strip(' .:')
+        if any(re.fullmatch(pattern, label) for pattern in headings):
+            continue
+        mask = expanded(box, size, pad=3)
+        mask[3] = min(mask[3], round(header))   # never into the header row itself
+        masks.append(dict(box=mask, reasons=['above_table_header'], line_id=line['line_id']))
+    return masks
+
+
 def _trim_to_text(crop, crop_reason, lines):
     """Cut the sides and bottom of a table crop back to the text local OCR detected.
 
@@ -1067,6 +1099,9 @@ def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
                 continue
             reviews.append(dict(code='unverified_barcode',box=code['box'],
                                 structural_assessment=code.get('structural_assessment','unknown')))
+    masks.extend(m for m in _above_header(lines,crop,crop_reason,size)
+                 if not any(_overlap(m['box'],o['box']) and o['box'][0]<=m['box'][0]+3 and o['box'][1]<=m['box'][1]+3
+                            and o['box'][2]>=m['box'][2]-3 and o['box'][3]>=m['box'][3]-3 for o in masks))
     footer_masks,footer_reviews=_unreadable_footer(lines,crop,crop_reason,masks,size,image)
     masks.extend(footer_masks);reviews.extend(footer_reviews)
     merged={}

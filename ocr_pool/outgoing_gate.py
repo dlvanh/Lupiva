@@ -3,7 +3,9 @@
 The crop/mask proposal can miss staff text when OCR misreads a role word.
 This gate re-reads the prepared (cropped and masked) bytes locally and
 blocks automatic sending when staff roles, titles or signature labels remain
-readable. Nothing here leaves the machine.
+readable, or when the re-read image still shows a date, an identity label, a
+phone number or an e-mail address (a mask that slipped on a skewed or
+compressed photo). Nothing here leaves the machine.
 """
 import io
 import re
@@ -12,7 +14,8 @@ from pathlib import Path
 from PIL import Image
 
 from .metadata import fold
-from .privacy_proposal import LAB_SIGNER, LAB_TECHNICIAN, SIGNATURE_LABEL, STAFF_ROLE, STAFF_TITLE
+from .privacy_proposal import (EMAIL, IDENTITY, LAB_SIGNER, LAB_TECHNICIAN, PHONE, SIGNATURE_LABEL,
+                               STAFF_ROLE, STAFF_TITLE, date_mentions)
 
 # Role phrases may follow other text on the same OCR line.
 ROLE_ANYWHERE = re.compile(r'(?<![a-z])' + STAFF_ROLE.pattern.lstrip('^'))
@@ -25,6 +28,17 @@ def staff_text(lines):
         text = fold(line.get('text') or '').strip()
         if (ROLE_ANYWHERE.search(text) or STAFF_TITLE.match(text) or SIGNATURE_LABEL.match(text)
                 or LAB_SIGNER.match(text) or LAB_TECHNICIAN.fullmatch(text)):
+            hits.append(line.get('text'))
+    return hits
+
+
+def identifying_text(lines):
+    """OCR line texts that still show a date, identity label, phone or e-mail."""
+    hits = []
+    for line in lines:
+        text = fold(line.get('text') or '').strip()
+        if (IDENTITY.search(text) or PHONE.search(text) or EMAIL.search(text)
+                or date_mentions(text, contextual=True)):
             hits.append(line.get('text'))
     return hits
 
@@ -55,7 +69,8 @@ def check_outgoing(body, privacy, scan, models):
             from .privacy_ocr import analyze
             with Image.open(io.BytesIO(body)) as image:
                 _, lines = analyze(image.convert('RGB'), Path(models))
-            return 'outgoing_ocr', staff_text(lines)
+            # Only a re-read of the masked pixels can tell a masked date from a visible one.
+            return 'outgoing_ocr', staff_text(lines) + identifying_text(lines)
         except Exception as error:  # an unreadable check must not silently pass
             return 'outgoing_ocr_failed', [f'local OCR failed: {type(error).__name__}']
     if scan is None:

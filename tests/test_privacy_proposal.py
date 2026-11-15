@@ -3,7 +3,7 @@ import importlib.util
 import io
 import unittest
 from PIL import Image, ImageDraw, ImageFont
-from ocr_pool.privacy_proposal import date_mentions, propose, render,collection_headers,outgoing_review_items
+from ocr_pool.privacy_proposal import _overlap, date_mentions, propose, render,collection_headers,outgoing_review_items
 from ocr_pool.privacy_geometry import vertical_segments, inspect_barcodes
 
 
@@ -187,7 +187,10 @@ class PrivacyProposalTests(unittest.TestCase):
         result = line(8,'7.58',[168,157,204,177])
         plan = propose([*header,staff,label,timestamp,result],[],[440,560])
         self.assertFalse(plan['review_items'])
-        self.assertEqual({m['line_id'] for m in plan['masks']},{5,7})
+        # Everything above the header row is administrative, so the label is masked too.
+        self.assertEqual({m['line_id'] for m in plan['masks']},{5,6,7})
+        for heading in header:
+            self.assertFalse(any(_overlap(m['box'],heading['box']) for m in plan['masks']))
         self.assertEqual(plan['dates_local'][0]['box'],timestamp['box'])
         ambiguous = propose([*header,staff,timestamp,result],[],[440,560])
         self.assertIn('date_without_context',{entry['code'] for entry in ambiguous['review_items']})
@@ -629,6 +632,22 @@ class PrivacyProposalTests(unittest.TestCase):
     def test_other_header_inside_column_rejects_wide_geometry(self):
         p=propose(specimen_lines(),[],(600,500),vertical_segments=[[140,90,140,355],[400,90,400,355]])
         self.assertFalse(any('collection_datetime_column' in m['reasons'] for m in p['masks']))
+
+    def test_rows_above_lab_header_are_masked_even_when_the_role_is_misread(self):
+        heads = [line(1,'Xét nghiệm',[35,125,135,151]),line(2,'Kết quả',[230,125,300,151]),
+                 line(3,'Đơn vị',[355,125,410,151]),line(4,'Khoảng tham chiếu',[450,125,610,151])]
+        rows = [line(5,'Ure',[40,195,100,220]),line(6,'5.6',[230,195,280,220])]
+        misread = line(7,'Nguo nhan mau CKl Ten Gia',[40,100,240,126])   # straddles the crop top
+        plan = propose([*heads,*rows,misread],[],(680,550))
+        self.assertEqual('detected_lab_table_header',plan['crop_reason'])
+        self.assertLess(plan['crop'][1],misread['box'][3])
+        self.assertIn('above_table_header',[r for m in plan['masks'] if m['line_id']==7 for r in m['reasons']])
+        for kept in [*heads,*rows]:
+            self.assertFalse(any(_overlap(m['box'],kept['box']) for m in plan['masks']))
+        # PFT crops keep their title rows above the column header.
+        pft = propose([line(1,'Spirometry',[40,125,275,150]),line(2,'Upper SD',[170,170,235,194]),
+                       line(3,'Pred.val.',[242,171,305,195]),line(4,'%Pre',[315,169,361,194])],[],(640,520))
+        self.assertFalse(any('above_table_header' in m['reasons'] for m in pft['masks']))
 
     def test_table_crop_stops_at_detected_text_but_keeps_every_detected_line(self):
         heads = [line(1,'Xét nghiệm',[235,125,335,151]),line(2,'Kết quả',[430,125,500,151]),

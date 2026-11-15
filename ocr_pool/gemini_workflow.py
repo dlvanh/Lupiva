@@ -525,7 +525,7 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                 blocked[doc['document_id']] = method
                 prepared[index] = None
         if blocked and all(body is None for body in prepared):
-            raise ValueError('Outgoing privacy check found staff text in every automatic image; '
+            raise ValueError('Outgoing privacy check found staff or identifying text in every automatic image; '
                              'review the crop and masks manually')
         stage('outgoing_privacy_check', 'completed');stage('gemini_extract', 'running')
         results=[];failed_documents={};(output/'api-responses').mkdir(exist_ok=True)

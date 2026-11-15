@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ocr_pool.outgoing_gate import check_outgoing, staff_text, visible_source_lines
+from ocr_pool.outgoing_gate import check_outgoing, identifying_text, staff_text, visible_source_lines
 
 
 def line(text, box):
@@ -20,6 +20,17 @@ class OutgoingGateTests(unittest.TestCase):
                  line('Basophil 0.6', [0, 0, 10, 10])]
         self.assertEqual(staff_text(lines), ['Ngròi nhận mẫu: CN. Tên Giả', 'Ths.BSNT Tên Giả Lập',
                                              '7:28 Người duyệt: Tên Giả'])
+
+    def test_dates_identity_and_contacts_left_on_the_outgoing_image_are_found(self):
+        lines = [line('16:01, Ngày 11 tháng 06 năm 2026', [0, 0, 10, 10]),
+                 line('Ngày nhận mẫu: 07/09/2026', [0, 0, 10, 10]),
+                 line('Họ tên: Tên Giả Lập', [0, 0, 10, 10]),
+                 line('ĐT: 0901234567', [0, 0, 10, 10]),
+                 line('Ferritin 11.0 - 306.8', [0, 0, 10, 10]),
+                 line('Trang 1/2', [0, 0, 10, 10]),
+                 line('Máu lắng 1/2 giờ 26 mm', [0, 0, 10, 10]),
+                 line('A01_071_011221_V', [0, 0, 10, 10])]
+        self.assertEqual(identifying_text(lines), [l['text'] for l in lines[:4]])
 
     def test_source_fallback_sees_edge_cut_lines_but_not_fully_masked_ones(self):
         privacy = dict(crop=[0, 100, 400, 400], masks=[[0, 300, 400, 340]])
