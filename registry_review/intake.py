@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from uuid import uuid4
 import warnings
 
@@ -23,6 +24,10 @@ ROOT=Path(__file__).resolve().parents[1]
 MAX_IMAGE=20*1024*1024
 MAX_BATCH=100*1024*1024
 MAX_FILES=50
+# One submission may not hold the queue longer than this (seconds).
+INTAKE_TIME_LIMIT=int(os.environ.get('LUPIVA_INTAKE_TIME_LIMIT','3600'))
+# A record with unclear launch state stops blocking once its workflow is idle this long.
+INTAKE_STALE_SECONDS=int(os.environ.get('LUPIVA_INTAKE_STALE_SECONDS','7200'))
 FORMATS={'JPEG':('.jpg','image/jpeg'),'PNG':('.png','image/png'),
          'TIFF':('.tif','image/tiff'),'BMP':('.bmp','image/bmp'),'WEBP':('.webp','image/webp')}
 DDL='''
@@ -299,6 +304,25 @@ class IntakeManager:
                         raise RuntimeError('Child launch state uncertain; inspect local process before recovery')
         return False
 
+    def may_be_running(self,job):
+        """A job needing attention blocks the queue only while a child process could still run.
+
+        Unclear launch state blocks until its saved workflow has been idle for
+        INTAKE_STALE_SECONDS, so a stuck record cannot hold the queue forever.
+        """
+        folder=self.path(job['job_id'])
+        workflow=[p for p in (folder/job.get('output','not-started')/'workflow.json',
+                              folder/job.get('output','not-started')/'workflow.json.tmp') if p.is_file()]
+        try:
+            if self.live_process(job):return True
+            # No live PID and a readable workflow record: the child has ended.
+            if workflow:return False
+        except Exception:
+            pass
+        # Launch state unknown: keep blocking until the saved files have been idle long enough.
+        stamps=[p.stat().st_mtime for p in (*workflow,folder/'manifest.json') if p.is_file()]
+        return not stamps or time.time()-max(stamps)<INTAKE_STALE_SECONDS
+
     def process(self,job):
         job_id=job['job_id'];folder=self.path(job_id)
         if job['status']=='queued':
@@ -337,14 +361,25 @@ class IntakeManager:
                     with store.atomic_batch():self.save(store,job)
                     raise
                 self.children[job_id]=child
-                job.update(status='processing',pid=child.pid,process_token=process_token(child.pid))
+                job.update(status='processing',pid=child.pid,process_token=process_token(child.pid),
+                           started_at_epoch=time.time())
                 with store.atomic_batch():self.save(store,job)
             finally:store.close()
         elif job['status']=='launching':
             raise RuntimeError('Launch state uncertain after restart; inspect local process before recovery')
         elif job['status']=='processing':
             child=self.children.get(job_id)
-            if child and child.poll() is None:return
+            if child and child.poll() is None:
+                # A hung API call must not hold the queue forever. Only our own
+                # child is stopped; originals stay so the submission can be rerun.
+                started=job.get('started_at_epoch')
+                if started and time.time()-started>INTAKE_TIME_LIMIT:
+                    child.terminate()
+                    try:child.wait(timeout=30)
+                    except subprocess.TimeoutExpired:child.kill();child.wait(timeout=30)
+                    raise ValueError('OCR exceeded the %d-minute limit and was stopped; originals are retained'
+                                     % (INTAKE_TIME_LIMIT//60))
+                return
             if self.live_process(job):return
             output=folder/job['output'];receipt=output/'result.json'
             if not receipt.is_file():raise ValueError('OCR stopped without completed output; originals are retained')
@@ -360,7 +395,7 @@ class IntakeManager:
                 jobs=[json.loads(r[0]) for r in store.db.execute('SELECT payload FROM patient_intakes ORDER BY rowid')]
             finally:store.close()
             active=next((j for j in jobs if j['status'] in {'launching','processing'}),None)
-            uncertain=any(j['status']=='needs_attention' for j in jobs)
+            uncertain=any(j['status']=='needs_attention' and self.may_be_running(j) for j in jobs)
             job=active or (None if uncertain else next((j for j in jobs if j['status']=='queued'),None))
             if job:
                 try:self.process(job)

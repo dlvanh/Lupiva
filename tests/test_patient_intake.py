@@ -215,6 +215,34 @@ class PatientIntakeTests(unittest.TestCase):
         with patch('registry_review.intake.process_token',return_value=None):
             self.assertFalse(self.manager.live_process(job))
 
+    def test_needs_attention_blocks_only_while_a_child_could_still_run(self):
+        job=self.uploaded();job.update(output='workflow-1')
+        folder=self.manager.path(job['job_id']);(folder/'workflow-1').mkdir(parents=True)
+        (folder/'manifest.json').write_text('{}',encoding='utf-8')
+        self.assertTrue(self.manager.may_be_running(job))            # launch state unknown, recent
+        with patch('registry_review.intake.INTAKE_STALE_SECONDS',0):
+            self.assertFalse(self.manager.may_be_running(job))       # unknown but long idle
+        state=dict(stages={'ocr':dict(attempts=[dict(status='running')])})
+        (folder/'workflow-1'/'workflow.json').write_text(json.dumps(state),encoding='utf-8')
+        self.assertTrue(self.manager.may_be_running(job))            # running attempt without PID
+        state['stages']['ocr']['attempts'][0].update(pid=os.getpid(),process_token='gone')
+        (folder/'workflow-1'/'workflow.json').write_text(json.dumps(state),encoding='utf-8')
+        with patch('registry_review.intake.process_token',return_value=None):
+            self.assertFalse(self.manager.may_be_running(job))       # recorded child has ended
+
+    def test_processing_child_past_time_limit_is_stopped(self):
+        from unittest.mock import Mock
+        job=self.uploaded();self.manager.close()
+        job.update(status='processing',output='workflow-1',started_at_epoch=time.time()-10)
+        child=Mock();child.poll.return_value=None
+        self.manager.children[job['job_id']]=child
+        with patch('registry_review.intake.INTAKE_TIME_LIMIT',5):
+            with self.assertRaisesRegex(ValueError,'limit'):self.manager.process(job)
+        child.terminate.assert_called_once()
+        job['started_at_epoch']=time.time()
+        self.manager.process(job)                                    # within limit: keep waiting
+        child.terminate.assert_called_once()
+
     def test_unknown_ocr_child_blocks_queue_with_needs_attention(self):
         first=self.uploaded(request='unknown-child');second=self.uploaded(request='queued-next');self.manager.close()
         folder=self.manager.path(first['job_id'])/'workflow-1';folder.mkdir()
