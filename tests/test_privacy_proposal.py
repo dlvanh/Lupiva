@@ -376,6 +376,23 @@ class PrivacyProposalTests(unittest.TestCase):
         p=propose([line(0,'CMV 0.375 COI',[20,100,200,130]),line(1,'C3 0.91 g/L',[20,150,200,180])],[],(500,500))
         self.assertEqual([],p['masks'])
 
+    def test_resident_and_academic_physician_titles_are_staff(self):
+        from ocr_pool.metadata import fold
+        from ocr_pool.privacy_proposal import STAFF_TITLE
+        for text in ('Ths.BSNT Tên Giả Lập', 'BSNT Tên Giả', 'PGS.TS.BS Tên Giả', 'BS.CK2 Tên Giả'):
+            self.assertTrue(STAFF_TITLE.match(fold(text)), text)
+        for text in ('BSA 1.7', 'Basophil 0.6', 'Bsl 12'):
+            self.assertFalse(STAFF_TITLE.match(fold(text)), text)
+        header = [line(1,'Chỉ định',[30,90,90,115]),line(2,'Kết quả',[170,90,233,115]),
+                  line(3,'Đơn vị',[260,90,305,115])]
+        image = Image.new('RGB',(400,650),'#dddddd')
+        ImageDraw.Draw(image).line([(240,290),(270,300),(300,285)],fill='#1838a2',width=4)
+        name = line(4,'Ths.BSNT Tên Giả Lập',[200,330,330,352])
+        plan = propose([*header,name],[],image.size,image=image)
+        masked = any(m.get('line_id') == 4 or 'staff_signature_footer' in m['reasons'] for m in plan['masks'])
+        reviewed = any('staff' in item['code'] for item in plan['review_items'])
+        self.assertTrue(masked or reviewed)
+
     def test_staff_names_are_masked_from_inline_and_adjacent_role_fields(self):
         items = [line(0,'Bác sĩ chỉ định: Nguyễn Văn An',[20,30,290,55]),
                  line(1,'Người lấy mẫu:',[20,76,150,99]),

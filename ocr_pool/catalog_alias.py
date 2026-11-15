@@ -7,6 +7,12 @@ from .layout_context import explicit_panel
 from .metadata import fold
 from .rules import RULES, key
 
+# Analyser codes printed at the end of Vietnamese CBC labels ("...hồng cầu-RDW-CV").
+CBC_CODE = re.compile(r'(?:^|-)\s*(RBC|HGB|HB|HCT|MCV|MCH|MCHC|RDW(?:\s*-\s*(?:CV|SD))?|PLT|MPV|PDW|PCT|P-LCR|WBC'
+                      r'|(?:NE|LY|MO|EO|BA)\s*[#%])\s*$', re.I)
+# CBC indices with no CRF field; an API row carrying one of these codes never fills a HEM field.
+NON_CRF_CBC = frozenset({'HCT', 'MCH', 'RDW', 'RDW-CV', 'RDW-SD', 'MPV', 'PDW', 'PCT', 'P-LCR'})
+
 
 class CatalogAliases:
     def __init__(self, dictionary):
@@ -42,8 +48,26 @@ class CatalogAliases:
                 variants.add(re.sub(r'\s+' + re.escape(fold(unit)) + r'\s*$', '', variant))
         return {key(variant) for variant in variants if key(variant)}
 
+    def cbc_code_mismatch(self, row):
+        """True when the printed analyser code ending a CBC label names another analyte."""
+        field = row.get('field_id') or ''
+        if not field.startswith('HEM') or field not in self.fields:
+            return False
+        match = CBC_CODE.search(row.get('source_label') or '')
+        if not match:
+            return False
+        code = re.sub(r'\s+', '', match[1]).upper()
+        if code in NON_CRF_CBC:
+            return True
+        if key(fold(code)) in self.forms(self.fields[field]['label']):
+            return False
+        mapped = self.match(dict(row, field_id=None, source_label=code), {})
+        return mapped is not None and mapped[0] != field
+
     def panel_mismatch(self, row):
-        """True when an API panel code (ANA/MYO) contradicts the printed antigen name."""
+        """True when an API panel code (ANA/MYO) or CBC analyser code contradicts the printed label."""
+        if self.cbc_code_mismatch(row):
+            return True
         field = row.get('field_id') or ''
         if not field.startswith(tuple(PANEL_CODES.values())) or field not in self.fields:
             return False

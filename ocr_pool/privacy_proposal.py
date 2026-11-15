@@ -30,7 +30,8 @@ STAFF_ROLE = re.compile(
     r'ky\s*thuat\s*vien|dieu\s*duong|nhan\s*vien|truong\s*khoa|phu\s*trach(?:\s*khoa)?|'
     r'(?:ordered|collected|received|performed|verified|approved|reviewed)\s*by|'
     r'ordering\s*(?:provider|physician)|technician|operator|physician|doctor)\s*(?::|：|$)')
-STAFF_TITLE = re.compile(r'^(?:(?:thss?|ts)\s*[.\s]+)?(?:bs(?:ck[12i]+)?|bac\s*s[iy]|dr)\s*(?:[.:]|\s)')
+# Academic prefixes (PGS/GS/ThS/TS) and physician grades (BSCK1/2, BSNT = resident).
+STAFF_TITLE = re.compile(r'^(?:(?:p?gs|thss?|ts)\s*[.\s]+)*(?:bs\s*\.?\s*(?:ck\s*[12i]+|nt)?|bac\s*s[iy]|dr)\s*(?:[.:]|\s)')
 LAB_SIGNER = re.compile(r'^ckt\s*[.:]\s*\S')
 LAB_TECHNICIAN = re.compile(r'^cn\s*\.\s*[^\W\d_]+(?:\s+[^\W\d_]+){1,5}$')
 SIGNATURE_LABEL = re.compile(r'^(?:chu\s*ky|ky\s*ten|da\s*ky|signature|signed\s*by|nguoi\s*ky)\b')

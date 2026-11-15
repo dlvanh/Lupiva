@@ -40,6 +40,18 @@ class CatalogAliasTests(unittest.TestCase):
                              ('ANA09', 'Mi-2α protein'), ('MYO15', 'cN-1A'), ('GI01', 'OJ')):
             self.assertFalse(self.aliases.panel_mismatch(dict(field_id=field, source_label=label)), label)
 
+    def test_cbc_analyser_code_contradicting_assigned_field_is_unmapped(self):
+        for field, label in (('HEM02', 'Nồng độ HGB trung bình hồng cầu-MCHC'), ('HEM03', 'Dải phân bố hồng cầu-RDW-CV'),
+                             ('HEM04', 'Dải phân bố hồng cầu-RDW-SD'), ('HEM04', 'Lượng HGB trung bình-MCH')):
+            self.assertTrue(self.aliases.panel_mismatch(dict(field_id=field, source_label=label, component='result')), label)
+        for field, label, component in (('HEM04', 'Nồng độ HGB trung bình hồng cầu-MCHC', 'result'),
+                                        ('HEM02', 'Huyết sắc tố-HGB', 'result'), ('HEM02', 'Hb', 'result'),
+                                        ('HEM03', 'Thể tích trung bình hồng cầu-MCV', 'result'),
+                                        ('HEM06', 'Bạch cầu trung tính-NE#', 'absolute_count'),
+                                        ('HEM01', 'Số lượng hồng cầu-RBC', 'result'), ('HEM05', 'WBC', 'result')):
+            self.assertFalse(self.aliases.panel_mismatch(dict(field_id=field, source_label=label, component=component)), label)
+        self.assertEqual(self.aliases.match(row('Nồng độ HGB trung bình hồng cầu-MCHC'), {}), ('HEM04', 'result'))
+
     def test_urine_cells_need_explicit_urine_context(self):
         urine = dict(qualitative_value='positive', numeric_value=None, raw_result='(+)')
         self.assertEqual(self.aliases.match(row('Bạch cầu:', warning='Urine WBC qualitative', **urine), {}),
