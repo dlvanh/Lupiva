@@ -236,11 +236,14 @@ def run(args, summary, client):
                     raise ValueError('Proposal does not match the UI privacy invariants')
             if job['status'] == 'completed' and plan is not None:
                 if (plan.get('sha256') != sha or plan.get('automatic') is not True
-                        or plan.get('reviewed') is not True or plan.get('proposal_id') != job['job_id']):
+                        or (plan.get('reviewed') is not True and plan.get('skip') is not True)
+                        or plan.get('proposal_id') != job['job_id']):
                     raise ValueError('Invalid automatic plan')
                 plans.append(plan)  # Exact server object; do not reconstruct it.
-                item['automatic_plan_present'] = True
+                item['automatic_plan_present'] = not plan.get('skip')
                 item['automatic_plan'] = plan
+                if plan.get('skip'):
+                    item['automatic_reference_only'] = True
             else:
                 item['blocking_reasons'].append(job.get('error') or 'No automatic plan; manual privacy review required')
                 plans.append({'sha256': sha, 'skip': True})

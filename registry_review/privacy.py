@@ -169,6 +169,9 @@ class PrivacyProposals:
                         and result['crop'][1] > 0 and result['review_count'] == 0):
                     automatic = {key: result[key] for key in ('sha256', 'crop', 'masks', 'mask_polygons')}
                     automatic.update(proposal_id=job_id, automatic=True, reviewed=True)
+                elif result['crop_reason'] == 'chart_only_page':
+                    # Plotted curves only: nothing to extract, so the image is never sent.
+                    automatic = dict(sha256=job['sha256'], skip=True, proposal_id=job_id, automatic=True)
                 with self.lock:
                     self.jobs[job_id].update(status='completed', proposal=result, automatic_plan=automatic)
             except Exception:

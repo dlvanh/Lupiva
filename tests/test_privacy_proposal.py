@@ -242,6 +242,57 @@ class PrivacyProposalTests(unittest.TestCase):
         plan=propose([*header,department,note,signer,page],[],[400,440])
         self.assertIn('staff_signature_needs_review',[r['code'] for r in plan['review_items']])
 
+    def test_signature_only_lab_page_masks_block_with_ocr_scribble(self):
+        header=[line(1,'Chỉ định',[30,90,90,115]),line(2,'Kết quả',[170,90,233,115]),
+                line(3,'Đơn vị',[260,90,305,115])]
+        department=line(4,'Khoa xét nghiệm',[210,140,315,158])
+        scribble=line(5,'as',[240,165,280,190],.8)
+        signer=line(6,'Ths.Bs. Tên Giả Lập',[200,198,320,218])
+        plan=propose([*header,department,scribble,signer],[],[400,640])
+        self.assertFalse(plan['review_items'])
+        self.assertIn('staff_signature_footer',[r for m in plan['masks'] for r in m['reasons']])
+        # Content below the block, or a confidently read word inside it, still needs review.
+        for extra in (line(7,'Ghi chú khác',[200,300,320,320]), {**scribble,'confidence':.95}):
+            lines=[*header,department,scribble,signer,extra] if extra['line_id']==7 else [*header,department,extra,signer]
+            plan=propose(lines,[],[400,640])
+            self.assertIn('staff_signature_needs_review',[r['code'] for r in plan['review_items']])
+
+    def test_clipped_heading_letters_still_form_a_lab_header(self):
+        lines=[line(1,'C DH',[30,90,90,115],.8),line(2,'KÉT QUÅ',[170,90,233,115],.84),
+               line(3,'DON V!',[260,90,305,115]),line(4,'QUY TRINH',[330,90,400,115]),
+               line(5,'THIÉT B',[420,90,480,115])]
+        self.assertEqual(propose(lines,[],[600,400])['crop_reason'],'detected_lab_table_header')
+
+    def test_undecoded_barcode_candidate_full_of_printed_text_is_a_table(self):
+        lines=[line(1,'Chỉ định',[30,90,90,115]),line(2,'Kết quả',[170,90,233,115]),
+               line(3,'Đơn vị',[260,90,305,115]),
+               *[line(10+k,f'Cellular row {k}',[40,200+40*k,200,225+40*k]) for k in range(3)]]
+        candidate=dict(box=[20,190,380,330],source='zxingcpp',decoded=False,valid=False)
+        plan=propose(lines,[candidate],[400,440])
+        self.assertNotIn('unverified_barcode',[r['code'] for r in plan['review_items']])
+        self.assertIn('barcode_candidate_is_text_table',[i['code'] for i in plan['ignored_items']])
+        plan=propose(lines[:4],[candidate],[400,440])              # a real code holds no words
+        self.assertIn('unverified_barcode',[r['code'] for r in plan['review_items']])
+
+    def test_unreadable_text_below_last_result_is_masked_or_reviewed(self):
+        header=[line(1,'Chỉ định',[30,90,90,115]),line(2,'Kết quả',[170,90,233,115]),
+                line(3,'Đơn vị',[260,90,305,115])]
+        rows=[line(4,'Creatinin',[30,130,120,150]),line(5,'72.1',[175,130,215,150])]
+        garbled=line(6,'n e yg y sesur',[150,250,300,270],.39)
+        plan=propose([*header,*rows,garbled],[],[400,440])
+        self.assertFalse(plan['review_items'])
+        self.assertIn('unreadable_footer_text',[r for m in plan['masks'] for r in m['reasons']])
+        legible=line(7,'Ghi chú rõ',[150,268,300,290])         # a mask would also cover readable text
+        plan=propose([*header,*rows,garbled,legible],[],[400,440])
+        self.assertIn('unreadable_text_needs_review',[r['code'] for r in plan['review_items']])
+
+    def test_chart_only_page_is_recognised_without_result_rows(self):
+        axes=[line(k,t,[100+200*k,50,180+200*k,80]) for k,t in enumerate(('Volume','Flow','Time'),1)]
+        ticks=[line(10+k,str(k),[60,100+30*k,80,120+30*k]) for k in range(5)]
+        self.assertEqual(propose([*axes,*ticks],[],[800,600])['crop_reason'],'chart_only_page')
+        self.assertNotEqual(propose([*axes,*ticks,line(30,'Creatinin',[100,400,300,430])],[],[800,600])
+                            ['crop_reason'],'chart_only_page')
+
     def test_lab_technician_stamp_requires_isolated_signature_below_department(self):
         header = [line(1,'Chỉ định',[30,90,90,115]),line(2,'Kết quả',[170,90,233,115]),
                   line(3,'Đơn vị',[260,90,305,115])]

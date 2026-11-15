@@ -3,14 +3,21 @@ import hashlib
 import math
 
 
-def text_ink_band(image, box):
-    """Tighten a loose OCR box only around a separated, unclipped text band."""
+def text_ink_band(image, box, *, ignore_pen=False):
+    """Tighten a loose OCR box only around a separated, unclipped text band.
+
+    With ``ignore_pen`` blue-pen strokes (a handwritten note) are not counted as text.
+    """
     if image is None:
         return None
     import cv2
     import numpy as np
     gray = cv2.cvtColor(np.asarray(image.crop(box).convert('RGB')),cv2.COLOR_RGB2GRAY)
     _, ink = cv2.threshold(gray,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    if ignore_pen:
+        rgb = np.asarray(image.crop(box).convert('RGB')).astype('int16')
+        pen = (rgb[...,2]-rgb[...,0] >= 13) & (rgb[...,2]-rgb[...,1] >= 4) & (rgb[...,0] < 205)
+        ink[pen] = 0
     # Long rules are not characters; a rule must not join neighboring rows.
     rules = cv2.morphologyEx(ink,cv2.MORPH_OPEN,np.ones((1,max(12,gray.shape[1]//2)),np.uint8))
     ink = cv2.subtract(ink,rules)
@@ -25,6 +32,18 @@ def text_ink_band(image, box):
         return None
     a,b = bands[0]
     return [box[0],int(box[1]+a),box[2],int(box[1]+b)]
+
+
+def blue_handwriting(image, box):
+    """True when most ink in the box is blue pen (callers also require a low OCR score)."""
+    if image is None or box[0] >= box[2] or box[1] >= box[3]:
+        return False
+    import numpy as np
+    rgb = np.asarray(image.crop(box).convert('RGB')).astype('int16')
+    red, green, blue = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    ink = rgb.sum(axis=2) < 3*150
+    pen = (blue-red >= 13) & (blue-green >= 4) & (red < 205)
+    return int(pen.sum()) >= 32 and int((ink & ~pen).sum()) <= .3*max(1, int((ink | pen).sum()))
 
 
 def blue_ink_bounds(image, region):

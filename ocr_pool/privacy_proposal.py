@@ -116,10 +116,14 @@ def _date_token_boxes(line, mentions, lines, size, image=None):
         pad = max(2,min(3,round(.10*_height(bounds))))
         mask = expanded(bounds,size,pad=pad)
         neighbors = [box for a,b,box,_ in tokens if b <= start or a >= end]
-        neighbors.extend(other['box'] for other in lines if other is not line)
+        # Part of a blue-pen note written across a printed date may be covered.
+        from .privacy_geometry import blue_handwriting
+        pen = [other for other in lines if other is not line and _overlap(other['box'],mask)
+               and (other.get('confidence') or 0) < .90 and blue_handwriting(image,other['box'])]
+        neighbors.extend(other['box'] for other in lines if other is not line and other not in pen)
         if any(_overlap(mask,other) for other in neighbors):
             from .privacy_geometry import text_ink_band
-            tight = text_ink_band(image,bounds)
+            tight = text_ink_band(image,bounds,ignore_pen=bool(pen))
             if not tight:
                 return None
             mask = expanded(tight,size,pad=pad)
@@ -232,12 +236,27 @@ def _lab_signed_block(anchor, lines, crop, *, technician=False):
                 and (line.get('confidence') or 0) >= .90
                 and 0 < y0-line['box'][3] < (5 if technician else 4)*height
                 and min(x1,line['box'][2]) > max(x0,line['box'][0])]
-    if len(headings) != 1 or (not technician and _center(anchor['box'])[1] < crop[1]+.55*(crop[3]-crop[1])):
+    if len(headings) != 1:
         return None
     left, top, right, heading_bottom = headings[0]
     region = [max(crop[0],min(left,x0)-2*height), heading_bottom,
               min(crop[2],max(right,x1)+2*height), min(crop[3],y1+height)]
+    # The block must be the page's last content: in the lower part of the crop,
+    # or with nothing printed below it across its width (a signature-only page).
+    last = not any(line['box'][1] >= y1 and _overlap(line['box'],[region[0],y1,region[2],crop[3]])
+                   and not PAGE_NUMBER.fullmatch(fold(line['text']).strip())
+                   for line in lines if line is not anchor)
+    if not technician and not last and _center(anchor['box'])[1] < crop[1]+.55*(crop[3]-crop[1]):
+        return None
     overlaps = [line for line in lines if line is not anchor and _overlap(line['box'],region)]
+    if not technician:
+        # Signature strokes OCR'd as 1-3 low-confidence characters between the
+        # department heading and the signer belong to the signature itself.
+        overlaps = [line for line in overlaps if not (
+            region[0] <= line['box'][0] < line['box'][2] <= region[2]
+            and heading_bottom <= line['box'][1] < line['box'][3] <= y0
+            and (line.get('confidence') or 0) < .85 and len(line['text'].strip()) <= 3
+            and not FOOTER_CLINICAL.search(fold(line['text'])))]
     # A printed page number just below the signer only bounds the block.
     pages = [line['box'][1] for line in overlaps
              if PAGE_NUMBER.fullmatch(fold(line['text']).strip()) and line['box'][1] >= y1]
@@ -396,11 +415,12 @@ LAB_HEADINGS = (
     ('result', r'(?:ket\s*qua|results?)', None),
     ('test', r'(?:chi\s*dinh|(?:ten\s*)?xet\s*nghiem|tests?(?:\s*name)?)',
      (r'(?:ten\s*)?xet', r'nghiem')),
-    ('unit', r'(?:don\s*vi|units?)', None),
+    # OCR often clips or garbles the last letter of a heading: "DON V!", "THIET B".
+    ('unit', r'(?:don\s*v[il1!|]?|units?)', None),
     ('reference', r'(?:(?:khoang\s*|gia\s*tri\s*)?tham\s*chieu|reference\s*(?:range|interval))',
-     (r'khoang', r'tham\s*chieu')),
+     (r'khoang(?:\s*tham)?', r'(?:tham\s*)?chieu')),
     ('procedure', r'(?:quy\s*trinh|procedure|method)', (r'quy', r'trinh')),
-    ('instrument', r'(?:thiet\s*bi|instrument)', (r'thiet', r'bi')),
+    ('instrument', r'(?:thiet\s*bi?|instrument)', (r'thiet', r'bi')),
 )
 
 
@@ -715,6 +735,23 @@ def _pft_crop_top(lines, top):
     return candidate
 
 
+CHART_AXIS = re.compile(r'(?:volume|flow|time|the\s*tich|luu\s*luong|thoi\s*gian)(?:\s*\([^)]*\))?')
+AXIS_TICK = re.compile(r'[-+]?\d+(?:[.,]\d+)?(?:\s+[-+]?\d+(?:[.,]\d+)?)*')
+
+
+def _chart_only_page(lines):
+    """A page of plotted curves (axis labels and ticks) without any result row.
+
+    Such a page is never sent: it is kept as a reference image automatically.
+    """
+    from .rules import resolve
+    clear = [line for line in lines if (line.get('confidence') or 0) >= .90]
+    axes = sum(bool(CHART_AXIS.fullmatch(fold(line['text']).strip(' .:'))) for line in clear)
+    ticks = sum(bool(AXIS_TICK.fullmatch(line['text'].strip())) for line in clear)
+    return (axes >= 3 and ticks >= .5*len(clear)
+            and not any(resolve(line['text'], {})[0] for line in lines))
+
+
 def _crop(lines, size):
     anchors = table_header_anchors(lines)
     if not anchors:
@@ -730,6 +767,8 @@ def _crop(lines, size):
             echo = _echo_measurement_crop(lines, size)
         if echo:
             return echo, 'detected_echo_report_sections', None
+        if _chart_only_page(lines):
+            return [0, 0, *size], 'chart_only_page', None
         return [0, 0, *size], 'no_reliable_result_header_keep_page', None
     top, kind=min(anchors)
     top = max(0, round(top)-16)
@@ -866,6 +905,46 @@ def _date_columns(lines, segments, size):
     return columns,concerns
 
 
+RESULT_VALUE = re.compile(r'[<>≤≥]?\s*\d+(?:[.,]\d+)?|positive|negative|am tinh|duong tinh')
+
+
+def _unreadable_footer(lines, crop, crop_reason, masks, size, image):
+    """Text below the last result that local OCR cannot read may be a signature or name.
+
+    Printed text without pen/stamp ink nearby is masked. Pen or stamp ink is
+    masked only when its full extent is found in clear space; otherwise review.
+    """
+    if not re.fullmatch(r'detected_\w+_table_header', crop_reason):
+        return [], []
+    values = [line['box'][3] for line in lines if _overlap(line['box'], crop)
+              and (line.get('confidence') or 0) >= .90 and RESULT_VALUE.fullmatch(fold(line['text']).strip())]
+    if not values:
+        return [], []
+    last = max(values)
+    found = [line for line in lines if _overlap(line['box'], crop) and line['box'][1] >= last
+             and (line.get('confidence') or 0) < .5 and len(line['text'].replace(' ', '')) >= 6
+             and not any(_overlap(line['box'], m['box']) for m in masks)]
+    new_masks, reviews = [], []
+    from .privacy_geometry import blue_ink_bounds
+    for line in found:
+        box = line['box']; height = _height(box)
+        window = [crop[0]+1, max(last+1, box[1]-3*height), crop[2]-1, min(crop[3]-1, box[3]+2*height)]
+        ink = blue_ink_bounds(image, window) if image is not None else None
+        pen = image is not None and _blue_ink_count(image, window) >= 32
+        if pen and not ink:
+            reviews.append(dict(code='unreadable_text_needs_review', box=box, line_ids=[line['line_id']]))
+            continue
+        bounds = box if not ink else [min(box[0], ink[0]), min(box[1], ink[1]), max(box[2], ink[2]), max(box[3], ink[3])]
+        mask = expanded(bounds, size, pad=max(3, round(.15*height)))
+        clear = [other for other in lines if other is not line and _overlap(other['box'], mask)
+                 and (other.get('confidence') or 0) >= .5]
+        if mask[1] <= last or clear:
+            reviews.append(dict(code='unreadable_text_needs_review', box=box, line_ids=[line['line_id']]))
+            continue
+        new_masks.append(dict(box=mask, reasons=['unreadable_footer_text'], line_id=line['line_id']))
+    return new_masks, reviews
+
+
 def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
     w,h=size
     for line in lines:
@@ -941,7 +1020,15 @@ def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
         covered=row if 'identity_label' in reasons else [line]
         box=[min(a['box'][0] for a in covered),min(a['box'][1] for a in covered),
              max(a['box'][2] for a in covered),max(a['box'][3] for a in covered)]
-        masks.append(dict(box=expanded(box,size),reasons=reasons,line_id=line['line_id']))
+        mask=expanded(box,size)
+        # Narrow the margin (never below 3 px) when the default one would cover
+        # a neighbouring line inside the crop, e.g. a result just above a date.
+        others=[other['box'] for other in lines if other not in covered and _overlap(other['box'],crop)
+                and not _overlap(other['box'],box)]
+        if any(_overlap(mask,other) for other in others):
+            mask=next((m for pad in (8,6,4,3) if not any(_overlap(m:=expanded(box,size,pad),other)
+                                                          for other in others)),mask)
+        masks.append(dict(box=mask,reasons=reasons,line_id=line['line_id']))
     trusted_boxes=[expanded(c['box'],size,16) for c in barcodes if isinstance(c,dict)
                    and c.get('decoded') is True and c.get('valid') is True and c.get('source')=='zxingcpp']
     for code in barcodes:
@@ -952,8 +1039,18 @@ def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
         else:
             a,b,c,d=code['box']
             if any(x<=a and y<=b and c<=u and d<=v for x,y,u,v in trusted_boxes):continue
+            # An undecoded "symbol" that holds several clearly printed text lines
+            # is a ruled table, not a barcode: real codes contain no words.
+            worded=[l for l in lines if a<=l['box'][0] and b<=l['box'][1] and l['box'][2]<=c and l['box'][3]<=d
+                    and (l.get('confidence') or 0)>=.90 and re.search(r'[^\W\d_]{3}',l['text'])]
+            if len(worded)>=3:
+                ignored.append(dict(code='barcode_candidate_is_text_table',box=code['box'],
+                                    line_ids=[l['line_id'] for l in worded]))
+                continue
             reviews.append(dict(code='unverified_barcode',box=code['box'],
                                 structural_assessment=code.get('structural_assessment','unknown')))
+    footer_masks,footer_reviews=_unreadable_footer(lines,crop,crop_reason,masks,size,image)
+    masks.extend(footer_masks);reviews.extend(footer_reviews)
     merged={}
     for m in masks:
         key=(tuple(m['box']),str(m.get('polygon')))

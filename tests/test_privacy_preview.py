@@ -107,6 +107,26 @@ class PreviewTests(unittest.TestCase):
                 finally:
                     manager.close()
 
+    def test_chart_only_page_is_automatically_kept_as_reference_and_never_sent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            def runner(path):
+                plan = synthetic_proposal(path)
+                plan.update(crop=[0, 0, *plan['size']], crop_reason='chart_only_page', review_items=[])
+                return plan
+            manager = PrivacyProposals(folder, runner=runner)
+            try:
+                body = source_bytes()
+                job = manager.create(body, hashlib.sha256(body).hexdigest())
+                plan = self.wait(manager, job['job_id'])['automatic_plan']
+                self.assertEqual((plan['skip'], plan['automatic']), (True, True))
+                self.assertNotIn('crop', plan)
+                manager.validate_intake_plans([plan])
+                self.assertIsNone(prepare_image(body, plan))
+                with self.assertRaises(ValueError):          # never the only image of an API intake
+                    privacy_plan([plan], 1)
+            finally:
+                manager.close()
+
     def test_unresolved_staff_blocks_automatic_plan_and_keeps_ocr_text_local(self):
         with tempfile.TemporaryDirectory() as folder:
             def runner(path):
