@@ -38,5 +38,33 @@ class OutgoingGateTests(unittest.TestCase):
         self.assertTrue(hits)
 
 
+class OcrNumberCrossCheckTests(unittest.TestCase):
+    def page(self, skew):
+        labels = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot']
+        values = ['3', '7', '1', '10', '2', '4']
+        lines = []
+        for k, (label, value) in enumerate(zip(labels, values)):
+            y = 100 + 30*k
+            lines.append(line(label, [20, y, 120, y+20]))
+            lines.append(line(f'{value} Negative', [200, y-skew, 300, y+20-skew]))
+        rows = [dict(source_label=label, numeric_value=value) for label, value in zip(labels, values)]
+        return rows, dict(plan=dict(size=[400, 400]), lines=lines), dict(crop=[0, 0, 400, 400], masks=[])
+
+    def test_disagreeing_number_is_reported_on_straight_and_slanted_pages(self):
+        from ocr_pool.ocr_crosscheck import number_disagreements
+        for skew in (0, 12):
+            rows, scan, privacy = self.page(skew)
+            self.assertEqual(number_disagreements(rows, scan, privacy), [], skew)
+            rows[3]['numeric_value'] = '0'          # model dropped a digit
+            self.assertEqual(number_disagreements(rows, scan, privacy), [3], skew)
+
+    def test_too_few_rows_are_not_judged(self):
+        from ocr_pool.ocr_crosscheck import number_disagreements
+        rows, scan, privacy = self.page(0)
+        rows, scan['lines'] = rows[:2], scan['lines'][:4]
+        rows[0]['numeric_value'] = '9'
+        self.assertEqual(number_disagreements(rows, scan, privacy), [])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -15,6 +15,7 @@ from .catalog_alias import CatalogAliases
 from .gemini import InvalidAPIResponse, configuration, privacy_plan, prepare_image, extract_image
 from .lab_api import extract_lab_image, lab_crop_evidence
 from .outgoing_gate import check_outgoing
+from .ocr_crosscheck import number_disagreements
 from .lab_reference_cells import attach_complement_ranges
 from .llm_extraction import VERSION as LLM_CONTRACT_VERSION, valid_row_box
 from .local_dates import local_date_evidence, local_metadata_evidence, observation_date, scan_source_dates, unmasked_crop_lines
@@ -283,6 +284,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
             return eid
         rows = result['extraction']['rows']
         class_outliers = _intensity_class_outliers(rows)
+        ocr_disagreements = set(result.get('ocr_number_disagreements', []))
         for n, row in enumerate(rows + local_findings):
             literal = _comparator_literal(row)
             if literal:
@@ -316,6 +318,8 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 flags.append('numeric_from_source_cell')
             if n in class_outliers:
                 flags.append('intensity_class_inconsistent_on_page')
+            if n in ocr_disagreements:
+                flags.append('ocr_number_disagrees')
             method = extraction_method
             if n >= len(rows):
                 method = 'local_ocr'
@@ -569,6 +573,9 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                         if (finding := helper(scan, doc['privacy'])) is not None]
             if findings:
                 result['local_report_findings'] = findings
+            if scan:
+                result['ocr_number_disagreements'] = number_disagreements(
+                    result['extraction']['rows'], scan, doc['privacy'])
             result.update(elapsed_seconds=round(time.monotonic()-start,3),outgoing_sha256=hashlib.sha256(body).hexdigest())
             if profiles:
                 result['fast_routing'] = routing
