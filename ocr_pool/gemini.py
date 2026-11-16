@@ -245,6 +245,12 @@ def request_json(config, payload, headers, schema, *, opener=None, timeout=300):
                         raise
                     error.close()
                     SLEEP(retry_delay(error.headers.get('Retry-After') if error.headers else None, retry))
+                except (TimeoutError, ConnectionError, urllib.error.URLError):
+                    # A dropped connection or timeout is transient too (HTTPError,
+                    # a URLError subclass, is handled by the clause above).
+                    if retry == TRANSIENT_RETRIES:
+                        raise
+                    SLEEP(retry_delay(None, retry))
             break
         except urllib.error.HTTPError as error:
             with error:

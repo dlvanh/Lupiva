@@ -363,7 +363,7 @@ function renderCrfScoreInputs(){
  const initial=crfView.review?.scores?.assessment;
  const ana=node('select');ana.id='crfScoreAna';options(ana,statusOptions,'Chưa xác nhận');
  ana.value=initial?.ana||'';ana.onchange=change;
- const day=node('input');day.id='crfScoreDate';day.type='date';day.value=initial?.date||'';
+ const day=node('input');day.id='crfScoreDate';day.type='date';day.value=initial?.date||crfView.score_default_date||'';
  day.onchange=()=>{
   for(const field of crfView.score_form.sledai)$('score-'+field.field_id).value='';
   crfScorePreview=null;change();

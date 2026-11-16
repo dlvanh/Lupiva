@@ -412,7 +412,7 @@ class IntakeManager:
                 # Surface our own API failure message (never source text) when the run logged one.
                 logs=sorted(folder.glob('attempt-*.log'))
                 tail=logs[-1].read_text(encoding='utf-8',errors='replace')[-4000:] if logs else ''
-                reason=re.findall(r'[A-Za-z ]{0,40}API returned HTTP \d{3}',tail)
+                reason=re.findall(r'[A-Za-z ]{0,40}API returned HTTP \d{3}|Cannot complete [A-Za-z ]{0,20}API request',tail)
                 raise ValueError((reason[-1].strip()+'; ' if reason else 'OCR stopped without completed output; ')
                                  +'originals are retained')
             result=read(receipt)

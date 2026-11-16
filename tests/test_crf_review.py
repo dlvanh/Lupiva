@@ -361,7 +361,12 @@ class CRFReviewTests(PatientWorkspaceTests):
                     break
                 time.sleep(.02)
         self.assertEqual(draft['job'], {'status': 'completed', 'count': 1})
-        proposed, = [f for f in draft['fields'] if f.get('proposal')]
+        proposed, = [f for f in draft['fields'] if f.get('proposal') and f['proposal'].get('origin') != 'no_evidence']
+        # Questions the documents cannot answer are drafted "Chưa rõ" with no evidence, never Có/Không.
+        unknown = [f for f in draft['fields'] if f.get('proposal', {}).get('origin') == 'no_evidence']
+        self.assertTrue(unknown)
+        self.assertTrue(all(f['proposal']['value'] == 'unknown' and not f['proposal']['sources'] for f in unknown))
+        self.assertFalse(any(f['slot'].split('/')[0][:3] in ('EAC', 'SDA') for f in unknown))
         self.assertEqual(proposed['slot'], target['slot'])
         selections = {direct['slot']: direct['options'][0]['id'], target['slot']: proposed['proposal']['id']}
         request = dict(case_id=case_id, source_snapshot=draft['source_snapshot'], draft_sha256=draft['draft_sha256'],

@@ -59,7 +59,7 @@ from registry_review.references import matched_references
 from registry_review.store import ReviewStore
 from registry_review.workspace import patient_workspace
 
-STATES=('reviewed','candidate','suggested','blocked','empty')
+STATES=('reviewed','candidate','suggested','blocked','empty','unknown')
 FILLED=STATES[:3]
 
 
@@ -96,11 +96,13 @@ def classify_slots(view,workspace,references,rules,finding_rules,lab_rules):
             state,missing='reviewed',[]
         elif any(option['sources'] for option in field['options']):
             state,missing='candidate',[]
-        elif field.get('proposal') or (component=='result' and fid in score_suggestions) or field['slot'] in lab_suggestions:
+        elif field.get('proposal') and field['proposal'].get('origin')!='no_evidence' or (component=='result' and fid in score_suggestions) or field['slot'] in lab_suggestions:
             state,missing='suggested',[]
         elif rule is not None:
             state='blocked'
             missing=lab_missing_inputs(rule,present_slots) if 'criteria' in rule else [f for f in rule['fields'] if f not in present]
+        elif field.get('proposal',{}).get('origin')=='no_evidence':
+            state,missing='unknown',[]       # drafted "Chưa rõ": the documents cannot answer it
         else:
             state,missing='empty',[]
         slots[field['slot']]=dict(field_id=fid,component=component,label=field['label'],

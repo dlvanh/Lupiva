@@ -329,6 +329,17 @@ class CRFReview:
         finding_proposals = form_finding_proposals(workspace, finding_rules)
         lab_proposals = lab_finding_proposals(workspace, references, lab_rules)
         proposals = {**lab_proposals, **finding_proposals}
+        # Score items: evaluate the score rules with a default assessment date (the
+        # latest source date) so EULAR/ACR and SLEDAI-2K evidence is drafted on the form.
+        sources = current_sources(workspace)
+        days = sorted(s['value']['source_date'][:10] for s in sources
+                      if s['kind'] == 'observation' and isinstance(s['value'].get('source_date'), str)
+                      and re.fullmatch(r'\d{4}-\d{2}-\d{2}', s['value']['source_date'][:10]))
+        score_date = days[-1] if days else None
+        score_report = evaluate_scores({'date': score_date} if score_date else {}, sources, references,
+                                       rules=load_knowledge(store.db))
+        for fid, suggestion in score_report['suggestions'].items():
+            proposals.setdefault(fid + '/result', dict(suggestion, origin='knowledge_rule'))
         for field in fields:
             slot = field['slot']
             field_id, component = slot.split('/', 1)
@@ -337,8 +348,16 @@ class CRFReview:
             proposal = proposals.get(slot)
             if proposal is None:
                 proposal = (draft or {}).get('suggestions', {}).get(slot)
-            if proposal and (field['eligible'] or (component == 'detail' and slot in lab_proposals)):
+            score_slot = field_id in SCORE_FIELDS and component == 'result' and not field['options']
+            if proposal and (field['eligible'] or score_slot or (component == 'detail' and slot in lab_proposals)):
                 field['proposal'] = dict(**proposal, id=digest(proposal))
+            elif (field['eligible'] and component == 'result' and field_id not in SCORE_FIELDS
+                  and 'unknown' in {choice['code'] for choice in field['choices']}):
+                # Test-data policy: a clinical question the submitted documents cannot
+                # answer is drafted as "Chưa rõ" (never Có/Không) for the reviewer.
+                unknown = dict(value='unknown', sources=[], origin='no_evidence', requires_confirmation=True,
+                               reason='Hồ sơ đã gửi không có dữ kiện cho câu hỏi này; chọn Có hoặc Không khi có thông tin.')
+                field['proposal'] = dict(**unknown, id=digest(unknown))
             if bmi and field['slot'] == bmi['slot'] and not field['options']:
                 field['proposal'] = dict(**bmi, id=digest(bmi))
         with self.lock:
@@ -364,6 +383,7 @@ class CRFReview:
             source_details[source['selection_id']] = detail
         return dict(fields=fields, sources=source_details, source_snapshot=snapshot,
                     layout=layout, score_form=assessment_form(dictionary, load_knowledge(store.db)),
+                    score_default_date=score_date,
                     draft_sha256=digest(draft), review=review, job=job, model=(draft or {}).get('model'),
                     model_counts=(draft or {}).get('counts'))
 
@@ -468,7 +488,7 @@ class CRFReview:
                 items.extend(dict(**option, origin='manual_crf') for option in field['manual_options'])
                 if field.get('proposal'):
                     proposal = field['proposal']
-                    items.append(proposal if proposal.get('origin') in {'calculated', 'knowledge_rule'} else
+                    items.append(proposal if proposal.get('origin') in {'calculated', 'knowledge_rule', 'no_evidence'} else
                                  dict(**proposal, origin='llm_suggestion', model=view['model']))
                 valid[field['slot']] = {item['id']: item for item in items}
             if any(not isinstance(value, str) or value not in valid.get(slot, {}) for slot, value in selections.items()):

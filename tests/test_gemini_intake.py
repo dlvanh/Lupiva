@@ -301,6 +301,9 @@ class GeminiIntakeTests(unittest.TestCase):
                                        io.BytesIO(json.dumps(response).encode())]
             self.assertEqual(request_json(config, payload, headers, schema, opener=opener)[0], {})
             self.assertEqual(waits[-1], 5.0)
+            opener.reset_mock()
+            opener.open.side_effect = [TimeoutError(), io.BytesIO(json.dumps(response).encode())]
+            self.assertEqual(request_json(config, payload, headers, schema, opener=opener)[0], {})
 
     def setup_config(self):
         (self.root/'.env').write_text('GEMINI_API_KEY=synthetic-secret\nGEMINI_MODEL=synthetic-model\nGEMINI_BASE_URL=http://localhost:8317\n')
