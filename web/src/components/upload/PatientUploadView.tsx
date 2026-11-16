@@ -39,7 +39,11 @@ interface PatientSubmissionDto {
   submittedAtIso: string;
 }
 
-export function PatientUploadView() {
+/**
+ * Image upload into the Python pipeline. Patients upload their own documents;
+ * a doctor (``embedded`` inside the submission list) uploads for a named patient.
+ */
+export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?: boolean; onSubmitted?: () => void } = {}) {
   const {
     language,
     currentUser,
@@ -147,8 +151,10 @@ export function PatientUploadView() {
     return () => controller.abort();
   }, [currentUser, trackerPage, trackerTick, copy.trackerErrorTitle]);
 
+  const [namedPatient, setNamedPatient] = useState("");
+  const forDoctor = currentUser?.role === "specialist";
   const patientName =
-    currentUser?.role === "patient" ? currentUser.name : "";
+    currentUser?.role === "patient" ? currentUser.name : namedPatient.trim();
 
   const addFiles = useCallback(
     (list: FileList | null) => {
@@ -240,17 +246,19 @@ export function PatientUploadView() {
         setValidationMessages([]);
         setTrackerPage(1);
         setTrackerTick((t) => t + 1);
+        setNamedPatient("");
+        onSubmitted?.();
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const Wrapper = embedded ? "section" : "main";
   return (
-    <main
-      id="main-content"
-      tabIndex={-1}
-      className="flex-1 py-10 focus:outline-none"
+    <Wrapper
+      {...(embedded ? {} : { id: "main-content", tabIndex: -1 })}
+      className={embedded ? "py-4" : "flex-1 py-10 focus:outline-none"}
     >
       <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6">
         {!authLoading && !currentUser && (
@@ -455,10 +463,23 @@ export function PatientUploadView() {
               </div>
             )}
 
+            {forDoctor && (
+              <label className="mt-5 block text-sm font-medium text-slate-700">
+                Tên bệnh nhân
+                <input
+                  type="text"
+                  required
+                  value={namedPatient}
+                  onChange={(event) => setNamedPatient(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="Họ tên bệnh nhân của bộ ảnh này"
+                />
+              </label>
+            )}
             <button
               type="submit"
               id="upload-btn-submit"
-              disabled={files.length === 0 || !currentUser || isSubmitting}
+              disabled={files.length === 0 || !currentUser || isSubmitting || (forDoctor && !patientName)}
               className="mt-5 min-h-11 w-full rounded-lg bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-2xs transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? copy.submittingBtn : copy.submitBtn}
@@ -679,6 +700,6 @@ export function PatientUploadView() {
           </div>
         )}
       </dialog>
-    </main>
+    </Wrapper>
   );
 }
