@@ -9,7 +9,7 @@ import { getLocalizedDemoUsers } from "@/data/translations";
 type AuthMode = "login" | "register";
 
 function resolveSafeRedirect(nextParam: string | null, role: UserRole): string {
-  const defaultRoute = role === "patient" ? "/upload" : "/ocr";
+  const defaultRoute = "/upload";
   if (!nextParam) return defaultRoute;
 
   const isSafeRelative =
@@ -22,7 +22,8 @@ function resolveSafeRedirect(nextParam: string | null, role: UserRole): string {
   const isSpecialistRoute =
     nextParam.startsWith("/ocr") ||
     nextParam.startsWith("/crf") ||
-    nextParam.startsWith("/scores");
+    nextParam.startsWith("/scores") ||
+    nextParam.startsWith("/registry");
 
   if (role === "patient" && isSpecialistRoute) {
     return "/upload";

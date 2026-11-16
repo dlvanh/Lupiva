@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { SpecialistOnly } from "@/lib/pageGuards";
+import { RetiredPage } from "@/lib/pageGuards";
 
-export default function SpecialistOnlyLayout({ children }: { children: ReactNode }) {
-  return <SpecialistOnly nextPath="/scores">{children}</SpecialistOnly>;
+/** Retired sample-data page: the single review step is /registry. */
+export default function RetiredLayout() {
+  return <RetiredPage nextPath="/upload" />;
 }

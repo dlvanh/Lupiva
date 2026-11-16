@@ -176,14 +176,12 @@ function DocumentsAndTreatmentsGrid({
 function PatientDossierCard({
   item,
   copy,
-  onOpenRoute,
   onOpenRegistry,
   onOpenDocument,
   onRetried,
 }: {
   item: ApiSubmissionItem;
   copy: UploadPageCopy["doctor"];
-  onOpenRoute: (patientId: string, route: "/ocr" | "/scores") => void;
   onOpenRegistry: (intakeId: string) => void;
   onOpenDocument: (patient: SleCrfPatientRecord, fileId: string) => void;
   onRetried: () => void;
@@ -282,26 +280,17 @@ function PatientDossierCard({
               {retrying ? "Đang gửi lại…" : "Gửi lại"}
             </button>
           )}
-          {approved && (
+          {item.pipelineIntakeId ? (
             <button
               type="button"
-              onClick={() => onOpenRoute(p.id, "/scores")}
-              className="min-h-9 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 cursor-pointer"
+              onClick={() => onOpenRegistry(item.pipelineIntakeId!)}
+              className="min-h-9 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition hover:bg-teal-800 cursor-pointer"
             >
-              {copy.viewScoresBtn}
+              {copy.reviewCrfBtn}
             </button>
+          ) : (
+            <span className="text-xs text-slate-500">Chưa có dữ liệu đọc từ ảnh</span>
           )}
-          <button
-            type="button"
-            onClick={() =>
-              item.pipelineIntakeId
-                ? onOpenRegistry(item.pipelineIntakeId)
-                : onOpenRoute(p.id, "/ocr")
-            }
-            className="min-h-9 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition hover:bg-teal-800 cursor-pointer"
-          >
-            {approved ? copy.reopenCrfBtn : copy.reviewCrfBtn}
-          </button>
         </div>
       </header>
 
@@ -450,7 +439,7 @@ function PatientDossierCard({
 
 export function DoctorSubmissionsView() {
   const router = useRouter();
-  const { language, setActiveCrfPatientId, mergeCrfPatientsFromApi } =
+  const { language, mergeCrfPatientsFromApi } =
     useLupiva();
   const isVi = language === "vi";
   const copy = getUploadPageCopy(language).doctor;
@@ -665,11 +654,6 @@ export function DoctorSubmissionsView() {
         behavior: reduceMotion ? "auto" : "smooth",
       });
     }
-  };
-
-  const openDoctorRoute = (patientId: string, route: "/ocr" | "/scores") => {
-    setActiveCrfPatientId(patientId);
-    router.push(route);
   };
 
   const openRegistry = (intakeId: string) => {
@@ -1253,7 +1237,6 @@ export function DoctorSubmissionsView() {
                 key={item.dbSubmissionId}
                 item={item}
                 copy={copy}
-                onOpenRoute={openDoctorRoute}
                 onOpenRegistry={openRegistry}
                 onOpenDocument={(patient, fileId) =>
                   setViewerTarget({ patient, fileId })

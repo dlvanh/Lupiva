@@ -427,7 +427,7 @@ export default function RegistryCrfPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6">
-      <h1 className="text-xl font-semibold text-slate-800">Phiếu CRF theo dữ liệu backend</h1>
+      <h1 className="text-xl font-semibold text-slate-800">Duyệt hồ sơ</h1>
       <p className="mt-1 text-sm text-slate-500">
         Giá trị đọc từ ảnh và đề xuất đều chờ bác sĩ duyệt. Không ô nào được chọn sẵn; bấm một ô để xem ảnh nguồn,
         tích từng ô hoặc dùng &quot;Tích cả mục&quot; sau khi đã đối chiếu.

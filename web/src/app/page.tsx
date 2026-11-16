@@ -67,7 +67,7 @@ export default function LandingPage() {
 
                 {isSpecialist && (
                   <Link
-                    href="/ocr"
+                    href="/upload"
                     id="hero-btn-launch-ocr"
                     className="inline-flex items-center gap-2 rounded-lg border border-teal-700/35 bg-teal-50 px-5 py-2.5 text-sm font-semibold text-teal-900 transition hover:bg-teal-100"
                   >
@@ -120,7 +120,7 @@ export default function LandingPage() {
             </p>
           </div>
           <Link
-            href={isSpecialist ? "/ocr" : "/upload"}
+            href={"/upload"}
             className="text-xs font-semibold text-teal-800 hover:underline"
           >
             {isSpecialist

@@ -64,9 +64,7 @@ export function Navbar() {
       ? [
           { href: "/", label: isVi ? "Tổng quan" : "Overview", id: "nav-link-home" },
           { href: "/upload", label: isVi ? "Hồ sơ Bệnh nhân" : "Patient Submissions", id: "nav-link-upload" },
-          { href: "/ocr", label: isVi ? "Duyệt OCR & e-CRF" : "OCR & e-CRF Review", id: "nav-link-ocr" },
-          { href: "/registry", label: isVi ? "CRF từ hồ sơ" : "Registry CRF", id: "nav-link-registry" },
-          { href: "/scores", label: isVi ? "Bảng điểm SLE" : "SLE Scores", id: "nav-link-scores" },
+          { href: "/registry", label: isVi ? "Duyệt hồ sơ" : "Review", id: "nav-link-registry" },
         ]
       : [
           { href: "/", label: isVi ? "Tổng quan" : "Overview", id: "nav-link-home" },
