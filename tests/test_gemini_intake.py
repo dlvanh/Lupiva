@@ -400,6 +400,35 @@ class GeminiIntakeTests(unittest.TestCase):
         with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),                 self.assertRaisesRegex(ValueError, 'time limit reached before any image'):
             run(dict(documents=docs), self.root/'deadline-none', self.root, extractor=extractor)
 
+    def test_unreachable_image_is_retried_without_failing_the_patient(self):
+        self.setup_config()
+        from ocr_pool.gemini import TransportError
+        docs = []
+        for name in ('ONE', 'TWO'):
+            source = self.root/(name+'.png'); body = image_bytes('unreachable-'+name); source.write_bytes(body)
+            checksum = hashlib.sha256(body).hexdigest()
+            docs.append(dict(document_id=name, input_path=source.name, input_sha256=checksum,
+                             privacy=dict(sha256=checksum, crop=[0,90,800,300], reviewed=True)))
+        calls = []
+        def flaky(*_):
+            calls.append(1)
+            if len(calls) == 1: raise TransportError('Cannot complete Gemini API request')
+            return result()
+        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)):
+            bundle = run(dict(documents=docs), self.root/'flaky-out', self.root, extractor=flaky)
+        self.assertEqual(len(calls), 3)               # ONE failed, TWO read, ONE retried
+        self.assertEqual(len(verify_bundle(bundle, DICTIONARY)['observations']), 2)
+        self.assertEqual(read(self.root/'flaky-out/api-health.json')['recovered_after_api_error'], 1)
+        # Still unreachable on the retry: only that image is reported.
+        def down_once_each(*args):
+            calls.append(args)
+            if len(calls) in (4, 6): raise TransportError('Cannot complete Gemini API request')
+            return result()
+        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)):
+            run(dict(documents=docs), self.root/'down-out', self.root, extractor=down_once_each)
+        issues = read(self.root/'down-out/candidate-pool.json')['issues']
+        self.assertEqual([i['document_id'] for i in issues if i['reason']=='api_extraction_failed'], ['ONE'])
+
     def test_request_respects_deadline_and_retries_a_timeout_once(self):
         import ocr_pool.gemini as gemini
         from ocr_pool.gemini import DeadlineReached

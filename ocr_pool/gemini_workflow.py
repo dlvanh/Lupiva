@@ -13,7 +13,7 @@ from PIL import Image
 from form_pool.sample_collection import extract_sample_collections, HEADERS
 from registry_pool.exchange import build_bundle
 from .catalog_alias import CatalogAliases
-from .gemini import DeadlineReached, InvalidAPIResponse, configuration, privacy_plan, prepare_image, extract_image
+from .gemini import DeadlineReached, InvalidAPIResponse, TransportError, configuration, privacy_plan, prepare_image, extract_image
 from .lab_api import extract_lab_image, lab_crop_evidence
 from .outgoing_gate import check_outgoing
 from .ocr_crosscheck import number_disagreements
@@ -470,6 +470,13 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
     config=configuration(workspace, model_override=model, engine=engine) if extractor is None else None
     if config is not None and deadline is not None:
         config['deadline']=float(deadline)   # absolute epoch: stop sending, keep finished images
+    fallback_config=None
+    if config is not None and config.get('fallback_engine'):
+        try:
+            fallback_config=configuration(workspace, engine=config['fallback_engine'])
+            if deadline is not None: fallback_config['deadline']=float(deadline)
+        except ValueError:
+            fallback_config=None          # an unconfigured fallback only means no second engine
     if config is not None:
         config['result_rules'] = load_result_rules(result_rules_db)
     profiles = []
@@ -531,7 +538,7 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
             raise ValueError('Outgoing privacy check found staff or identifying text in every automatic image; '
                              'review the crop and masks manually')
         stage('outgoing_privacy_check', 'completed');stage('gemini_extract', 'running')
-        results=[];failed_documents={};timed_out=[];(output/'api-responses').mkdir(exist_ok=True)
+        results=[];failed_documents={};timed_out=[];unreachable={};(output/'api-responses').mkdir(exist_ok=True)
         for index, (doc, body) in enumerate(zip(documents, prepared)):
             if body is None: results.append(None);continue
             if deadline is not None and time.time() >= float(deadline)-5:
@@ -541,11 +548,30 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                                     profiles, local_scans, failed_documents)
             except DeadlineReached:
                 timed_out.append(doc['document_id']);results.append(None);continue
+            except TransportError as error:
+                # One unreachable image must not discard the others; it is retried below.
+                unreachable[index]=str(error);results.append(None);continue
             results.append(result)
+        # Second pass for images whose API call failed: once more, on the fallback engine when configured.
+        for index, first_error in unreachable.items():
+            doc, body = documents[index], prepared[index]
+            retry_config = fallback_config or config
+            try:
+                result=_extract_one(index, doc, body, output, workspace, dictionary, retry_config, extractor,
+                                    [] if fallback_config else profiles, local_scans, failed_documents)
+            except DeadlineReached:
+                timed_out.append(doc['document_id']);continue
+            except TransportError as error:
+                failed_documents[doc['document_id']]=first_error+'; retry: '+str(error);continue
+            if result is not None:
+                result['api_retry_engine']=dict(engine=retry_config['engine'] if retry_config else 'test',
+                                                model=retry_config['model'] if retry_config else None,
+                                                first_error=first_error[:300])
+            results[index]=result
         # Per-run API health for the operator banner: counts and timings only.
         write(output/'api-health.json', dict(
             sent=sum(body is not None for body in prepared), failed=len(failed_documents),
-            not_sent_time_limit=len(timed_out),
+            not_sent_time_limit=len(timed_out), recovered_after_api_error=sum(1 for i in unreachable if results[i]),
             retried=sum(1 for r in results if r and r.get('api_retry')),
             seconds=[r['elapsed_seconds'] for r in results if r]))
         stage('gemini_extract', 'completed');stage('gemini_bundle','running')

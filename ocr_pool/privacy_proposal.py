@@ -9,7 +9,7 @@ import math
 import re
 import unicodedata
 
-VERSION = 'privacy-proposal-0.22'
+VERSION = 'privacy-proposal-0.23'
 IDENTITY = re.compile(
     r'\b(?:ho\s*(?:va\s*)?ten|ten benh nhan|patient\s*name|full\s*name|l\s*name|f\s*name|'
     r'ngay\s*sinh|date\s*of\s*birth|birth\s*date|dob|dia\s*chi|address|dien\s*thoai|phone|mobile|'
@@ -962,27 +962,34 @@ def _unreadable_footer(lines, crop, crop_reason, masks, size, image):
     """Text below the last result that local OCR cannot read may be a signature or name.
 
     Printed text without pen/stamp ink nearby is masked. Pen or stamp ink is
-    masked only when its full extent is found in clear space; otherwise review.
+    masked only when its full extent is found in clear space. Otherwise, when
+    the text and any ink around it lie wholly below the last result, the crop
+    ends above them (no result is lost); only text the crop cannot exclude
+    stays for review. Returns (masks, reviews, crop bottom or None).
     """
     if not re.fullmatch(r'detected_\w+_table_header', crop_reason):
-        return [], []
+        return [], [], None
     values = [line['box'][3] for line in lines if _overlap(line['box'], crop)
               and (line.get('confidence') or 0) >= .90 and RESULT_VALUE.fullmatch(fold(line['text']).strip())]
     if not values:
-        return [], []
+        return [], [], None
     last = max(values)
     found = [line for line in lines if _overlap(line['box'], crop) and line['box'][1] >= last
              and (line.get('confidence') or 0) < .5 and len(line['text'].replace(' ', '')) >= 6
              and not any(_overlap(line['box'], m['box']) for m in masks)]
-    new_masks, reviews = [], []
+    new_masks, reviews, cuts = [], [], []
     from .privacy_geometry import blue_ink_bounds
     for line in found:
         box = line['box']; height = _height(box)
         window = [crop[0]+1, max(last+1, box[1]-3*height), crop[2]-1, min(crop[3]-1, box[3]+2*height)]
         ink = blue_ink_bounds(image, window) if image is not None else None
         pen = image is not None and _blue_ink_count(image, window) >= 32
+        # Ink may reach up to the window top; the cut must clear it and the text.
+        top = min(box[1], ink[1] if ink else box[1], window[1] if pen and not ink else box[1])
+        cut = top - max(3, round(.15*height))
         if pen and not ink:
             reviews.append(dict(code='unreadable_text_needs_review', box=box, line_ids=[line['line_id']]))
+            if cut > last: cuts.append(cut)
             continue
         bounds = box if not ink else [min(box[0], ink[0]), min(box[1], ink[1]), max(box[2], ink[2]), max(box[3], ink[3])]
         mask = expanded(bounds, size, pad=max(3, round(.15*height)))
@@ -990,9 +997,13 @@ def _unreadable_footer(lines, crop, crop_reason, masks, size, image):
                  and (other.get('confidence') or 0) >= .5]
         if mask[1] <= last or clear:
             reviews.append(dict(code='unreadable_text_needs_review', box=box, line_ids=[line['line_id']]))
+            if cut > last: cuts.append(cut)
             continue
         new_masks.append(dict(box=mask, reasons=['unreadable_footer_text'], line_id=line['line_id']))
-    return new_masks, reviews
+    # One review the crop cannot exclude keeps the page for review; otherwise cut above them all.
+    if cuts and len(cuts) == len(reviews):
+        return new_masks, reviews, min(cuts)
+    return new_masks, reviews, None
 
 
 def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
@@ -1102,8 +1113,10 @@ def propose(lines, barcodes, size, *, vertical_segments=(), image=None):
     masks.extend(m for m in _above_header(lines,crop,crop_reason,size)
                  if not any(_overlap(m['box'],o['box']) and o['box'][0]<=m['box'][0]+3 and o['box'][1]<=m['box'][1]+3
                             and o['box'][2]>=m['box'][2]-3 and o['box'][3]>=m['box'][3]-3 for o in masks))
-    footer_masks,footer_reviews=_unreadable_footer(lines,crop,crop_reason,masks,size,image)
+    footer_masks,footer_reviews,footer_cut=_unreadable_footer(lines,crop,crop_reason,masks,size,image)
     masks.extend(footer_masks);reviews.extend(footer_reviews)
+    if footer_cut is not None and footer_cut < crop[3]:
+        crop=[crop[0],crop[1],crop[2],footer_cut]   # reviews below the cut resolve by crop below
     merged={}
     for m in masks:
         key=(tuple(m['box']),str(m.get('polygon')))

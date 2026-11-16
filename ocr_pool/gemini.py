@@ -54,6 +54,12 @@ def configuration(workspace, *, model_override=None, engine='gemini'):
         api = base if base.endswith('/v1') else base + '/v1'
         endpoint = api + '/chat/completions'
     config = dict(key=key, model=model, endpoint=endpoint, native=native, engine=engine)
+    # A slow provider gets a longer per-call wait; a hung call is cut and retried once.
+    try: config['request_timeout'] = max(30.0, min(600.0, float(values.get(prefix+'_TIMEOUT', ''))))
+    except ValueError: config['request_timeout'] = 240.0 if engine == 'tokenharbor' else 150.0
+    fallback = values.get(prefix+'_FALLBACK_ENGINE', '').strip().lower()
+    if fallback in API_NAMES and fallback != engine:
+        config['fallback_engine'] = fallback
     if engine == 'tokenharbor':
         backups = tuple(dict.fromkeys(k.strip() for k in values.get('TOKENHARBOR_FALLBACK_API_KEYS', '').split(',')
                                       if k.strip() and k.strip() != key))
@@ -210,6 +216,10 @@ SLEEP = time.sleep
 CLOCK = time.time
 
 
+class TransportError(ValueError):
+    """The API could not be reached or refused the request; the caller may isolate one image."""
+
+
 class DeadlineReached(ValueError):
     """The run's time budget is spent; the caller keeps what already finished."""
 
@@ -233,6 +243,7 @@ def retry_delay(retry_after, attempt):
 
 
 def request_json(config, payload, headers, schema, *, opener=None, timeout=240):
+    timeout = config.get('request_timeout', timeout)
     name = API_NAMES[config.get('engine', 'gemini')]
     opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
@@ -282,16 +293,16 @@ def request_json(config, payload, headers, schema, *, opener=None, timeout=240):
                     continue
                 if fallback and error.code in {402, 429}:
                     continue                    # rate limited or unpaid: try the next key
-            raise ValueError(f'{name} API returned HTTP {error.code}; originals and privacy selections are retained') from None
+            raise TransportError(f'{name} API returned HTTP {error.code}; originals and privacy selections are retained') from None
         except DeadlineReached:
             raise
         except Exception:
-            raise ValueError(f'Cannot complete {name} API request; check the server connection and configuration') from None
+            raise TransportError(f'Cannot complete {name} API request; check the server connection and configuration') from None
     else:
         if last_code in {402, 429}:
-            raise ValueError(f'{name} API returned HTTP {last_code} for every configured key; '
+            raise TransportError(f'{name} API returned HTTP {last_code} for every configured key; '
                              'originals and privacy selections are retained')
-        raise ValueError('Token Harbor free allowance exhausted for all configured keys; originals and privacy selections are retained')
+        raise TransportError('Token Harbor free allowance exhausted for all configured keys; originals and privacy selections are retained')
     phase = 'response envelope'
     finish = None
     usage = None

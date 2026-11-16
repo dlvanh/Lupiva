@@ -288,6 +288,15 @@ class PrivacyProposalTests(unittest.TestCase):
         self.assertIn('unreadable_footer_text',[r for m in plan['masks'] for r in m['reasons']])
         legible=line(7,'Ghi chú rõ',[150,268,300,290])         # a mask would also cover readable text
         plan=propose([*header,*rows,garbled,legible],[],[400,440])
+        # Wholly below the last result: the crop ends above it instead of asking for review.
+        self.assertFalse(plan['review_items'])
+        self.assertIn('unreadable_text_needs_review',[r['code'] for r in plan['resolved_by_crop']])
+        self.assertLess(plan['crop'][3],250)
+        self.assertGreater(plan['crop'][3],150)
+        # Unreadable text right under the last result cannot be cut away: it stays for review.
+        close=line(6,'n e yg y sesur',[150,152,300,170],.39)
+        touching=line(7,'Ghi chú rõ',[150,166,300,186])
+        plan=propose([*header,*rows,close,touching],[],[400,440])
         self.assertIn('unreadable_text_needs_review',[r['code'] for r in plan['review_items']])
 
     def test_chart_only_page_is_recognised_without_result_rows(self):
