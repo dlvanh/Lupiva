@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approvedCriteria, cellKey, placeFields, shownNote, shownValue, type LayoutBlock } from "@/lib/crfForm";
+import { approvedCriteria, cellKey, fillTemplateLine, placeFields, shownNote, shownValue, type LayoutBlock } from "@/lib/crfForm";
 import type { CrfField } from "@/lib/crfApproval";
 
 const YNU = [
@@ -74,5 +74,24 @@ describe("approvedCriteria", () => {
       "SDA01/result": { value: "unknown" },
     };
     expect(approvedCriteria(form, approved)).toEqual({ EAC01: "yes", SDA23: "no" });
+  });
+});
+
+describe("fillTemplateLine", () => {
+  const gender = field({ slot: "ADM03/result", label: "Gender: Female / Male", choices: [{ code: "female", label: "Female" }, { code: "male", label: "Male" }] });
+  const age = field({ slot: "ADM02/result", label: "Age" });
+  const bmi = field({ slot: "ADM07/result", label: "BMI" });
+  const shown = (text: string, value = text) => ({ text, value, kind: "source" as const });
+
+  it("ticks the chosen option on its own line", () => {
+    expect(fillTemplateLine("Gender\t\t☐  Female\t☐  Male", gender, shown("Female", "female"))).toBe("Gender\t\t☑  Female\t☐  Male");
+  });
+  it("writes a value over digit boxes or an empty label", () => {
+    expect(fillTemplateLine("Age: ☐ ☐ ", age, shown("36"))).toBe("Age: 36 ");
+    expect(fillTemplateLine("BMI:", bmi, shown("21.1"))).toBe("BMI: 21.1");
+  });
+  it("leaves other lines and unknown options alone", () => {
+    expect(fillTemplateLine("Study ID: ☐ ☐", age, shown("36"))).toBeNull();
+    expect(fillTemplateLine("Gender\t☐  Female\t☐  Male", gender, shown("Other"))).toBeNull();
   });
 });

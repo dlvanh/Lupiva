@@ -187,6 +187,39 @@ export function placeFields(
   return placement;
 }
 
+/**
+ * Fill one printed template line with a field's answer: tick the matching
+ * "☐ Option" or write the value over the placeholder ("☐ ☐", "……"). Returns
+ * null when the line is not this field's line or has nowhere to put the value.
+ */
+export function fillTemplateLine(line: string, field: CrfField, shown: Shown): string | null {
+  const prefix = line.split(/[:	☐]/)[0];
+  if (!labelKeys(field).has(norm(prefix))) return null;
+  const head = line.slice(0, prefix.length);
+  const rest = line.slice(prefix.length);
+  if (rest.includes("☐")) {
+    const wanted = new Set([norm(shown.text), norm(shown.value)]);
+    let ticked = false;
+    const filled = rest.replace(/☐(\s*)([^☐	]+)/g, (whole, space: string, word: string) => {
+      if (!ticked && wanted.has(norm(word))) {
+        ticked = true;
+        return `☑${space}${word}`;
+      }
+      return whole;
+    });
+    if (ticked) return head + filled;
+    if (!/☐\s*[A-Za-zÀ-ỹ]/.test(rest)) {
+      // Boxes are digit cells ("Age: ☐ ☐"), not options: write the value over them.
+      return head + rest.replace(/(?:☐[\s\-./]*)+/, `${shown.text} `);
+    }
+    return null;
+  }
+  const placeholder = /[.…_]{3,}/;
+  if (placeholder.test(rest)) return head + rest.replace(placeholder, shown.text);
+  if (/^\s*:?\s*$/.test(rest)) return `${head}${rest.trimEnd()} ${shown.text}`;
+  return null;
+}
+
 /** Score criteria answered yes/no by an approved value (for /api/crf/scores). */
 export function approvedCriteria(
   form: Record<string, { field_id: string }[]> | undefined,

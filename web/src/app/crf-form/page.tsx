@@ -16,6 +16,7 @@ import type { CrfViewWithSources } from "@/lib/crfEvidence";
 import {
   approvedCriteria,
   cellKey,
+  fillTemplateLine,
   placeFields,
   shownNote,
   shownValue,
@@ -207,10 +208,42 @@ export default function CrfFormPage() {
     if (placement?.ticks.has(k)) return "☑";
     if (cell.checkbox_slot) return <Checkboxes spec={cell} shown={shownFor(cell.checkbox_slot)} />;
     if (cell.field_id) return placed.length ? renderFields(placed) : null;
+    if (placement?.cleared.has(k)) return <div>{renderFields(placed)}</div>;
+    // Write each answer on the template line that prints its label (tick or fill the blanks);
+    // only fields whose line cannot take the value are listed under the cell.
+    const used = new Set<string>();
+    const lines = cell.text.split("\n").map((line, index) => {
+      for (const field of placed) {
+        if (used.has(field.slot)) continue;
+        const shown = shownValue(field, approved);
+        const filled = shown ? fillTemplateLine(line, field, shown) : null;
+        if (filled !== null && shown) {
+          used.add(field.slot);
+          return (
+            <div key={index} className="whitespace-pre-wrap">
+              <Link
+                href={`/registry?case=${encodeURIComponent(caseId)}&slot=${encodeURIComponent(field.slot)}`}
+                className="hover:underline"
+                title="Mở ô này ở Duyệt hồ sơ"
+              >
+                {filled}
+              </Link>
+              <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]}`}>({shownNote(shown)})</span>
+            </div>
+          );
+        }
+      }
+      return (
+        <div key={index} className="whitespace-pre-wrap">
+          {line}
+        </div>
+      );
+    });
+    const rest = placed.filter((field) => !used.has(field.slot));
     return (
       <>
-        {!placement?.cleared.has(k) && <span className="whitespace-pre-line">{cell.text}</span>}
-        {placed.length > 0 && <div>{renderFields(placed)}</div>}
+        {lines}
+        {rest.length > 0 && <div>{renderFields(rest)}</div>}
       </>
     );
   };
