@@ -182,3 +182,39 @@ class PreviewTests(unittest.TestCase):
                 self.assertEqual(request('/api/summary')[1]['cases'],[])
             finally:
                 gate.set();server.shutdown();server.server_close();thread.join(3)
+
+
+class TestAutoSendFlag(unittest.TestCase):
+    """LUPIVA_TEST_AUTO_SEND: test data only; off unless set to exactly 1."""
+
+    def summary(self, **over):
+        base = dict(sha256='a'*64, crop=[0, 120, 800, 900], masks=[], mask_polygons=[],
+                    crop_reason='needs_manual_selection', review_count=2)
+        base.update(over)
+        return base
+
+    def test_review_page_waits_unless_forced(self):
+        from registry_review.privacy import automatic_plan
+        self.assertIsNone(automatic_plan(self.summary(), 'privacy-x'))
+        forced = automatic_plan(self.summary(), 'privacy-x', force=True)
+        self.assertEqual(forced['crop'], [0, 120, 800, 900])
+        self.assertTrue(forced['automatic'] and forced['reviewed'] and forced['forced_test_send'])
+        chart = automatic_plan(self.summary(crop_reason='chart_only_page'), 'privacy-x', force=True)
+        self.assertTrue(chart['skip'])
+
+    def test_flag_reads_environment_then_env_file(self):
+        import os, tempfile
+        from pathlib import Path
+        from unittest import mock
+        from registry_review.privacy import test_auto_send
+        with tempfile.TemporaryDirectory() as folder:
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop('LUPIVA_TEST_AUTO_SEND', None)
+                self.assertFalse(test_auto_send(folder))
+                Path(folder, '.env').write_text('GEMINI_MODEL=x\nLUPIVA_TEST_AUTO_SEND=1\n', encoding='utf-8')
+                self.assertTrue(test_auto_send(folder))
+                Path(folder, '.env').write_text('LUPIVA_TEST_AUTO_SEND=true\n', encoding='utf-8')
+                self.assertFalse(test_auto_send(folder))
+            with mock.patch.dict(os.environ, {'LUPIVA_TEST_AUTO_SEND': '0'}):
+                Path(folder, '.env').write_text('LUPIVA_TEST_AUTO_SEND=1\n', encoding='utf-8')
+                self.assertFalse(test_auto_send(folder))

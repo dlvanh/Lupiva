@@ -36,8 +36,32 @@ def proposal_summary(plan, sha256, size):
         reviewed=False, outbound_allowed=False)
 
 
-def automatic_plan(result, proposal_id):
-    """The plan an image is sent with unreviewed, or None when a person must review it."""
+def test_auto_send(workspace):
+    """LUPIVA_TEST_AUTO_SEND=1 (environment or the workspace .env): test data only.
+
+    Every image is sent with its proposed crop and masks even when the proposal asks
+    for a person to review it, and the final outgoing OCR gate records instead of blocks.
+    """
+    if os.environ.get('LUPIVA_TEST_AUTO_SEND') is not None:
+        return os.environ['LUPIVA_TEST_AUTO_SEND'].strip() == '1'
+    path = Path(workspace) / '.env'
+    try:
+        lines = path.read_text(encoding='utf-8-sig').splitlines()
+    except OSError:
+        return False
+    for line in lines:
+        name, _, value = line.strip().partition('=')
+        if name.strip() == 'LUPIVA_TEST_AUTO_SEND':
+            return value.strip().strip('"').strip("'") == '1'
+    return False
+
+
+def automatic_plan(result, proposal_id, *, force=False):
+    """The plan an image is sent with unreviewed, or None when a person must review it.
+
+    ``force`` (test data only, see ``test_auto_send``) sends the proposed crop and masks
+    of a page that would otherwise wait for review; chart-only pages are still skipped.
+    """
     if ((re.fullmatch(r'detected_\w+_table_header', result['crop_reason']) or result['crop_reason'] in AUTOMATIC_SECTIONS)
             and result['crop'][1] > 0 and result['review_count'] == 0):
         automatic = {key: result[key] for key in ('sha256', 'crop', 'masks', 'mask_polygons')}
@@ -46,6 +70,10 @@ def automatic_plan(result, proposal_id):
     if result['crop_reason'] == 'chart_only_page':
         # Plotted curves only: nothing to extract, so the image is never sent.
         return dict(sha256=result['sha256'], skip=True, proposal_id=proposal_id, automatic=True)
+    if force:
+        automatic = {key: result[key] for key in ('sha256', 'crop', 'masks', 'mask_polygons')}
+        automatic.update(proposal_id=proposal_id, automatic=True, reviewed=True, forced_test_send=True)
+        return automatic
     return None
 
 
@@ -181,7 +209,7 @@ class PrivacyProposals:
                     raise ValueError('Proposal does not match the source image')
                 result = proposal_summary(plan, job['sha256'], job['size'])
                 result['tokenharbor_route'] = self.route_preview(folder, result)
-                automatic = automatic_plan(result, job_id)
+                automatic = automatic_plan(result, job_id, force=test_auto_send(self.workspace))
                 with self.lock:
                     self.jobs[job_id].update(status='completed', proposal=result, automatic_plan=automatic)
             except Exception:

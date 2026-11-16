@@ -568,7 +568,10 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                         write(output/'local-ocr'/f'image-{index+1:03}-outgoing-check.json',
                               dict(method=method, blocked=bool(hits), hit_count=len(hits), result_cells=cells,
                                    result_header=result_table_header(seen) if method == 'outgoing_ocr' else None))
-                        if hits:
+                        if hits and doc['privacy'].get('forced_test_send'):
+                            # Test-data mode: the gate's findings are kept, the image is still sent.
+                            write(output/'local-ocr'/f'image-{index+1:03}-forced-send.json', dict(hit_count=len(hits)))
+                        elif hits:
                             blocked[did] = method
                             prepared[index] = None
                             continue
