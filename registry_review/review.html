@@ -23,6 +23,7 @@ header{padding:14px 30px}header h1{font-size:22px;margin:0}.top{padding:12px 30p
 @media print{body.crf-print{background:white;color:black}body.crf-print>:not(main),body.crf-print main>:not(#registryExports),body.crf-print #registryExports>:not(#patientData),body.crf-print #patientData>:not(#patientTitle):not(#crfPanel),body.crf-print #crfPanel>:not(#crfFields),body.crf-print .crf-evidence,body.crf-print .crf-field input,body.crf-print .crf-field .notice{display:none!important}body.crf-print main,body.crf-print #registryExports,body.crf-print #crfPanel,body.crf-print .crf-paper{display:block;margin:0;padding:0;border:0;overflow:visible}body.crf-print .crf-print-value{display:block;white-space:pre-wrap}body.crf-print tr{break-inside:avoid}body.crf-print h4{break-after:avoid}body.crf-print #patientTitle{margin-bottom:12px}}
 @media print{.crf-print .crf-score-editor,.crf-print .crf-template-choice{display:none!important}.crf-print .crf-print-choice{display:inline}}
 select.crf-suggested{border:1px dashed #b7791f;background:#fffbeb;font-style:italic}
+@media print{.crf-print .crf-field select,.crf-print .crf-field .tick,.crf-print .crf-field details{display:none!important}.crf-print #crfFields{display:flex!important;flex-direction:column}.crf-print .crf-draft-mark{display:block;order:-1;font-weight:bold;border:1px solid #000;padding:4px 8px;margin-bottom:8px}}
 </style>
 <header><h1>Hồ sơ bệnh nhân</h1></header>
 <div class="top">
@@ -515,13 +516,18 @@ function renderCrf(){
     else crfSelections.delete(field.slot);renderCrf()};
    const label=node('label',undefined,'tick crf-template-choice');
    label.append(mark,node('span',text));target.append(label);
-   if(reviewed)target.append(node('span',(checked?'☑ ':'☐ ')+text,'crf-print-value crf-print-choice'));
+   // Printed as the CRF: the reviewed value, else the current selection, else the proposal.
+   const printed=checked||(!reviewed&&!selected&&field.proposal?.value===code);
+   target.append(node('span',(printed?'☑ ':'☐ ')+text,'crf-print-value crf-print-choice'));
   }
   if(!inlineChoices.has(field.slot))inlineChoices.set(field.slot,new Set());
   for(const code of codes)inlineChoices.get(field.slot).add(code);
  };
  if(crfView.layout){
   const paper=node('div',undefined,'crf-paper');root.append(paper);
+  // Printed above the form (CSS order) so a draft is never mistaken for a reviewed CRF.
+  if(!reviewed)root.append(node('p','BẢN NHÁP – CHƯA DUYỆT · gồm giá trị đọc từ nguồn và đề xuất LLM chưa xác nhận',
+   'crf-print-value crf-draft-mark'));
   for(const block of crfView.layout){
    if(!block.rows){const paragraph=node(block.index===1?'h4':'p',block.text);
     if(block.checkbox_slot)renderCheckboxes(paragraph,block);
@@ -572,9 +578,11 @@ function renderCrf(){
   const choiceLabel=value=>field.choices.find(choice=>choice.code===value)?.label||
    ((saved||scored)?.origin==='score_assessment'?({yes:'Có',no:'Không'}[value]||value):value);
   const setSelection=id=>{if(id)crfSelections.set(field.slot,id);else crfSelections.delete(field.slot);renderCrf()};
+  let printedValue='';   // what the printed CRF shows for this field (appended last, print-only)
   if(manual.length){
-   const picker=node('select');options(picker,[...available.map(value=>[value.id,'Từ nguồn hoặc đề xuất · '+choiceLabel(value.value)]),
-    ...manual.map(value=>[value.id,choiceLabel(value.value)])],'Chọn giá trị');
+   const offered=new Set(available.map(value=>value.value));
+   const picker=node('select');options(picker,[...available.map(value=>[value.id,choiceLabel(value.value)]),
+    ...manual.filter(value=>!offered.has(value.value)).map(value=>[value.id,choiceLabel(value.value)])],'Chọn giá trị');
    // A proposal is shown pre-filled but stays a suggestion: it is not selected for approval
    // until the reviewer ticks it or picks a value.
    const suggested=!reviewed&&!scored&&!selection&&field.proposal&&available.includes(field.proposal)?field.proposal:null;
@@ -584,15 +592,19 @@ function renderCrf(){
     const mark=node('input');mark.type='checkbox';mark.onchange=()=>setSelection(mark.checked?suggested.id:null);
     const tick=node('label',undefined,'tick');tick.append(mark,node('span','LLM đề xuất · chưa duyệt — tích để duyệt ô này'));cell.append(tick);
    }
+   const printedChoice=[...available,...manual].find(value=>value.id===picker.value);
+   printedValue=printedChoice?choiceLabel(printedChoice.value):'';
    for(const option of available)if(option.sources.length)cell.append(crfEvidence(option));
   }else if(available.length>1&&!reviewed){
    const picker=node('select');options(picker,available.map(value=>[value.id,choiceLabel(value.value)]),'Chọn từ các giá trị nguồn');
    picker.id=label.htmlFor;picker.value=selection||'';picker.onchange=()=>setSelection(picker.value);cell.append(picker);
+   printedValue=(available.find(value=>value.id===selection)?[available.find(value=>value.id===selection)]:available)
+    .map(value=>choiceLabel(value.value)).join(' / ');
    for(const option of available)if(option.sources.length)cell.append(crfEvidence(option));
   }else{
    const input=node('input');input.type='text';input.readOnly=true;input.value=shown?choiceLabel(shown.value):'';
    input.id=label.htmlFor;cell.append(input);
-   if(reviewed)cell.append(node('span',input.value,'crf-print-value'));
+   printedValue=input.value;
    if(shown&&crfEditing&&!scored){
     const mark=node('input');mark.type='checkbox';mark.checked=Boolean(selection);
     mark.onchange=()=>{setSelection(mark.checked?shown.id:null)};
@@ -616,9 +628,10 @@ function renderCrf(){
    link.href='/api/crf/knowledge?'+new URLSearchParams({version:saved.knowledge_version});
    link.target='_blank';link.rel='noopener';cell.append(link);
   }
+  if(printedValue)cell.append(node('span',printedValue,'crf-print-value'));
   (target||sections.get(groupKey)).append(row);
  }
- $('crfDownloads').hidden=!reviewed;
+ $('crfDownloads').hidden=false;   // a draft prints as the CRF too; Word export still needs a review
  $('crfWord').hidden=!(reviewed&&crfView.layout&&crfView.review_sha256);
  if(!$('crfWord').hidden)$('crfWord').href='/api/crf/word?'+new URLSearchParams({case_id:$('exportCase').value,review_sha256:crfView.review_sha256});
  if(!reviewed)crfSelections=nextSelections;
@@ -650,7 +663,7 @@ function renderCrf(){
 
 $('crfAllFields').onchange=renderCrf;
 $('crfPdf').onclick=()=>{
- if(crfEditing||!crfView?.review)return;
+ if(!crfView)return;   // drafts print too, marked as unreviewed
  const closed=[...$('crfFields').querySelectorAll('details:not([open])')].filter(group=>!group.classList.contains('crf-evidence'));
  closed.forEach(group=>group.open=true);document.body.classList.add('crf-print');
  window.addEventListener('afterprint',()=>{document.body.classList.remove('crf-print');closed.forEach(group=>group.open=false)},{once:true});
