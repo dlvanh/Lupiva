@@ -10,7 +10,8 @@
 #   PILOT=~/lupiva-web-pilot/lupiva bash pilot_tunnel_sync.sh
 set -euo pipefail
 PILOT=${PILOT:-$HOME/lupiva-web-pilot/lupiva}
-PAIRS=${PAIRS:-"lupiva-pilot-tunnel-v3,lupiva-pilot-tunnel:lupiva-pilot-web-v3 lupiva-safari-tunnel,lupiva-safari-tunnel-boot:lupiva-safari-web"}
+# One pilot web since 16/11 (account login); the Cloudflare-email web and its tunnels are retired.
+PAIRS=${PAIRS:-"lupiva-safari-tunnel,lupiva-safari-tunnel-boot:lupiva-safari-web"}
 UNITS=$HOME/.config/systemd/user
 URLS=$HOME/lupiva-urls.txt
 
