@@ -45,6 +45,7 @@ export interface UploadPageCopy {
     retryBtn: string;
     emptyTitle: string;
     emptyHint: string;
+    pidPrefix: string;
     approvedBadge: string;
     pendingBadge: string;
     ageUnit: string;
@@ -58,19 +59,44 @@ export interface UploadPageCopy {
     manualTierLabel: string;
     verifyTierLabel: string;
     approvedTierLabel: string;
-    blankUnder80: string;
     scorePreviewHeading: string;
     eularClassified: string;
     eularBelow: string;
     clinicalDetailsSummary: (fileCount: number, medCount: number) => string;
-    docsAndTeamHeading: string;
+    attachedDocsHeading: string;
+    openDocHint: string;
+    noAttachedDocs: string;
     physicianPrefix: string;
     nursePrefix: string;
-    organsHeading: string;
-    noOrgansRecorded: string;
-    comorbiditiesPrefix: string;
     treatmentsHeading: string;
     noTreatments: string;
+    docViewer: {
+      dialogTitle: string;
+      closeBtn: string;
+      zoomOut: string;
+      zoomIn: string;
+      resetZoom: string;
+      rotateLeft: string;
+      rotateRight: string;
+      downloadBtn: string;
+      prevPage: string;
+      nextPage: string;
+      pageIndicator: (page: number, totalPages: number) => string;
+      filesLabel: string;
+      labSheetTitle: string;
+      blotAndTxSheetTitle: string;
+      testCol: string;
+      resultCol: string;
+      unitCol: string;
+      refCol: string;
+      flagCol: string;
+      confCol: string;
+      blotHeading: string;
+      txHeading: string;
+      careTeamHeading: string;
+      signedByLabel: string;
+      pendingSignOff: string;
+    };
     paginationLabel: string;
     perPageLabel: string;
     prevPage: string;
@@ -176,6 +202,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       emptyTitle: "No matching patient dossiers found.",
       emptyHint:
         "Adjust uploaded date, clinical filters, or search terms to view other dossiers.",
+      pidPrefix: "PID:",
       approvedBadge: "Approved & Signed Off",
       pendingBadge: "Pending OCR Review",
       ageUnit: "yrs",
@@ -183,26 +210,52 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       male: "Male",
       submittedAtPrefix: "Uploaded:",
       viewScoresBtn: "View SLE Scores",
-      reopenCrfBtn: "Open OCR & e-CRF →",
-      reviewCrfBtn: "Review OCR & e-CRF →",
-      triageHeading: "AI OCR 3-Tier Triage & Key Biomarkers",
-      manualTierLabel: "<80% Manual",
-      verifyTierLabel: "80–90% Verify",
-      approvedTierLabel: ">90% Auto/OK",
-      blankUnder80: "[Blank <80%]",
+      reopenCrfBtn: "View Details",
+      reviewCrfBtn: "Verify & Approve",
+      triageHeading: "OCR Triage",
+      manualTierLabel: "<80%",
+      verifyTierLabel: "80–90%",
+      approvedTierLabel: ">90%",
       scorePreviewHeading: "SLE Score Preview",
       eularClassified: "Classified SLE (≥10)",
       eularBelow: "Below threshold (<10)",
       clinicalDetailsSummary: (fileCount, medCount) =>
-        `Documents (${fileCount}), Care Team, Organs & Treatments (${medCount})`,
-      docsAndTeamHeading: "Attached Documents & Care Team",
+        `Attached Documents (${fileCount}) & Current Treatments (${medCount})`,
+      attachedDocsHeading: "Attached Documents",
+      openDocHint: "Click to view document",
+      noAttachedDocs: "No documents attached",
       physicianPrefix: "Physician:",
       nursePrefix: "Nurse:",
-      organsHeading: "Clinical Presentation & Organ Involvement",
-      noOrgansRecorded: "No active organ damage recorded",
-      comorbiditiesPrefix: "Comorbidities:",
       treatmentsHeading: "Current Treatments",
       noTreatments: "None listed",
+      docViewer: {
+        dialogTitle: "Attached Clinical Document Viewer",
+        closeBtn: "Close",
+        zoomOut: "Zoom out",
+        zoomIn: "Zoom in",
+        resetZoom: "Reset zoom",
+        rotateLeft: "Rotate -90°",
+        rotateRight: "Rotate +90°",
+        downloadBtn: "Download",
+        prevPage: "Prev",
+        nextPage: "Next",
+        pageIndicator: (page, totalPages) => `Page ${page} of ${totalPages}`,
+        filesLabel: "Attachments:",
+        labSheetTitle: "Page 1 — Clinical Laboratory & Serology Report",
+        blotAndTxSheetTitle:
+          "Page 2 — Immunoblot Panel, Current Treatments & Sign-Off",
+        testCol: "Biomarker / Assay",
+        resultCol: "Result",
+        unitCol: "Unit",
+        refCol: "Reference Range",
+        flagCol: "Flag",
+        confCol: "OCR",
+        blotHeading: "Immunoblot Strip Summary (ANA Profile 23 / Myositis 16)",
+        txHeading: "Current Treatments on Record",
+        careTeamHeading: "Care Team & Registry Verification Status",
+        signedByLabel: "Approved & Signed by:",
+        pendingSignOff: "Pending Specialist OCR Verification",
+      },
       paginationLabel: "Patient dossiers pagination",
       perPageLabel: "Per page",
       prevPage: "Previous",
@@ -313,6 +366,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       emptyTitle: "Không tìm thấy hồ sơ bệnh nhân phù hợp.",
       emptyHint:
         "Hãy điều chỉnh ngày tải lên, bộ lọc lâm sàng hoặc từ khóa tìm kiếm.",
+      pidPrefix: "PID:",
       approvedBadge: "Đã duyệt & Ký CRF",
       pendingBadge: "Chờ bác sĩ duyệt OCR",
       ageUnit: "tuổi",
@@ -320,26 +374,52 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       male: "Nam",
       submittedAtPrefix: "Tải lên lúc:",
       viewScoresBtn: "Xem Bảng điểm SLE",
-      reopenCrfBtn: "Mở lại OCR & e-CRF →",
-      reviewCrfBtn: "Duyệt OCR & e-CRF →",
-      triageHeading: "Phân tầng AI OCR (3 Mức) & Xét nghiệm Nổi bật",
-      manualTierLabel: "<80% Nhập tay",
-      verifyTierLabel: "80–90% Xác nhận",
-      approvedTierLabel: ">90% Đã duyệt",
-      blankUnder80: "[Trống <80%]",
+      reopenCrfBtn: "Xem Chi tiết",
+      reviewCrfBtn: "Xác minh & Duyệt",
+      triageHeading: "Phân tầng OCR",
+      manualTierLabel: "<80%",
+      verifyTierLabel: "80–90%",
+      approvedTierLabel: ">90%",
       scorePreviewHeading: "Điểm Phân loại & Hoạt tính",
       eularClassified: "Đạt tiêu chuẩn SLE (≥10)",
       eularBelow: "Chưa đạt ngưỡng (<10)",
       clinicalDetailsSummary: (fileCount, medCount) =>
-        `Tài liệu (${fileCount}), Đội ngũ, Cơ quan & Thuốc điều trị (${medCount})`,
-      docsAndTeamHeading: "Tài liệu đính kèm & Đội ngũ phụ trách",
+        `Tài liệu đính kèm (${fileCount}) & Thuốc điều trị (${medCount})`,
+      attachedDocsHeading: "Tài liệu đính kèm",
+      openDocHint: "Nhấp để mở tài liệu",
+      noAttachedDocs: "Chưa có tài liệu đính kèm",
       physicianPrefix: "Bác sĩ:",
       nursePrefix: "Điều dưỡng:",
-      organsHeading: "Biểu hiện Lâm sàng & Cơ quan Tổn thương",
-      noOrgansRecorded: "Chưa ghi nhận tổn thương cơ quan",
-      comorbiditiesPrefix: "Bệnh đồng mắc:",
       treatmentsHeading: "Thuốc điều trị hiện tại",
       noTreatments: "Không có",
+      docViewer: {
+        dialogTitle: "Trình Xem Tài liệu Lâm sàng Đính kèm",
+        closeBtn: "Đóng",
+        zoomOut: "Thu nhỏ",
+        zoomIn: "Phóng to",
+        resetZoom: "Đặt lại thu phóng",
+        rotateLeft: "Xoay -90°",
+        rotateRight: "Xoay +90°",
+        downloadBtn: "Tải xuống",
+        prevPage: "Trước",
+        nextPage: "Sau",
+        pageIndicator: (page, totalPages) => `Trang ${page} / ${totalPages}`,
+        filesLabel: "Tệp đính kèm:",
+        labSheetTitle: "Trang 1 — Phiếu Kết quả Xét nghiệm & Huyết thanh học",
+        blotAndTxSheetTitle:
+          "Trang 2 — Bảng Immunoblot, Thuốc điều trị & Ký duyệt",
+        testCol: "Chỉ số Xét nghiệm",
+        resultCol: "Kết quả",
+        unitCol: "Đơn vị",
+        refCol: "Khoảng tham chiếu",
+        flagCol: "Cờ",
+        confCol: "OCR",
+        blotHeading: "Tóm tắt Immunoblot (ANA Profile 23 / Myositis 16)",
+        txHeading: "Thuốc điều trị hiện tại",
+        careTeamHeading: "Đội ngũ Phụ trách & Trạng thái Phê duyệt",
+        signedByLabel: "Đã phê duyệt & ký bởi:",
+        pendingSignOff: "Đang chờ Bác sĩ Chuyên khoa xác minh OCR",
+      },
       paginationLabel: "Phân trang hồ sơ bệnh nhân",
       perPageLabel: "Mỗi trang",
       prevPage: "Trang trước",

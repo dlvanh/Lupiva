@@ -25,6 +25,7 @@ import {
   type SubmissionQueryFilters,
   type UploadedDatePreset,
 } from "@/lib/submissionFilters";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { TruncatedFilename } from "./TruncatedFilename";
 
 interface ApiSubmissionItem {
@@ -46,92 +47,115 @@ interface ApiSubmissionsResponse {
   pagination: PaginationMeta;
 }
 
-function buildOrganTags(
-  p: SleCrfPatientRecord,
-  isVi: boolean
-): string[] {
-  const organs: string[] = [];
-  if (p.fever === "YES") {
-    organs.push(
-      isVi
-        ? `Sốt (${p.feverTempC || ">38"}°C)`
-        : `Fever (${p.feverTempC || ">38"}°C)`
-    );
-  }
-  if (p.skinMucosaAbnormality === "YES") {
-    const count = p.skinMucosaItems.filter((i) => i.checked).length;
-    organs.push(isVi ? `Da/Niêm mạc (${count})` : `Skin/Mucosa (${count})`);
-  }
-  if (p.jointsDamage === "YES") {
-    organs.push(
-      isVi
-        ? `Khớp (Sưng ${p.swollenJointsCount}, Đau ${p.tenderJointsCount}, VAS ${p.vasScore})`
-        : `Joints (${p.swollenJointsCount}S / ${p.tenderJointsCount}T, VAS ${p.vasScore})`
-    );
-  }
-  if (p.kidneysDamage === "YES") {
-    const cls =
-      p.renalBiopsyClasses.length > 0
-        ? p.renalBiopsyClasses.join(", ")
-        : isVi
-        ? "Có tổn thương"
-        : "Active";
-    organs.push(isVi ? `Thận (${cls})` : `Renal (${cls})`);
-  }
-  if (p.haematologicalDisorders === "YES") {
-    organs.push(isVi ? "Huyết học" : "Hematologic");
-  }
-  if (p.cardiovascularAbnormality === "YES") {
-    organs.push(isVi ? "Tim mạch" : "Cardiovascular");
-  }
-  if (p.lungDamage === "YES") {
-    organs.push(
-      p.lungIldPatterns.length > 0
-        ? `${isVi ? "Phổi" : "Lung"} (${p.lungIldPatterns.join(", ")})`
-        : isVi
-        ? "Phổi"
-        : "Lung"
-    );
-  }
-  if (p.neuropsychiatricDisorders === "YES") {
-    organs.push(isVi ? "Tâm thần kinh" : "Neuropsychiatric");
-  }
-  return organs;
-}
+function DocumentsAndTreatmentsGrid({
+  patient,
+  copy,
+  onOpenDocument,
+  showCareTeam = false,
+  className = "",
+}: {
+  patient: SleCrfPatientRecord;
+  copy: UploadPageCopy["doctor"];
+  onOpenDocument: (patient: SleCrfPatientRecord, fileId: string) => void;
+  showCareTeam?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`grid grid-cols-1 gap-4 @md:grid-cols-2 ${className}`}>
+      <div>
+        <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+          {copy.attachedDocsHeading}
+        </h3>
+        {patient.uploadedFiles && patient.uploadedFiles.length > 0 ? (
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {patient.uploadedFiles.map((f) => {
+              const extBadge = f.isImage
+                ? "IMG"
+                : /\.docx?$/i.test(f.name)
+                ? "DOCX"
+                : "PDF";
+              return (
+                <li key={f.id} className="min-w-0 max-w-full">
+                  <button
+                    type="button"
+                    onClick={() => onOpenDocument(patient, f.id)}
+                    title={copy.openDocHint}
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-teal-700/30 bg-teal-50/60 px-2.5 py-1 font-mono text-[11px] font-medium text-slate-900 transition hover:border-teal-700 hover:bg-teal-100/70 cursor-pointer"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 shrink-0 text-teal-800"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <span className="shrink-0 font-bold text-teal-900">
+                      {extBadge}:
+                    </span>
+                    <TruncatedFilename name={f.name} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="mt-2 text-xs text-slate-600">{copy.noAttachedDocs}</p>
+        )}
+        {showCareTeam && (
+          <p className="mt-2 text-xs text-slate-600">
+            {copy.physicianPrefix}{" "}
+            <strong className="text-slate-900">{patient.physician}</strong> •{" "}
+            {copy.nursePrefix}{" "}
+            <span className="text-slate-700">{patient.nurse}</span>
+          </p>
+        )}
+      </div>
 
-function getKeyBiomarkers(p: SleCrfPatientRecord) {
-  const highlightCodes = [
-    "ANA-HEP2",
-    "ANTI-DSDNA",
-    "COMP-C3",
-    "COMP-C4",
-    "UPROT-24H",
-    "WBC-TOTAL",
-    "PLT-COUNT",
-  ];
-  return highlightCodes
-    .map((code) => p.ocrFields.find((f) => f.code === code))
-    .filter((f): f is NonNullable<typeof f> => Boolean(f));
+      <div>
+        <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+          {copy.treatmentsHeading}
+        </h3>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {patient.treatments.length > 0 ? (
+            patient.treatments.map((trt) => (
+              <span
+                key={trt.id}
+                className="rounded-md border border-teal-200 bg-teal-50/70 px-2 py-0.5 text-[11px] font-medium text-teal-950"
+              >
+                {trt.name} ({trt.dose})
+              </span>
+            ))
+          ) : (
+            <span className="text-xs text-slate-600">{copy.noTreatments}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function PatientDossierCard({
   item,
-  isVi,
   copy,
   onOpenRoute,
+  onOpenDocument,
 }: {
   item: ApiSubmissionItem;
-  isVi: boolean;
   copy: UploadPageCopy["doctor"];
   onOpenRoute: (patientId: string, route: "/ocr" | "/scores") => void;
+  onOpenDocument: (patient: SleCrfPatientRecord, fileId: string) => void;
 }) {
   const p = item.record;
   const approved = getSubmissionStatus(p) === "approved";
   const h = parseFloat(p.heightCm);
   const w = parseFloat(p.weightKg);
   const bmi = h > 0 && w > 0 ? (w / Math.pow(h / 100, 2)).toFixed(1) : "—";
-  const organs = buildOrganTags(p, isVi);
-  const keyLabs = getKeyBiomarkers(p);
   const eular = calculateEularAcrSummary(
     p.eularAcrCriteria,
     p.anaEntryCriterionMet
@@ -140,14 +164,14 @@ function PatientDossierCard({
 
   return (
     <article className="@container overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-      {/* Card Header: Identity, Status Badges, Uploaded Timestamp & Primary Actions */}
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 @lg:px-6">
-        <div className="min-w-0">
+      {/* Card Header: PID Identifier, Personal Information, Uploaded Date & Status-Specific Actions */}
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-3.5 @lg:px-6">
+        <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-xs font-bold text-white">
-              {p.studyId}
+              {copy.pidPrefix} {p.studyId}
             </span>
-            <h2 className="text-lg font-bold text-slate-900">
+            <h2 className="text-base font-bold text-slate-900">
               {p.patientName}
             </h2>
             <span
@@ -159,44 +183,39 @@ function PatientDossierCard({
             >
               {approved ? copy.approvedBadge : copy.pendingBadge}
             </span>
-            {organs.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
-                className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-700"
-              >
-                {tag}
-              </span>
-            ))}
           </div>
 
-          <p className="mt-1.5 text-xs text-slate-600">
-            {p.age} {copy.ageUnit} •{" "}
-            {p.gender === "Female" ? copy.female : copy.male} • {p.heightCm} cm
-            / {p.weightKg} kg (BMI{" "}
-            <span className="font-mono font-semibold text-slate-800">
-              {bmi}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600">
+            <span>
+              {p.age} {copy.ageUnit} •{" "}
+              {p.gender === "Female" ? copy.female : copy.male} • {p.heightCm}{" "}
+              cm / {p.weightKg} kg (BMI{" "}
+              <span className="font-mono font-semibold text-slate-800">
+                {bmi}
+              </span>
+              ) • ICF: <span className="font-mono">{p.icfSignedDate}</span>
             </span>
-            ) • ICF: <span className="font-mono">{p.icfSignedDate}</span>
             {p.submittedAt ? (
-              <>
-                {" "}
-                • {copy.submittedAtPrefix}{" "}
-                <span className="font-mono font-semibold text-slate-800">
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-[11px] text-slate-700">
+                <span>{copy.submittedAtPrefix}</span>
+                <strong className="font-semibold text-slate-900">
                   {p.submittedAt}
-                </span>
-              </>
+                </strong>
+              </span>
             ) : null}
-          </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onOpenRoute(p.id, "/scores")}
-            className="min-h-9 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 cursor-pointer"
-          >
-            {copy.viewScoresBtn}
-          </button>
+          {approved && (
+            <button
+              type="button"
+              onClick={() => onOpenRoute(p.id, "/scores")}
+              className="min-h-9 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 cursor-pointer"
+            >
+              {copy.viewScoresBtn}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onOpenRoute(p.id, "/ocr")}
@@ -207,224 +226,123 @@ function PatientDossierCard({
         </div>
       </header>
 
-      {/* Primary Triage Grid: AI OCR 3-Tier Counts, Key Biomarkers & SLE Score Preview */}
-      <div className="grid grid-cols-1 gap-5 px-5 py-4 @lg:px-6 @2xl:grid-cols-12">
-        <div className="space-y-3 @2xl:col-span-7">
-          <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
-            {copy.triageHeading}
-          </h3>
-
-          <div className="grid grid-cols-3 gap-2 text-center font-mono text-[11px]">
-            <div className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-950">
-              <p className="text-sm font-bold">{item.ocrSummary.manualCount}</p>
-              <p className="text-[11px] font-medium">{copy.manualTierLabel}</p>
-            </div>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-950">
-              <p className="text-sm font-bold">{item.ocrSummary.verifyCount}</p>
-              <p className="text-[11px] font-medium">{copy.verifyTierLabel}</p>
-            </div>
-            <div className="rounded-lg border border-teal-200 bg-teal-50 px-2 py-1.5 text-teal-950">
-              <p className="text-sm font-bold">
-                {item.ocrSummary.approvedCount}
-              </p>
-              <p className="text-[11px] font-medium">
-                {copy.approvedTierLabel}
-              </p>
-            </div>
+      {approved ? (
+        /* Approved Dossiers: Attached Documents & Current Treatments + SLE Score Preview */
+        <div className="grid grid-cols-1 gap-4 px-5 py-3.5 @lg:px-6 @2xl:grid-cols-12 @2xl:items-start">
+          <div className="@2xl:col-span-7">
+            <DocumentsAndTreatmentsGrid
+              patient={p}
+              copy={copy}
+              onOpenDocument={onOpenDocument}
+            />
           </div>
 
-          <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
-            {keyLabs.map((f) => {
-              const isBlank = !f.value.trim();
-              return (
-                <span
-                  key={f.id}
-                  className={`rounded border px-2 py-0.5 ${
-                    isBlank
-                      ? "border-rose-300 bg-rose-50 text-rose-950"
-                      : f.flag === "Normal"
-                      ? "border-slate-200 bg-slate-50 text-slate-800"
-                      : "border-rose-200 bg-rose-50/70 font-semibold text-rose-950"
-                  }`}
-                >
-                  {f.code
-                    .replace("-TOTAL", "")
-                    .replace("-COUNT", "")
-                    .replace("COMP-", "")}
-                  :{" "}
-                  {isBlank
-                    ? copy.blankUnder80
-                    : `${f.value}${
-                        f.unit && f.unit !== "Titer" ? ` ${f.unit}` : ""
-                      }`}
-                </span>
-              );
-            })}
-          </div>
-        </div>
+          <div className="border-t border-slate-200 pt-3 @2xl:col-span-5 @2xl:border-t-0 @2xl:border-l @2xl:pl-5 @2xl:pt-0">
+            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              {copy.scorePreviewHeading}
+            </h3>
 
-        <div className="space-y-3 border-t border-slate-200 pt-4 @2xl:col-span-5 @2xl:border-t-0 @2xl:border-l @2xl:pl-5 @2xl:pt-0">
-          <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
-            {copy.scorePreviewHeading}
-          </h3>
-
-          <div className="grid grid-cols-1 gap-2.5 @sm:grid-cols-2">
-            <div
-              className={`rounded-xl border p-3 ${
-                eular.isClassifiedSle
-                  ? "border-teal-200 bg-teal-50/60"
-                  : "border-slate-200 bg-slate-50"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs">
+            <div className="mt-2 grid grid-cols-1 gap-2 @sm:grid-cols-2">
+              <div
+                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5 text-xs ${
+                  eular.isClassifiedSle
+                    ? "border-teal-200 bg-teal-50/60"
+                    : "border-slate-200 bg-slate-50"
+                }`}
+              >
                 <span className="font-semibold text-slate-700">
                   EULAR/ACR 2019
                 </span>
-                <span className="font-mono text-base font-bold text-slate-900">
+                <span className="font-mono font-bold text-slate-900">
                   {eular.totalScore} pts
                 </span>
               </div>
-              <p
-                className={`mt-0.5 font-mono text-[11px] font-semibold ${
-                  eular.isClassifiedSle ? "text-teal-900" : "text-slate-600"
+
+              <div
+                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5 text-xs ${
+                  sledai.badgeTone === "rose"
+                    ? "border-rose-200 bg-rose-50/60"
+                    : sledai.badgeTone === "amber"
+                    ? "border-amber-200 bg-amber-50/60"
+                    : "border-slate-200 bg-slate-50"
                 }`}
               >
-                {eular.isClassifiedSle ? copy.eularClassified : copy.eularBelow}
-              </p>
-            </div>
-
-            <div
-              className={`rounded-xl border p-3 ${
-                sledai.badgeTone === "rose"
-                  ? "border-rose-200 bg-rose-50/60"
-                  : sledai.badgeTone === "amber"
-                  ? "border-amber-200 bg-amber-50/60"
-                  : "border-slate-200 bg-slate-50"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-700">SLEDAI-2K</span>
-                <span className="font-mono text-base font-bold text-slate-900">
+                <span className="font-mono font-bold text-slate-900">
                   {sledai.totalScore} pts
                 </span>
               </div>
-              <p
-                className={`mt-0.5 font-mono text-[11px] font-semibold ${
-                  sledai.badgeTone === "rose"
-                    ? "text-rose-900"
-                    : sledai.badgeTone === "amber"
-                    ? "text-amber-950"
-                    : "text-teal-900"
-                }`}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Pending Review Dossiers: Concise 1-Line OCR Triage + Expandable Documents & Treatments */
+        <>
+          <div className="flex flex-wrap items-center gap-2.5 px-5 py-3 @lg:px-6">
+            <h3 className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              {copy.triageHeading}
+            </h3>
+
+            <div className="grid flex-1 grid-cols-3 gap-2 font-mono text-xs">
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 whitespace-nowrap text-rose-950">
+                <span className="text-[11px] font-semibold text-rose-800">
+                  {copy.manualTierLabel}
+                </span>
+                <span className="text-sm font-bold">
+                  {item.ocrSummary.manualCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 whitespace-nowrap text-amber-950">
+                <span className="text-[11px] font-semibold text-amber-900">
+                  {copy.verifyTierLabel}
+                </span>
+                <span className="text-sm font-bold">
+                  {item.ocrSummary.verifyCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 whitespace-nowrap text-teal-950">
+                <span className="text-[11px] font-semibold text-teal-800">
+                  {copy.approvedTierLabel}
+                </span>
+                <span className="text-sm font-bold">
+                  {item.ocrSummary.approvedCount}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <details className="group border-t border-slate-200 bg-slate-50/40">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100/80 @lg:px-6">
+              <span>
+                {copy.clinicalDetailsSummary(
+                  p.uploadedFiles?.length ?? 0,
+                  p.treatments.length
+                )}
+              </span>
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                {isVi ? sledai.activityTierVi : sledai.activityTierEn}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </summary>
 
-      {/* Progressive Disclosure for Secondary Clinical Details */}
-      <details className="group border-t border-slate-200 bg-slate-50/40">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100/80 @lg:px-6">
-          <span>
-            {copy.clinicalDetailsSummary(
-              p.uploadedFiles?.length ?? 0,
-              p.treatments.length
-            )}
-          </span>
-          <svg
-            aria-hidden="true"
-            className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </summary>
-
-        <div className="grid grid-cols-1 gap-5 border-t border-slate-200 bg-white px-5 py-4 @lg:px-6 @2xl:grid-cols-3">
-          <div>
-            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
-              {copy.docsAndTeamHeading}
-            </h3>
-            <ul className="mt-2 flex flex-wrap gap-1.5">
-              {p.uploadedFiles?.map((f) => (
-                <li key={f.id} className="min-w-0 max-w-full">
-                  <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-[11px] font-medium text-slate-800">
-                    <span className="shrink-0 font-bold text-teal-800">
-                      {f.isImage ? "IMG" : "PDF"}:
-                    </span>
-                    <TruncatedFilename name={f.name} />
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-xs text-slate-600">
-              {copy.physicianPrefix}{" "}
-              <strong className="text-slate-900">{p.physician}</strong> •{" "}
-              {copy.nursePrefix}{" "}
-              <span className="text-slate-700">{p.nurse}</span>
-            </p>
-          </div>
-
-          <div>
-            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
-              {copy.organsHeading}
-            </h3>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {organs.length > 0 ? (
-                organs.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-800"
-                  >
-                    {tag}
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs text-slate-600">
-                  {copy.noOrgansRecorded}
-                </span>
-              )}
-            </div>
-            {p.otherComorbidities === "YES" && p.otherComorbiditiesSpecify && (
-              <p className="mt-2 text-xs text-slate-600">
-                <span className="font-semibold text-slate-800">
-                  {copy.comorbiditiesPrefix}
-                </span>{" "}
-                {p.otherComorbiditiesSpecify}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
-              {copy.treatmentsHeading}
-            </h3>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {p.treatments.length > 0 ? (
-                p.treatments.map((trt) => (
-                  <span
-                    key={trt.id}
-                    className="rounded-md border border-teal-200 bg-teal-50/70 px-2 py-0.5 text-[11px] font-medium text-teal-950"
-                  >
-                    {trt.name} ({trt.dose})
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs text-slate-600">
-                  {copy.noTreatments}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </details>
+            <DocumentsAndTreatmentsGrid
+              patient={p}
+              copy={copy}
+              onOpenDocument={onOpenDocument}
+              showCareTeam
+              className="border-t border-slate-200 bg-white px-5 py-3.5 @lg:px-6"
+            />
+          </details>
+        </>
+      )}
     </article>
   );
 }
@@ -442,6 +360,10 @@ export function DoctorSubmissionsView() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [reloadTick, setReloadTick] = useState(0);
+  const [viewerTarget, setViewerTarget] = useState<{
+    patient: SleCrfPatientRecord;
+    fileId: string;
+  } | null>(null);
 
   const [apiState, setApiState] = useState<{
     loading: boolean;
@@ -992,9 +914,11 @@ export function DoctorSubmissionsView() {
               <PatientDossierCard
                 key={item.dbSubmissionId}
                 item={item}
-                isVi={isVi}
                 copy={copy}
                 onOpenRoute={openDoctorRoute}
+                onOpenDocument={(patient, fileId) =>
+                  setViewerTarget({ patient, fileId })
+                }
               />
             ))
           )}
@@ -1087,6 +1011,18 @@ export function DoctorSubmissionsView() {
           </nav>
         )}
       </div>
+
+      {/* On-Screen Attached Document Viewer Modal */}
+      <DocumentPreviewModal
+        patient={viewerTarget?.patient ?? null}
+        activeFileId={viewerTarget?.fileId ?? null}
+        isVi={isVi}
+        copy={copy}
+        onClose={() => setViewerTarget(null)}
+        onSelectFile={(fileId) =>
+          setViewerTarget((prev) => (prev ? { ...prev, fileId } : null))
+        }
+      />
     </main>
   );
 }
