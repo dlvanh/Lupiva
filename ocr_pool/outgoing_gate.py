@@ -67,6 +67,22 @@ QUALITATIVE = re.compile(r'\b(am tinh|duong tinh|negative|positive|neg|pos|binh 
 SAMPLE_FORM = re.compile(r'\b(sample type|time of collection|amount collected|loai mau|mau benh pham|benh pham)\b')
 
 
+RESULT_HEADER = re.compile(r'^(chi dinh|ten xet nghiem|xet nghiem|ket qua|don vi|khoang tham chieu|tri so tham chieu|'
+                           r'test|result|unit|units|reference range|reference interval)$')
+
+
+def result_table_header(lines):
+    """True when at least two column headings of a result table are visible."""
+    found = {RESULT_HEADER.fullmatch(fold(line['text']).strip(' :')) for line in lines}
+    return len({match[1] for match in found if match}) >= 2
+
+
+def enough_result_content(lines, minimum=3):
+    """A page is sent when it shows result cells: one suffices under a visible result-table header."""
+    cells = result_content(lines)
+    return cells >= minimum or (cells >= 1 and result_table_header(lines)), cells
+
+
 def result_content(lines):
     """Count visible cells that look like a result; a sample form counts as content."""
     folded = [fold(line['text']) for line in lines]

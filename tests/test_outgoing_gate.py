@@ -136,3 +136,15 @@ class ResultContentTests(unittest.TestCase):
         self.assertGreaterEqual(result_content(lines('Sample type', 'Note')), 3)
         self.assertEqual(result_content(lines('Ngày 12/03/2026')), 0)   # a date is not a result cell
 
+    def test_one_result_cell_is_enough_under_a_result_table_header(self):
+        lines = lambda *texts: [dict(text=t) for t in texts]
+        from ocr_pool.outgoing_gate import enough_result_content
+        table = lines('CHỈ ĐỊNH', 'KẾT QUẢ', 'ĐƠN VỊ', 'Xét nghiệm X', 'Dương tính 2+')
+        self.assertEqual(enough_result_content(table), (True, 1))
+        # Without a header, a lone qualitative word stays local.
+        self.assertEqual(enough_result_content(lines('Ghi chú', 'Dương tính')), (False, 1))
+        # A header alone is not content.
+        self.assertFalse(enough_result_content(lines('Result', 'Unit'))[0])
+        # One heading word is not a table header.
+        self.assertFalse(enough_result_content(lines('Kết quả', '12'))[0])
+

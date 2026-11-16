@@ -194,7 +194,9 @@ def date_facts(scan):
             raw = text[match.end():end].strip(' :\t;')
             box = list(line['box'])
             if not raw and index+1 == len(labels):
-                nearby = _same_line_right(line, lines)
+                # OCR boxes of a label and its value often touch or overlap a little;
+                # only a neighbour that is wholly a date is accepted below.
+                nearby = _same_line_right(line, lines, overlap=.7)
                 if nearby:
                     neighbor = nearby[0]
                     value_text = ' '.join(neighbor['text'].split())

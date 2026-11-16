@@ -780,6 +780,24 @@ class GeminiIntakeTests(unittest.TestCase):
         english=('Collection date: 03/04/2025', [10,20,280,49])
         self.assertIsNone(observation_date(facts(english),'general_lab'))
 
+    def test_method_identical_to_the_result_is_not_kept(self):
+        from ocr_pool.gemini_workflow import _method_is_result
+        self.assertTrue(_method_is_result(dict(method_raw='Speckled 1+', raw_result='Speckled  1+')))
+        self.assertFalse(_method_is_result(dict(method_raw='Huỳnh quang gián tiếp', raw_result='Speckled 1+')))
+
+    def test_date_value_box_touching_its_label_is_read(self):
+        plan=dict(size=[900,700],crop=[0,460,900,700],crop_reason='detected_lab_table_header')
+        def facts(*lines):
+            return list(date_facts(dict(plan=plan,lines=[dict(text=text,box=box) for text,box in lines])))
+        label=('Giờ lấy mẫu:', [537,428,651,454])
+        overlapping=('09:38 27/05/2026', [639,426,764,451])   # starts 12 px left of the label's edge
+        found=[f for f in facts(label,overlapping) if f['key']=='sample_date']
+        self.assertEqual(found[0]['value'],'2026-05-27T09:38:00')
+        self.assertEqual(observation_date(facts(label,overlapping),'general_lab')['value'],'2026-05-27T09:38:00')
+        # Text that is not wholly a date is still not taken.
+        noisy=('09:38 Nguyễn', [639,426,764,451])
+        self.assertIsNone([f for f in facts(label,noisy) if f['key']=='sample_date'][0]['value'])
+
     def test_transport_uses_env_and_only_supplied_jpeg_not_filenames_or_secret_in_body(self):
         self.setup_config();body=prepare_image(image_bytes('gemini-source'),dict(
             sha256=hashlib.sha256(image_bytes('gemini-source')).hexdigest(),crop=[0,100,500,300],masks=[],reviewed=True))

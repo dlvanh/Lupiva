@@ -16,7 +16,7 @@ from registry_pool.exchange import build_bundle
 from .catalog_alias import CatalogAliases
 from .gemini import DeadlineReached, InvalidAPIResponse, TransportError, configuration, privacy_plan, prepare_image, extract_image
 from .lab_api import extract_lab_image, lab_crop_evidence
-from .outgoing_gate import check_outgoing, result_content
+from .outgoing_gate import check_outgoing, enough_result_content, result_table_header
 from .ocr_hint import ocr_hint_lines
 from .ocr_crosscheck import number_disagreements
 from .lab_reference_cells import attach_complement_ranges
@@ -225,6 +225,13 @@ def _value(row):
     return value
 
 
+def _method_is_result(row):
+    """A "method" identical to the printed result (e.g. "Speckled 1+") is the result, not a method."""
+    method = ' '.join(fold(row['method_raw']).split())
+    return any(method == ' '.join(fold(str(row.get(key) or '')).split())
+               for key in ('raw_result', 'qualitative_value', 'pattern_raw'))
+
+
 def build_candidate(documents, results, dictionary, run, *, local_dates=None, local_metadata=None, engine='gemini'):
     extraction_method = engine+'_api'
     extraction_flag = extraction_method+'_extraction'
@@ -380,7 +387,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 for secondary in ('pre_percent_predicted', 'post_percent_predicted'):
                     if row.get(secondary) is not None and secondary in allowed and component != secondary:
                         observation(secondary, _value(dict(numeric_value=row[secondary], comparator='=', unit_raw='%')))
-                if row.get('method_raw') and 'method' in allowed:
+                if row.get('method_raw') and 'method' in allowed and not _method_is_result(row):
                     observation('method', dict(result_type='qualitative', qualitative_value=row['method_raw'], unit_raw=None))
                 # A titre read with the pattern (e.g. ANA "Homogeneous 1:320") fills the CRF titre cell too.
                 if row.get('titre_raw') and 'titre' in allowed and component != 'titre':
@@ -557,14 +564,15 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                         seen = []
                         method, hits = check_outgoing(prepared[index], doc['privacy'], local_scans.get(did),
                                                       workspace/'models/privacy', seen=seen)
-                        cells = result_content(seen) if method == 'outgoing_ocr' else None
+                        enough, cells = enough_result_content(seen) if method == 'outgoing_ocr' else (True, None)
                         write(output/'local-ocr'/f'image-{index+1:03}-outgoing-check.json',
-                              dict(method=method, blocked=bool(hits), hit_count=len(hits), result_cells=cells))
+                              dict(method=method, blocked=bool(hits), hit_count=len(hits), result_cells=cells,
+                                   result_header=result_table_header(seen) if method == 'outgoing_ocr' else None))
                         if hits:
                             blocked[did] = method
                             prepared[index] = None
                             continue
-                        if cells is not None and cells < 3:
+                        if not enough:
                             no_content.append(did)
                             prepared[index] = None
                             continue
