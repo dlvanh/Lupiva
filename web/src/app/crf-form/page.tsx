@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLupiva } from "@/context/LupivaContext";
 import type { CrfField } from "@/lib/crfApproval";
-import type { CrfViewWithSources } from "@/lib/crfEvidence";
+import { withoutHidden, type CrfViewWithSources } from "@/lib/crfEvidence";
 import {
   approvedCriteria,
   cellKey,
@@ -137,7 +137,7 @@ export default function CrfFormPage() {
     if (!id) return;
     setLoading(true);
     try {
-      setView(await backend<FormView>("/api/crf", { case_id: id }));
+      setView(withoutHidden(await backend<FormView>("/api/crf", { case_id: id })));
     } catch (reason) {
       setError((reason as Error).message);
     } finally {

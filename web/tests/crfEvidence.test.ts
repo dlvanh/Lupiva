@@ -105,3 +105,16 @@ describe("caseForIntake", () => {
     expect(caseForIntake(undefined, "intake-1")).toBeNull();
   });
 });
+
+describe("withoutHidden", () => {
+  it("drops the ANA method component and keeps the rest", async () => {
+    const { withoutHidden } = await import("@/lib/crfEvidence");
+    const view = {
+      fields: [field({ slot: "IMM01/result" }), field({ slot: "IMM01/method" }), field({ slot: "IMM01/titre" })],
+      review: null,
+      source_snapshot: "s",
+      draft_sha256: "d",
+    };
+    expect(withoutHidden(view).fields.map((f) => f.slot)).toEqual(["IMM01/result", "IMM01/titre"]);
+  });
+});

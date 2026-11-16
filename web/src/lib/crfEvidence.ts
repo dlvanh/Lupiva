@@ -35,6 +35,18 @@ export type Evidence = {
 
 export type CrfViewWithSources = CrfView & { sources?: Record<string, SourceDetail> };
 
+/**
+ * CRF components the doctors do not record. The ANA test name prints its
+ * technique ("bằng kỹ thuật huỳnh quang"); only the pattern, intensity and
+ * titre matter, so IMM01/method is neither shown nor offered for approval.
+ * (It stays in the backend dictionary, whose hash the stored records carry.)
+ */
+export const HIDDEN_SLOTS = new Set(["IMM01/method"]);
+
+export function withoutHidden<T extends CrfView>(view: T): T {
+  return { ...view, fields: view.fields.filter((field) => !HIDDEN_SLOTS.has(field.slot)) };
+}
+
 const DATE_KIND: Record<string, string> = {
   sample_date: "ngày lấy mẫu",
   result_date: "ngày trả kết quả",

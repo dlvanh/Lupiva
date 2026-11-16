@@ -31,6 +31,7 @@ import {
   type CrfViewWithSources,
   type Evidence,
   type SourceDetail,
+  withoutHidden,
 } from "@/lib/crfEvidence";
 
 type CaseItem = { case_id: string; registry_code: string };
@@ -308,7 +309,7 @@ export default function RegistryCrfPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const next = await backend<CrfViewWithSources>("/api/crf", { case_id: id });
+      const next = withoutHidden(await backend<CrfViewWithSources>("/api/crf", { case_id: id }));
       setView(next);
       setSelections(initialSelections(next));
     } catch (reason) {
