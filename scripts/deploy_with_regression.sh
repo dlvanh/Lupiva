@@ -6,7 +6,7 @@ set -euo pipefail
 HOST=${HOST:-lupiva}
 STAGING=${STAGING:-lupiva-staging}
 PILOT=${PILOT:-lupiva-web-pilot/lupiva}
-UNITS=${UNITS:-"lupiva-pilot-web-v3 lupiva-safari-web"}
+UNITS=${UNITS:-"lupiva-safari-web"}   # the only pilot web since 16/11 (scripts/web_pilot.py)
 IMPORT_PY=${IMPORT_PY:-/home/phamkien/lupiva/.venv-privacy-trial/bin/python}
 DIRS="ocr_pool registry_review registry_export registry_pool form_pool schemas scripts"
 ARCHIVE=$(mktemp)
