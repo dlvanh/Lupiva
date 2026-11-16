@@ -25,7 +25,10 @@ def verify_extraction(body, record, dictionary, workspace, *, config=None, revie
     out=deepcopy(record)
     image_size=record.get('request_contract',{}).get('image_size')
     result_rules=(config or {}).get('result_rules')
-    normalized,audit,issues=normalize_extraction(record['raw_extraction'],dictionary,image_size=image_size,
+    # Compact transport rows are immutable evidence; verification uses the full
+    # pre-normalization copy for both the initial and verification responses.
+    source=record.get('expanded_extraction',record['raw_extraction'])
+    normalized,audit,issues=normalize_extraction(source,dictionary,image_size=image_size,
                                                   result_rules=result_rules)
     out.update(extraction=normalized,normalization_audit=audit,validation_issues=issues)
     rows=normalized['rows'];counts=Counter(r['source_label'] for r in rows);targets={}
@@ -43,11 +46,11 @@ def verify_extraction(body, record, dictionary, workspace, *, config=None, revie
     except ValueError as error:
         out['verification']=dict(attempted=True,status='failed_retained_initial',error=str(error),labels=labels)
         return out
-    returned=reviewed['raw_extraction']['rows']
+    returned=reviewed.get('expanded_extraction',reviewed['raw_extraction'])['rows']
     if Counter(r['source_label'] for r in returned)!=Counter(labels):
         out['verification']=dict(attempted=True,status='alignment_failed_retained_initial',labels=labels,response=reviewed)
         return out
-    merged=deepcopy(record['raw_extraction']);changes=[]
+    merged=deepcopy(source);changes=[]
     for index,allowed in targets.items():
         updated=next(r for r in returned if r['source_label']==rows[index]['source_label'])
         for key in sorted(allowed):

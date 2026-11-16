@@ -16,6 +16,15 @@ VERSION = 'llm-extraction-0.5'
 COMPARATORS = ('=', '<', '>', '<=', '>=')
 SOURCE_COLUMNS = ('result', 'pre_measured', 'post_measured', 'intensity',
                   'absolute_count', 'percentage', 'pre_percent_predicted', 'post_percent_predicted', 'unknown')
+CORE_ROW_KEYS = ('field_id', 'source_label', 'raw_result', 'unit_raw', 'component',
+                 'source_column', 'row_box', 'numeric_value', 'comparator', 'qualitative_value')
+EXTRA_ROW_KEYS = ('class_raw', 'pre_percent_predicted', 'pattern_raw', 'grade_raw',
+                  'titre_raw', 'method_raw', 'source_flag_raw', 'warning', 'table_kind',
+                  'source_header', 'class_header', 'post_percent_predicted')
+
+COMPACT_PROMPT_ADDENDUM = '''
+COMPACT ROWS: Keep the required core fields and grade_annotation on each row. Put all other row fields described above in extra as {"key": "field_name", "value": "source value"} items, listing only non-null extra fields, once per key. Use extra=[] when none apply; omitted extra fields mean null.
+'''
 
 PROMPT_ADDENDUM = '''
 OUTPUT CONTRACT AND SOURCE ASSOCIATION:
@@ -66,6 +75,64 @@ def extraction_schema(base_schema, dictionary):
     }
     row['required'] = list(props)
     return schema
+
+
+def compact_extraction_schema(base_schema, dictionary):
+    """Opt-in sparse rows, retaining the full contract's types and enums."""
+    schema = extraction_schema(base_schema, dictionary)
+    row = schema['properties']['rows']['items']
+    full = row['properties']
+    props = {key: full[key] for key in CORE_ROW_KEYS}
+    # Keep this structured, nullable annotation separate so extra values stay
+    # strings and its source-association object keeps its own strict contract.
+    props['grade_annotation'] = full['grade_annotation']
+    # Group equal value schemas; table_kind retains its original string enum.
+    # Context stays on each row: no table grouping or inherited-header guesses.
+    groups = []
+    for key, value_schema in full.items():
+        if key in props:
+            continue
+        for keys, existing in groups:
+            if existing == value_schema:
+                keys.append(key)
+                break
+        else:
+            groups.append(([key], value_schema))
+    variants = [dict(type='object', properties={
+        'key': {'type': 'string', 'enum': keys}, 'value': value_schema},
+        required=['key', 'value'], additionalProperties=False)
+        for keys, value_schema in groups]
+    props['extra'] = {'type': 'array', 'items': {'anyOf': variants}}
+    row.update(properties=props, required=list(props), additionalProperties=False)
+    return schema
+
+
+def expand_compact_extraction(raw):
+    """Return full rows without mutating the model's compact audit record.
+
+    First occurrences win, including null. Unknown keys cannot enter the full
+    row contract; warn and discard them, and warn on any later occurrence too.
+    """
+    expanded = deepcopy(raw)
+    warnings = expanded.setdefault('warnings', [])
+    rows = []
+    for index, compact in enumerate(expanded['rows']):
+        row = {key: compact.get(key) for key in (*CORE_ROW_KEYS, 'grade_annotation')}
+        row.update(dict.fromkeys(EXTRA_ROW_KEYS))
+        seen = set()
+        for item in compact.get('extra', []):
+            key = item['key']
+            if key in seen:
+                warnings.append(f'Compact row {index}: duplicate extra key {key!r}; kept first value')
+                continue
+            seen.add(key)
+            if key not in EXTRA_ROW_KEYS:
+                warnings.append(f'Compact row {index}: unknown extra key {key!r}; ignored')
+                continue
+            row[key] = item['value']
+        rows.append(row)
+    expanded['rows'] = rows
+    return expanded
 
 
 def valid_row_box(box):
