@@ -49,6 +49,22 @@ class RequestTests(unittest.TestCase):
                 self.assertEqual(web.request_problem(HOST, headers, command, path), problem)
 
 
+class LoopbackTests(unittest.TestCase):
+    def test_same_machine_caller_on_the_loopback_address_qualifies(self):
+        self.assertTrue(web.loopback_caller('127.0.0.1', {'Host': '127.0.0.1:8877'}, 8877))
+
+    def test_tunnel_remote_or_other_host_requests_do_not_qualify(self):
+        cases = [('127.0.0.1', {'Host': HOST}),
+                 ('127.0.0.1', {'Host': '127.0.0.1:8877', 'Cf-Ray': 'abc'}),
+                 ('127.0.0.1', {'Host': '127.0.0.1:8877', 'X-Forwarded-For': '203.0.113.9'}),
+                 ('127.0.0.1', {'Host': '127.0.0.1:8878'}),
+                 ('127.0.0.1', {'Host': 'localhost:8877'}),
+                 ('100.90.1.2', {'Host': '127.0.0.1:8877'})]
+        for client, headers in cases:
+            with self.subTest(client=client, headers=headers):
+                self.assertFalse(web.loopback_caller(client, headers, 8877))
+
+
 class AccountFileTests(unittest.TestCase):
     def load(self, value):
         with tempfile.TemporaryDirectory() as folder:

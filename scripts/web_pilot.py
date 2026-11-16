@@ -44,6 +44,21 @@ def request_problem(host, headers, command, path):
     return None
 
 
+TUNNEL_HEADERS = ('Cf-Ray', 'Cf-Connecting-Ip', 'Cf-Visitor', 'X-Forwarded-For', 'X-Forwarded-Host')
+
+
+def loopback_caller(client_ip, headers, port):
+    """True for a same-machine caller (the Next.js server) addressing 127.0.0.1 directly.
+
+    Such a caller skips the Basic login but still meets every check of the
+    plain local backend (exact 127.0.0.1 Host, no foreign Origin, review token
+    on writes). Requests through the tunnel carry the tunnel Host and
+    Cloudflare headers, so they never qualify.
+    """
+    return (client_ip == '127.0.0.1' and headers.get('Host') == f'127.0.0.1:{port}'
+            and not any(headers.get(name) for name in TUNNEL_HEADERS))
+
+
 def load_accounts(path):
     accounts = json.loads(Path(path).read_text(encoding='utf-8'))
     if not isinstance(accounts, dict) or not accounts or not all(
@@ -54,8 +69,11 @@ def load_accounts(path):
 
 def pilot_handler(base, host, accounts):
     class PilotHandler(base):
+        def loopback(self):
+            return loopback_caller(self.client_address[0], self.headers, self.server.server_port)
+
         def process(self):
-            if not authorized(self.headers.get('Authorization'), accounts):
+            if not self.loopback() and not authorized(self.headers.get('Authorization'), accounts):
                 self.close_connection = True
                 self.send_response(401)
                 self.send_header('WWW-Authenticate', 'Basic realm="Lupiva Pilot", charset="UTF-8"')
@@ -69,6 +87,8 @@ def pilot_handler(base, host, accounts):
         do_POST = process
 
         def allowed_request(self):
+            if self.loopback():
+                return super().allowed_request()
             problem = request_problem(host, self.headers, self.command, self.path)
             if problem:
                 raise PermissionError(problem)
