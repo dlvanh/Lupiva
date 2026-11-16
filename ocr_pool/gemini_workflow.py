@@ -1,5 +1,6 @@
 """Reviewed image regions -> Gemini -> immutable pending review bundle."""
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 import hashlib
@@ -16,6 +17,7 @@ from .catalog_alias import CatalogAliases
 from .gemini import DeadlineReached, InvalidAPIResponse, TransportError, configuration, privacy_plan, prepare_image, extract_image
 from .lab_api import extract_lab_image, lab_crop_evidence
 from .outgoing_gate import check_outgoing, result_content
+from .ocr_hint import ocr_hint_lines
 from .ocr_crosscheck import number_disagreements
 from .lab_reference_cells import attach_complement_ranges
 from .llm_extraction import VERSION as LLM_CONTRACT_VERSION, valid_row_box
@@ -547,20 +549,43 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
             raise ValueError('Outgoing privacy check found staff or identifying text in every automatic image; '
                              'review the crop and masks manually')
         stage('outgoing_privacy_check', 'completed');stage('gemini_extract', 'running')
-        results=[];failed_documents={};timed_out=[];unreachable={};(output/'api-responses').mkdir(exist_ok=True)
-        for index, (doc, body) in enumerate(zip(documents, prepared)):
-            if body is None: results.append(None);continue
+        results=[None]*len(documents);failed_documents={};timed_out=[];unreachable={};(output/'api-responses').mkdir(exist_ok=True)
+
+        def extract_first(index, doc, body):
+            failures = {}
+            if body is None:
+                return None, failures, None, None
             if deadline is not None and time.time() >= float(deadline)-5:
-                timed_out.append(doc['document_id']);results.append(None);continue
+                return None, failures, 'timed_out', None
             try:
                 result=_extract_one(index, doc, body, output, workspace, dictionary, config, extractor,
-                                    profiles, local_scans, failed_documents)
+                                    profiles, local_scans, failures)
             except DeadlineReached:
-                timed_out.append(doc['document_id']);results.append(None);continue
+                return None, failures, 'timed_out', None
             except TransportError as error:
                 # One unreachable image must not discard the others; it is retried below.
-                unreachable[index]=str(error);results.append(None);continue
-            results.append(result)
+                return None, failures, 'unreachable', str(error)
+            return result, failures, None, None
+
+        concurrency = config.get('concurrency', 2) if config is not None and extractor is None else 1
+        outcomes = [None]*len(documents)
+        with ThreadPoolExecutor(max_workers=concurrency) as executor:
+            futures = {executor.submit(extract_first, index, doc, body): index
+                       for index, (doc, body) in enumerate(zip(documents, prepared))}
+            try:
+                for future in as_completed(futures):
+                    outcomes[futures[future]] = future.result()
+            except BaseException:
+                for future in futures:
+                    future.cancel()
+                raise
+        for index, (result, failures, status, error) in enumerate(outcomes):
+            results[index] = result
+            failed_documents.update(failures)
+            if status == 'timed_out':
+                timed_out.append(documents[index]['document_id'])
+            elif status == 'unreachable':
+                unreachable[index] = error
         # Second pass for images whose API call failed: once more, on the fallback engine when configured.
         for index, first_error in unreachable.items():
             doc, body = documents[index], prepared[index]
@@ -577,6 +602,9 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                                                 model=retry_config['model'] if retry_config else None,
                                                 first_error=first_error[:300])
             results[index]=result
+        document_order = {doc['document_id']: index for index, doc in enumerate(documents)}
+        timed_out.sort(key=document_order.__getitem__)
+        failed_documents = dict(sorted(failed_documents.items(), key=lambda item: document_order[item[0]]))
         # Per-run API health for the operator banner: counts and timings only.
         write(output/'api-health.json', dict(
             sent=sum(body is not None for body in prepared), failed=len(failed_documents),
@@ -637,8 +665,8 @@ def _extract_one(index, doc, body, output, workspace, dictionary, config, extrac
                 write(output/'api-responses'/f'image-{index+1:03}-fast-rejected.json',
                       dict(error=fast_error, raw_response=error.response))
         break
+    standard_config = {**config, 'max_output_tokens': 32000} if fast_error else config
     if result is None:
-        standard_config = {**config, 'max_output_tokens': 32000} if fast_error else config
         if extractor:
             result = extractor(body,dictionary,workspace)
         else:
@@ -647,7 +675,8 @@ def _extract_one(index, doc, body, output, workspace, dictionary, config, extrac
             errors = []
             for attempt in range(2):
                 try:
-                    result = extract_image(body,dictionary,workspace,config=standard_config)
+                    hint = ocr_hint_lines(scan, doc['privacy']) if standard_config.get('ocr_hint') and scan else None
+                    result = extract_image(body,dictionary,workspace,config=standard_config,ocr_hint=hint)
                     break
                 except InvalidAPIResponse as error:
                     errors.append(str(error))
@@ -660,7 +689,11 @@ def _extract_one(index, doc, body, output, workspace, dictionary, config, extrac
                 result['api_retry'] = errors
         if fast_error:
             result['fast_profile_fallback'] = fast_error
-        if extractor is None:
+    if extractor is None:
+        needs_verification = (config.get('always_verify') or result['validation_issues'] or scan is None
+                              or not result['extraction']['rows'] or fast_error
+                              or number_disagreements(result['extraction']['rows'], scan, doc['privacy']))
+        if needs_verification:
             from .llm_verification import verify_extraction
             try:
                 result=verify_extraction(body,result,dictionary,workspace,config=standard_config)
@@ -668,7 +701,8 @@ def _extract_one(index, doc, body, output, workspace, dictionary, config, extrac
                 result['verification'] = dict(attempted=False, status='skipped_time_limit')
             except InvalidAPIResponse as error:
                 result['verification'] = dict(attempted=True, status='failed_kept_initial', error=str(error))
-    if extractor is None:
+        else:
+            result['verification'] = dict(attempted=False, status='skipped_consistent_with_local_ocr')
         from .llm_row_anchors import anchor_row_boxes
         if scan:
             anchor_row_boxes(result,scan,doc['privacy'])

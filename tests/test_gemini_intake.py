@@ -4,6 +4,8 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import threading
+import time
 from urllib.error import HTTPError
 from unittest.mock import Mock, patch
 import unittest
@@ -12,7 +14,7 @@ from PIL import Image
 from ocr_pool.gemini import (InvalidAPIResponse, configuration, public_configuration, privacy_plan,
                              prepare_image, extract_image, response_schema, request_json)
 from ocr_pool.gemini_workflow import (build_candidate, ct_ild_finding, echo_pericardial_finding,
-                                     pleural_effusion_finding, run)
+                                     pleural_effusion_finding, run, _extract_one)
 from ocr_pool.local_dates import date_facts, observation_date
 from registry_pool.exchange import verify_bundle, read
 from registry_review.store import ReviewStore
@@ -400,6 +402,118 @@ class GeminiIntakeTests(unittest.TestCase):
         with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),                 self.assertRaisesRegex(ValueError, 'time limit reached before any image'):
             run(dict(documents=docs), self.root/'deadline-none', self.root, extractor=extractor)
 
+    def test_verification_only_runs_when_needed_and_crosschecks_final_rows(self):
+        privacy = dict(crop=[0,90,800,300], reviewed=True)
+        doc = dict(document_id='SYNTHETIC', privacy=privacy)
+        scan = dict(plan=dict(size=[800,300], crop=privacy['crop'], crop_reason='synthetic'), lines=[])
+        for index in range(6):
+            top = 100+25*index
+            scan['lines'].extend([
+                dict(text=f'Assay {index}', confidence=.99, box=[20,top,200,top+20]),
+                dict(text=str(index+1), confidence=.99, box=[400,top,450,top+20])])
+
+        def consistent_result():
+            record = result()
+            record['extraction']['rows'] = [row(source_label=f'Assay {i}', numeric_value=str(i+1),
+                                               raw_result=str(i+1)) for i in range(6)]
+            return record
+
+        for reason in ('consistent', 'validation_issue', 'ocr_disagreement', 'no_scan',
+                       'zero_rows', 'always_verify', 'fast_fallback'):
+            with self.subTest(reason=reason):
+                initial = consistent_result()
+                config = dict(always_verify=reason == 'always_verify')
+                if reason == 'validation_issue':
+                    initial['validation_issues'] = [dict(row_index=0, code='synthetic_issue')]
+                elif reason == 'ocr_disagreement':
+                    initial['extraction']['rows'][-1]['numeric_value'] = '99'
+                elif reason == 'zero_rows':
+                    initial['extraction']['rows'] = []
+                verified = consistent_result()
+                verified['verification'] = dict(attempted=True, status='verified')
+                profiles = [(Mock(return_value=True), Mock(side_effect=InvalidAPIResponse('fast rejected')))
+                            ] if reason == 'fast_fallback' else []
+                scans = {} if reason == 'no_scan' else {doc['document_id']: scan}
+                output = self.root/reason
+                (output/'api-responses').mkdir(parents=True)
+                with (patch('ocr_pool.gemini_workflow.extract_image', return_value=initial),
+                      patch('ocr_pool.llm_verification.verify_extraction', return_value=verified) as verify):
+                    record = _extract_one(0, doc, image_bytes('verification'), output, self.root, DICTIONARY,
+                                          config, None, profiles, scans, {})
+                if reason == 'consistent':
+                    verify.assert_not_called()
+                    self.assertEqual(record['verification'],
+                                     dict(attempted=False, status='skipped_consistent_with_local_ocr'))
+                else:
+                    verify.assert_called_once()
+                    self.assertTrue(record['verification']['attempted'])
+                if scans:
+                    self.assertEqual(record['ocr_number_disagreements'], [])
+
+    def test_configuration_parses_concurrency_and_always_verify_for_each_engine(self):
+        for engine in ('gemini', 'tokenharbor'):
+            prefix = engine.upper()
+            for raw, expected in ((None, 2), ('1', 1), ('3', 3), ('0', 1), ('9', 4), ('invalid', 2)):
+                with self.subTest(engine=engine, concurrency=raw):
+                    text = f'{prefix}_API_KEY=synthetic\n{prefix}_MODEL=synthetic-model\n'
+                    if raw is not None:
+                        text += f'{prefix}_CONCURRENCY={raw}\n{prefix}_ALWAYS_VERIFY=1\n'
+                    with patch.object(Path, 'is_file', return_value=True), patch.object(Path, 'read_text', return_value=text):
+                        config = configuration(self.root, engine=engine)
+                    self.assertEqual(config['concurrency'], expected)
+                    self.assertEqual(config['always_verify'], raw is not None)
+
+    def test_concurrent_images_finish_faster_and_keep_document_order(self):
+        self.setup_config()
+        docs, indexes = [], {}
+        for index in range(4):
+            source = self.root/f'synthetic-{index}.png'
+            body = image_bytes(f'concurrent-{index}')
+            source.write_bytes(body)
+            checksum = hashlib.sha256(body).hexdigest()
+            privacy = dict(sha256=checksum, crop=[0,0,900,350], reviewed=True)
+            docs.append(dict(document_id=f'DOC-{index}', input_path=source.name,
+                             input_sha256=checksum, privacy=privacy))
+            indexes[prepare_image(body, privacy)] = index
+        first_finished = threading.Event()
+        started, finished, extraction_elapsed = [], [], []
+
+        def slow_extract(body, *_args, **_kwargs):
+            started.append(time.monotonic())
+            index = indexes[body]
+            time.sleep(.2)
+            if index == 0:
+                self.assertTrue(first_finished.wait(1))
+            finished.append(index)
+            if index == 1:
+                first_finished.set()
+            record = result()
+            record['model_returned'] = f'synthetic-{index}'
+            return record
+
+        def build_after_extraction(*args, **kwargs):
+            # Time the image pass separately from bundle rendering and publication.
+            extraction_elapsed.append(time.monotonic()-min(started))
+            return build_candidate(*args, **kwargs)
+
+        output = self.root/'concurrent-out'
+        with (patch('ocr_pool.gemini_workflow.configuration', return_value=dict(concurrency=2, model='synthetic')),
+              patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),
+              patch('ocr_pool.gemini_workflow.extract_image', side_effect=slow_extract),
+              patch('ocr_pool.llm_verification.verify_extraction', side_effect=lambda _, record, *a, **k: record),
+              patch('ocr_pool.gemini_workflow.build_candidate', side_effect=build_after_extraction) as build):
+            bundle = run(dict(documents=docs), output, self.root)
+        self.assertLess(extraction_elapsed[0], .7)
+        self.assertEqual(finished[0], 1)  # Complete out of order deliberately.
+        self.assertEqual([r['model_returned'] for r in build.call_args.args[1]],
+                         [f'synthetic-{i}' for i in range(4)])
+        self.assertEqual([o['document_id'] for o in read(output/'candidate-pool.json')['observations']],
+                         [d['document_id'] for d in docs])
+        self.assertEqual(len(verify_bundle(bundle, DICTIONARY)['observations']), 4)
+        for index in range(4):
+            self.assertEqual(read(output/f'api-responses/image-{index+1:03}.json')['model_returned'],
+                             f'synthetic-{index}')
+
     def test_unreachable_image_is_retried_without_failing_the_patient(self):
         self.setup_config()
         from ocr_pool.gemini import TransportError
@@ -448,6 +562,52 @@ class GeminiIntakeTests(unittest.TestCase):
         self.assertEqual(len(sent), 1)
         issues = read(self.root/'content-out/candidate-pool.json')['issues']
         self.assertIn(('PERSONAL', 'not_sent_no_result_content'), [(i['document_id'], i['reason']) for i in issues])
+
+    def test_concurrent_failures_and_retry_timeouts_stay_in_document_order(self):
+        from ocr_pool.gemini import DeadlineReached, TransportError
+        self.setup_config()
+        docs, indexes = [], {}
+        for index in range(5):
+            source = self.root/f'outcome-{index}.png'
+            body = image_bytes(f'outcome-{index}')
+            source.write_bytes(body)
+            checksum = hashlib.sha256(body).hexdigest()
+            privacy = dict(sha256=checksum, crop=[0,0,900,350], reviewed=True)
+            docs.append(dict(document_id=f'DOC-{index}', input_path=source.name,
+                             input_sha256=checksum, privacy=privacy))
+            indexes[prepare_image(body, privacy)] = index
+        calls = []
+
+        def extract_outcome(body, *_args, **_kwargs):
+            index = indexes[body]
+            calls.append(index)
+            if index == 0:
+                if calls.count(index) == 1:
+                    time.sleep(.03)  # A later document times out first.
+                    raise TransportError('synthetic unreachable')
+                raise DeadlineReached('synthetic retry deadline')
+            if index == 1:
+                raise DeadlineReached('synthetic deadline')
+            if index == 2:
+                raise InvalidAPIResponse('synthetic malformed response')
+            if index == 3:
+                raise TransportError('synthetic unreachable')
+            return result()
+
+        output = self.root/'concurrent-failures'
+        with (patch('ocr_pool.gemini_workflow.configuration', return_value=dict(model='synthetic')),
+              patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),
+              patch('ocr_pool.gemini_workflow.extract_image', side_effect=extract_outcome),
+              patch('ocr_pool.llm_verification.verify_extraction', side_effect=lambda _, record, *a, **k: record)):
+            bundle = run(dict(documents=docs), output, self.root)
+        self.assertEqual(calls[-2:], [0, 3])  # Retries run sequentially, after the first pass.
+        issues = read(output/'candidate-pool.json')['issues']
+        self.assertEqual([i['document_id'] for i in issues if i['reason']=='api_time_limit'], ['DOC-0', 'DOC-1'])
+        self.assertEqual([i['document_id'] for i in issues if i['reason']=='api_extraction_failed'], ['DOC-2', 'DOC-3'])
+        self.assertEqual([o['document_id'] for o in read(output/'candidate-pool.json')['observations']], ['DOC-4'])
+        self.assertEqual(len(verify_bundle(bundle, DICTIONARY)['observations']), 1)
+        health = read(output/'api-health.json')
+        self.assertEqual((health['failed'], health['not_sent_time_limit']), (2, 2))
 
     def test_request_respects_deadline_and_retries_a_timeout_once(self):
         import ocr_pool.gemini as gemini
