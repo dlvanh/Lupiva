@@ -506,50 +506,13 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
             prepared.append(outgoing)
             sources.append(source)
         stage('gemini_privacy', 'completed')
-        stage('local_source_dates', 'running')
+        stage('local_source_dates', 'running');stage('outgoing_privacy_check', 'running')
+        stage('gemini_extract', 'running')
         (output/'raw').mkdir(exist_ok=True);(output/'crops').mkdir(exist_ok=True)
+        (output/'local-ocr').mkdir(parents=True, exist_ok=True);(output/'api-responses').mkdir(exist_ok=True)
         local_dates, local_metadata, date_status, local_scans = {}, {}, {}, {}
-        for index, (doc, source, outgoing) in enumerate(zip(documents, sources, prepared)):
-            did = doc['document_id']
-            if outgoing is None:
-                date_status[did] = 'image_skipped'
-                continue
-            status, scan = scan_source_dates(workspace, source, doc, output/'local-ocr'/f'image-{index+1:03}')
-            date_status[did] = status
-            if scan:
-                local_scans[did] = scan
-                local_dates[did] = local_date_evidence(doc, source, scan, output, index)
-                local_metadata[did] = local_metadata_evidence(doc, source, scan, output, index)
-        stage('local_source_dates', 'completed')
-        # Final local gate: automatic crops are re-read from the exact outgoing
-        # bytes; readable staff text blocks that image from being sent.
-        stage('outgoing_privacy_check', 'running')
         blocked = {};no_content = []
-        (output/'local-ocr').mkdir(parents=True, exist_ok=True)
-        for index, (doc, outgoing) in enumerate(zip(documents, prepared)):
-            if outgoing is None or not doc['privacy'].get('automatic'):
-                continue
-            seen = []
-            method, hits = check_outgoing(outgoing, doc['privacy'], local_scans.get(doc['document_id']),
-                                          workspace/'models/privacy', seen=seen)
-            # A page showing only (masked) personal details has nothing to extract: keep it local.
-            empty = not hits and method == 'outgoing_ocr' and result_content(seen) < 3
-            write(output/'local-ocr'/f'image-{index+1:03}-outgoing-check.json',
-                  dict(method=method, blocked=bool(hits), hit_count=len(hits),
-                       result_cells=result_content(seen) if method == 'outgoing_ocr' else None))
-            if hits:
-                blocked[doc['document_id']] = method
-                prepared[index] = None
-            elif empty:
-                no_content.append(doc['document_id'])
-                prepared[index] = None
-        if no_content and all(body is None for body in prepared) and not blocked:
-            raise ValueError('No automatic image shows result content to read; originals are retained')
-        if blocked and all(body is None for body in prepared):
-            raise ValueError('Outgoing privacy check found staff or identifying text in every automatic image; '
-                             'review the crop and masks manually')
-        stage('outgoing_privacy_check', 'completed');stage('gemini_extract', 'running')
-        results=[None]*len(documents);failed_documents={};timed_out=[];unreachable={};(output/'api-responses').mkdir(exist_ok=True)
+        results=[None]*len(documents);failed_documents={};timed_out=[];unreachable={}
 
         def extract_first(index, doc, body):
             failures = {}
@@ -568,11 +531,48 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
             return result, failures, None, None
 
         concurrency = config.get('concurrency', 2) if config is not None and extractor is None else 1
-        outcomes = [None]*len(documents)
+        outcomes = [(None, {}, None, None)]*len(documents)
+        # Local OCR of each image (dates, then the final outgoing gate) runs here while
+        # earlier images are already with the API: an image is queued the moment it passes.
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
-            futures = {executor.submit(extract_first, index, doc, body): index
-                       for index, (doc, body) in enumerate(zip(documents, prepared))}
+            futures = {}
             try:
+                for index, (doc, source) in enumerate(zip(documents, sources)):
+                    did = doc['document_id']
+                    if prepared[index] is None:
+                        date_status[did] = 'image_skipped'
+                        continue
+                    status, scan = scan_source_dates(workspace, source, doc, output/'local-ocr'/f'image-{index+1:03}')
+                    date_status[did] = status
+                    if scan:
+                        local_scans[did] = scan
+                        local_dates[did] = local_date_evidence(doc, source, scan, output, index)
+                        local_metadata[did] = local_metadata_evidence(doc, source, scan, output, index)
+                    if doc['privacy'].get('automatic'):
+                        # Final local gate: the exact outgoing bytes are re-read; readable staff
+                        # text blocks the image, and a page without result cells stays local.
+                        seen = []
+                        method, hits = check_outgoing(prepared[index], doc['privacy'], local_scans.get(did),
+                                                      workspace/'models/privacy', seen=seen)
+                        cells = result_content(seen) if method == 'outgoing_ocr' else None
+                        write(output/'local-ocr'/f'image-{index+1:03}-outgoing-check.json',
+                              dict(method=method, blocked=bool(hits), hit_count=len(hits), result_cells=cells))
+                        if hits:
+                            blocked[did] = method
+                            prepared[index] = None
+                            continue
+                        if cells is not None and cells < 3:
+                            no_content.append(did)
+                            prepared[index] = None
+                            continue
+                    futures[executor.submit(extract_first, index, doc, prepared[index])] = index
+                stage('local_source_dates', 'completed')
+                if no_content and all(body is None for body in prepared) and not blocked:
+                    raise ValueError('No automatic image shows result content to read; originals are retained')
+                if blocked and all(body is None for body in prepared):
+                    raise ValueError('Outgoing privacy check found staff or identifying text in every automatic image; '
+                                     'review the crop and masks manually')
+                stage('outgoing_privacy_check', 'completed')
                 for future in as_completed(futures):
                     outcomes[futures[future]] = future.result()
             except BaseException:

@@ -609,6 +609,29 @@ class GeminiIntakeTests(unittest.TestCase):
         health = read(output/'api-health.json')
         self.assertEqual((health['failed'], health['not_sent_time_limit']), (2, 2))
 
+    def test_first_image_is_sent_while_later_images_are_still_read_locally(self):
+        self.setup_config()
+        docs = []
+        for name in ('FIRST', 'SECOND', 'THIRD'):
+            source = self.root/(name+'.png'); body = image_bytes('pipeline-'+name); source.write_bytes(body)
+            checksum = hashlib.sha256(body).hexdigest()
+            docs.append(dict(document_id=name, input_path=source.name, input_sha256=checksum,
+                             privacy=dict(sha256=checksum, crop=[0,90,800,300], reviewed=True)))
+        events = []
+        def slow_scan(workspace, source, doc, folder):
+            events.append('scan-start-'+doc['document_id'])
+            if doc['document_id'] != 'FIRST': time.sleep(.3)
+            events.append('scan-end-'+doc['document_id'])
+            return 'not_needed', None
+        def extractor(*_):
+            events.append('api')
+            return result()
+        with patch('ocr_pool.gemini_workflow.scan_source_dates', slow_scan):
+            bundle = run(dict(documents=docs), self.root/'pipeline-out', self.root, extractor=extractor)
+        self.assertLess(events.index('api'), events.index('scan-end-THIRD'))
+        self.assertEqual(events.count('api'), 3)
+        self.assertEqual(len(verify_bundle(bundle, DICTIONARY)['observations']), 3)
+
     def test_request_respects_deadline_and_retries_a_timeout_once(self):
         import ocr_pool.gemini as gemini
         from ocr_pool.gemini import DeadlineReached
