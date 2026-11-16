@@ -83,7 +83,7 @@ export interface CrfAntibodyBlotRow {
   panel: "ana23" | "myositis16";
   /** Current status in CRF. Empty ("") when confidence < 80% until user checks original scan */
   result: BlotResultStatus;
-  printedResult: "Negative" | "Positive" | "Borderline";
+  printedResult: BlotResultStatus;
   intensity: string;
   printedIntensity: string;
   confidence: number;
@@ -134,7 +134,7 @@ export interface SleCrfPatientRecord {
   studyId: string; // e.g., VN-0084-26
   patientName: string;
   age: string;
-  gender: "Female" | "Male";
+  gender: "Female" | "Male" | "";
   icfSignedDate: string; // DD/MM/YYYY
   heightCm: string;
   weightKg: string;
@@ -145,11 +145,11 @@ export interface SleCrfPatientRecord {
   signedOffRole: string | null;
 
   // Section 2: Medical History
-  malignantDisease: "YES" | "NO";
+  malignantDisease: YesNoUnknown;
   malignantSpecify: string;
-  otherComorbidities: "YES" | "NO";
+  otherComorbidities: YesNoUnknown;
   otherComorbiditiesSpecify: string;
-  familyAutoimmuneHistory: "YES" | "NO";
+  familyAutoimmuneHistory: YesNoUnknown;
   familyRelatives: {
     Father: boolean;
     Mother: boolean;
@@ -159,21 +159,21 @@ export interface SleCrfPatientRecord {
     Others: boolean;
   };
   familyDiseaseSpecify: string;
-  fever: "YES" | "NO";
+  fever: YesNoUnknown;
   feverTempC: string;
   feverOnsetDate: string;
-  feverType: "periodic" | "prolonged" | "others";
+  feverType: "periodic" | "prolonged" | "others" | "";
   feverTypeSpecify: string;
   historyOfInfection: YesNoUnknown;
   infectionEpisodes: CrfInfectionEpisode[];
-  treatmentStatus: "YES" | "NO";
+  treatmentStatus: YesNoUnknown;
   treatments: CrfTreatmentRow[];
 
   // Section 3: Organs Damage
   skinMucosaAbnormality: YesNoUnknown;
   skinMucosaItems: CrfCheckItem[];
   muscleDamage: YesNoUnknown;
-  muscleBiopsyOther: "YES" | "NO";
+  muscleBiopsyOther: YesNoUnknown;
   muscleBiopsySpecify: string;
   jointsDamage: YesNoUnknown;
   swollenJointsCount: string;
@@ -185,13 +185,13 @@ export interface SleCrfPatientRecord {
   abnormalUltrasoundSpecify: string;
   jointDeformity: YesNoUnknown;
   jointDeformitySpecify: string;
-  jointsOther: "YES" | "NO";
+  jointsOther: YesNoUnknown;
   jointsOtherSpecify: string;
   kidneysDamage: YesNoUnknown;
-  renalBiopsyPerformed: "YES" | "NO";
+  renalBiopsyPerformed: YesNoUnknown;
   renalBiopsyNote: string;
   renalBiopsyClasses: string[]; // Class I, Class II, Class III, Class IV, IIIA, IVA, IIIC, IVC, IIIA/C, IVA/C, Class V, Class VI
-  kidneysOther: "YES" | "NO";
+  kidneysOther: YesNoUnknown;
   kidneysOtherSpecify: string;
   haematologicalDisorders: YesNoUnknown;
   haematologicalSpecify: string;
@@ -221,6 +221,112 @@ export interface SleCrfPatientRecord {
 
   // Section 6: SLEDAI-2K Disease Activity Assessment
   sledai2kCriteria: Sledai2kCriterionItem[];
+}
+
+/** Creates a new dossier without asserting any clinical findings or OCR results. */
+export function buildBlankCrfRecord({
+  id, studyId, patientName, physician = "",
+}: {
+  id: string;
+  studyId: string;
+  patientName: string;
+  physician?: string;
+}): SleCrfPatientRecord {
+  const name = patientName.trim();
+  if (!name) throw new Error("Patient name is required.");
+  const record: SleCrfPatientRecord = {
+    id, studyId, patientName: name,
+    submissionStatus: "pending_doctor_review",
+    age: "",
+    gender: "",
+    icfSignedDate: "",
+    heightCm: "",
+    weightKg: "",
+    physician: physician.trim(),
+    nurse: "",
+    lastUpdated: "",
+    signedOffBy: null,
+    signedOffRole: null,
+    malignantDisease: "Unknown",
+    malignantSpecify: "",
+    otherComorbidities: "Unknown",
+    otherComorbiditiesSpecify: "",
+    familyAutoimmuneHistory: "Unknown",
+    familyRelatives: {
+      Father: false,
+      Mother: false,
+      Brother: false,
+      Sister: false,
+      Child: false,
+      Others: false,
+    },
+    familyDiseaseSpecify: "",
+    fever: "Unknown",
+    feverTempC: "",
+    feverOnsetDate: "",
+    feverType: "",
+    feverTypeSpecify: "",
+    historyOfInfection: "Unknown",
+    infectionEpisodes: [],
+    treatmentStatus: "Unknown",
+    treatments: [],
+    skinMucosaAbnormality: "Unknown",
+    skinMucosaItems: buildSkinMucosaItems(),
+    muscleDamage: "Unknown",
+    muscleBiopsyOther: "Unknown",
+    muscleBiopsySpecify: "",
+    jointsDamage: "Unknown",
+    swollenJointsCount: "",
+    tenderJointsCount: "",
+    vasScore: "",
+    abnormalXray: "Unknown",
+    abnormalXraySpecify: "",
+    abnormalUltrasound: "Unknown",
+    abnormalUltrasoundSpecify: "",
+    jointDeformity: "Unknown",
+    jointDeformitySpecify: "",
+    jointsOther: "Unknown",
+    jointsOtherSpecify: "",
+    kidneysDamage: "Unknown",
+    renalBiopsyPerformed: "Unknown",
+    renalBiopsyNote: "",
+    renalBiopsyClasses: [],
+    kidneysOther: "Unknown",
+    kidneysOtherSpecify: "",
+    haematologicalDisorders: "Unknown",
+    haematologicalSpecify: "",
+    cardiovascularAbnormality: "Unknown",
+    cardiovascularItems: buildCardiovascularItems(),
+    lungDamage: "Unknown",
+    lungIld: false,
+    lungIldPatterns: [],
+    lungPleuritis: false,
+    lungPleuritisSpecify: "",
+    lungOther: false,
+    lungOtherSpecify: "",
+    neuropsychiatricDisorders: "Unknown",
+    neuropsychiatricItems: buildNeuropsychiatricItems(),
+    giDisorders: "Unknown",
+    giItems: buildGiItems(),
+    ocrFields: INITIAL_CRF_PATIENTS[0].ocrFields.map(({
+      id, code, labelEn, labelVi, sectionId, subSectionEn, subSectionVi,
+      panelGroup, unit, referenceRange,
+    }) => ({
+      id, code, labelEn, labelVi, sectionId, subSectionEn, subSectionVi,
+      panelGroup, unit, referenceRange,
+      value: "", secondaryValue: "", printedValue: "", printedSecondaryValue: "",
+      flag: "", confidence: 0, status: "manual_required",
+    })),
+    antibodyBlots: INITIAL_CRF_PATIENTS[0].antibodyBlots.map(({ id, code, name, panel }) => ({
+      id, code, name, panel,
+      result: "", intensity: "", printedResult: "", printedIntensity: "",
+      confidence: 0, status: "manual_required",
+    })),
+    anaEntryCriterionMet: false,
+    eularAcrCriteria: buildDefaultEularAcrCriteria(),
+    sledai2kCriteria: buildDefaultSledai2kCriteria(),
+  };
+  return syncCriteriaFromVerifiedCrf(record);
 }
 
 export function getSubmissionStatus(p: SleCrfPatientRecord): SubmissionStatus {
@@ -2687,9 +2793,9 @@ export function getResolvedPatientOcrFields(
           tmpl.printedSecondaryValue !== undefined ? "N/A" : undefined,
         printedSecondaryValue:
           tmpl.printedSecondaryValue !== undefined ? "N/A" : undefined,
-        flag: "Normal",
-        confidence: 100,
-        status: "auto_approved",
+        flag: "",
+        confidence: 0,
+        status: "manual_required",
         clinicalNoteEn: undefined,
         clinicalNoteVi: undefined,
         notReturnedByOcr: true,
@@ -2733,11 +2839,11 @@ export function getResolvedPatientAntibodyBlots(
         ...tmpl,
         id: `${patient.id}-na-${tmpl.panel}-${tmpl.code.toLowerCase()}`,
         result: "",
-        printedResult: "Negative",
+        printedResult: "",
         intensity: "N/A",
         printedIntensity: "N/A",
-        confidence: 100,
-        status: "auto_approved",
+        confidence: 0,
+        status: "manual_required",
         notReturnedByOcr: true,
       });
     }

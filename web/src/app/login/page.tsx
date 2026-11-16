@@ -234,7 +234,11 @@ function LoginFormContent() {
             </div>
 
             <p className="mt-2 text-xs text-slate-600">
-              {mode === "login" ? t.login.subtitle : t.login.registerSubtitle}
+              {mode === "register"
+                ? t.login.registerSubtitle
+                : isDemoMode
+                  ? t.login.subtitle
+                  : language === "vi" ? "Đăng nhập bằng tài khoản của bạn." : "Sign in with your account."}
             </p>
 
             {/* Sign In vs Create Account Switcher */}
@@ -323,7 +327,9 @@ function LoginFormContent() {
                   </span>
                 </div>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  {t.login.patientTabDesc}
+                  {isDemoMode ? t.login.patientTabDesc : language === "vi"
+                    ? "Gửi tài liệu & theo dõi trạng thái hồ sơ"
+                    : "Submit documents & track their review status"}
                 </p>
               </button>
             </div>
@@ -509,27 +515,29 @@ function LoginFormContent() {
                   <h2 className="mt-0.5 text-lg font-bold text-slate-900">
                     {mode === "register"
                       ? fullName.trim() || roleDisplayLabel
-                      : activePersona.name}
+                      : isDemoMode ? activePersona.name : roleDisplayLabel}
                   </h2>
                 </div>
-                <span className="rounded-md bg-teal-100 px-2.5 py-1 font-mono text-xs font-bold text-teal-900">
-                  {activePersona.badgeText}
-                </span>
+                {isDemoMode && (
+                  <span className="rounded-md bg-teal-100 px-2.5 py-1 font-mono text-xs font-bold text-teal-900">
+                    {activePersona.badgeText}
+                  </span>
+                )}
               </div>
 
               <dl className="mt-4 space-y-3 text-xs">
                 <div>
                   <dt className="text-slate-500">{t.login.roleAffiliation}</dt>
                   <dd className="mt-0.5 font-semibold text-slate-800">
-                    {activePersona.title}
+                    {isDemoMode ? activePersona.title : roleDisplayLabel}
                   </dd>
                 </div>
-                <div>
+                {isDemoMode && <div>
                   <dt className="text-slate-500">{t.login.deptCohort}</dt>
                   <dd className="mt-0.5 font-mono text-slate-800">
                     {activePersona.departmentOrRegistryId}
                   </dd>
-                </div>
+                </div>}
                 <div>
                   <dt className="text-slate-500">{t.login.whatUnlocks}</dt>
                   <dd className="mt-1.5 space-y-1.5 text-slate-600">
@@ -579,10 +587,10 @@ function LoginFormContent() {
                               Tải lên ảnh chụp hoặc tệp PDF phiếu xét nghiệm từ các bệnh viện ngoài
                             </li>
                             <li>
-                              Xem trước các chỉ số SLE trích xuất trước khi chuyển tới Bác sĩ Vinmec
+                              Theo dõi trạng thái tài liệu đã gửi cho bác sĩ
                             </li>
                             <li>
-                              Theo dõi điều kiện nhận voucher tư vấn khám chuyên khoa sau khi nộp
+                              Xem trạng thái phê duyệt của hồ sơ
                             </li>
                           </>
                         ) : (
@@ -591,10 +599,10 @@ function LoginFormContent() {
                               Upload smartphone photos or PDFs of external hospital lab reports
                             </li>
                             <li>
-                              Pre-screen extracted SLE values before routing to Vinmec specialists
+                              Track the status of documents sent to your doctor
                             </li>
                             <li>
-                              Track consultation voucher eligibility upon registry submission
+                              View the review status of your submission
                             </li>
                           </>
                         )}

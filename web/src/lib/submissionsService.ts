@@ -2,19 +2,12 @@ import crypto from "node:crypto";
 import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import {
-  INITIAL_CRF_PATIENTS,
-  buildDefaultEularAcrCriteria,
-  buildDefaultSledai2kCriteria,
-  buildCardiovascularItems,
-  buildGiItems,
-  buildNeuropsychiatricItems,
-  buildSkinMucosaItems,
+  buildBlankCrfRecord,
   calculateEularAcrSummary,
   calculateSledai2kSummary,
   type SleCrfPatientRecord,
   type UploadedDocFile,
 } from "@/data/crfData";
-import { DEMO_USERS } from "@/data/mockData";
 import { getDb, type DatabaseClient } from "@/db";
 import {
   crfSubmissions,
@@ -37,7 +30,6 @@ import {
 } from "@/lib/crypto";
 import {
   DEFAULT_SUBMISSION_FILTERS,
-  formatDateInOffset,
   getOcrTierCounts,
   resolveUploadedDateBounds,
   type OcrTierCounts,
@@ -513,131 +505,24 @@ export async function createPatientSubmission(params: {
 
   const patientName =
     user.role === "patient"
-      ? user.name
-      : input.patientName?.trim() || "Tran Thi Mai";
+      ? user.name.trim()
+      : input.patientName?.trim();
+  if (!patientName) throw new AuthError(400, "Patient name is required.");
 
   const studyId =
     input.studyId?.trim() ||
     `VN-${String(1000 + crypto.randomInt(8999))}-${String(now.getFullYear()).slice(-2)}`;
 
-  const template = INITIAL_CRF_PATIENTS[0];
   const profileId = crypto.randomUUID();
   const submissionId = crypto.randomUUID();
   const legacyRecordKey = `crf-up-${submissionId.slice(0, 8)}`;
 
-  const ocrFields = template.ocrFields.map((f) => ({
-    ...f,
-    value: f.confidence < 80 ? "" : f.printedValue,
-    secondaryValue: f.confidence < 80 ? "" : f.printedSecondaryValue,
-    status:
-      f.confidence > 90
-        ? ("auto_approved" as const)
-        : f.confidence >= 80
-        ? ("needs_verify" as const)
-        : ("manual_required" as const),
-  }));
-
-  const antibodyBlots = template.antibodyBlots.map((b) => ({
-    ...b,
-    result: b.confidence < 80 ? ("" as const) : b.printedResult,
-    intensity: b.confidence < 80 ? "" : b.printedIntensity,
-    status:
-      b.confidence > 90
-        ? ("auto_approved" as const)
-        : fConfidence(b.confidence),
-  }));
-
-  function fConfidence(conf: number) {
-    return conf >= 80 ? ("needs_verify" as const) : ("manual_required" as const);
-  }
-
-  const doctorName =
-    user.role === "specialist" ? user.name : DEMO_USERS.specialist.name;
-
-  const draftRecord: SleCrfPatientRecord = {
-    ...template,
+  const draftRecord = buildBlankCrfRecord({
     id: legacyRecordKey,
     studyId,
     patientName,
-    age: "32",
-    gender: "Female",
-    icfSignedDate: formatDateInOffset(now, input.utcOffsetMinutes),
-    heightCm: "160",
-    weightKg: "54.0",
-    physician: doctorName,
-    nurse: "RN. Le Thi Huong",
-    submittedAt: undefined,
-    submissionStatus: "pending_doctor_review",
-    lastUpdated: "",
-    signedOffBy: null,
-    signedOffRole: null,
-    malignantDisease: "NO",
-    malignantSpecify: "",
-    otherComorbidities: "NO",
-    otherComorbiditiesSpecify: "",
-    familyAutoimmuneHistory: "NO",
-    familyRelatives: {
-      Father: false,
-      Mother: false,
-      Brother: false,
-      Sister: false,
-      Child: false,
-      Others: false,
-    },
-    familyDiseaseSpecify: "",
-    fever: "NO",
-    feverTempC: "",
-    feverOnsetDate: "",
-    feverType: "periodic",
-    feverTypeSpecify: "",
-    historyOfInfection: "NO",
-    infectionEpisodes: [],
-    treatmentStatus: "NO",
-    treatments: [],
-    skinMucosaAbnormality: "NO",
-    skinMucosaItems: buildSkinMucosaItems(),
-    muscleDamage: "NO",
-    muscleBiopsyOther: "NO",
-    muscleBiopsySpecify: "",
-    jointsDamage: "NO",
-    swollenJointsCount: "0",
-    tenderJointsCount: "0",
-    vasScore: "0",
-    abnormalXray: "NO",
-    abnormalXraySpecify: "",
-    abnormalUltrasound: "NO",
-    abnormalUltrasoundSpecify: "",
-    jointDeformity: "NO",
-    jointDeformitySpecify: "",
-    jointsOther: "NO",
-    jointsOtherSpecify: "",
-    kidneysDamage: "NO",
-    renalBiopsyPerformed: "NO",
-    renalBiopsyNote: "",
-    renalBiopsyClasses: [],
-    kidneysOther: "NO",
-    kidneysOtherSpecify: "",
-    haematologicalDisorders: "NO",
-    haematologicalSpecify: "",
-    cardiovascularAbnormality: "NO",
-    cardiovascularItems: buildCardiovascularItems(),
-    lungDamage: "NO",
-    lungIld: false,
-    lungIldPatterns: [],
-    lungPleuritis: false,
-    lungPleuritisSpecify: "",
-    lungOther: false,
-    lungOtherSpecify: "",
-    neuropsychiatricDisorders: "NO",
-    neuropsychiatricItems: buildNeuropsychiatricItems(),
-    giDisorders: "NO",
-    giItems: buildGiItems(),
-    ocrFields,
-    antibodyBlots,
-    anaEntryCriterionMet: true,
-    eularAcrCriteria: buildDefaultEularAcrCriteria(),
-    sledai2kCriteria: buildDefaultSledai2kCriteria(),
-  };
+    physician: user.role === "specialist" ? user.name : "",
+  });
 
   const redactTokens = [patientName, studyId];
   const medicalHistoryJson = buildScrubbedMedicalHistory(draftRecord, redactTokens);
@@ -681,11 +566,11 @@ export async function createPatientSubmission(params: {
       studyIdBlindIndex,
       patientNameEncrypted,
       icfSignedDateEncrypted,
-      age: 32,
-      gender: "Female",
-      heightCm: 160,
-      weightKg: 54.0,
-      bmi: 21.1,
+      age: null,
+      gender: null,
+      heightCm: null,
+      weightKg: null,
+      bmi: null,
     });
 
     await tx.insert(crfSubmissions).values({
@@ -724,7 +609,7 @@ export async function createPatientSubmission(params: {
         isImage: file.isImage,
         storageProvider: "sample",
         storageKey: `uploads/${submissionId}/${file.name}`,
-        ocrJobStatus: "completed",
+        ocrJobStatus: "pending",
       });
       docs.push({
         id: docId,
@@ -758,10 +643,10 @@ export async function createPatientSubmission(params: {
       studyIdEncrypted,
       patientNameEncrypted,
       icfSignedDateEncrypted,
-      age: 32,
-      gender: "Female",
-      heightCm: 160,
-      weightKg: 54.0,
+      age: null,
+      gender: null,
+      heightCm: null,
+      weightKg: null,
     },
     docs,
     input.utcOffsetMinutes

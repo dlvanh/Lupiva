@@ -8,6 +8,7 @@ import {
   getSubmissionStatus,
   syncCriteriaFromVerifiedCrf,
 } from "@/data/crfData";
+import { EmptyCrfState } from "@/components/EmptyCrfState";
 import { SleScoreTables } from "@/components/SleScoreTables";
 
 export default function SleScoresPage() {
@@ -55,6 +56,8 @@ export default function SleScoresPage() {
   if (!isSpecialist) {
     return null;
   }
+
+  if (!activePatient) return <EmptyCrfState language={language} />;
 
   const isApproved = getSubmissionStatus(activePatient) === "approved";
 

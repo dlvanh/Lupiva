@@ -16,7 +16,7 @@ export interface DemoUser extends AuthUser {
   passwordHint: string;
 }
 
-export type ClinicalFlag = "Normal" | "High" | "Low" | "Positive";
+export type ClinicalFlag = "" | "Normal" | "High" | "Low" | "Positive";
 
 export interface BiomarkerField {
   id: string;

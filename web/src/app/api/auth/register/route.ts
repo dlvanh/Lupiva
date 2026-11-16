@@ -29,7 +29,6 @@ import {
   checkRateLimit,
   recordRateLimitFailure,
 } from "@/lib/rateLimit";
-import { formatDateInOffset } from "@/lib/submissionFilters";
 
 const PASSWORD_COMPLEXITY_REGEX =
   /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{8,128}$/;
@@ -218,14 +217,10 @@ export async function POST(request: Request) {
 
     const title =
       data.role === "specialist"
-        ? "Clinical Immunology Specialist — Vinmec HITL Reviewer"
-        : "SLE Cohort Participant • Registered Patient Portal";
-    const departmentOrRegistryId =
-      data.role === "specialist"
-        ? "Vinmec Times City • Dept. of Clinical Immunology"
-        : `SLE Registry Cohort • Joined ${formatDateInOffset(now, 420)}`;
-    const badgeText =
-      data.role === "specialist" ? "HITL Verifier" : "Voucher Eligible";
+        ? "Clinical Specialist"
+        : "Registered Patient";
+    const departmentOrRegistryId = "";
+    const badgeText = data.role === "specialist" ? "Specialist" : "Patient";
 
     try {
       await db.insert(users).values({

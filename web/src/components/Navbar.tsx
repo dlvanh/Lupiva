@@ -172,7 +172,11 @@ export function Navbar() {
                   {currentUser.name}
                 </span>
                 <span className="hidden rounded bg-teal-50 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-teal-800 md:inline">
-                  {currentUser.badgeText}
+                  {process.env.NEXT_PUBLIC_DEMO_MODE === "true"
+                    ? currentUser.badgeText
+                    : currentUser.role === "specialist"
+                      ? language === "vi" ? "Bác sĩ" : "Specialist"
+                      : language === "vi" ? "Bệnh nhân" : "Patient"}
                 </span>
                 <button
                   type="button"
@@ -399,12 +403,12 @@ export function Navbar() {
             </div>
 
             <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-3 text-xs text-slate-600">
-              <span>
+              {process.env.NEXT_PUBLIC_DEMO_MODE === "true" && <span>
                 {t.common.allMockDataNotice}{" "}
                 <code className="rounded bg-slate-200/70 px-1.5 py-0.5 font-mono text-[11px] text-slate-800">
                   src/data/mockData.ts
                 </code>
-              </span>
+              </span>}
               <button
                 type="button"
                 onClick={() => setIsActionGuideOpen(false)}

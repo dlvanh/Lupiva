@@ -345,6 +345,9 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     expect(regData.user.email).toBe("lan.patient@lupiva.vn");
     expect(regData.user.name).toBe("Nguyen Thi Lan");
     expect(regData.user.role).toBe("patient");
+    expect(regData.user).toMatchObject({
+      title: "Registered Patient", departmentOrRegistryId: "", badgeText: "Patient",
+    });
 
     const [storedUser] = await testDb.db
       .select()
@@ -395,6 +398,9 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     expect(okSpecRes.status).toBe(201);
     const specBody = (await okSpecRes.json()) as { user: { role: string } };
     expect(specBody.user.role).toBe("specialist");
+    expect(specBody.user).toMatchObject({
+      title: "Clinical Specialist", departmentOrRegistryId: "", badgeText: "Specialist",
+    });
 
     // Can log out and log right back in with the newly registered specialist
     await logoutPost(buildJsonRequest("/api/auth/logout", {}));

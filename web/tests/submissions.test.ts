@@ -498,4 +498,65 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
       approvedTodayData.items.some((i) => i.record.id === created.record.id)
     ).toBe(true);
   });
+
+  it("persists a patient-created submission without any clinical or OCR values", async () => {
+    await signInAs("patient");
+    const res = await submissionsPost(buildRequest("/api/submissions", "POST", {
+      patientName: "A different name must not replace the account name",
+      studyId: "BLANK-CRF-1",
+      files: [{ name: "lab.pdf" }],
+    }));
+    expect(res.status).toBe(201);
+    const receipt = await res.json();
+    expect(receipt.record.patientName).toBe(DEMO_USERS.patient.name);
+
+    await signInAs("specialist");
+    const result = await querySubmissions({
+      user: await requireAuth(["specialist"]),
+      filters: submissionQuerySchema.parse({ q: "BLANK-CRF-1" }),
+    });
+    expect(result.items).toHaveLength(1);
+    const record = result.items[0].record;
+    expect(record.ocrFields.length).toBeGreaterThan(0);
+    for (const field of record.ocrFields) {
+      expect(field).toMatchObject({
+        value: "", secondaryValue: "", printedValue: "", printedSecondaryValue: "",
+        flag: "", confidence: 0, status: "manual_required",
+      });
+    }
+    for (const blot of record.antibodyBlots) {
+      expect(blot).toMatchObject({
+        result: "", intensity: "", printedResult: "", printedIntensity: "",
+        confidence: 0, status: "manual_required",
+      });
+    }
+    expect(record).toMatchObject({
+      age: "", gender: "", heightCm: "", weightKg: "", physician: "", nurse: "",
+      icfSignedDate: "", malignantDisease: "Unknown", fever: "Unknown",
+      infectionEpisodes: [], treatments: [], anaEntryCriterionMet: false,
+    });
+    expect(record.eularAcrCriteria.every((item) => !item.checked)).toBe(true);
+    expect(record.sledai2kCriteria.every((item) => !item.checked)).toBe(true);
+    expect(result.items[0].ocrSummary.approvedCount).toBe(0);
+  });
+
+  it("requires a specialist to supply the patient name and uses only their own physician name", async () => {
+    await signInAs("specialist");
+    for (const patientName of [undefined, " "]) {
+      const res = await submissionsPost(buildRequest("/api/submissions", "POST", {
+        patientName, files: [{ name: "lab.pdf" }],
+      }));
+      expect(res.status).toBe(400);
+    }
+    const res = await submissionsPost(buildRequest("/api/submissions", "POST", {
+      patientName: "Actual Patient", files: [{ name: "lab.pdf" }],
+    }));
+    expect(res.status).toBe(201);
+    const { record } = await res.json();
+    expect(record.patientName).toBe("Actual Patient");
+    expect(record.physician).toBe(DEMO_USERS.specialist.name);
+    expect(record.age).toBe("");
+    expect(record.gender).toBe("");
+    expect(record.nurse).toBe("");
+  });
 });

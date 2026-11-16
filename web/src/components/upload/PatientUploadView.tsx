@@ -148,7 +148,7 @@ export function PatientUploadView() {
   }, [currentUser, trackerPage, trackerTick, copy.trackerErrorTitle]);
 
   const patientName =
-    currentUser?.role === "patient" ? currentUser.name : "Tran Thi Mai";
+    currentUser?.role === "patient" ? currentUser.name : "";
 
   const addFiles = useCallback(
     (list: FileList | null) => {
@@ -209,26 +209,6 @@ export function PatientUploadView() {
     }
     setFiles((prev) => prev.filter((x) => x.id !== target.id));
     setValidationMessages([]);
-  };
-
-  const loadSample = () => {
-    const sampleName = "Sample_Hospital_Lab_Dossier.pdf";
-    if (files.some((f) => f.name.toLowerCase() === sampleName.toLowerCase())) {
-      setValidationMessages([copy.duplicateFile(sampleName)]);
-      return;
-    }
-    setValidationMessages([]);
-    setFiles((prev) => [
-      ...prev,
-      {
-        id: `sample-${Date.now()}`,
-        name: sampleName,
-        url: null,
-        isImage: false,
-        mimeType: "application/pdf",
-        sizeBytes: 245760,
-      },
-    ]);
   };
 
   const openImagePreview = (file: UploadedDocFile) => {
@@ -380,14 +360,6 @@ export function PatientUploadView() {
                   className="min-h-10 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer"
                 >
                   {copy.browseBtn}
-                </button>
-                <button
-                  type="button"
-                  id="upload-btn-sample"
-                  onClick={loadSample}
-                  className="min-h-10 rounded-lg border border-teal-700/30 bg-teal-50 px-4 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
-                >
-                  {copy.sampleBtn}
                 </button>
               </div>
             </div>

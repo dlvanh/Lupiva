@@ -143,8 +143,8 @@ export interface JoinedSubmissionRow {
   studyIdEncrypted: string;
   patientNameEncrypted: string;
   icfSignedDateEncrypted: string;
-  age: number;
-  gender: "Female" | "Male";
+  age: number | null;
+  gender: "Female" | "Male" | "" | null;
   heightCm: number | null;
   weightKg: number | null;
 }
@@ -182,8 +182,8 @@ export function rehydrateSleCrfRecord(
     submissionStatus: row.status,
     studyId,
     patientName,
-    age: String(row.age),
-    gender: row.gender,
+    age: row.age != null ? String(row.age) : "",
+    gender: row.gender ?? "",
     icfSignedDate,
     heightCm: row.heightCm != null ? String(row.heightCm) : "",
     weightKg: row.weightKg != null ? String(row.weightKg) : "",

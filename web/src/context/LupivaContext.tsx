@@ -11,7 +11,6 @@ import React, {
 import {
   AuthUser,
   DEMO_USERS,
-  MOCK_LAB_REPORTS,
   BiomarkerField,
   UserRole,
 } from "@/data/mockData";
@@ -23,13 +22,7 @@ import {
 } from "@/data/translations";
 import {
   SleCrfPatientRecord,
-  INITIAL_CRF_PATIENTS,
-  buildDefaultEularAcrCriteria,
-  buildDefaultSledai2kCriteria,
-  buildSkinMucosaItems,
-  buildCardiovascularItems,
-  buildNeuropsychiatricItems,
-  buildGiItems,
+  buildBlankCrfRecord,
   UploadedDocFile,
 } from "@/data/crfData";
 import { formatLocalTimestamp } from "@/lib/submissionFilters";
@@ -148,16 +141,10 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
-  const [selectedReportId, setSelectedReportId] = useState<string>(
-    MOCK_LAB_REPORTS[0].id
-  );
+  const [selectedReportId, setSelectedReportId] = useState<string>("");
   const [savedRecords, setSavedRecords] = useState<SavedRegistryRecord[]>([]);
-  const [crfPatients, setCrfPatients] = useState<SleCrfPatientRecord[]>(
-    () => INITIAL_CRF_PATIENTS
-  );
-  const [activeCrfPatientId, setActiveCrfPatientId] = useState<string>(
-    INITIAL_CRF_PATIENTS[0].id
-  );
+  const [crfPatients, setCrfPatients] = useState<SleCrfPatientRecord[]>([]);
+  const [activeCrfPatientId, setActiveCrfPatientId] = useState<string>("");
   const [isActionGuideOpen, setIsActionGuideOpen] = useState<boolean>(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
@@ -294,15 +281,15 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         const data = (await res.json()) as {
           items?: Array<{ record: SleCrfPatientRecord }>;
         };
-        if (active && Array.isArray(data.items) && data.items.length > 0) {
+        if (active && Array.isArray(data.items)) {
           const records = data.items.map((item) => item.record);
           mergeCrfPatientsFromApi(records, true);
           setActiveCrfPatientId((prevId) =>
-            records.some((r) => r.id === prevId) ? prevId : records[0].id
+            records.some((r) => r.id === prevId) ? prevId : records[0]?.id ?? ""
           );
         }
       } catch {
-        // Keep fallback initial state if API unreachable
+        // Leave the cohort empty if the API is unreachable
       }
     }
 
@@ -325,12 +312,13 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       }
       setCurrentUser((prev) => {
         if (!prev) return null;
+        if (process.env.NEXT_PUBLIC_DEMO_MODE !== "true") return prev;
         const isSeededPersona =
           prev.email.toLowerCase() === DEMO_USERS[prev.role].email.toLowerCase();
         const localized = getLocalizedDemoUsers(newLang)[prev.role];
         return {
           ...prev,
-          badgeText: localized.badgeText,
+          badgeText: isSeededPersona ? localized.badgeText : prev.badgeText,
           title: isSeededPersona ? localized.title : prev.title,
           departmentOrRegistryId: isSeededPersona
             ? localized.departmentOrRegistryId
@@ -448,8 +436,10 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       // Clear local state regardless of network hiccup
     } finally {
       setCurrentUser(null);
-      setCrfPatients(INITIAL_CRF_PATIENTS);
-      setActiveCrfPatientId(INITIAL_CRF_PATIENTS[0].id);
+      setCrfPatients([]);
+      setActiveCrfPatientId("");
+      setSelectedReportId("");
+      setSavedRecords([]);
       showToast(t.toasts.signedOutTitle, t.toasts.signedOutDesc, "navy");
     }
   }, [showToast, t]);
@@ -509,115 +499,19 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
   const createNewCrfPatient = useCallback(
     (patientName: string, studyId: string) => {
-      const template = INITIAL_CRF_PATIENTS[0];
-      const newPat: SleCrfPatientRecord = {
-        ...template,
+      const newPat = buildBlankCrfRecord({
         id: `crf-pat-${Date.now()}`,
-        studyId: studyId || `VN-0${120 + crfPatients.length}-26`,
-        patientName: patientName || "Nguyen Thi Thu",
-        age: "32",
-        gender: "Female",
-        icfSignedDate: "10/11/2026",
-        heightCm: "160",
-        weightKg: "54.0",
-        physician: currentUser ? currentUser.name : "Dr. Nguyen Minh, MD, PhD",
-        nurse: "RN. Le Thi Huong",
-        lastUpdated: formatLocalTimestamp(),
-        signedOffBy: null,
-        signedOffRole: null,
-        malignantDisease: "NO",
-        malignantSpecify: "",
-        otherComorbidities: "NO",
-        otherComorbiditiesSpecify: "",
-        familyAutoimmuneHistory: "NO",
-        familyRelatives: {
-          Father: false,
-          Mother: false,
-          Brother: false,
-          Sister: false,
-          Child: false,
-          Others: false,
-        },
-        familyDiseaseSpecify: "",
-        fever: "NO",
-        feverTempC: "",
-        feverOnsetDate: "",
-        feverType: "periodic",
-        feverTypeSpecify: "",
-        historyOfInfection: "NO",
-        infectionEpisodes: [],
-        treatmentStatus: "NO",
-        treatments: [],
-        skinMucosaAbnormality: "NO",
-        skinMucosaItems: buildSkinMucosaItems(),
-        muscleDamage: "NO",
-        muscleBiopsyOther: "NO",
-        muscleBiopsySpecify: "",
-        jointsDamage: "NO",
-        swollenJointsCount: "0",
-        tenderJointsCount: "0",
-        vasScore: "0",
-        abnormalXray: "NO",
-        abnormalXraySpecify: "",
-        abnormalUltrasound: "NO",
-        abnormalUltrasoundSpecify: "",
-        jointDeformity: "NO",
-        jointDeformitySpecify: "",
-        jointsOther: "NO",
-        jointsOtherSpecify: "",
-        kidneysDamage: "NO",
-        renalBiopsyPerformed: "NO",
-        renalBiopsyNote: "",
-        renalBiopsyClasses: [],
-        kidneysOther: "NO",
-        kidneysOtherSpecify: "",
-        haematologicalDisorders: "NO",
-        haematologicalSpecify: "",
-        cardiovascularAbnormality: "NO",
-        cardiovascularItems: buildCardiovascularItems(),
-        lungDamage: "NO",
-        lungIld: false,
-        lungIldPatterns: [],
-        lungPleuritis: false,
-        lungPleuritisSpecify: "",
-        lungOther: false,
-        lungOtherSpecify: "",
-        neuropsychiatricDisorders: "NO",
-        neuropsychiatricItems: buildNeuropsychiatricItems(),
-        giDisorders: "NO",
-        giItems: buildGiItems(),
-        ocrFields: template.ocrFields.map((f) => ({
-          ...f,
-          value: f.confidence < 80 ? "" : f.printedValue,
-          secondaryValue: f.confidence < 80 ? "" : f.printedSecondaryValue,
-          status:
-            f.confidence > 90
-              ? "auto_approved"
-              : f.confidence >= 80
-              ? "needs_verify"
-              : "manual_required",
-        })),
-        antibodyBlots: template.antibodyBlots.map((b) => ({
-          ...b,
-          result: b.confidence < 80 ? "" : b.printedResult,
-          intensity: b.confidence < 80 ? "" : b.printedIntensity,
-          status:
-            b.confidence > 90
-              ? "auto_approved"
-              : b.confidence >= 80
-              ? "needs_verify"
-              : "manual_required",
-        })),
-        anaEntryCriterionMet: true,
-        eularAcrCriteria: buildDefaultEularAcrCriteria(),
-        sledai2kCriteria: buildDefaultSledai2kCriteria(),
-      };
+        studyId: studyId.trim(),
+        patientName: currentUser?.role === "patient" ? currentUser.name : patientName,
+        physician: currentUser?.role === "specialist" ? currentUser.name : "",
+      });
+      newPat.lastUpdated = formatLocalTimestamp();
 
       setCrfPatients((prev) => [newPat, ...prev]);
       setActiveCrfPatientId(newPat.id);
       return newPat;
     },
-    [crfPatients.length, currentUser]
+    [currentUser]
   );
 
   /**

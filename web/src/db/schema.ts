@@ -24,11 +24,11 @@ import type { UserRole } from "@/data/mockData";
 export interface CrfMedicalHistoryPayload {
   physician: string;
   nurse: string;
-  malignantDisease: "YES" | "NO";
+  malignantDisease: YesNoUnknown;
   malignantSpecify: string;
-  otherComorbidities: "YES" | "NO";
+  otherComorbidities: YesNoUnknown;
   otherComorbiditiesSpecify: string;
-  familyAutoimmuneHistory: "YES" | "NO";
+  familyAutoimmuneHistory: YesNoUnknown;
   familyRelatives: {
     Father: boolean;
     Mother: boolean;
@@ -38,14 +38,14 @@ export interface CrfMedicalHistoryPayload {
     Others: boolean;
   };
   familyDiseaseSpecify: string;
-  fever: "YES" | "NO";
+  fever: YesNoUnknown;
   feverTempC: string;
   feverOnsetDate: string;
-  feverType: "periodic" | "prolonged" | "others";
+  feverType: "periodic" | "prolonged" | "others" | "";
   feverTypeSpecify: string;
   historyOfInfection: YesNoUnknown;
   infectionEpisodes: CrfInfectionEpisode[];
-  treatmentStatus: "YES" | "NO";
+  treatmentStatus: YesNoUnknown;
   treatments: CrfTreatmentRow[];
 }
 
@@ -53,7 +53,7 @@ export interface CrfOrgansDamagePayload {
   skinMucosaAbnormality: YesNoUnknown;
   skinMucosaItems: CrfCheckItem[];
   muscleDamage: YesNoUnknown;
-  muscleBiopsyOther: "YES" | "NO";
+  muscleBiopsyOther: YesNoUnknown;
   muscleBiopsySpecify: string;
   jointsDamage: YesNoUnknown;
   swollenJointsCount: string;
@@ -65,13 +65,13 @@ export interface CrfOrgansDamagePayload {
   abnormalUltrasoundSpecify: string;
   jointDeformity: YesNoUnknown;
   jointDeformitySpecify: string;
-  jointsOther: "YES" | "NO";
+  jointsOther: YesNoUnknown;
   jointsOtherSpecify: string;
   kidneysDamage: YesNoUnknown;
-  renalBiopsyPerformed: "YES" | "NO";
+  renalBiopsyPerformed: YesNoUnknown;
   renalBiopsyNote: string;
   renalBiopsyClasses: string[];
-  kidneysOther: "YES" | "NO";
+  kidneysOther: YesNoUnknown;
   kidneysOtherSpecify: string;
   haematologicalDisorders: YesNoUnknown;
   haematologicalSpecify: string;
@@ -191,8 +191,8 @@ export const patientProfiles = pgTable(
     studyIdBlindIndex: text("study_id_blind_index").notNull().unique(),
     patientNameEncrypted: text("patient_name_encrypted").notNull(),
     icfSignedDateEncrypted: text("icf_signed_date_encrypted").notNull(),
-    age: integer("age").notNull(),
-    gender: text("gender").$type<"Female" | "Male">().notNull(),
+    age: integer("age"),
+    gender: text("gender").$type<"Female" | "Male" | "">(),
     heightCm: real("height_cm"),
     weightKg: real("weight_kg"),
     bmi: real("bmi"),

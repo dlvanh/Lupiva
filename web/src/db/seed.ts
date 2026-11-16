@@ -94,7 +94,10 @@ export interface SeedResult {
 }
 
 export async function seedDatabase(
-  db: DatabaseClient = getDb()
+  db: DatabaseClient = getDb(),
+  // Sample (fictional) cases are for tests and local demos only; a pilot
+  // database must start with the accounts alone.
+  { sampleCases = true }: { sampleCases?: boolean } = {}
 ): Promise<SeedResult> {
   assertCryptoConfig();
 
@@ -183,8 +186,9 @@ export async function seedDatabase(
   let submissionsSeeded = 0;
   let documentsSeeded = 0;
 
-  for (let patIdx = 0; patIdx < INITIAL_CRF_PATIENTS.length; patIdx += 1) {
-    const pat = INITIAL_CRF_PATIENTS[patIdx];
+  const samplePatients = sampleCases ? INITIAL_CRF_PATIENTS : [];
+  for (let patIdx = 0; patIdx < samplePatients.length; patIdx += 1) {
+    const pat = samplePatients[patIdx];
     const deterministicIds = resolveDeterministicIds(pat.id, patIdx);
     const normalizedStudyId = normalizeStudyId(pat.studyId);
     const studyIdBlindIndex = computeBlindIndex(normalizedStudyId, "study_id");

@@ -343,7 +343,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       specialistConsent:
         "I confirm Physician-in-the-Loop (HITL) supervision responsibility: all flagged OCR biomarkers (<85% confidence) will be reviewed against the source scan before e-CRF commit.",
       patientConsent:
-        "I consent to contribute de-identified SLE lab values to the Vinmec Clinical Immunology Registry in exchange for specialist consultation voucher incentives.",
+        "I consent to contribute de-identified SLE lab values to the Vinmec Clinical Immunology Registry for review by my doctor.",
       submitBtn: (name) => `Sign In as ${name} →`,
       submitRegisterBtn: (roleLabel) => `Create ${roleLabel} Account →`,
       signingInBtn: "Verifying Session...",
@@ -590,7 +590,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       specialistConsent:
         "Tôi xác nhận trách nhiệm giám sát Bác sĩ Tham gia (HITL): toàn bộ chỉ số OCR bị cảnh báo (<85% độ tin cậy) sẽ được đối chiếu kỹ lưỡng với bản chụp gốc trước khi lưu vào e-CRF.",
       patientConsent:
-        "Tôi đồng ý đóng góp các chỉ số xét nghiệm SLE đã ẩn danh vào Cơ sở Dữ liệu Miễn dịch Lâm sàng Vinmec để đổi lấy phiếu ưu đãi khám chuyên khoa.",
+        "Tôi đồng ý đóng góp các chỉ số xét nghiệm SLE đã ẩn danh vào Cơ sở Dữ liệu Miễn dịch Lâm sàng Vinmec để bác sĩ xem xét.",
       submitBtn: (name) => `Đăng nhập với tên ${name} →`,
       submitRegisterBtn: (roleLabel) => `Tạo Tài khoản ${roleLabel} →`,
       signingInBtn: "Đang xác thực phiên...",

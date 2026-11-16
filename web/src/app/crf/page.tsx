@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
 import {
+  SleCrfPatientRecord,
   CrfSectionId,
   CrfOcrField,
   CrfAntibodyBlotRow,
@@ -21,6 +22,7 @@ import {
   syncCriteriaFromVerifiedCrf,
 } from "@/data/crfData";
 import { ClinicalFlag } from "@/data/mockData";
+import { EmptyCrfState } from "@/components/EmptyCrfState";
 import { DocxCrfView } from "@/components/DocxCrfView";
 import { SleScoreTables } from "@/components/SleScoreTables";
 import { formatLocalTimestamp } from "@/lib/submissionFilters";
@@ -36,13 +38,19 @@ type ScanDossierFilter =
 type DoctorWorkflowStep = "step1_triage" | "step2_review" | "step3_signoff";
 
 export default function SleCrfManagerPage() {
+  const { language, crfPatients, activeCrfPatientId } = useLupiva();
+  const activePatient = crfPatients.find((p) => p.id === activeCrfPatientId) ?? crfPatients[0];
+  if (!activePatient) return <EmptyCrfState language={language} />;
+  return <CrfPatientWorkspace key={activePatient.id} activePatient={activePatient} />;
+}
+
+function CrfPatientWorkspace({ activePatient }: { activePatient: SleCrfPatientRecord }) {
   const router = useRouter();
   const {
     language,
     currentUser,
     authLoading,
     crfPatients,
-    activeCrfPatientId,
     setActiveCrfPatientId,
     updateCrfPatient,
     showToast,
@@ -56,12 +64,6 @@ export default function SleCrfManagerPage() {
       router.replace("/login");
     }
   }, [authLoading, isSpecialist, router]);
-
-  const activePatient = useMemo(
-    () =>
-      crfPatients.find((p) => p.id === activeCrfPatientId) || crfPatients[0],
-    [crfPatients, activeCrfPatientId]
-  );
 
   const isApprovedRecord = getSubmissionStatus(activePatient) === "approved";
   const isReadOnly = isApprovedRecord;
@@ -564,11 +566,12 @@ export default function SleCrfManagerPage() {
                   })
                 }
                 className={`rounded-md border px-2 py-1 font-mono text-[10px] font-bold disabled:opacity-90 ${
-                  field.flag === "Normal"
+                  !field.flag || field.flag === "Normal"
                     ? "border-slate-200 bg-slate-100 text-slate-700"
                     : "border-rose-200 bg-rose-100 text-rose-900"
                 }`}
               >
+                <option value="">{isVi ? "Chưa rõ" : "Unknown"}</option>
                 <option value="Normal">{isVi ? "Bình thường" : "Normal"}</option>
                 <option value="High">{isVi ? "Cao" : "High"}</option>
                 <option value="Low">{isVi ? "Thấp" : "Low"}</option>
@@ -781,7 +784,7 @@ export default function SleCrfManagerPage() {
                 {crfPatients.map((pat) => (
                   <option key={pat.id} value={pat.id}>
                     {pat.studyId} • {pat.patientName} ({pat.age}
-                    {pat.gender === "Female" ? "F" : "M"}) —{" "}
+                    {pat.gender === "Female" ? "F" : pat.gender === "Male" ? "M" : "—"}) —{" "}
                     {getSubmissionStatus(pat) === "approved"
                       ? isVi ? "Đã duyệt" : "Approved"
                       : isVi ? "Chờ duyệt" : "Pending"}
@@ -1123,7 +1126,7 @@ export default function SleCrfManagerPage() {
                 </div>
               )}
 
-              {/* Simulated Scanned Hospital Lab Paper */}
+              {/* Structured fields for comparison with the uploaded source. */}
               <div
                 className={`relative flex-1 overflow-y-auto bg-slate-200/75 p-4 ${
                   viewerTab === "grounded" ? "" : "hidden"
@@ -1135,12 +1138,12 @@ export default function SleCrfManagerPage() {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="font-mono text-[10px] font-bold uppercase text-teal-900">
-                          VINMEC CENTRAL LABORATORY • SLE DOSSIER
+                          {isVi ? "Các trường dữ liệu tài liệu" : "Document fields"}
                         </p>
                         <h3 className="text-xs font-bold text-slate-900">
                           {isVi
-                            ? "Phiếu Kết quả Xét nghiệm & Thăm dò Chức năng (Bản gốc)"
-                            : "Official Clinical Lab & Diagnostic Printout"}
+                            ? "Dữ liệu trích xuất — đối chiếu với tệp đã tải lên"
+                            : "Extracted data — compare with the uploaded source"}
                         </h3>
                       </div>
                       <span className="font-mono text-[10px] font-bold text-slate-700">
@@ -1151,7 +1154,7 @@ export default function SleCrfManagerPage() {
                       <span>
                         PT: <strong>{activePatient.patientName}</strong> (
                         {activePatient.age}
-                        {activePatient.gender === "Female" ? "F" : "M"})
+                        {activePatient.gender === "Female" ? "F" : activePatient.gender === "Male" ? "M" : "—"})
                       </span>
                       <span>ICF: {activePatient.icfSignedDate}</span>
                     </div>
@@ -1640,6 +1643,7 @@ export default function SleCrfManagerPage() {
                         }
                         className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-900 disabled:bg-slate-50"
                       >
+                        <option value="">{isVi ? "Chưa rõ" : "Unknown"}</option>
                         <option value="Female">
                           {isVi ? "Nữ (Female)" : "Female"}
                         </option>
@@ -1807,7 +1811,7 @@ export default function SleCrfManagerPage() {
                         {isVi ? "Bệnh ác tính (Malignant disease)" : "Malignant disease"}
                       </span>
                       <div className="flex gap-2">
-                        {(["NO", "YES"] as const).map((opt) => (
+                        {(["NO", "YES", "Unknown"] as const).map((opt) => (
                           <button
                             key={opt}
                             type="button"
@@ -1853,7 +1857,7 @@ export default function SleCrfManagerPage() {
                         {isVi ? "Bệnh đồng mắc khác (Other comorbidities)" : "Other comorbidities"}
                       </span>
                       <div className="flex gap-2">
-                        {(["NO", "YES"] as const).map((opt) => (
+                        {(["NO", "YES", "Unknown"] as const).map((opt) => (
                           <button
                             key={opt}
                             type="button"
@@ -1903,7 +1907,7 @@ export default function SleCrfManagerPage() {
                         : "Family Autoimmune Disease History"}
                     </span>
                     <div className="flex gap-2">
-                      {(["NO", "YES"] as const).map((opt) => (
+                      {(["NO", "YES", "Unknown"] as const).map((opt) => (
                         <button
                           key={opt}
                           type="button"
@@ -1993,7 +1997,7 @@ export default function SleCrfManagerPage() {
                         {isVi ? "Sốt (Fever)" : "Fever"}
                       </span>
                       <div className="flex gap-2">
-                        {(["YES", "NO"] as const).map((opt) => (
+                        {(["YES", "NO", "Unknown"] as const).map((opt) => (
                           <button
                             key={opt}
                             type="button"
@@ -2071,6 +2075,7 @@ export default function SleCrfManagerPage() {
                             }
                             className="mt-1 w-full rounded border border-slate-300 bg-white px-2.5 py-1 disabled:bg-slate-50"
                           >
+                            <option value="">{isVi ? "Chưa rõ" : "Unknown"}</option>
                             <option value="periodic">
                               {isVi ? "Sốt chu kỳ (Periodic fever)" : "Periodic fever"}
                             </option>
@@ -2765,7 +2770,7 @@ export default function SleCrfManagerPage() {
                           : "Renal Biopsy (ISN/RPS Lupus Nephritis Classification)"}
                       </span>
                       <div className="flex gap-2">
-                        {(["NO", "YES"] as const).map((opt) => (
+                        {(["NO", "YES", "Unknown"] as const).map((opt) => (
                           <button
                             key={opt}
                             type="button"

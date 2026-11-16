@@ -250,13 +250,13 @@ function PatientDossierCard({
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600">
             <span>
-              {p.age} {copy.ageUnit} •{" "}
-              {p.gender === "Female" ? copy.female : copy.male} • {p.heightCm}{" "}
-              cm / {p.weightKg} kg (BMI{" "}
+              {p.age || "—"} {copy.ageUnit} •{" "}
+              {p.gender === "Female" ? copy.female : p.gender === "Male" ? copy.male : "—"} • {p.heightCm || "—"}{" "}
+              cm / {p.weightKg || "—"} kg (BMI{" "}
               <span className="font-mono font-semibold text-slate-800">
                 {bmi}
               </span>
-              ) • ICF: <span className="font-mono">{p.icfSignedDate}</span>
+              ) • ICF: <span className="font-mono">{p.icfSignedDate || "—"}</span>
             </span>
             {p.submittedAt ? (
               <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-[11px] text-slate-700">

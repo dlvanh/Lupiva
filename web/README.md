@@ -90,6 +90,8 @@ flowchart TD
 
 ### Getting Started
 
+Existing databases must apply `npm run db:push` before running this version: patient age and gender now allow SQL `NULL` so new submissions can preserve unknown demographics. New dossiers start with blank clinical fields and require document extraction or clinician entry.
+
 ```bash
 # 1. Install dependencies
 npm install
