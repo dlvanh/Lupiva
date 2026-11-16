@@ -16,10 +16,13 @@ VERSION = 'llm-extraction-0.5'
 COMPARATORS = ('=', '<', '>', '<=', '>=')
 SOURCE_COLUMNS = ('result', 'pre_measured', 'post_measured', 'intensity',
                   'absolute_count', 'percentage', 'pre_percent_predicted', 'post_percent_predicted', 'unknown')
+# table_kind stays in the core: local source dates are mapped to rows by it,
+# so a model that omits it from `extra` would leave every row undated.
 CORE_ROW_KEYS = ('field_id', 'source_label', 'raw_result', 'unit_raw', 'component',
-                 'source_column', 'row_box', 'numeric_value', 'comparator', 'qualitative_value')
+                 'source_column', 'row_box', 'numeric_value', 'comparator', 'qualitative_value',
+                 'table_kind')
 EXTRA_ROW_KEYS = ('class_raw', 'pre_percent_predicted', 'pattern_raw', 'grade_raw',
-                  'titre_raw', 'method_raw', 'source_flag_raw', 'warning', 'table_kind',
+                  'titre_raw', 'method_raw', 'source_flag_raw', 'warning',
                   'source_header', 'class_header', 'post_percent_predicted')
 
 COMPACT_PROMPT_ADDENDUM = '''

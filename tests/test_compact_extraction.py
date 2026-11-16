@@ -77,7 +77,7 @@ def test_compact_schema_is_strict_and_preserves_core_and_extra_types():
     assert moved == {key: full[key] for key in EXTRA_ROW_KEYS}
     validate_response(compact_document(document(full_row())), schema)
     invalid = compact_document(document(full_row()))
-    invalid['rows'][0]['extra'][0]['value'] = 'unsupported_table_kind'
+    invalid['rows'][0]['table_kind'] = 'unsupported_table_kind'   # a core enum
     with pytest.raises(ValueError):
         validate_response(invalid, schema)
 
@@ -123,7 +123,7 @@ def test_duplicate_and_unknown_extras_keep_first_without_overwriting_core():
     assert expanded['warnings'] == [
         'Original warning',
         "Compact row 0: duplicate extra key 'method_raw'; kept first value",
-        "Compact row 0: duplicate extra key 'table_kind'; kept first value",
+        "Compact row 0: unknown extra key 'table_kind'; ignored",
         "Compact row 0: unknown extra key 'unrecognized'; ignored",
         "Compact row 0: duplicate extra key 'unrecognized'; kept first value",
         "Compact row 0: unknown extra key 'numeric_value'; ignored"]
@@ -206,7 +206,7 @@ def test_transport_warns_about_unknown_and_duplicate_extras_without_losing_raw()
     assert 'unknown' in record['extraction']['warnings'][1]
 
 
-@pytest.mark.parametrize('extra', [dict(key='table_kind', value='invalid'),
+@pytest.mark.parametrize('extra', [dict(key='source_header', value=123),
     dict(key='method_raw', value=123), dict(key='unknown'),
     dict(key='unknown', value='text', unexpected=True)])
 def test_compact_transport_still_rejects_invalid_known_values_and_malformed_items(extra):
