@@ -21,6 +21,33 @@ from ocr_pool.pft_api import pft_crop_evidence
 from ocr_pool.workflow import venv_python
 from .intake import MAX_IMAGE, MAX_BATCH, FORMATS, ROOT
 
+AUTOMATIC_SECTIONS = {'detected_diagnostic_report_sections', 'detected_ecg_report_sections',
+                      'detected_echo_report_sections'}
+
+
+def proposal_summary(plan, sha256, size):
+    """Geometry the browser needs; local OCR/date text stays on disk."""
+    return dict(sha256=sha256, size=size, crop=plan['crop'],
+        masks=[m['box'] for m in plan['masks'] if not m.get('polygon')],
+        mask_polygons=[[[round(x), round(y)] for x, y in m['polygon']] for m in plan['masks'] if m.get('polygon')],
+        crop_reason=plan['crop_reason'], review_count=len(plan['review_items']),
+        staff_review_count=sum(r.get('code','').startswith('staff_') for r in plan['review_items']),
+        result_review_boxes=[r['box'] for r in plan['review_items'] if r.get('code','').startswith('outgoing_')],
+        reviewed=False, outbound_allowed=False)
+
+
+def automatic_plan(result, proposal_id):
+    """The plan an image is sent with unreviewed, or None when a person must review it."""
+    if ((re.fullmatch(r'detected_\w+_table_header', result['crop_reason']) or result['crop_reason'] in AUTOMATIC_SECTIONS)
+            and result['crop'][1] > 0 and result['review_count'] == 0):
+        automatic = {key: result[key] for key in ('sha256', 'crop', 'masks', 'mask_polygons')}
+        automatic.update(proposal_id=proposal_id, automatic=True, reviewed=True)
+        return automatic
+    if result['crop_reason'] == 'chart_only_page':
+        # Plotted curves only: nothing to extract, so the image is never sent.
+        return dict(sha256=result['sha256'], skip=True, proposal_id=proposal_id, automatic=True)
+    return None
+
 
 class PrivacyProposals:
     def __init__(self, workspace=ROOT, *, runner=None):
@@ -152,26 +179,9 @@ class PrivacyProposals:
                 job = self.get(job_id)
                 if plan.get('sha256') != job['sha256'] or plan.get('size') != job['size']:
                     raise ValueError('Proposal does not match the source image')
-                # Keep local OCR/date text on disk. The browser only needs geometry.
-                result = dict(sha256=job['sha256'], size=job['size'], crop=plan['crop'],
-                    masks=[m['box'] for m in plan['masks'] if not m.get('polygon')],
-                    mask_polygons=[[[round(x), round(y)] for x, y in m['polygon']] for m in plan['masks'] if m.get('polygon')],
-                    crop_reason=plan['crop_reason'], review_count=len(plan['review_items']),
-                    staff_review_count=sum(r.get('code','').startswith('staff_') for r in plan['review_items']),
-                    result_review_boxes=[r['box'] for r in plan['review_items']
-                                         if r.get('code','').startswith('outgoing_')],
-                    reviewed=False, outbound_allowed=False)
+                result = proposal_summary(plan, job['sha256'], job['size'])
                 result['tokenharbor_route'] = self.route_preview(folder, result)
-                automatic = None
-                if ((re.fullmatch(r'detected_\w+_table_header', result['crop_reason'])
-                     or result['crop_reason'] in {'detected_diagnostic_report_sections', 'detected_ecg_report_sections',
-                                                  'detected_echo_report_sections'})
-                        and result['crop'][1] > 0 and result['review_count'] == 0):
-                    automatic = {key: result[key] for key in ('sha256', 'crop', 'masks', 'mask_polygons')}
-                    automatic.update(proposal_id=job_id, automatic=True, reviewed=True)
-                elif result['crop_reason'] == 'chart_only_page':
-                    # Plotted curves only: nothing to extract, so the image is never sent.
-                    automatic = dict(sha256=job['sha256'], skip=True, proposal_id=job_id, automatic=True)
+                automatic = automatic_plan(result, job_id)
                 with self.lock:
                     self.jobs[job_id].update(status='completed', proposal=result, automatic_plan=automatic)
             except Exception:
