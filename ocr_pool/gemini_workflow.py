@@ -382,6 +382,9 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                         observation(secondary, _value(dict(numeric_value=row[secondary], comparator='=', unit_raw='%')))
                 if row.get('method_raw') and 'method' in allowed:
                     observation('method', dict(result_type='qualitative', qualitative_value=row['method_raw'], unit_raw=None))
+                # A titre read with the pattern (e.g. ANA "Homogeneous 1:320") fills the CRF titre cell too.
+                if row.get('titre_raw') and 'titre' in allowed and component != 'titre':
+                    observation('titre', dict(result_type='qualitative', qualitative_value=row['titre_raw'], unit_raw=None))
             else:
                 if field is not None: flags.append('ambiguous_mapping')
                 parsed={component: value}

@@ -64,6 +64,23 @@ class GeminiIntakeTests(unittest.TestCase):
                    input_sha256=privacy['sha256'],privacy=privacy)
         return build_candidate([doc], [record], DICTIONARY, self.root/folder)
 
+    def test_ana_titre_fills_its_own_crf_component(self):
+        ana = next(f['field_id'] for f in DICTIONARY['fields']
+                   if {'result', 'titre'} <= {c['component_id'] for c in f['components']})
+        rows = [row(field_id=ana, source_label='Synthetic ANA IF', raw_result='Speckled 1:160', numeric_value=None,
+                    comparator=None, unit_raw=None, pattern_raw='Speckled', titre_raw='1:160'),
+                row(row_box=[30, 200, 890, 230], titre_raw='1:80')]   # C3 has no titre component
+        extraction = dict(rows=rows, specimens=[], notes=[], warnings=[])
+        record = dict(extraction=extraction, raw_extraction=extraction, normalization_audit=[], validation_issues=[],
+                      model_requested='synthetic', model_returned='synthetic', usage={})
+        candidate = self.candidate_from_record(record)
+        titres = [o for o in candidate['observations'] if o['component'] == 'titre']
+        self.assertEqual([(o['field_id'], o['qualitative_value'], o['result_raw']) for o in titres],
+                         [(ana, '1:160', 'Speckled 1:160')])
+        result = next(o for o in candidate['observations'] if o['field_id'] == ana and o['component'] == 'result')
+        self.assertEqual((result['pattern_raw'], result['titre_raw']), ('Speckled', '1:160'))
+        self.assertEqual(titres[0]['evidence_ids'], result['evidence_ids'])
+
     def test_printed_sex_on_lab_headers_maps_once_per_submission(self):
         from ocr_pool.gemini_workflow import build_candidate
         def fact(doc, n, key='sex', value='female'):
