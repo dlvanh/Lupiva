@@ -45,6 +45,8 @@ export interface SubmissionItemDTO {
   /** Python backend hand-off; specialists also see pipelineError. */
   pipelineStatus?: PipelineStatus;
   pipelineError?: string | null;
+  /** Backend intake job id; the doctor review opens /registry for it. */
+  pipelineIntakeId?: string | null;
 }
 
 /**
@@ -295,6 +297,7 @@ export async function querySubmissions(params: {
         lastUpdatedAt: crfSubmissions.lastUpdatedAt,
         pipelineStatus: crfSubmissions.pipelineStatus,
         pipelineError: crfSubmissions.pipelineError,
+        pipelineIntakeId: crfSubmissions.pipelineIntakeId,
         profileId: patientProfiles.id,
         studyIdEncrypted: patientProfiles.studyIdEncrypted,
         patientNameEncrypted: patientProfiles.patientNameEncrypted,
@@ -333,6 +336,7 @@ export async function querySubmissions(params: {
         lastUpdatedAt: crfSubmissions.lastUpdatedAt,
         pipelineStatus: crfSubmissions.pipelineStatus,
         pipelineError: crfSubmissions.pipelineError,
+        pipelineIntakeId: crfSubmissions.pipelineIntakeId,
         profileId: patientProfiles.id,
         studyIdEncrypted: patientProfiles.studyIdEncrypted,
         patientNameEncrypted: patientProfiles.patientNameEncrypted,
@@ -424,6 +428,7 @@ export async function querySubmissions(params: {
         ocrSummary,
         pipelineStatus: row.pipelineStatus,
         pipelineError: row.pipelineError,
+        pipelineIntakeId: row.pipelineIntakeId,
       },
       submittedAtMs: row.submittedAt.getTime(),
       sledaiScore: row.sledaiTotalScore,
