@@ -540,13 +540,14 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
     expect(result.items[0].ocrSummary.approvedCount).toBe(0);
   });
 
-  it("requires a specialist to supply the patient name and uses only their own physician name", async () => {
+  it("lets a specialist leave the patient name blank and uses only their own physician name", async () => {
     await signInAs("specialist");
     for (const patientName of [undefined, " "]) {
       const res = await submissionsPost(buildRequest("/api/submissions", "POST", {
         patientName, files: [{ name: "lab.pdf" }],
       }));
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(201);
+      expect((await res.json()).record.patientName).toBe("Chưa nhập tên");
     }
     const res = await submissionsPost(buildRequest("/api/submissions", "POST", {
       patientName: "Actual Patient", files: [{ name: "lab.pdf" }],

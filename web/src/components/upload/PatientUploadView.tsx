@@ -465,10 +465,9 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
 
             {forDoctor && (
               <label className="mt-5 block text-sm font-medium text-slate-700">
-                Tên bệnh nhân
+                Tên bệnh nhân <span className="font-normal text-slate-500">(không bắt buộc, tên đã có trên phiếu)</span>
                 <input
                   type="text"
-                  required
                   value={namedPatient}
                   onChange={(event) => setNamedPatient(event.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
@@ -479,7 +478,7 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
             <button
               type="submit"
               id="upload-btn-submit"
-              disabled={files.length === 0 || !currentUser || isSubmitting || (forDoctor && !patientName)}
+              disabled={files.length === 0 || !currentUser || isSubmitting}
               className="mt-5 min-h-11 w-full rounded-lg bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-2xs transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? copy.submittingBtn : copy.submitBtn}

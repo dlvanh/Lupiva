@@ -476,7 +476,7 @@ export async function querySubmissions(params: {
 }
 
 export const createSubmissionSchema = z.object({
-  patientName: z.string().trim().min(1).max(120).optional(),
+  patientName: z.string().trim().max(120).optional(),
   studyId: z.string().trim().max(40).optional(),
   utcOffsetMinutes: z.coerce
     .number()
@@ -511,7 +511,8 @@ export async function createPatientSubmission(params: {
   const patientName =
     user.role === "patient"
       ? user.name.trim()
-      : input.patientName?.trim();
+      : // A doctor may leave it blank: the name is printed on the uploaded sheets.
+        input.patientName?.trim() || "Chưa nhập tên";
   if (!patientName) throw new AuthError(400, "Patient name is required.");
 
   const studyId =
