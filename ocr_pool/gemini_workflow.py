@@ -15,7 +15,7 @@ from registry_pool.exchange import build_bundle
 from .catalog_alias import CatalogAliases
 from .gemini import DeadlineReached, InvalidAPIResponse, TransportError, configuration, privacy_plan, prepare_image, extract_image
 from .lab_api import extract_lab_image, lab_crop_evidence
-from .outgoing_gate import check_outgoing
+from .outgoing_gate import check_outgoing, result_content
 from .ocr_crosscheck import number_disagreements
 from .lab_reference_cells import attach_complement_ranges
 from .llm_extraction import VERSION as LLM_CONTRACT_VERSION, valid_row_box
@@ -522,18 +522,27 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
         # Final local gate: automatic crops are re-read from the exact outgoing
         # bytes; readable staff text blocks that image from being sent.
         stage('outgoing_privacy_check', 'running')
-        blocked = {}
+        blocked = {};no_content = []
         (output/'local-ocr').mkdir(parents=True, exist_ok=True)
         for index, (doc, outgoing) in enumerate(zip(documents, prepared)):
             if outgoing is None or not doc['privacy'].get('automatic'):
                 continue
+            seen = []
             method, hits = check_outgoing(outgoing, doc['privacy'], local_scans.get(doc['document_id']),
-                                          workspace/'models/privacy')
+                                          workspace/'models/privacy', seen=seen)
+            # A page showing only (masked) personal details has nothing to extract: keep it local.
+            empty = not hits and method == 'outgoing_ocr' and result_content(seen) < 3
             write(output/'local-ocr'/f'image-{index+1:03}-outgoing-check.json',
-                  dict(method=method, blocked=bool(hits), hit_count=len(hits)))
+                  dict(method=method, blocked=bool(hits), hit_count=len(hits),
+                       result_cells=result_content(seen) if method == 'outgoing_ocr' else None))
             if hits:
                 blocked[doc['document_id']] = method
                 prepared[index] = None
+            elif empty:
+                no_content.append(doc['document_id'])
+                prepared[index] = None
+        if no_content and all(body is None for body in prepared) and not blocked:
+            raise ValueError('No automatic image shows result content to read; originals are retained')
         if blocked and all(body is None for body in prepared):
             raise ValueError('Outgoing privacy check found staff or identifying text in every automatic image; '
                              'review the crop and masks manually')
@@ -585,6 +594,10 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
             candidate['issues'].append(dict(document_id=did, table_id=None, reason='api_time_limit',
                                             detail='Not read: the submission reached its API time limit. '
                                                    'Resubmit this image or enter its values manually.'))
+        for did in no_content:
+            candidate['issues'].append(dict(document_id=did, table_id=None, reason='not_sent_no_result_content',
+                                            detail='After masking, the page shows no result cells; it was not sent. '
+                                                   'Check the page if it should hold results.'))
         return _finish(output, workspace, dictionary, documents, results, candidate, failed_documents,
                        blocked, config, engine, date_status, state, stage)
     except Exception:

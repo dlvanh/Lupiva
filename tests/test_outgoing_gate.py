@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ocr_pool.outgoing_gate import check_outgoing, identifying_text, staff_text, visible_source_lines
+from ocr_pool.outgoing_gate import check_outgoing, identifying_text, result_content, staff_text, visible_source_lines
 
 
 def line(text, box):
@@ -126,3 +126,13 @@ class OcrNumberCrossCheckTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ResultContentTests(unittest.TestCase):
+    def test_counts_result_cells_and_sample_forms(self):
+        lines = lambda *texts: [dict(text=t) for t in texts]
+        self.assertEqual(result_content(lines('Họ tên', 'Địa chỉ', 'Khoa Nội')), 0)
+        self.assertGreaterEqual(result_content(lines('Creatinin', '72.1', '<35', 'Âm tính', '12%')), 4)
+        self.assertGreaterEqual(result_content(lines('Sample type', 'Note')), 3)
+        self.assertEqual(result_content(lines('Ngày 12/03/2026')), 0)   # a date is not a result cell
+

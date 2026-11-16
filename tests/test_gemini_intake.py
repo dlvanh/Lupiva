@@ -429,6 +429,26 @@ class GeminiIntakeTests(unittest.TestCase):
         issues = read(self.root/'down-out/candidate-pool.json')['issues']
         self.assertEqual([i['document_id'] for i in issues if i['reason']=='api_extraction_failed'], ['ONE'])
 
+    def test_page_without_result_cells_is_not_sent(self):
+        self.setup_config()
+        docs = []
+        for name in ('PERSONAL', 'LAB'):
+            source = self.root/(name+'.png'); body = image_bytes('content-'+name); source.write_bytes(body)
+            checksum = hashlib.sha256(body).hexdigest()
+            docs.append(dict(document_id=name, input_path=source.name, input_sha256=checksum,
+                             privacy=dict(sha256=checksum, crop=[0,90,800,300], reviewed=True, automatic=True)))
+        def gate(body, privacy, scan, models, *, seen=None):
+            personal = privacy['sha256'] == docs[0]['input_sha256']
+            seen.extend([dict(text='Họ tên'), dict(text='Địa chỉ')] if personal else
+                        [dict(text=t) for t in ('Creatinin', '72.1', 'Ure', '5.2', 'AST', '31')])
+            return 'outgoing_ocr', []
+        sent = []
+        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),                 patch('ocr_pool.gemini_workflow.check_outgoing', gate):
+            run(dict(documents=docs), self.root/'content-out', self.root, extractor=lambda *a: sent.append(a) or result())
+        self.assertEqual(len(sent), 1)
+        issues = read(self.root/'content-out/candidate-pool.json')['issues']
+        self.assertIn(('PERSONAL', 'not_sent_no_result_content'), [(i['document_id'], i['reason']) for i in issues])
+
     def test_request_respects_deadline_and_retries_a_timeout_once(self):
         import ocr_pool.gemini as gemini
         from ocr_pool.gemini import DeadlineReached

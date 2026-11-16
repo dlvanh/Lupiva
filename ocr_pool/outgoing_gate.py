@@ -62,13 +62,32 @@ def visible_source_lines(scan, privacy):
     return visible
 
 
-def check_outgoing(body, privacy, scan, models):
-    """Return (method, staff texts) for a prepared outgoing image."""
+RESULT_CELL = re.compile(r'[<>≤≥]?=?\d+(?:[.,]\d+)?%?')
+QUALITATIVE = re.compile(r'\b(am tinh|duong tinh|negative|positive|neg|pos|binh thuong|khong thay)\b')
+SAMPLE_FORM = re.compile(r'\b(sample type|time of collection|amount collected|loai mau|mau benh pham|benh pham)\b')
+
+
+def result_content(lines):
+    """Count visible cells that look like a result; a sample form counts as content."""
+    folded = [fold(line['text']) for line in lines]
+    if any(SAMPLE_FORM.search(text) for text in folded):
+        return 99
+    return (sum(bool(RESULT_CELL.fullmatch(line['text'].strip().replace(' ', ''))) for line in lines)
+            + sum(bool(QUALITATIVE.search(text)) for text in folded))
+
+
+def check_outgoing(body, privacy, scan, models, *, seen=None):
+    """Return (method, staff texts) for a prepared outgoing image.
+
+    When ``seen`` is a list, the lines read from the outgoing pixels are added to it.
+    """
     if Path(models).is_dir():
         try:
             from .privacy_ocr import analyze
             with Image.open(io.BytesIO(body)) as image:
                 _, lines = analyze(image.convert('RGB'), Path(models))
+            if seen is not None:
+                seen.extend(lines)
             # Only a re-read of the masked pixels can tell a masked date from a visible one.
             return 'outgoing_ocr', staff_text(lines) + identifying_text(lines)
         except Exception as error:  # an unreadable check must not silently pass
