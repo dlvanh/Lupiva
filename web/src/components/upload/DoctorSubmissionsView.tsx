@@ -280,17 +280,31 @@ function PatientDossierCard({
               {retrying ? "Đang gửi lại…" : "Gửi lại"}
             </button>
           )}
-          {item.pipelineIntakeId ? (
-            <button
-              type="button"
-              onClick={() => onOpenRegistry(item.pipelineIntakeId!)}
-              className="min-h-9 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition hover:bg-teal-800 cursor-pointer"
-            >
-              {copy.reviewCrfBtn}
-            </button>
-          ) : (
-            <span className="text-xs text-slate-500">Chưa có dữ liệu đọc từ ảnh</span>
-          )}
+          {(() => {
+            // Review opens only once the backend has finished reading the images.
+            const ready = pipelineStatus === "completed" && !!item.pipelineIntakeId;
+            const waiting =
+              pipelineStatus === "failed"
+                ? "Xử lý lỗi"
+                : pipelineStatus === "privacy_review"
+                  ? "Chờ duyệt vùng che"
+                  : "Đang xử lý…";
+            return (
+              <button
+                type="button"
+                disabled={!ready}
+                title={ready ? undefined : "Hồ sơ chưa xử lý xong; nút sẽ bật khi đọc ảnh xong"}
+                onClick={() => ready && onOpenRegistry(item.pipelineIntakeId!)}
+                className={
+                  ready
+                    ? "min-h-9 cursor-pointer rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition hover:bg-teal-800"
+                    : "min-h-9 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-400"
+                }
+              >
+                {ready ? copy.reviewCrfBtn : waiting}
+              </button>
+            );
+          })()}
         </div>
       </header>
 
