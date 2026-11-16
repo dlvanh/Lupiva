@@ -457,8 +457,40 @@ function renderCrf(){
  const root=$('crfFields');const opened=new Map([...root.querySelectorAll('.crf-group')].map(group=>[group.dataset.section,group.open]));root.replaceChildren();
  const nextSelections=new Map();
  const sections=new Map(),reviewed=crfEditing?null:crfView.review,showEmpty=$('crfAllFields').checked;
- const slots=new Map(),anchors=new Map();
+ const slots=new Map(),anchors=new Map(),tables=[];
  const inlineChoices=new Map();
+ // Fields without a bound cell are placed in the template row or line that prints their label,
+ // searched only in the tables just after the field's own template block.
+ const norm=text=>String(text||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const labelKeys=field=>{const label=field.label||'';const keys=[label,label.split(/[:,(]/)[0]];
+  if(!label.includes(':')&&label.includes('/'))keys.push(label.split('/').pop());
+  return new Set(keys.map(norm).filter(key=>key.length>=2))};
+ const templateTarget=field=>{
+  const keys=labelKeys(field),start=Number(field.template_block);
+  if(!keys.size||!start)return null;
+  for(const table of tables){
+   if(table.index<start||table.index>start+3)continue;
+   for(const cells of table.rows){
+    const [first,spec]=cells[0]||[];
+    if(cells.length>1&&spec&&!spec.field_id&&!spec.checkbox_slot&&keys.has(norm(spec.text))){
+     const [last,lastSpec]=cells[cells.length-1];
+     if(!lastSpec.field_id&&!lastSpec.checkbox_slot)return {td:last,cells,header:table.rows[0]};
+    }
+    for(const [td,cellSpec] of cells){
+     if(cellSpec.field_id||cellSpec.checkbox_slot||!cellSpec.text.includes('\n'))continue;
+     if(cellSpec.text.split('\n').some(line=>keys.has(norm(line.split(/[:\t]/)[0]))))return {td,cells:null};
+    }
+   }
+  }
+  return null;
+ };
+ const markResultColumn=(match,value)=>{
+  // Show the printed result word (Negative/Positive/Borderline) as a tick in its own column.
+  if(!match?.cells||!match.header)return;
+  const word=['negative','positive','borderline'].find(item=>new RegExp('\\b'+item+'\\b','i').test(String(value||'')));
+  if(!word)return;
+  match.header.forEach(([,spec],index)=>{if(norm(spec.text)===word&&match.cells[index])match.cells[index][0].textContent='☑'});
+ };
  const fieldsBySlot=new Map(crfView.fields.map(field=>[field.slot,field]));
  const renderCheckboxes=(target,spec)=>{
   const field=fieldsBySlot.get(spec.checkbox_slot);
@@ -494,8 +526,10 @@ function renderCrf(){
     if(block.checkbox_slot)renderCheckboxes(paragraph,block);
     paper.append(paragraph);const after=node('div');paper.append(after);anchors.set(block.index,after);continue}
    const table=node('table'),body=node('tbody');table.append(body);paper.append(table);
-   for(const cells of block.rows){const tr=node('tr');body.append(tr);for(const spec of cells){
+   const tableRows=[];tables.push({index:block.index,rows:tableRows});
+   for(const cells of block.rows){const tr=node('tr');body.append(tr);const rowCells=[];tableRows.push(rowCells);for(const spec of cells){
     const td=node('td',spec.field_id?undefined:spec.text);td.colSpan=spec.span;td.rowSpan=spec.row_span;tr.append(td);
+    rowCells.push([td,spec]);
     if(spec.field_id){slots.set(spec.field_id,td);if(spec.inline_label)td.dataset.inlineLabel=spec.inline_label}
     if(spec.checkbox_slot)renderCheckboxes(td,spec);
    }}
@@ -514,9 +548,11 @@ function renderCrf(){
    continue;
   }
   if(inline&&reviewed&&inline.has(saved?.value)&&!saved.knowledge_version)continue;
-  const target=slots.get(field.slot.split('/')[0]);
+  const matched=slots.get(field.slot.split('/')[0])?null:templateTarget(field);
+  const target=slots.get(field.slot.split('/')[0])||matched?.td;
+  if(matched?.cells&&!target.childElementCount&&/^\s*\(.*\)\s*$/.test(target.textContent))target.textContent='';
   const groupKey=String(field.template_block||'')+'|'+field.section;
-  if(!available.length&&!manual.length&&!showEmpty&&!target)continue;
+  if(!available.length&&!manual.length&&!showEmpty&&(!target||matched))continue;
   if(!target&&!sections.has(groupKey)){
    const group=node('details',undefined,'crf-group');group.dataset.section=groupKey;
    group.open=opened.get(groupKey)??true;
@@ -524,13 +560,14 @@ function renderCrf(){
   }
   const row=node('div',undefined,'crf-field'+(available.length?'':' crf-empty'));
   const componentLabel=componentNames[field.component]||field.component;
-  const label=node('label',target?.dataset.inlineLabel||(target&&field.slot.startsWith('PFT')?componentLabel:
+  const label=node('label',target?.dataset.inlineLabel||(target&&(field.slot.startsWith('PFT')||matched?.cells)?componentLabel:
    field.label+(field.component==='result'?'':' · '+componentLabel)));
   label.htmlFor='crf-'+field.slot.replace('/','-');row.append(label);
   const cell=node('div',undefined,'crf-value');row.append(cell);
   const selection=reviewed?saved?.id:crfSelections.get(field.slot);
   if(selection&&[...available,...manual].some(value=>value.id===selection))nextSelections.set(field.slot,selection);
   const shown=[...available,...manual].find(value=>value.id===selection)||available[0];
+  if(field.component==='result')markResultColumn(matched,shown?.value);
   const choiceLabel=value=>field.choices.find(choice=>choice.code===value)?.label||
    ((saved||scored)?.origin==='score_assessment'?({yes:'Có',no:'Không'}[value]||value):value);
   const setSelection=id=>{if(id)crfSelections.set(field.slot,id);else crfSelections.delete(field.slot);renderCrf()};
