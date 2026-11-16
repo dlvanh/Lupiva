@@ -1,4 +1,7 @@
+import path from "node:path";
+import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
 import * as schema from "./schema";
@@ -7,6 +10,7 @@ export type DatabaseClient = PostgresJsDatabase<typeof schema>;
 
 const globalForDb = globalThis as unknown as {
   __lupivaSql?: Sql;
+  __lupivaPglite?: PGlite;
   __lupivaDb?: DatabaseClient;
   __lupivaTestDb?: DatabaseClient | null;
 };
@@ -40,6 +44,15 @@ export function getDb(): DatabaseClient {
     return globalForDb.__lupivaTestDb;
   }
 
+  if (!globalForDb.__lupivaDb && process.env.PGLITE_DIR?.trim()) {
+    // Embedded Postgres in this process, stored in one folder: no database
+    // server to run. Suits a single-instance pilot; use DATABASE_URL for a
+    // real Postgres server in production.
+    const client = new PGlite(path.resolve(process.env.PGLITE_DIR.trim()));
+    globalForDb.__lupivaPglite = client;
+    globalForDb.__lupivaDb = drizzlePglite(client, { schema }) as unknown as DatabaseClient;
+  }
+
   if (!globalForDb.__lupivaDb) {
     const connectionString = getDatabaseUrl();
     const client = postgres(connectionString, {
@@ -56,6 +69,11 @@ export function getDb(): DatabaseClient {
 }
 
 export async function closeDb(): Promise<void> {
+  if (globalForDb.__lupivaPglite) {
+    await globalForDb.__lupivaPglite.close();
+    globalForDb.__lupivaPglite = undefined;
+    globalForDb.__lupivaDb = undefined;
+  }
   if (globalForDb.__lupivaSql) {
     await globalForDb.__lupivaSql.end({ timeout: 5 });
     globalForDb.__lupivaSql = undefined;
