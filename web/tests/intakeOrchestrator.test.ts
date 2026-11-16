@@ -61,6 +61,16 @@ describe("backend hand-off rules", () => {
     expect(backend.calls.at(-1)?.path).toBe("/api/intakes/start");
   });
 
+  it("asks the backend to retry an intake that already failed", async () => {
+    const backend = fakeBackend();
+    const call: PipelineCall = async (method, pathName, query, body) =>
+      pathName === "/api/intakes" && method === "POST"
+        ? { status: "already_created", job: { job_id: "intake-abc", status: "failed" } }
+        : backend.call(method, pathName, query, body);
+    await sendToPipeline("s-1", [image], call, noSleep);
+    expect(backend.calls.at(-1)).toMatchObject({ path: "/api/intakes/start", json: { job_id: "intake-abc", retry: true } });
+  });
+
   it("maps backend job states to coarse statuses and patient stages", () => {
     expect(intakeStatus("queued")).toBe("processing");
     expect(intakeStatus("completed")).toBe("completed");

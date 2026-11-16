@@ -118,13 +118,17 @@ export async function sendToPipeline(
       privacy: plans,
     },
   });
-  const jobId = String((created.job as { job_id?: string } | undefined)?.job_id ?? "");
+  const job = (created.job ?? {}) as { job_id?: string; status?: string };
+  const jobId = String(job.job_id ?? "");
   if (!jobId) throw new Error("Backend did not return an intake id.");
+  // A retry reuses the same request_id, so the backend hands back the intake
+  // that failed; it only starts that one again when asked to retry.
+  const retry = created.status === "already_created" && job.status === "failed";
   for (const image of images) {
     const name = `${image.fileId}.${EXTENSION[image.mime] ?? "img"}`;
     await call("POST", "/api/intakes/image", { job_id: jobId, file_id: image.fileId, name }, { raw: raw(image.bytes) });
   }
-  await call("POST", "/api/intakes/start", {}, { json: { job_id: jobId } });
+  await call("POST", "/api/intakes/start", {}, { json: { job_id: jobId, retry } });
   return { status: "processing", intakeId: jobId };
 }
 
