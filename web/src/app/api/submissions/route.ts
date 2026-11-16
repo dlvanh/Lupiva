@@ -12,6 +12,7 @@ import { submissionQuerySchema } from "@/lib/submissionFilters";
 import {
   createPatientSubmission,
   createSubmissionSchema,
+  toPatientStatus,
   querySubmissions,
 } from "@/lib/submissionsService";
 
@@ -36,7 +37,17 @@ export async function GET(request: Request) {
       filters: parsed.data,
     });
 
-    return NextResponse.json(result, {
+    // Patients see only the status of their own submissions, never CRF data.
+    const body =
+      user.role === "patient"
+        ? {
+            items: result.items.map(toPatientStatus),
+            pagination: result.pagination,
+            roleScope: result.roleScope,
+          }
+        : result;
+
+    return NextResponse.json(body, {
       status: 200,
       headers: NO_STORE_HEADERS,
     });
@@ -110,7 +121,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(created, {
+    return NextResponse.json(user.role === "patient" ? toPatientStatus(created) : created, {
       status: 201,
       headers: NO_STORE_HEADERS,
     });

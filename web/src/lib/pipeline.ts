@@ -27,12 +27,15 @@ export const PIPELINE_GET: Record<string, readonly UserRole[]> = {
   "/asset": ["specialist"],
 };
 
-/** Write endpoints and who may call them. Approval stays with specialists. */
+/**
+ * Write endpoints and who may call them. Intake responses carry case ids,
+ * file details and OCR text, so patients never call the backend directly.
+ */
 export const PIPELINE_POST: Record<string, readonly UserRole[]> = {
-  "/api/privacy-proposals": ["specialist", "patient"],
-  "/api/intakes": ["specialist", "patient"],
-  "/api/intakes/image": ["specialist", "patient"],
-  "/api/intakes/start": ["specialist", "patient"],
+  "/api/privacy-proposals": ["specialist"],
+  "/api/intakes": ["specialist"],
+  "/api/intakes/image": ["specialist"],
+  "/api/intakes/start": ["specialist"],
   "/api/crf/generate": ["specialist"],
   "/api/crf/scores": ["specialist"],
   "/api/crf/approve": ["specialist"],

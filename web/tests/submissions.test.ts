@@ -389,6 +389,14 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
       "VN-0084-F2-26",
       "VN-0084-26",
     ]);
+    // Status only: no CRF values, OCR fields, scores, stats or filters.
+    expect(data).not.toHaveProperty("stats");
+    for (const item of data.items) {
+      expect(item).not.toHaveProperty("ocrSummary");
+      for (const key of ["ocrFields", "eularAcrCriteria", "sledai2kCriteria", "hivStatus", "medicalHistory"]) {
+        expect(item.record).not.toHaveProperty(key);
+      }
+    }
 
     const page2Data = (await (
       await submissionsGet(
@@ -423,6 +431,11 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
     expect(createRes.status).toBe(201);
     const created = (await createRes.json()) as SubmissionsResponseBody["items"][number];
     expect(created.record.submissionStatus).toBe("pending_doctor_review");
+    // A patient's receipt carries status only, never CRF or clinical data.
+    expect(Object.keys(created.record).sort()).toEqual(
+      ["id", "patientName", "studyId", "submissionStatus", "submittedAt", "uploadedFiles"]
+    );
+    expect(created).not.toHaveProperty("ocrSummary");
 
     // Patient cannot PATCH approval status (403 Forbidden)
     const forbiddenPatch = await submissionPatch(
@@ -449,9 +462,9 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
       buildRequest("/api/submissions?datePreset=today&utcOffsetMinutes=420", "GET")
     );
     const todayData = (await todayRes.json()) as SubmissionsResponseBody;
-    expect(
-      todayData.items.some((i) => i.record.id === created.record.id)
-    ).toBe(true);
+    const fullRecord = todayData.items.find((i) => i.record.id === created.record.id)?.record;
+    expect(fullRecord).toBeDefined();
+    expect(fullRecord).toHaveProperty("ocrFields");
 
     // Specialist approves the submission via PATCH
     const patchRes = await submissionPatch(
@@ -460,7 +473,7 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
         "PATCH",
         {
           record: {
-            ...created.record,
+            ...fullRecord,
             submissionStatus: "approved",
             signedOffBy: DEMO_USERS.specialist.name,
             signedOffRole: "specialist",

@@ -15,7 +15,7 @@ async function forward(request: Request, context: Context, method: "GET" | "POST
         return NextResponse.json({ error: "Cross-origin request refused." }, { status: 403, headers: NO_STORE_HEADERS });
       }
     }
-    const user = await requireAuth(["specialist", "patient"]);
+    const user = await requireAuth(["specialist"]);
     const path = pipelinePath((await context.params).path);
     if (!path || !allowedPipelineCall(method, path, user.role)) {
       return NextResponse.json({ error: "This backend call is not allowed." }, { status: 403, headers: NO_STORE_HEADERS });

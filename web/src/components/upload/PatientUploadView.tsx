@@ -3,11 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useLupiva } from "@/context/LupivaContext";
-import {
-  SleCrfPatientRecord,
-  UploadedDocFile,
-  getSubmissionStatus,
-} from "@/data/crfData";
+import { UploadedDocFile } from "@/data/crfData";
+import type { PatientStatusRecord } from "@/lib/submissionsService";
 import { getUploadPageCopy } from "@/data/uploadTranslations";
 import { DEFAULT_PAGE_SIZE, type PaginationMeta } from "@/lib/submissionFilters";
 import { TruncatedFilename } from "./TruncatedFilename";
@@ -37,7 +34,7 @@ function formatFileSize(bytes?: number): string | null {
 }
 
 interface PatientSubmissionDto {
-  record: SleCrfPatientRecord;
+  record: PatientStatusRecord;
   dbSubmissionId: string;
   submittedAtIso: string;
 }
@@ -532,7 +529,7 @@ export function PatientUploadView() {
                 <p className="text-xs text-slate-600">{copy.trackerEmpty}</p>
               ) : (
                 trackerState.items.map(({ record: p, dbSubmissionId }) => {
-                  const approved = getSubmissionStatus(p) === "approved";
+                  const approved = p.submissionStatus === "approved";
                   return (
                     <article
                       key={dbSubmissionId}

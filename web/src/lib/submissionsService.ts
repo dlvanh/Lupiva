@@ -51,6 +51,46 @@ export interface SubmissionItemDTO {
   ocrSummary: OcrTierCounts;
 }
 
+/**
+ * What a patient may see about their own submission: who and when, which
+ * files were sent, and the review status. No CRF values, OCR fields, scores
+ * or clinical data ever leave the server for a patient account.
+ */
+export interface PatientStatusRecord {
+  id: string;
+  patientName: string;
+  studyId: string;
+  submittedAt?: string;
+  submissionStatus: "pending_doctor_review" | "approved";
+  uploadedFiles: { id: string; name: string; isImage: boolean }[];
+}
+
+export interface PatientSubmissionStatusDTO {
+  record: PatientStatusRecord;
+  dbSubmissionId: string;
+  submittedAtIso: string;
+}
+
+export function toPatientStatus(item: SubmissionItemDTO): PatientSubmissionStatusDTO {
+  const { record } = item;
+  return {
+    dbSubmissionId: item.dbSubmissionId,
+    submittedAtIso: item.submittedAtIso,
+    record: {
+      id: record.id,
+      patientName: record.patientName,
+      studyId: record.studyId,
+      submittedAt: record.submittedAt,
+      submissionStatus: record.submissionStatus ?? (record.signedOffBy ? "approved" : "pending_doctor_review"),
+      uploadedFiles: (record.uploadedFiles ?? []).map((file) => ({
+        id: file.id,
+        name: file.name,
+        isImage: file.isImage,
+      })),
+    },
+  };
+}
+
 export interface SubmissionStatsDTO {
   total: number;
   pending: number;

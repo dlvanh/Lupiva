@@ -117,7 +117,7 @@ interface LupivaContextValue {
   submitPatientUpload: (
     patientName: string,
     files: UploadedDocFile[]
-  ) => Promise<SleCrfPatientRecord | null>;
+  ) => Promise<{ id: string } | null>;
   isActionGuideOpen: boolean;
   setIsActionGuideOpen: (open: boolean) => void;
   toast: ToastMessage | null;
@@ -274,7 +274,8 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
   // Sync CRF cohort from API whenever authenticated user session changes
   useEffect(() => {
-    if (authLoading || !currentUser) return;
+    // Patients never receive CRF records; only specialists hydrate the cohort.
+    if (authLoading || currentUser?.role !== "specialist") return;
 
     let active = true;
     const utcOffset = -new Date().getTimezoneOffset();
@@ -623,7 +624,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     async (
       patientName: string,
       files: UploadedDocFile[]
-    ): Promise<SleCrfPatientRecord | null> => {
+    ): Promise<{ id: string } | null> => {
       if (files.length === 0) return null;
       try {
         const res = await fetch("/api/submissions", {
@@ -644,7 +645,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         });
 
         const payload = (await res.json().catch(() => ({}))) as {
-          record?: SleCrfPatientRecord;
+          record?: SleCrfPatientRecord | { id: string };
           error?: string;
         };
 
@@ -660,6 +661,18 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
             "amber"
           );
           return null;
+        }
+
+        if (!("ocrFields" in payload.record)) {
+          // A patient gets a status-only receipt; there is no CRF to cache.
+          showToast(
+            language === "vi" ? "Đã gửi tài liệu cho bác sĩ" : "Document sent to doctor",
+            language === "vi"
+              ? `${files.length} tệp đã được gửi và đang chờ bác sĩ xử lý.`
+              : `${files.length} file(s) sent and awaiting the doctor.`,
+            "teal"
+          );
+          return { id: payload.record.id };
         }
 
         const recordWithUrls: SleCrfPatientRecord = {
