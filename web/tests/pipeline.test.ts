@@ -16,7 +16,11 @@ describe("pipeline proxy guards", () => {
   });
 
   it("allows reads from the allowlist only", () => {
-    expect(allowedPipelineCall("GET", "/api/crf", "patient")).toBe(true);
+    expect(allowedPipelineCall("GET", "/api/crf", "specialist")).toBe(true);
+    expect(allowedPipelineCall("GET", "/api/crf", "patient")).toBe(false);
+    expect(allowedPipelineCall("GET", "/api/summary", "patient")).toBe(false);
+    expect(allowedPipelineCall("GET", "/api/intakes", "patient")).toBe(false);
+    expect(allowedPipelineCall("GET", "toString", "specialist")).toBe(false);
     expect(allowedPipelineCall("GET", "/api/export", "specialist")).toBe(false);
     expect(allowedPipelineCall("GET", "/api/patient/export", "specialist")).toBe(false);
   });

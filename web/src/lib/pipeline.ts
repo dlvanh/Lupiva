@@ -12,17 +12,20 @@ import type { UserRole } from "@/data/mockData";
 
 export const PIPELINE_URL = (process.env.PIPELINE_URL ?? "http://127.0.0.1:8881").replace(/\/+$/, "");
 
-/** Read-only endpoints any signed-in user may call. */
-export const PIPELINE_GET = new Set([
-  "/api/summary",
-  "/api/patient",
-  "/api/crf",
-  "/api/crf/references",
-  "/api/crf/knowledge",
-  "/api/intakes",
-  "/api/privacy-proposals",
-  "/asset",
-]);
+/**
+ * Read-only endpoints. They return every patient in the registry (the backend
+ * has no per-patient ownership), so only specialists may read them.
+ */
+export const PIPELINE_GET: Record<string, readonly UserRole[]> = {
+  "/api/summary": ["specialist"],
+  "/api/patient": ["specialist"],
+  "/api/crf": ["specialist"],
+  "/api/crf/references": ["specialist"],
+  "/api/crf/knowledge": ["specialist"],
+  "/api/intakes": ["specialist"],
+  "/api/privacy-proposals": ["specialist"],
+  "/asset": ["specialist"],
+};
 
 /** Write endpoints and who may call them. Approval stays with specialists. */
 export const PIPELINE_POST: Record<string, readonly UserRole[]> = {
@@ -44,8 +47,8 @@ export function pipelinePath(segments: readonly string[]): string | null {
 }
 
 export function allowedPipelineCall(method: "GET" | "POST", path: string, role: UserRole): boolean {
-  if (method === "GET") return PIPELINE_GET.has(path);
-  return PIPELINE_POST[path]?.includes(role) ?? false;
+  const table = method === "GET" ? PIPELINE_GET : PIPELINE_POST;
+  return Object.hasOwn(table, path) && table[path].includes(role);
 }
 
 /** The backend's CSRF token is the TOKEN constant printed in its UI page. */
