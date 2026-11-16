@@ -66,3 +66,17 @@ export async function assertSendable(params: { user: AuthenticatedUserDTO; submi
     .where(and(eq(uploadedDocuments.submissionId, params.submissionId), eq(uploadedDocuments.storageProvider, "local")));
   if (!stored.length) throw new UploadError("Chưa có ảnh nào để gửi.", 400);
 }
+
+/** Only a specialist may reset a failed hand-off; held submissions stay held. */
+export async function resetFailedSubmission(params: { user: AuthenticatedUserDTO; submissionId: string; db?: DatabaseClient }) {
+  if (params.user.role !== "specialist") throw new AuthError(403, "Insufficient role privileges.");
+  const db = params.db ?? getDb();
+  await accessibleSubmission(db, params.user, params.submissionId);
+  // Check the state in the write too, so concurrent retries cannot both reset it.
+  const reset = await db
+    .update(crfSubmissions)
+    .set({ pipelineStatus: "none", pipelineError: null })
+    .where(and(eq(crfSubmissions.id, params.submissionId), eq(crfSubmissions.pipelineStatus, "failed")))
+    .returning({ id: crfSubmissions.id });
+  if (!reset.length) throw new UploadError("Chỉ có thể gửi lại hồ sơ bị lỗi.", 409);
+}

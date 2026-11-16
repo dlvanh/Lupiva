@@ -13,7 +13,8 @@ export type AuditAction =
   | "submission.created"
   | "submission.updated"
   | "submission.image_stored"
-  | "submission.sent_to_pipeline";
+  | "submission.sent_to_pipeline"
+  | "submission.pipeline_retried";
 
 export interface WriteAuditLogInput {
   actorUserId?: string | null;

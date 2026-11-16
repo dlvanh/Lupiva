@@ -20,20 +20,22 @@ import {
   UPLOADED_DATE_PRESETS,
   buildSubmissionFilterSearchParams,
   countActiveDoctorFilters,
-  type OcrTierCounts,
   type PaginationMeta,
   type SubmissionQueryFilters,
   type UploadedDatePreset,
 } from "@/lib/submissionFilters";
+import type { SubmissionItemDTO as ApiSubmissionItem } from "@/lib/submissionsService";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { TruncatedFilename } from "./TruncatedFilename";
 
-interface ApiSubmissionItem {
-  record: SleCrfPatientRecord;
-  dbSubmissionId: string;
-  submittedAtIso: string;
-  ocrSummary: OcrTierCounts;
-}
+const PIPELINE_BADGES = {
+  none: { label: "Chưa gửi", tone: "bg-slate-100 text-slate-700" },
+  privacy_check: { label: "Đang kiểm tra che", tone: "bg-sky-100 text-sky-900" },
+  privacy_review: { label: "Chờ duyệt che", tone: "bg-amber-100 text-amber-950" },
+  processing: { label: "Đang xử lý", tone: "bg-sky-100 text-sky-900" },
+  completed: { label: "Đã đọc xong", tone: "bg-teal-100 text-teal-900" },
+  failed: { label: "Lỗi", tone: "bg-rose-100 text-rose-950" },
+} satisfies Record<NonNullable<ApiSubmissionItem["pipelineStatus"]>, { label: string; tone: string }>;
 
 interface ApiSubmissionsResponse {
   items: ApiSubmissionItem[];
@@ -176,13 +178,19 @@ function PatientDossierCard({
   copy,
   onOpenRoute,
   onOpenDocument,
+  onRetried,
 }: {
   item: ApiSubmissionItem;
   copy: UploadPageCopy["doctor"];
   onOpenRoute: (patientId: string, route: "/ocr" | "/scores") => void;
   onOpenDocument: (patient: SleCrfPatientRecord, fileId: string) => void;
+  onRetried: () => void;
 }) {
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
   const p = item.record;
+  const pipelineStatus = item.pipelineStatus ?? "none";
+  const pipelineBadge = PIPELINE_BADGES[pipelineStatus];
   const approved = getSubmissionStatus(p) === "approved";
   const h = parseFloat(p.heightCm);
   const w = parseFloat(p.weightKg);
@@ -192,6 +200,27 @@ function PatientDossierCard({
     p.anaEntryCriterionMet
   );
   const sledai = calculateSledai2kSummary(p.sledai2kCriteria);
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      const response = await fetch(`/api/submissions/${item.dbSubmissionId}/retry`, {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "Không gửi lại được hồ sơ.");
+      }
+      onRetried();
+    } catch (error) {
+      setRetryError(error instanceof Error ? error.message : "Không gửi lại được hồ sơ.");
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   return (
     <article className="@container flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
@@ -213,6 +242,9 @@ function PatientDossierCard({
               }`}
             >
               {approved ? copy.approvedBadge : copy.pendingBadge}
+            </span>
+            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pipelineBadge.tone}`}>
+              {pipelineBadge.label}
             </span>
           </div>
 
@@ -238,6 +270,16 @@ function PatientDossierCard({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {pipelineStatus === "failed" && (
+            <button
+              type="button"
+              disabled={retrying}
+              onClick={() => void handleRetry()}
+              className="min-h-9 cursor-pointer rounded-lg border border-rose-300 bg-white px-3.5 py-2 text-xs font-semibold text-rose-900 transition hover:bg-rose-50 disabled:cursor-wait disabled:opacity-50"
+            >
+              {retrying ? "Đang gửi lại…" : "Gửi lại"}
+            </button>
+          )}
           {approved && (
             <button
               type="button"
@@ -256,6 +298,22 @@ function PatientDossierCard({
           </button>
         </div>
       </header>
+
+      {pipelineStatus === "failed" && item.pipelineError && (
+        <p className="break-words border-b border-rose-200 bg-rose-50 px-5 py-3 text-xs text-rose-950 @lg:px-6">
+          {item.pipelineError}
+        </p>
+      )}
+      {pipelineStatus === "privacy_review" && (
+        <p className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-xs text-amber-950 @lg:px-6">
+          Cần duyệt vùng che trên giao diện duyệt nguồn (backend) trước khi gửi
+        </p>
+      )}
+      {retryError && (
+        <p role="alert" className="px-5 py-3 text-xs text-rose-900 @lg:px-6">
+          {retryError}
+        </p>
+      )}
 
       {approved ? (
         /* Approved Dossiers: Attached Documents & Current Treatments + SLE Score Preview */
@@ -1183,6 +1241,7 @@ export function DoctorSubmissionsView() {
                 onOpenDocument={(patient, fileId) =>
                   setViewerTarget({ patient, fileId })
                 }
+                onRetried={() => setReloadTick((n) => n + 1)}
               />
             ))
           )}
