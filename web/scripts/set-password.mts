@@ -1,7 +1,7 @@
 /**
  * Replace an account's password, e.g. the seeded demo accounts before a
  * deployment that is reachable from the internet.
- * Usage: PGLITE_DIR=... npx tsx scripts/set-password.mts <email> <new-password>
+ * Usage: DATABASE_URL=... npx tsx scripts/set-password.mts <email> <new-password>
  */
 import { eq } from "drizzle-orm";
 import { closeDb, getDb } from "@/db";

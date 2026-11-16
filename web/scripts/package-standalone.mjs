@@ -47,15 +47,6 @@ await rm(path.join(outDir, ".next", "cache"), { recursive: true, force: true });
 await cp(staticDir, path.join(outDir, ".next", "static"), { recursive: true });
 await cp(publicDir, path.join(outDir, "public"), { recursive: true });
 
-const pgliteDist = path.join(outDir, "node_modules", "@electric-sql", "pglite", "dist");
-for (const file of ["pglite.wasm", "pglite.data", "initdb.wasm"]) {
-  if (!(await exists(path.join(pgliteDist, file)))) {
-    console.error(`PGlite runtime file missing from standalone output: ${file}. Check outputFileTracingIncludes in next.config.ts.`);
-    process.exit(1);
-  }
-}
-
-// Relative paths from inside dist/: GNU tar reads "C:..." as a remote host.
 for (const forbidden of [".env", ".env.local", ".data", "src", "tests"]) {
   if (await exists(path.join(outDir, forbidden))) {
     console.error(`Refusing to package: ${forbidden} is in the output.`);
@@ -63,6 +54,7 @@ for (const forbidden of [".env", ".env.local", ".data", "src", "tests"]) {
   }
 }
 
+// Relative paths from inside dist/: GNU tar reads "C:..." as a remote host.
 const tar = spawnSync("tar", ["-czf", "lupiva-web.tar.gz", "lupiva-web"], {
   cwd: distDir,
   stdio: "inherit",
