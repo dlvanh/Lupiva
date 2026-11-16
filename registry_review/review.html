@@ -22,6 +22,7 @@ header{padding:14px 30px}header h1{font-size:22px;margin:0}.top{padding:12px 30p
 .crf-paper{font:16px/1.42 'Times New Roman',serif;color:#202020;background:white;padding:16px;overflow:auto}.crf-paper h4{margin:18px 0 8px;font-size:17px}.crf-paper h4:first-child{text-align:center;font-size:23px}.crf-paper table{width:100%;border-collapse:collapse;margin:6px 0 16px}.crf-paper td{border:1px solid #a8aca8;padding:5px 8px;vertical-align:top;white-space:pre-line;overflow-wrap:anywhere}.crf-paper .crf-field{display:block;padding:4px 0;border:0}.crf-paper .crf-field label{margin-bottom:4px}.crf-paper td .crf-field>label:only-of-type{font-size:12px}.crf-print-value{display:none}
 @media print{body.crf-print{background:white;color:black}body.crf-print>:not(main),body.crf-print main>:not(#registryExports),body.crf-print #registryExports>:not(#patientData),body.crf-print #patientData>:not(#patientTitle):not(#crfPanel),body.crf-print #crfPanel>:not(#crfFields),body.crf-print .crf-evidence,body.crf-print .crf-field input,body.crf-print .crf-field .notice{display:none!important}body.crf-print main,body.crf-print #registryExports,body.crf-print #crfPanel,body.crf-print .crf-paper{display:block;margin:0;padding:0;border:0;overflow:visible}body.crf-print .crf-print-value{display:block;white-space:pre-wrap}body.crf-print tr{break-inside:avoid}body.crf-print h4{break-after:avoid}body.crf-print #patientTitle{margin-bottom:12px}}
 @media print{.crf-print .crf-score-editor,.crf-print .crf-template-choice{display:none!important}.crf-print .crf-print-choice{display:inline}}
+select.crf-suggested{border:1px dashed #b7791f;background:#fffbeb;font-style:italic}
 </style>
 <header><h1>Hồ sơ bệnh nhân</h1></header>
 <div class="top">
@@ -574,7 +575,15 @@ function renderCrf(){
   if(manual.length){
    const picker=node('select');options(picker,[...available.map(value=>[value.id,'Từ nguồn hoặc đề xuất · '+choiceLabel(value.value)]),
     ...manual.map(value=>[value.id,choiceLabel(value.value)])],'Chọn giá trị');
-   picker.id=label.htmlFor;picker.value=selection||'';picker.onchange=()=>setSelection(picker.value);cell.append(picker);
+   // A proposal is shown pre-filled but stays a suggestion: it is not selected for approval
+   // until the reviewer ticks it or picks a value.
+   const suggested=!reviewed&&!scored&&!selection&&field.proposal&&available.includes(field.proposal)?field.proposal:null;
+   picker.id=label.htmlFor;picker.value=selection||suggested?.id||'';picker.onchange=()=>setSelection(picker.value);cell.append(picker);
+   if(suggested){
+    picker.classList.add('crf-suggested');
+    const mark=node('input');mark.type='checkbox';mark.onchange=()=>setSelection(mark.checked?suggested.id:null);
+    const tick=node('label',undefined,'tick');tick.append(mark,node('span','LLM đề xuất · chưa duyệt — tích để duyệt ô này'));cell.append(tick);
+   }
    for(const option of available)if(option.sources.length)cell.append(crfEvidence(option));
   }else if(available.length>1&&!reviewed){
    const picker=node('select');options(picker,available.map(value=>[value.id,choiceLabel(value.value)]),'Chọn từ các giá trị nguồn');
