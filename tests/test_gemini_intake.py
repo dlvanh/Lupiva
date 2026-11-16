@@ -375,6 +375,46 @@ class GeminiIntakeTests(unittest.TestCase):
         raw = read(bundle/'artifacts/raw/G0000.txt')
         self.assertEqual(raw['notes'].count(note), 2)
 
+    def test_time_limit_keeps_finished_images(self):
+        self.setup_config()
+        from ocr_pool.gemini import DeadlineReached
+        docs = []
+        for name in ('FIRST', 'SECOND'):
+            source = self.root/(name+'.png'); body = image_bytes('time-limit-'+name); source.write_bytes(body)
+            checksum = hashlib.sha256(body).hexdigest()
+            docs.append(dict(document_id=name, input_path=source.name, input_sha256=checksum,
+                             privacy=dict(sha256=checksum, crop=[0,90,800,300], reviewed=True)))
+        calls = []
+        def extractor(*_):
+            calls.append(1)
+            if len(calls) > 1: raise DeadlineReached('API time budget for this submission is spent')
+            return result()
+        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)):
+            bundle = run(dict(documents=docs), self.root/'deadline-out', self.root, extractor=extractor)
+        self.assertEqual(len(verify_bundle(bundle, DICTIONARY)['observations']), 1)
+        issues = read(self.root/'deadline-out/candidate-pool.json')['issues']
+        self.assertIn(dict(document_id='SECOND', reason='api_time_limit'),
+                      [dict(document_id=i['document_id'], reason=i['reason']) for i in issues])
+        self.assertEqual(read(self.root/'deadline-out/api-health.json')['not_sent_time_limit'], 1)
+        # A spent budget before anything finished still fails, with its own reason.
+        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),                 self.assertRaisesRegex(ValueError, 'time limit reached before any image'):
+            run(dict(documents=docs), self.root/'deadline-none', self.root, extractor=extractor)
+
+    def test_request_respects_deadline_and_retries_a_timeout_once(self):
+        import ocr_pool.gemini as gemini
+        from ocr_pool.gemini import DeadlineReached
+        config = dict(engine='gemini', endpoint='http://localhost:8317/v1', native=False, key='k')
+        opener = Mock()
+        with patch.object(gemini, 'SLEEP', lambda _: None), patch.object(gemini, 'CLOCK', lambda: 1000.0):
+            with self.assertRaises(DeadlineReached):
+                request_json(dict(config, deadline=1003.0), {}, {}, {}, opener=opener)
+            opener.open.assert_not_called()
+            opener.open.side_effect = [TimeoutError(), TimeoutError(), TimeoutError()]
+            with self.assertRaisesRegex(ValueError, 'Cannot complete'):
+                request_json(dict(config, deadline=1100.0), {}, {}, {}, opener=opener)
+            self.assertEqual(opener.open.call_count, 2)
+            self.assertEqual(opener.open.call_args_list[0].kwargs['timeout'], 100.0)
+
     def test_outgoing_pixels_metadata_and_hash_are_checked(self):
         self.setup_config();job,body,plan=self.create_gemini()
         outgoing=prepare_image(body,plan)

@@ -13,7 +13,7 @@ from PIL import Image
 from form_pool.sample_collection import extract_sample_collections, HEADERS
 from registry_pool.exchange import build_bundle
 from .catalog_alias import CatalogAliases
-from .gemini import InvalidAPIResponse, configuration, privacy_plan, prepare_image, extract_image
+from .gemini import DeadlineReached, InvalidAPIResponse, configuration, privacy_plan, prepare_image, extract_image
 from .lab_api import extract_lab_image, lab_crop_evidence
 from .outgoing_gate import check_outgoing
 from .ocr_crosscheck import number_disagreements
@@ -460,7 +460,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
 
 
 def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemini', result_rules_db=None,
-        fast_pft=False, fast_labs=False):
+        fast_pft=False, fast_labs=False, deadline=None):
     workspace=Path(workspace).resolve(); output=Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     if (output/'workflow.json').exists() or (output/'bundle').exists():
@@ -468,6 +468,8 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
     documents=manifest['documents'];privacy_plan([d['privacy'] for d in documents], len(documents))
     dictionary=json.loads((workspace/'schemas/pool-dictionary.json').read_text(encoding='utf-8-sig'))
     config=configuration(workspace, model_override=model, engine=engine) if extractor is None else None
+    if config is not None and deadline is not None:
+        config['deadline']=float(deadline)   # absolute epoch: stop sending, keep finished images
     if config is not None:
         config['result_rules'] = load_result_rules(result_rules_db)
     profiles = []
@@ -529,118 +531,144 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
             raise ValueError('Outgoing privacy check found staff or identifying text in every automatic image; '
                              'review the crop and masks manually')
         stage('outgoing_privacy_check', 'completed');stage('gemini_extract', 'running')
-        results=[];failed_documents={};(output/'api-responses').mkdir(exist_ok=True)
+        results=[];failed_documents={};timed_out=[];(output/'api-responses').mkdir(exist_ok=True)
         for index, (doc, body) in enumerate(zip(documents, prepared)):
             if body is None: results.append(None);continue
-            start=time.monotonic()
-            scan=local_scans.get(doc['document_id'])
-            result, fast_error = None, None
-            routing = {}
-            for crop_evidence, fast_extract in profiles:
-                if crop_evidence is lab_crop_evidence:
-                    fast_evidence = crop_evidence(scan, doc['privacy'], routing=routing)
-                else:
-                    fast_evidence = crop_evidence(scan, doc['privacy'])
-                    routing['pft'] = 'eligible' if fast_evidence else 'insufficient_pft_evidence'
-                if not fast_evidence:
-                    if crop_evidence is lab_crop_evidence and routing.get('lab') == 'fluorescence_or_unidentified_panel':
-                        split = fluorescence_split(scan, doc['privacy'])
-                        routing['split_lab'] = 'eligible' if split else 'unsafe_boundary_or_insufficient_evidence'
-                        if split:
-                            try:
-                                result = extract_split_lab(body, split, dictionary, workspace, config)
-                            except InvalidAPIResponse as error:
-                                fast_error = str(error)
-                            break
-                    continue
-                with Image.open(io.BytesIO(body)) as crop:
-                    image_size = list(crop.size)
-                try:
-                    result = fast_extract(body, dictionary, config=config, evidence=fast_evidence, image_size=image_size)
-                except InvalidAPIResponse as error:
-                    fast_error = str(error)
-                    if getattr(error, 'response', None) is not None:
-                        write(output/'api-responses'/f'image-{index+1:03}-fast-rejected.json',
-                              dict(error=fast_error, raw_response=error.response))
-                break
-            if result is None:
-                standard_config = {**config, 'max_output_tokens': 32000} if fast_error else config
-                if extractor:
-                    result = extractor(body,dictionary,workspace)
-                else:
-                    # One bounded retry for a malformed response; a second
-                    # failure isolates this image instead of failing the patient.
-                    errors = []
-                    for attempt in range(2):
-                        try:
-                            result = extract_image(body,dictionary,workspace,config=standard_config)
-                            break
-                        except InvalidAPIResponse as error:
-                            errors.append(str(error))
-                            write(output/'api-responses'/f'image-{index+1:03}-rejected-{attempt+1}.json',
-                                  dict(error=str(error), raw_response=getattr(error, 'response', None)))
-                    if result is None:
-                        failed_documents[doc['document_id']] = '; '.join(errors)
-                        results.append(None)
-                        continue
-                    if errors:
-                        result['api_retry'] = errors
-                if fast_error:
-                    result['fast_profile_fallback'] = fast_error
-                if extractor is None:
-                    from .llm_verification import verify_extraction
-                    try:
-                        result=verify_extraction(body,result,dictionary,workspace,config=standard_config)
-                    except InvalidAPIResponse as error:
-                        result['verification'] = dict(attempted=True, status='failed_kept_initial', error=str(error))
-            if extractor is None:
-                from .llm_row_anchors import anchor_row_boxes
-                if scan:
-                    anchor_row_boxes(result,scan,doc['privacy'])
-                    attach_complement_ranges(result, scan, doc['privacy'])
-            findings = [finding for helper in (echo_pericardial_finding, ct_ild_finding, pleural_effusion_finding)
-                        if (finding := helper(scan, doc['privacy'])) is not None]
-            if findings:
-                result['local_report_findings'] = findings
-            if scan:
-                result['ocr_number_disagreements'] = number_disagreements(
-                    result['extraction']['rows'], scan, doc['privacy'])
-            result.update(elapsed_seconds=round(time.monotonic()-start,3),outgoing_sha256=hashlib.sha256(body).hexdigest())
-            if profiles:
-                result['fast_routing'] = routing
-            write(output/'api-responses'/f'image-{index+1:03}.json', result)
-            result['outgoing_bytes']=body;results.append(result)
+            if deadline is not None and time.time() >= float(deadline)-5:
+                timed_out.append(doc['document_id']);results.append(None);continue
+            try:
+                result=_extract_one(index, doc, body, output, workspace, dictionary, config, extractor,
+                                    profiles, local_scans, failed_documents)
+            except DeadlineReached:
+                timed_out.append(doc['document_id']);results.append(None);continue
+            results.append(result)
         # Per-run API health for the operator banner: counts and timings only.
         write(output/'api-health.json', dict(
             sent=sum(body is not None for body in prepared), failed=len(failed_documents),
+            not_sent_time_limit=len(timed_out),
             retried=sum(1 for r in results if r and r.get('api_retry')),
             seconds=[r['elapsed_seconds'] for r in results if r]))
         stage('gemini_extract', 'completed');stage('gemini_bundle','running')
         candidate=build_candidate(documents,results,dictionary,output,local_dates=local_dates,
                                   local_metadata=local_metadata,engine=engine)
-        if len(failed_documents) == sum(body is not None for body in prepared):
+        if not any(results):
+            if timed_out:
+                raise ValueError('API time limit reached before any image finished; originals and privacy selections are retained')
             raise ValueError('API extraction failed for every sent image; originals and privacy selections are retained')
-        for did, detail in failed_documents.items():
-            candidate['issues'].append(dict(document_id=did, table_id=None, reason='api_extraction_failed',
-                                            detail=detail[:500]))
-        for did, method in blocked.items():
-            candidate['issues'].append(dict(document_id=did, table_id=None, reason='outgoing_privacy_blocked',
-                                            detail=f'Staff text readable in the automatic crop ({method}); '
-                                                   'not sent. Review crop/masks manually.'))
-        write(output/'candidate-pool.json',candidate)
-        provenance=dict(engine=engine, llm_contract_version=LLM_CONTRACT_VERSION,
-            api_model_requested=config['model'] if config else 'synthetic',
-            privacy='User-reviewed crop and masks; original filenames and source metadata never sent', auto_approval=False,
-            documents=[dict(source_document_id=d['document_id'], original_sha256=d['input_sha256'],
-                            privacy=d['privacy'], outgoing_sha256=r['outgoing_sha256'] if r else None,
-                            local_source_date_status=date_status[d['document_id']]) for d,r in zip(documents,results)])
-        if config is not None and 'result_rules' in config:
-            provenance['result_literal_rule_versions']=sorted(set(config['result_rules'].values()))
-        write(output/'provenance.json',provenance)
-        bundle=output/'bundle';build_bundle(output,bundle,dictionary,workspace)
-        stage('gemini_bundle','completed');state['status']='completed';write(output/'workflow.json',state)
-        write(output/'result.json',dict(status='completed', bundle=str(bundle)))
-        return bundle
+        for did in timed_out:
+            candidate['issues'].append(dict(document_id=did, table_id=None, reason='api_time_limit',
+                                            detail='Not read: the submission reached its API time limit. '
+                                                   'Resubmit this image or enter its values manually.'))
+        return _finish(output, workspace, dictionary, documents, results, candidate, failed_documents,
+                       blocked, config, engine, date_status, state, stage)
     except Exception:
         state['status']='failed';write(output/'workflow.json',state)
         raise
+
+
+def _extract_one(index, doc, body, output, workspace, dictionary, config, extractor, profiles, local_scans, failed_documents):
+    start=time.monotonic()
+    scan=local_scans.get(doc['document_id'])
+    result, fast_error = None, None
+    routing = {}
+    for crop_evidence, fast_extract in profiles:
+        if crop_evidence is lab_crop_evidence:
+            fast_evidence = crop_evidence(scan, doc['privacy'], routing=routing)
+        else:
+            fast_evidence = crop_evidence(scan, doc['privacy'])
+            routing['pft'] = 'eligible' if fast_evidence else 'insufficient_pft_evidence'
+        if not fast_evidence:
+            if crop_evidence is lab_crop_evidence and routing.get('lab') == 'fluorescence_or_unidentified_panel':
+                split = fluorescence_split(scan, doc['privacy'])
+                routing['split_lab'] = 'eligible' if split else 'unsafe_boundary_or_insufficient_evidence'
+                if split:
+                    try:
+                        result = extract_split_lab(body, split, dictionary, workspace, config)
+                    except InvalidAPIResponse as error:
+                        fast_error = str(error)
+                    break
+            continue
+        with Image.open(io.BytesIO(body)) as crop:
+            image_size = list(crop.size)
+        try:
+            result = fast_extract(body, dictionary, config=config, evidence=fast_evidence, image_size=image_size)
+        except InvalidAPIResponse as error:
+            fast_error = str(error)
+            if getattr(error, 'response', None) is not None:
+                write(output/'api-responses'/f'image-{index+1:03}-fast-rejected.json',
+                      dict(error=fast_error, raw_response=error.response))
+        break
+    if result is None:
+        standard_config = {**config, 'max_output_tokens': 32000} if fast_error else config
+        if extractor:
+            result = extractor(body,dictionary,workspace)
+        else:
+            # One bounded retry for a malformed response; a second
+            # failure isolates this image instead of failing the patient.
+            errors = []
+            for attempt in range(2):
+                try:
+                    result = extract_image(body,dictionary,workspace,config=standard_config)
+                    break
+                except InvalidAPIResponse as error:
+                    errors.append(str(error))
+                    write(output/'api-responses'/f'image-{index+1:03}-rejected-{attempt+1}.json',
+                          dict(error=str(error), raw_response=getattr(error, 'response', None)))
+            if result is None:
+                failed_documents[doc['document_id']] = '; '.join(errors)
+                return None
+            if errors:
+                result['api_retry'] = errors
+        if fast_error:
+            result['fast_profile_fallback'] = fast_error
+        if extractor is None:
+            from .llm_verification import verify_extraction
+            try:
+                result=verify_extraction(body,result,dictionary,workspace,config=standard_config)
+            except DeadlineReached:
+                result['verification'] = dict(attempted=False, status='skipped_time_limit')
+            except InvalidAPIResponse as error:
+                result['verification'] = dict(attempted=True, status='failed_kept_initial', error=str(error))
+    if extractor is None:
+        from .llm_row_anchors import anchor_row_boxes
+        if scan:
+            anchor_row_boxes(result,scan,doc['privacy'])
+            attach_complement_ranges(result, scan, doc['privacy'])
+    findings = [finding for helper in (echo_pericardial_finding, ct_ild_finding, pleural_effusion_finding)
+                if (finding := helper(scan, doc['privacy'])) is not None]
+    if findings:
+        result['local_report_findings'] = findings
+    if scan:
+        result['ocr_number_disagreements'] = number_disagreements(
+            result['extraction']['rows'], scan, doc['privacy'])
+    result.update(elapsed_seconds=round(time.monotonic()-start,3),outgoing_sha256=hashlib.sha256(body).hexdigest())
+    if profiles:
+        result['fast_routing'] = routing
+    write(output/'api-responses'/f'image-{index+1:03}.json', result)
+    result['outgoing_bytes']=body
+    return result
+
+
+def _finish(output, workspace, dictionary, documents, results, candidate, failed_documents,
+            blocked, config, engine, date_status, state, stage):
+    for did, detail in failed_documents.items():
+        candidate['issues'].append(dict(document_id=did, table_id=None, reason='api_extraction_failed',
+                                        detail=detail[:500]))
+    for did, method in blocked.items():
+        candidate['issues'].append(dict(document_id=did, table_id=None, reason='outgoing_privacy_blocked',
+                                        detail=f'Staff text readable in the automatic crop ({method}); '
+                                               'not sent. Review crop/masks manually.'))
+    write(output/'candidate-pool.json',candidate)
+    provenance=dict(engine=engine, llm_contract_version=LLM_CONTRACT_VERSION,
+        api_model_requested=config['model'] if config else 'synthetic',
+        privacy='User-reviewed crop and masks; original filenames and source metadata never sent', auto_approval=False,
+        documents=[dict(source_document_id=d['document_id'], original_sha256=d['input_sha256'],
+                        privacy=d['privacy'], outgoing_sha256=r['outgoing_sha256'] if r else None,
+                        local_source_date_status=date_status[d['document_id']]) for d,r in zip(documents,results)])
+    if config is not None and 'result_rules' in config:
+        provenance['result_literal_rule_versions']=sorted(set(config['result_rules'].values()))
+    write(output/'provenance.json',provenance)
+    bundle=output/'bundle';build_bundle(output,bundle,dictionary,workspace)
+    stage('gemini_bundle','completed');state['status']='completed';write(output/'workflow.json',state)
+    write(output/'result.json',dict(status='completed', bundle=str(bundle)))
+    return bundle

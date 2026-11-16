@@ -376,6 +376,9 @@ class IntakeManager:
                 python=Path(sys.executable) if uses_api else venv_python(self.workspace/'.venv-senocr')
                 runner='scripts/run_gemini_pool.py' if uses_api else 'scripts/run_automatic_pool.py'
                 engine_args=['--engine',job['engine']] if uses_api else []
+                # The child stops sending images before the hard limit and keeps
+                # what finished; the margin leaves time to build the bundle.
+                if uses_api:engine_args+=['--deadline',str(time.time()+max(INTAKE_TIME_LIMIT*0.85,INTAKE_TIME_LIMIT-300))]
                 try:
                     if not python.is_file():raise ValueError('Processing Python environment is missing')
                     with (folder/('attempt-'+str(job['attempt'])+'.log')).open('wb') as log:

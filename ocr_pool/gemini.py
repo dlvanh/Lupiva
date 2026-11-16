@@ -204,7 +204,24 @@ def tokenharbor_allowance_exhausted(error):
 
 TRANSIENT_CODES = {429, 500, 502, 503, 504}
 TRANSIENT_RETRIES = 3
+# A call that timed out already cost a full timeout; retry it only once.
+TIMEOUT_RETRIES = 1
 SLEEP = time.sleep
+CLOCK = time.time
+
+
+class DeadlineReached(ValueError):
+    """The run's time budget is spent; the caller keeps what already finished."""
+
+
+def _budget(config, timeout):
+    deadline = config.get('deadline')
+    if deadline is None:
+        return timeout
+    remaining = deadline - CLOCK()
+    if remaining <= 5:
+        raise DeadlineReached('API time budget for this submission is spent')
+    return min(timeout, remaining)
 
 
 def retry_delay(retry_after, attempt):
@@ -215,7 +232,7 @@ def retry_delay(retry_after, attempt):
         return 5.0 * 3 ** attempt
 
 
-def request_json(config, payload, headers, schema, *, opener=None, timeout=300):
+def request_json(config, payload, headers, schema, *, opener=None, timeout=240):
     name = API_NAMES[config.get('engine', 'gemini')]
     opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
@@ -232,9 +249,10 @@ def request_json(config, payload, headers, schema, *, opener=None, timeout=300):
         request = urllib.request.Request(config['endpoint'], data=data, headers=request_headers)
         try:
             result = None
+            timeouts = 0
             for retry in range(TRANSIENT_RETRIES + 1):
                 try:
-                    with opener.open(request, timeout=timeout) as response:
+                    with opener.open(request, timeout=_budget(config, timeout)) as response:
                         result = json.load(response)
                     break
                 except urllib.error.HTTPError as error:
@@ -245,10 +263,14 @@ def request_json(config, payload, headers, schema, *, opener=None, timeout=300):
                         raise
                     error.close()
                     SLEEP(retry_delay(error.headers.get('Retry-After') if error.headers else None, retry))
-                except (TimeoutError, ConnectionError, urllib.error.URLError):
+                except (TimeoutError, ConnectionError, urllib.error.URLError) as error:
                     # A dropped connection or timeout is transient too (HTTPError,
                     # a URLError subclass, is handled by the clause above).
-                    if retry == TRANSIENT_RETRIES:
+                    timed_out = isinstance(error, TimeoutError) or isinstance(getattr(error, 'reason', None), TimeoutError)
+                    timeouts += timed_out
+                    if retry == TRANSIENT_RETRIES or timeouts > TIMEOUT_RETRIES:
+                        if config.get('deadline') is not None and config['deadline'] - CLOCK() <= 5:
+                            raise DeadlineReached('API time budget for this submission is spent') from None
                         raise
                     SLEEP(retry_delay(None, retry))
             break
@@ -261,6 +283,8 @@ def request_json(config, payload, headers, schema, *, opener=None, timeout=300):
                 if fallback and error.code in {402, 429}:
                     continue                    # rate limited or unpaid: try the next key
             raise ValueError(f'{name} API returned HTTP {error.code}; originals and privacy selections are retained') from None
+        except DeadlineReached:
+            raise
         except Exception:
             raise ValueError(f'Cannot complete {name} API request; check the server connection and configuration') from None
     else:
