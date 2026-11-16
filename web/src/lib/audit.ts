@@ -11,13 +11,15 @@ export type AuditAction =
   | "auth.register_denied"
   | "auth.register_rate_limited"
   | "submission.created"
-  | "submission.updated";
+  | "submission.updated"
+  | "submission.image_stored"
+  | "submission.sent_to_pipeline";
 
 export interface WriteAuditLogInput {
   actorUserId?: string | null;
   actorRole?: string | null;
   action: AuditAction;
-  targetType: "user" | "session" | "auth_gate" | "crf_submission";
+  targetType: "user" | "session" | "auth_gate" | "crf_submission" | "uploaded_document";
   targetId?: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;

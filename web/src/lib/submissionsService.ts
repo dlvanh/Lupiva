@@ -22,6 +22,7 @@ import {
   uploadedDocuments,
 } from "@/db/schema";
 import { AuthError, type AuthenticatedUserDTO } from "@/lib/auth";
+import type { PipelineStatus } from "@/db/schema";
 import {
   buildScrubbedMedicalHistory,
   buildScrubbedOrgansDamage,
@@ -49,6 +50,9 @@ export interface SubmissionItemDTO {
   dbSubmissionId: string;
   submittedAtIso: string;
   ocrSummary: OcrTierCounts;
+  /** Python backend hand-off; specialists also see pipelineError. */
+  pipelineStatus?: PipelineStatus;
+  pipelineError?: string | null;
 }
 
 /**
@@ -62,7 +66,25 @@ export interface PatientStatusRecord {
   studyId: string;
   submittedAt?: string;
   submissionStatus: "pending_doctor_review" | "approved";
+  processingStage: PatientStage;
   uploadedFiles: { id: string; name: string; isImage: boolean }[];
+}
+
+/**
+ * The only processing detail a patient sees. Held-for-privacy and backend
+ * errors both read as waiting for the doctor: the patient cannot act on them.
+ */
+export type PatientStage = "received" | "processing" | "awaiting_doctor" | "extracted" | "approved";
+
+export function patientStage(
+  pipelineStatus: PipelineStatus | undefined,
+  submissionStatus: "pending_doctor_review" | "approved",
+): PatientStage {
+  if (submissionStatus === "approved") return "approved";
+  if (pipelineStatus === "privacy_check" || pipelineStatus === "processing") return "processing";
+  if (pipelineStatus === "none" || pipelineStatus === undefined) return "received";
+  if (pipelineStatus === "completed") return "extracted";
+  return "awaiting_doctor";
 }
 
 export interface PatientSubmissionStatusDTO {
@@ -73,6 +95,7 @@ export interface PatientSubmissionStatusDTO {
 
 export function toPatientStatus(item: SubmissionItemDTO): PatientSubmissionStatusDTO {
   const { record } = item;
+  const submissionStatus = record.submissionStatus ?? (record.signedOffBy ? "approved" : "pending_doctor_review");
   return {
     dbSubmissionId: item.dbSubmissionId,
     submittedAtIso: item.submittedAtIso,
@@ -81,7 +104,8 @@ export function toPatientStatus(item: SubmissionItemDTO): PatientSubmissionStatu
       patientName: record.patientName,
       studyId: record.studyId,
       submittedAt: record.submittedAt,
-      submissionStatus: record.submissionStatus ?? (record.signedOffBy ? "approved" : "pending_doctor_review"),
+      submissionStatus,
+      processingStage: patientStage(item.pipelineStatus, submissionStatus),
       uploadedFiles: (record.uploadedFiles ?? []).map((file) => ({
         id: file.id,
         name: file.name,
@@ -277,6 +301,8 @@ export async function querySubmissions(params: {
         eularAcrJson: crfSubmissions.eularAcrJson,
         sledai2kJson: crfSubmissions.sledai2kJson,
         lastUpdatedAt: crfSubmissions.lastUpdatedAt,
+        pipelineStatus: crfSubmissions.pipelineStatus,
+        pipelineError: crfSubmissions.pipelineError,
         profileId: patientProfiles.id,
         studyIdEncrypted: patientProfiles.studyIdEncrypted,
         patientNameEncrypted: patientProfiles.patientNameEncrypted,
@@ -313,6 +339,8 @@ export async function querySubmissions(params: {
         eularAcrJson: crfSubmissions.eularAcrJson,
         sledai2kJson: crfSubmissions.sledai2kJson,
         lastUpdatedAt: crfSubmissions.lastUpdatedAt,
+        pipelineStatus: crfSubmissions.pipelineStatus,
+        pipelineError: crfSubmissions.pipelineError,
         profileId: patientProfiles.id,
         studyIdEncrypted: patientProfiles.studyIdEncrypted,
         patientNameEncrypted: patientProfiles.patientNameEncrypted,
@@ -402,6 +430,8 @@ export async function querySubmissions(params: {
         dbSubmissionId: row.submissionId,
         submittedAtIso: row.submittedAt.toISOString(),
         ocrSummary,
+        pipelineStatus: row.pipelineStatus,
+        pipelineError: row.pipelineError,
       },
       submittedAtMs: row.submittedAt.getTime(),
       sledaiScore: row.sledaiTotalScore,
@@ -742,6 +772,7 @@ export async function createPatientSubmission(params: {
     dbSubmissionId: submissionId,
     submittedAtIso: now.toISOString(),
     ocrSummary: getOcrTierCounts(hydrated),
+    pipelineStatus: "none",
   };
 }
 

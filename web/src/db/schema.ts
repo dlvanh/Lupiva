@@ -205,6 +205,22 @@ export const patientProfiles = pgTable(
 // -----------------------------------------------------------------------------
 // 6. Hybrid SQL + JSONB SLE e-CRF Submissions (Zone B HIV Vault + Zone C JSONB)
 // -----------------------------------------------------------------------------
+/**
+ * none: not sent (no images yet, or documents the backend cannot read)
+ * privacy_check: local crop/redaction proposals running
+ * privacy_review: an image needs a specialist to review what is sent
+ * processing: intake created and OCR/extraction running in the backend
+ * completed: extraction finished; values await specialist review
+ * failed: backend error; a specialist must look
+ */
+export type PipelineStatus =
+  | "none"
+  | "privacy_check"
+  | "privacy_review"
+  | "processing"
+  | "completed"
+  | "failed";
+
 export const crfSubmissions = pgTable(
   "crf_submissions",
   {
@@ -258,8 +274,17 @@ export const crfSubmissions = pgTable(
     lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
+    /** Python OCR/CRF backend intake for this submission (see lib/intakeOrchestrator). */
+    pipelineIntakeId: text("pipeline_intake_id"),
+    pipelineStatus: text("pipeline_status")
+      .$type<PipelineStatus>()
+      .notNull()
+      .default("none"),
+    /** Specialist-only diagnostic; never returned to patient accounts. */
+    pipelineError: text("pipeline_error"),
   },
   (table) => [
+    index("crf_submissions_pipeline_status_idx").on(table.pipelineStatus),
     index("crf_submissions_ocr_fields_gin_idx").using("gin", table.ocrFieldsJson),
     index("crf_submissions_status_idx").on(table.status),
     index("crf_submissions_patient_idx").on(table.patientProfileId),
@@ -284,7 +309,7 @@ export const uploadedDocuments = pgTable(
     sizeBytes: integer("size_bytes").notNull().default(0),
     isImage: boolean("is_image").notNull().default(false),
     storageProvider: text("storage_provider")
-      .$type<"minio" | "s3" | "sample">()
+      .$type<"minio" | "s3" | "sample" | "local">()
       .notNull()
       .default("sample"),
     storageKey: text("storage_key").notNull(),

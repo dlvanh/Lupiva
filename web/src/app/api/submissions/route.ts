@@ -8,6 +8,7 @@ import {
   verifySameOrigin,
 } from "@/lib/auth";
 import { CryptoConfigurationError } from "@/lib/crypto";
+import { refreshPipelineStatuses } from "@/lib/intakeOrchestrator";
 import { submissionQuerySchema } from "@/lib/submissionFilters";
 import {
   createPatientSubmission,
@@ -31,6 +32,11 @@ export async function GET(request: Request) {
         { status: 400, headers: NO_STORE_HEADERS }
       );
     }
+
+    // Pick up finished backend intakes; a down backend must not block the list.
+    await refreshPipelineStatuses().catch((error) => {
+      console.warn("[Lupiva Pipeline] Status refresh skipped:", (error as Error).message);
+    });
 
     const result = await querySubmissions({
       user,

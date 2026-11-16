@@ -620,6 +620,48 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     [crfPatients.length, currentUser]
   );
 
+  /**
+   * Upload each image's bytes (documents listed in the same order as files),
+   * then ask the server to hand them to the OCR/CRF backend. PDFs stay
+   * metadata-only for the doctor. Returns false if an image failed to upload.
+   */
+  const sendImagesToPipeline = async (
+    submissionId: string,
+    listed: { id: string }[],
+    files: UploadedDocFile[]
+  ): Promise<boolean> => {
+    let stored = 0;
+    let ok = true;
+    for (const [index, file] of files.entries()) {
+      const documentId = listed[index]?.id;
+      if (!documentId || !file.isImage || !file.url) continue;
+      try {
+        const blob = await (await fetch(file.url)).blob();
+        const res = await fetch(
+          `/api/submissions/${encodeURIComponent(submissionId)}/files?documentId=${encodeURIComponent(documentId)}`,
+          {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/octet-stream" },
+            body: blob,
+          }
+        );
+        if (res.ok) stored += 1;
+        else ok = false;
+      } catch {
+        ok = false;
+      }
+    }
+    if (stored) {
+      const res = await fetch(`/api/submissions/${encodeURIComponent(submissionId)}/send`, {
+        method: "POST",
+        credentials: "same-origin",
+      }).catch(() => null);
+      if (!res?.ok) ok = false;
+    }
+    return ok;
+  };
+
   const submitPatientUpload = useCallback(
     async (
       patientName: string,
@@ -645,7 +687,8 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         });
 
         const payload = (await res.json().catch(() => ({}))) as {
-          record?: SleCrfPatientRecord | { id: string };
+          record?: SleCrfPatientRecord | { id: string; uploadedFiles?: { id: string }[] };
+          dbSubmissionId?: string;
           error?: string;
         };
 
@@ -661,6 +704,19 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
             "amber"
           );
           return null;
+        }
+
+        if (payload.dbSubmissionId) {
+          const sent = await sendImagesToPipeline(payload.dbSubmissionId, payload.record.uploadedFiles ?? [], files);
+          if (!sent) {
+            showToast(
+              language === "vi" ? "Ảnh chưa được gửi đi xử lý" : "Images not sent for processing",
+              language === "vi"
+                ? "Hồ sơ đã lưu nhưng ảnh chưa tải lên được. Bác sĩ sẽ kiểm tra."
+                : "The submission was saved but its images could not be uploaded.",
+              "amber"
+            );
+          }
         }
 
         if (!("ocrFields" in payload.record)) {

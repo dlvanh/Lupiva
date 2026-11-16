@@ -530,6 +530,7 @@ export function PatientUploadView() {
               ) : (
                 trackerState.items.map(({ record: p, dbSubmissionId }) => {
                   const approved = p.submissionStatus === "approved";
+                  const extracted = p.processingStage === "extracted" || approved;
                   return (
                     <article
                       key={dbSubmissionId}
@@ -563,12 +564,32 @@ export function PatientUploadView() {
                           />
                           <span>{copy.stepUploaded}</span>
                         </li>
-                        <li className="flex items-center gap-1.5 rounded border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-teal-900">
+                        <li
+                          className={`flex items-center gap-1.5 rounded border px-2.5 py-1.5 ${
+                            extracted
+                              ? "border-teal-200 bg-teal-50 text-teal-900"
+                              : "border-slate-200 bg-slate-50 text-slate-700"
+                          }`}
+                        >
                           <span
                             aria-hidden="true"
-                            className="h-2 w-2 shrink-0 rounded-full bg-teal-600"
+                            className={`h-2 w-2 shrink-0 rounded-full ${extracted ? "bg-teal-600" : "bg-slate-400"}`}
                           />
-                          <span>{copy.stepOcrExtracted}</span>
+                          <span>
+                            {extracted
+                              ? copy.stepOcrExtracted
+                              : p.processingStage === "processing"
+                              ? language === "vi"
+                                ? "Đang xử lý"
+                                : "Processing"
+                              : p.processingStage === "awaiting_doctor"
+                              ? language === "vi"
+                                ? "Chờ bác sĩ kiểm tra"
+                                : "Awaiting doctor check"
+                              : language === "vi"
+                              ? "Chờ xử lý"
+                              : "Waiting"}
+                          </span>
                         </li>
                         <li
                           className={`flex items-center gap-1.5 rounded border px-2.5 py-1.5 ${

@@ -433,7 +433,7 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
     expect(created.record.submissionStatus).toBe("pending_doctor_review");
     // A patient's receipt carries status only, never CRF or clinical data.
     expect(Object.keys(created.record).sort()).toEqual(
-      ["id", "patientName", "studyId", "submissionStatus", "submittedAt", "uploadedFiles"]
+      ["id", "patientName", "processingStage", "studyId", "submissionStatus", "submittedAt", "uploadedFiles"]
     );
     expect(created).not.toHaveProperty("ocrSummary");
 
