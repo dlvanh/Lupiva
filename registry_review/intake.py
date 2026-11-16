@@ -265,13 +265,18 @@ class IntakeManager:
                     if row[0]!=digest(dictionary):raise ValueError('Submission dictionary differs from this registry')
                 for document in package['documents']:
                     prior=store.assignment(document['document_id'])
-                    if prior and (prior['identity_status']!='confirmed' or prior['case_id']!=job['case_id']):
+                    # A link a person revoked may be confirmed again for this submission;
+                    # a link confirmed for another patient may not.
+                    if prior and not (prior['identity_status']=='revoked' or
+                                      (prior['identity_status']=='confirmed' and prior['case_id']==job['case_id'])):
                         raise ValueError('Source identity changed; review its patient link separately')
                 store.registry.import_package(package,dictionary)
                 who=job['submitted_by']
                 for document in package['documents']:
-                    if store.assignment(document['document_id']) is None:
-                        store.assign_document(document['document_id'],case_id=job['case_id'],actor=who['name'],
+                    prior=store.assignment(document['document_id'])
+                    if prior is None or prior['identity_status']=='revoked':
+                        store.assign_document(document['document_id'],case_id=job['case_id'],
+                            expected_assignment_id=prior['assignment_id'] if prior else None,actor=who['name'],
                             role=who['declared_role'],reason='User explicitly submitted these images together for one patient; OCR values still await review.')
                 job.update(status='completed',error=None,bundle=bundle.relative_to(folder).as_posix(),
                     package_id=package['package_id'],revision=package['revision'],

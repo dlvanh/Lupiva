@@ -129,6 +129,26 @@ class PatientIntakeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'another patient'):
             self.manager.upload(third['job_id'],'image-0','copy.png',image_bytes('patient-one0'))
 
+    def test_revoked_source_link_can_be_resubmitted_for_a_new_patient(self):
+        first=self.uploaded(request='patient-one');self.manager.start(job_id=first['job_id']);self.wait(first['job_id'])
+        store=ReviewStore(self.db)
+        try:
+            doc=next(iter(patient_workspace(store,DICTIONARY,first['case_id'])['documents']))['document_id']
+            old=store.assignment(doc)
+            store.assign_document(doc,case_id=None,expected_assignment_id=old['assignment_id'],
+                actor='Synthetic clinician',role='clinician',reason='Unlink to resend')
+        finally:store.close()
+        again=self.create(request='patient-one-again')
+        self.manager.upload(again['job_id'],'image-0','copy.png',image_bytes('patient-one0'))
+        self.manager.start(job_id=again['job_id']);self.wait(again['job_id'])
+        store=ReviewStore(self.db,read_only=True)
+        try:
+            link=store.assignment(doc)
+            self.assertEqual((link['identity_status'],link['case_id']),('confirmed',again['case_id']))
+            self.assertEqual(link['previous_assignment_id'],store.db.execute(
+                'SELECT previous_assignment_id FROM document_identity_events WHERE document_id=? ORDER BY sequence DESC LIMIT 1',(doc,)).fetchone()[0])
+        finally:store.close()
+
     def test_rejects_unconfirmed_scope_incomplete_upload_invalid_images_paths_and_tampering(self):
         for changes in ({'same_patient':False},{'file_count':0},{'role':'assistant'}):
             with self.subTest(changes=changes),self.assertRaises(ValueError):self.create(**changes)
