@@ -464,6 +464,7 @@ export function DoctorSubmissionsView() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [reloadTick, setReloadTick] = useState(0);
+  const silentReloadRef = useRef(false);
   const [viewerTarget, setViewerTarget] = useState<{
     patient: SleCrfPatientRecord;
     fileId: string;
@@ -574,7 +575,10 @@ export function DoctorSubmissionsView() {
     const query = buildSubmissionFilterSearchParams(effectiveFilters);
 
     async function loadSubmissions() {
-      setApiState((prev) => ({ ...prev, loading: true, error: null }));
+      // A background status poll refreshes the list without the loading state.
+      const silent = silentReloadRef.current;
+      silentReloadRef.current = false;
+      if (!silent) setApiState((prev) => ({ ...prev, loading: true, error: null }));
       try {
         const res = await fetch(`/api/submissions?${query.toString()}`, {
           method: "GET",
@@ -618,6 +622,20 @@ export function DoctorSubmissionsView() {
     copy.errorTitle,
     mergeCrfPatientsFromApi,
   ]);
+
+  // While the backend is still reading a submission, re-check every 10 s so the
+  // review button turns on without reloading the page.
+  const hasPending = (apiState.data?.items ?? []).some(
+    (item) => item.pipelineStatus === "processing" || item.pipelineStatus === "privacy_check",
+  );
+  useEffect(() => {
+    if (!hasPending) return;
+    const timer = window.setInterval(() => {
+      silentReloadRef.current = true;
+      setReloadTick((n) => n + 1);
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [hasPending]);
 
   const activeFilterCount = countActiveDoctorFilters({
     ...filters,
