@@ -15,6 +15,7 @@ export default function SleScoresPage() {
   const {
     language,
     currentUser,
+    authLoading,
     crfPatients,
     activeCrfPatientId,
     setActiveCrfPatientId,
@@ -26,16 +27,30 @@ export default function SleScoresPage() {
   const isSpecialist = currentUser?.role === "specialist";
 
   useEffect(() => {
-    if (!isSpecialist) {
+    if (!authLoading && !isSpecialist) {
       router.replace("/login");
     }
-  }, [isSpecialist, router]);
+  }, [authLoading, isSpecialist, router]);
 
   const activePatient = useMemo(
     () =>
       crfPatients.find((p) => p.id === activeCrfPatientId) || crfPatients[0],
     [crfPatients, activeCrfPatientId]
   );
+
+  if (authLoading) {
+    return (
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex flex-1 items-center justify-center bg-slate-100/80 py-16"
+      >
+        <div className="rounded-xl border border-slate-200 bg-white px-6 py-4 text-xs font-medium text-slate-600 shadow-2xs">
+          {isVi ? "Đang xác thực phiên chuyên khoa..." : "Verifying specialist session..."}
+        </div>
+      </main>
+    );
+  }
 
   if (!isSpecialist) {
     return null;

@@ -91,28 +91,45 @@ export interface Translations {
   login: {
     roleAccessTag: string;
     title: string;
+    registerTitle: string;
     autofillBtn: string;
     subtitle: string;
+    registerSubtitle: string;
+    modeSignInTab: string;
+    modeRegisterTab: string;
     specialistTabTitle: string;
     specialistTabBadge: string;
     specialistTabDesc: string;
     patientTabTitle: string;
     patientTabBadge: string;
     patientTabDesc: string;
+    fullNameLabel: string;
+    fullNamePlaceholder: string;
     emailLabel: string;
     passwordLabel: string;
     passwordHint: string;
+    passwordHintProduction: string;
+    passwordHintRegister: string;
+    inviteCodeLabel: string;
+    inviteCodePlaceholder: string;
+    inviteCodeHint: string;
     specialistConsent: string;
     patientConsent: string;
     submitBtn: (name: string) => string;
+    submitRegisterBtn: (roleLabel: string) => string;
+    signingInBtn: string;
+    creatingAccountBtn: string;
     skipBtn: string;
     selectedProfileTitle: string;
+    registerProfileTitle: string;
     roleAffiliation: string;
     deptCohort: string;
     whatUnlocks: string;
     activeSessionTitle: string;
     loggedInAs: (name: string) => string;
     guestNotice: string;
+    securityVaultTitle: string;
+    securityVaultDesc: string;
   };
   ocr: {
     sampleScanLabel: string;
@@ -171,7 +188,9 @@ export interface Translations {
   };
   toasts: {
     signedIn: (name: string) => string;
+    accountCreatedTitle: (name: string) => string;
     activeMode: (title: string) => string;
+    authFailedTitle: string;
     signedOutTitle: string;
     signedOutDesc: string;
     savedRegistryTitle: (id: string) => string;
@@ -296,31 +315,52 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     login: {
       roleAccessTag: "Role-Based Clinical Access",
       title: "Sign in to Lupiva Platform",
+      registerTitle: "Create a Lupiva Account",
       autofillBtn: "Autofill Demo Credentials",
       subtitle:
-        "Select a persona below to test the workflow as either a Vinmec Clinical Immunology Specialist (HITL verifier) or an SLE Cohort Patient.",
+        "Sign in with a seeded demo account or registered institutional credentials backed by PostgreSQL + AES-256-GCM PII encryption.",
+      registerSubtitle:
+        "Create an encrypted patient portal account or an invite-gated Vinmec Clinical Specialist account.",
+      modeSignInTab: "Sign In",
+      modeRegisterTab: "Create Account",
       specialistTabTitle: "Clinical Specialist",
       specialistTabBadge: "HITL Doctor",
       specialistTabDesc: "Verify OCR labs & commit e-CRF",
       patientTabTitle: "SLE Patient Portal",
       patientTabBadge: "Companion",
       patientTabDesc: "Upload lab scans & earn vouchers",
+      fullNameLabel: "Full Name",
+      fullNamePlaceholder: "e.g., Tran Thi Mai",
       emailLabel: "Institutional or Patient Email",
-      passwordLabel: "Demo Passkey / PIN",
-      passwordHint: "Pre-populated for evaluation",
+      passwordLabel: "Password",
+      passwordHint: "Seeded demo passkey pre-filled",
+      passwordHintProduction: "Enter your account password",
+      passwordHintRegister: "Min 8 chars, 1 letter, 1 number & 1 special char",
+      inviteCodeLabel: "Institutional Specialist Invite Code",
+      inviteCodePlaceholder: "Required for Vinmec Clinical Specialists",
+      inviteCodeHint:
+        "Gated on the server via SPECIALIST_INVITE_CODE to protect physician e-CRF privileges.",
       specialistConsent:
         "I confirm Physician-in-the-Loop (HITL) supervision responsibility: all flagged OCR biomarkers (<85% confidence) will be reviewed against the source scan before e-CRF commit.",
       patientConsent:
         "I consent to contribute de-identified SLE lab values to the Vinmec Clinical Immunology Registry in exchange for specialist consultation voucher incentives.",
-      submitBtn: (name) => `Sign In as ${name} & Open OCR →`,
-      skipBtn: "Continue to OCR Without Changing Session",
-      selectedProfileTitle: "Selected Mock Profile",
+      submitBtn: (name) => `Sign In as ${name} →`,
+      submitRegisterBtn: (roleLabel) => `Create ${roleLabel} Account →`,
+      signingInBtn: "Verifying Session...",
+      creatingAccountBtn: "Creating Encrypted Account...",
+      skipBtn: "Continue Without Signing In",
+      selectedProfileTitle: "Selected Account Profile",
+      registerProfileTitle: "Encrypted Account Preview",
       roleAffiliation: "Role & Affiliation",
       deptCohort: "Department / Cohort ID",
-      whatUnlocks: "What This Role Unlocks in OCR",
+      whatUnlocks: "What This Role Unlocks in Lupiva",
       activeSessionTitle: "Currently Active Session",
-      loggedInAs: (name) => `Logged in as ${name}. Signing in above will switch the active session to the selected role.`,
-      guestNotice: "No user currently signed in (Guest Evaluator mode).",
+      loggedInAs: (name) =>
+        `Logged in as ${name}. Signing in above will switch the active session cookie to the new account.`,
+      guestNotice: "No active session (unauthenticated guest mode).",
+      securityVaultTitle: "3-Zone PII Vault Protection",
+      securityVaultDesc:
+        "Email & Full Name are stored with AES-256-GCM (AAD row binding) and keyed HMAC-SHA256 blind indexes; passwords use scrypt + HttpOnly DB sessions.",
     },
     ocr: {
       sampleScanLabel: "Sample Lab Scan:",
@@ -386,7 +426,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     },
     toasts: {
       signedIn: (name) => `Signed in as ${name}`,
+      accountCreatedTitle: (name) => `Account created for ${name}`,
       activeMode: (title) => `Active mode: ${title}`,
+      authFailedTitle: "Authentication Error",
       signedOutTitle: "Signed out of Lupiva session",
       signedOutDesc: "You are now browsing in public evaluator mode.",
       savedRegistryTitle: (id) => `Saved ${id} to SLE e-CRF Registry`,
@@ -520,31 +562,52 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     login: {
       roleAccessTag: "Truy cập Lâm sàng Phân quyền",
       title: "Đăng nhập Nền tảng Lupiva",
+      registerTitle: "Tạo Tài khoản Lupiva",
       autofillBtn: "Tự động Điền Tài khoản Mẫu",
       subtitle:
-        "Chọn một hồ sơ mẫu bên dưới để thử nghiệm quy trình với vai trò Bác sĩ Miễn dịch Lâm sàng Vinmec (người duyệt HITL) hoặc Bệnh nhân thuộc Đoàn hệ SLE.",
+        "Đăng nhập bằng tài khoản mẫu có sẵn hoặc tài khoản đã đăng ký, bảo vệ bởi PostgreSQL + mã hóa PII AES-256-GCM.",
+      registerSubtitle:
+        "Tạo tài khoản Cổng Bệnh nhân được mã hóa hoặc tài khoản Bác sĩ Chuyên khoa Vinmec (yêu cầu mã mời).",
+      modeSignInTab: "Đăng nhập",
+      modeRegisterTab: "Tạo Tài khoản",
       specialistTabTitle: "Bác sĩ Chuyên khoa",
       specialistTabBadge: "Bác sĩ Duyệt HITL",
       specialistTabDesc: "Xác thực OCR xét nghiệm & lưu e-CRF",
       patientTabTitle: "Cổng Thông tin Bệnh nhân",
       patientTabBadge: "Đồng hành",
       patientTabDesc: "Tải phiếu xét nghiệm & nhận voucher",
+      fullNameLabel: "Họ và Tên",
+      fullNamePlaceholder: "VD: Trần Thị Mai",
       emailLabel: "Email Bệnh viện hoặc Email Bệnh nhân",
-      passwordLabel: "Mã Khóa / PIN Đánh giá Thử nghiệm",
-      passwordHint: "Được điền sẵn phục vụ đánh giá",
+      passwordLabel: "Mật khẩu",
+      passwordHint: "Đã điền sẵn mật khẩu tài khoản mẫu",
+      passwordHintProduction: "Nhập mật khẩu tài khoản của bạn",
+      passwordHintRegister: "Tối thiểu 8 ký tự, gồm chữ cái, số & ký tự đặc biệt",
+      inviteCodeLabel: "Mã Mời Bác sĩ Chuyên khoa Vinmec",
+      inviteCodePlaceholder: "Bắt buộc đối với Bác sĩ Chuyên khoa",
+      inviteCodeHint:
+        "Kiểm tra phía máy chủ qua SPECIALIST_INVITE_CODE nhằm bảo vệ quyền ghi e-CRF.",
       specialistConsent:
         "Tôi xác nhận trách nhiệm giám sát Bác sĩ Tham gia (HITL): toàn bộ chỉ số OCR bị cảnh báo (<85% độ tin cậy) sẽ được đối chiếu kỹ lưỡng với bản chụp gốc trước khi lưu vào e-CRF.",
       patientConsent:
         "Tôi đồng ý đóng góp các chỉ số xét nghiệm SLE đã ẩn danh vào Cơ sở Dữ liệu Miễn dịch Lâm sàng Vinmec để đổi lấy phiếu ưu đãi khám chuyên khoa.",
-      submitBtn: (name) => `Đăng nhập vai trò ${name} & Mở OCR →`,
-      skipBtn: "Tiếp tục vào OCR mà không đổi phiên đăng nhập",
-      selectedProfileTitle: "Hồ sơ Mẫu Được Chọn",
+      submitBtn: (name) => `Đăng nhập với tên ${name} →`,
+      submitRegisterBtn: (roleLabel) => `Tạo Tài khoản ${roleLabel} →`,
+      signingInBtn: "Đang xác thực phiên...",
+      creatingAccountBtn: "Đang khởi tạo tài khoản mã hóa...",
+      skipBtn: "Tiếp tục mà không đăng nhập",
+      selectedProfileTitle: "Hồ sơ Tài khoản Được Chọn",
+      registerProfileTitle: "Xem trước Tài khoản Mã hóa",
       roleAffiliation: "Vai trò & Đơn vị",
       deptCohort: "Khoa / Mã Đoàn hệ Đăng ký",
-      whatUnlocks: "Quyền hạn của Vai trò trong Không gian OCR",
+      whatUnlocks: "Quyền hạn của Vai trò trên Lupiva",
       activeSessionTitle: "Phiên Làm việc Hiện tại",
-      loggedInAs: (name) => `Đang đăng nhập với tên ${name}. Đăng nhập ở trên sẽ chuyển đổi phiên sang vai trò tương ứng.`,
-      guestNotice: "Chưa có người dùng đăng nhập (Chế độ Người Đánh giá Khách).",
+      loggedInAs: (name) =>
+        `Đang đăng nhập với tên ${name}. Đăng nhập ở trên sẽ cập nhật phiên HttpOnly sang tài khoản mới.`,
+      guestNotice: "Chưa có phiên đăng nhập hoạt động (Chế độ Khách).",
+      securityVaultTitle: "Bảo vệ Hầm Dữ liệu PII 3 Vùng",
+      securityVaultDesc:
+        "Email & Họ tên được mã hóa AES-256-GCM (ràng buộc AAD theo hàng) kèm blind index HMAC-SHA256; mật khẩu băm scrypt + phiên DB HttpOnly.",
     },
     ocr: {
       sampleScanLabel: "Chọn Bản quét Mẫu:",
@@ -610,7 +673,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     },
     toasts: {
       signedIn: (name) => `Đã đăng nhập vai trò ${name}`,
+      accountCreatedTitle: (name) => `Đã tạo tài khoản cho ${name}`,
       activeMode: (title) => `Chế độ hoạt động: ${title}`,
+      authFailedTitle: "Lỗi Xác thực",
       signedOutTitle: "Đã đăng xuất khỏi phiên Lupiva",
       signedOutDesc: "Bạn hiện đang duyệt ở chế độ Người Đánh giá Khách.",
       savedRegistryTitle: (id) => `Đã lưu hồ sơ ${id} vào CSDL e-CRF SLE`,
@@ -896,7 +961,7 @@ export function getLocalizedButtonActionMap(lang: Language): ButtonMappingItem[]
       page: "Global Navbar",
       buttonLabel: "Đăng nhập / Đăng xuất",
       elementId: "nav-btn-auth",
-      mockAction: "Chuyển tới trang /login hoặc xóa phiên đăng nhập của DemoUser hiện tại.",
+      mockAction: "Chuyển tới trang /login hoặc thu hồi phiên HttpOnly trên PostgreSQL qua POST /api/auth/logout.",
       expectedOutcome: "Cập nhật huy hiệu vai trò ở góc phải phía trên và hiển thị thông báo trạng thái.",
     },
     {
@@ -911,7 +976,7 @@ export function getLocalizedButtonActionMap(lang: Language): ButtonMappingItem[]
       buttonLabel: "Đăng nhập Bác sĩ / Bệnh nhân",
       elementId: "hero-btn-login",
       mockAction: "Điều hướng đến màn hình xác thực /login.",
-      expectedOutcome: "Cho phép chuyển đổi giữa tài khoản demo Bác sĩ Vinmec và Bệnh nhân SLE.",
+      expectedOutcome: "Cho phép đăng nhập bằng tài khoản mẫu trong DB hoặc tạo tài khoản mới.",
     },
     {
       page: "Landing Page (/)",
@@ -924,22 +989,22 @@ export function getLocalizedButtonActionMap(lang: Language): ButtonMappingItem[]
       page: "Login Page (/login)",
       buttonLabel: "Thẻ vai trò: Bác sĩ Vinmec / Bệnh nhân SLE",
       elementId: "login-tab-specialist / login-tab-patient",
-      mockAction: "Chuyển đổi nhân vật đăng nhập và cập nhật thẻ thông tin xem trước.",
+      mockAction: "Chuyển đổi vai trò đăng nhập/đăng ký, tự động điền mẫu (khi bật demo) và cập nhật cam kết.",
       expectedOutcome: "Chuyển đổi giữa TS. BS. Nguyễn Minh (Bác sĩ HITL) và Trần Thị Mai (Bệnh nhân).",
     },
     {
       page: "Login Page (/login)",
       buttonLabel: "Tự động Điền Tài khoản Mẫu",
       elementId: "login-btn-autofill",
-      mockAction: "Điền tự động email, mật khẩu và đánh dấu ô đồng ý đóng góp e-CRF.",
-      expectedOutcome: "Thiết lập đăng nhập nhanh không cần gõ phím phục vụ đánh giá.",
+      mockAction: "Khi bật chế độ demo, tự động điền email, mật khẩu tài khoản mẫu và ô đồng ý e-CRF.",
+      expectedOutcome: "Thiết lập đăng nhập nhanh phục vụ đánh giá.",
     },
     {
       page: "Login Page (/login)",
-      buttonLabel: "Đăng nhập & Mở Không gian OCR",
+      buttonLabel: "Đăng nhập / Tạo Tài khoản",
       elementId: "login-btn-submit",
-      mockAction: "Xác thực DemoUser đã chọn trong LupivaContext và chuyển hướng tới /ocr.",
-      expectedOutcome: "Thanh tiêu đề hiển thị huy hiệu người dùng và mở quyền ký duyệt e-CRF.",
+      mockAction: "Xác thực qua POST /api/auth/login hoặc đăng ký qua POST /api/auth/register trên PostgreSQL.",
+      expectedOutcome: "Cấp cookie phiên HttpOnly, hiển thị huy hiệu người dùng và điều hướng theo vai trò.",
     },
     {
       page: "OCR Workspace (/ocr)",

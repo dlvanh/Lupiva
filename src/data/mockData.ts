@@ -1,15 +1,19 @@
 export type UserRole = "specialist" | "patient";
 
-export interface DemoUser {
+export interface AuthUser {
   id: string;
   name: string;
   role: UserRole;
   title: string;
   email: string;
-  passwordHint: string;
   departmentOrRegistryId: string;
   badgeText: string;
   consentSigned: boolean;
+  consentSignedAt?: string | null;
+}
+
+export interface DemoUser extends AuthUser {
+  passwordHint: string;
 }
 
 export type ClinicalFlag = "Normal" | "High" | "Low" | "Positive";
@@ -405,7 +409,7 @@ export const BUTTON_ACTION_MAP: ButtonMappingItem[] = [
     page: "Global Navbar",
     buttonLabel: "Sign In / Sign Out",
     elementId: "nav-btn-auth",
-    mockAction: "Routes to /login or clears the active DemoUser session.",
+    mockAction: "Routes to /login or revokes the active PostgreSQL HttpOnly session via POST /api/auth/logout.",
     expectedOutcome: "Updates top-right user role pill and shows session status toast.",
   },
   {
@@ -420,7 +424,7 @@ export const BUTTON_ACTION_MAP: ButtonMappingItem[] = [
     buttonLabel: "Specialist / Patient Login",
     elementId: "hero-btn-login",
     mockAction: "Navigates to /login authentication screen.",
-    expectedOutcome: "Allows switching between Vinmec Specialist and SLE Patient demo accounts.",
+    expectedOutcome: "Allows signing in with seeded demo accounts or registering a new account.",
   },
   {
     page: "Landing Page (/)",
@@ -433,22 +437,22 @@ export const BUTTON_ACTION_MAP: ButtonMappingItem[] = [
     page: "Login Page (/login)",
     buttonLabel: "Role Tab: Vinmec Specialist / SLE Patient",
     elementId: "login-tab-specialist / login-tab-patient",
-    mockAction: "Switches active login persona and updates the form preview card.",
+    mockAction: "Switches active role selection, demo credential autofill (when enabled), and consent copy.",
     expectedOutcome: "Toggles between Dr. Nguyen Minh (HITL Reviewer) and Tran Thi Mai (Patient).",
   },
   {
     page: "Login Page (/login)",
     buttonLabel: "Autofill Demo Credentials",
     elementId: "login-btn-autofill",
-    mockAction: "Populates email, password, and e-CRF informed consent checkbox with mock data.",
+    mockAction: "When demo mode is enabled, populates seeded email, password, and e-CRF informed consent checkbox.",
     expectedOutcome: "Zero-typing demo login setup for evaluators.",
   },
   {
     page: "Login Page (/login)",
-    buttonLabel: "Sign In & Open OCR Workspace",
+    buttonLabel: "Sign In / Create Account",
     elementId: "login-btn-submit",
-    mockAction: "Authenticates the selected DemoUser in LupivaContext and redirects to /ocr.",
-    expectedOutcome: "Header displays logged-in user badge and unlocks verified e-CRF submission.",
+    mockAction: "Authenticates via POST /api/auth/login or registers via POST /api/auth/register against PostgreSQL.",
+    expectedOutcome: "Issues an HttpOnly session cookie, displays verified user badge, and redirects by role.",
   },
   {
     page: "OCR Workspace (/ocr)",

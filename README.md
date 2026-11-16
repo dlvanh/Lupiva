@@ -76,10 +76,15 @@ flowchart TD
 
 ---
 
-## Tech Stack & Local Development
+## Tech Stack, Security & Local Development
 
 * **Framework**: Next.js 16 (App Router) & React 19
 * **Language**: TypeScript 5 (`strict: true`)
+* **Database & ORM**: PostgreSQL 16 (Dockerized Hybrid SQL + GIN-indexed JSONB) via Drizzle ORM (`postgres` driver)
+* **PII & Security Architecture (3-Zone CRF Model)**:
+  * **Zone A (Auth & Sessions)**: Password hashing with `scrypt`, DB-backed opaque SHA-256 session cookies (`HttpOnly`, `SameSite=Lax`), same-origin CSRF guards, PostgreSQL sliding-window rate limiting, and immutable audit logs.
+  * **Zone B (Encrypted PII Vault)**: Field-level `AES-256-GCM` with row/column AAD binding + separate `HMAC-SHA256` blind indexes for `email`, `fullName`, `Study ID`, `ICF signed date`, and `HIV Ag/Ab` (`hiv_status_encrypted`, stripped from plain JSONB at rest).
+  * **Zone C (Scrubbed Clinical JSONB)**: Regex + token scrubbing (`src/lib/piiScrubber.ts`) strips emails, phone numbers, and Vietnam CCCD/CMND/BHYT/Passport IDs from free-text CRF fields.
 * **Styling**: Tailwind CSS v4 (`@import "tailwindcss";`)
 * **Fonts**: `Plus Jakarta Sans` & `JetBrains Mono` (with `tabular-nums` for quantitative lab values)
 
@@ -89,17 +94,28 @@ flowchart TD
 # 1. Install dependencies
 npm install
 
-# 2. Start the development server (http://localhost:3000)
+# 2. Configure local environment secrets
+cp .env.example .env
+# Generate distinct 32-byte hex keys (run openssl rand -hex 32 three times):
+# Set ENCRYPTION_MASTER_KEY, BLIND_INDEX_KEY, and AUTH_SECRET in .env
+
+# 3. Start PostgreSQL 16 via Docker Compose
+docker compose up -d
+
+# 4. Push Drizzle schema and seed demo accounts + baseline SLE e-CRF records
+npm run db:push
+npm run db:seed
+
+# 5. Start the development server (http://localhost:3000)
 npm run dev
 
-# 3. Run production build & TypeScript/route checks
-npm run build
-
-# 4. Run ESLint
+# 6. Verify unit/integration tests, linting, and production build
+npm test
 npm run lint
+npm run build
 ```
 
-> **Note**: All patient records, lab reports, and OCR extraction passes in this prototype run deterministically on typed client-side mock datasets (`src/data/crfData.ts`, `src/data/mockData.ts`) so clinical evaluators can test the end-to-end workflow without an external backend.
+> **Note**: When `NEXT_PUBLIC_DEMO_MODE="true"`, evaluators can sign in with one click using the seeded database demo accounts (`dr.minh.immunology@vinmec.com` / `VinmecSLE#2026` or `mai.tran.patient@lupiva.vn` / `PatientCare#2026`), or create new encrypted accounts directly on `/login`.
 
 ---
 

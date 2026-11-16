@@ -8,7 +8,8 @@ import React, {
   useEffect,
 } from "react";
 import {
-  DemoUser,
+  AuthUser,
+  DEMO_USERS,
   MOCK_LAB_REPORTS,
   BiomarkerField,
   UserRole,
@@ -50,14 +51,41 @@ export interface ToastMessage {
   tone: "teal" | "amber" | "navy";
 }
 
+export interface LoginCredentialsInput {
+  email: string;
+  password: string;
+  selectedRole?: UserRole;
+  consentChecked?: boolean;
+}
+
+export interface RegisterAccountInput {
+  fullName: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  consentChecked: boolean;
+  inviteCode?: string;
+}
+
+export interface AuthActionResult {
+  ok: boolean;
+  user?: AuthUser;
+  error?: string;
+  status?: number;
+}
+
 interface LupivaContextValue {
   language: Language;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
   t: Translations;
-  currentUser: DemoUser | null;
-  loginAsRole: (role: UserRole, customEmail?: string) => void;
-  logout: () => void;
+  currentUser: AuthUser | null;
+  authLoading: boolean;
+  loginWithCredentials: (
+    input: LoginCredentialsInput
+  ) => Promise<AuthActionResult>;
+  registerAccount: (input: RegisterAccountInput) => Promise<AuthActionResult>;
+  logout: () => Promise<void>;
   selectedReportId: string;
   setSelectedReportId: (id: string) => void;
   savedRecords: SavedRegistryRecord[];
@@ -76,7 +104,10 @@ interface LupivaContextValue {
     patientId: string,
     updater: (prev: SleCrfPatientRecord) => SleCrfPatientRecord
   ) => void;
-  createNewCrfPatient: (patientName: string, studyId: string) => SleCrfPatientRecord;
+  createNewCrfPatient: (
+    patientName: string,
+    studyId: string
+  ) => SleCrfPatientRecord;
   submitPatientUpload: (
     patientName: string,
     files: UploadedDocFile[]
@@ -109,7 +140,8 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     return "en";
   });
 
-  const [currentUser, setCurrentUser] = useState<DemoUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [selectedReportId, setSelectedReportId] = useState<string>(
     MOCK_LAB_REPORTS[0].id
   );
@@ -148,6 +180,43 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     }
   }, [language]);
 
+  // Hydrate authenticated user from HttpOnly session cookie via PostgreSQL backend
+  useEffect(() => {
+    let active = true;
+
+    async function hydrateSession() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          if (active) setCurrentUser(null);
+          return;
+        }
+        const data = (await res.json()) as { user?: AuthUser | null };
+        if (active) {
+          setCurrentUser(data.user ?? null);
+        }
+      } catch {
+        if (active) {
+          setCurrentUser(null);
+        }
+      } finally {
+        if (active) {
+          setAuthLoading(false);
+        }
+      }
+    }
+
+    void hydrateSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const setLanguage = useCallback(
     (newLang: Language) => {
       setLanguageState(newLang);
@@ -161,8 +230,17 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       }
       setCurrentUser((prev) => {
         if (!prev) return null;
+        const isSeededPersona =
+          prev.email.toLowerCase() === DEMO_USERS[prev.role].email.toLowerCase();
         const localized = getLocalizedDemoUsers(newLang)[prev.role];
-        return { ...localized, email: prev.email };
+        return {
+          ...prev,
+          badgeText: localized.badgeText,
+          title: isSeededPersona ? localized.title : prev.title,
+          departmentOrRegistryId: isSeededPersona
+            ? localized.departmentOrRegistryId
+            : prev.departmentOrRegistryId,
+        };
       });
 
       const msg = TRANSLATIONS[newLang].toasts;
@@ -175,26 +253,108 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     setLanguage(language === "en" ? "vi" : "en");
   }, [language, setLanguage]);
 
-  const loginAsRole = useCallback(
-    (role: UserRole, customEmail?: string) => {
-      const localizedUsers = getLocalizedDemoUsers(language);
-      const baseUser = localizedUsers[role];
-      const updatedUser: DemoUser = customEmail
-        ? { ...baseUser, email: customEmail }
-        : baseUser;
-      setCurrentUser(updatedUser);
-      showToast(
-        t.toasts.signedIn(updatedUser.name),
-        t.toasts.activeMode(updatedUser.title),
-        "teal"
-      );
+  const loginWithCredentials = useCallback(
+    async (input: LoginCredentialsInput): Promise<AuthActionResult> => {
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        });
+
+        const data = (await res.json().catch(() => ({}))) as {
+          user?: AuthUser;
+          error?: string;
+        };
+
+        if (!res.ok || !data.user) {
+          const errorMessage =
+            data.error ||
+            (language === "vi"
+              ? "Đăng nhập thất bại. Vui lòng kiểm tra thông tin."
+              : "Sign-in failed. Please verify your credentials.");
+          showToast(t.toasts.authFailedTitle, errorMessage, "amber");
+          return { ok: false, error: errorMessage, status: res.status };
+        }
+
+        setCurrentUser(data.user);
+        setAuthLoading(false);
+        showToast(
+          t.toasts.signedIn(data.user.name),
+          t.toasts.activeMode(data.user.title),
+          "teal"
+        );
+        return { ok: true, user: data.user, status: res.status };
+      } catch {
+        const errorMessage =
+          language === "vi"
+            ? "Không thể kết nối tới máy chủ xác thực."
+            : "Unable to reach the authentication server.";
+        showToast(t.toasts.authFailedTitle, errorMessage, "amber");
+        return { ok: false, error: errorMessage };
+      }
     },
     [language, showToast, t]
   );
 
-  const logout = useCallback(() => {
-    setCurrentUser(null);
-    showToast(t.toasts.signedOutTitle, t.toasts.signedOutDesc, "navy");
+  const registerAccount = useCallback(
+    async (input: RegisterAccountInput): Promise<AuthActionResult> => {
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        });
+
+        const data = (await res.json().catch(() => ({}))) as {
+          user?: AuthUser;
+          error?: string;
+        };
+
+        if (!res.ok || !data.user) {
+          const errorMessage =
+            data.error ||
+            (language === "vi"
+              ? "Đăng ký tài khoản thất bại. Vui lòng kiểm tra thông tin."
+              : "Account registration failed. Please check your details.");
+          showToast(t.toasts.authFailedTitle, errorMessage, "amber");
+          return { ok: false, error: errorMessage, status: res.status };
+        }
+
+        setCurrentUser(data.user);
+        setAuthLoading(false);
+        showToast(
+          t.toasts.accountCreatedTitle(data.user.name),
+          t.toasts.activeMode(data.user.title),
+          "teal"
+        );
+        return { ok: true, user: data.user, status: res.status };
+      } catch {
+        const errorMessage =
+          language === "vi"
+            ? "Không thể kết nối tới máy chủ đăng ký."
+            : "Unable to reach the registration server.";
+        showToast(t.toasts.authFailedTitle, errorMessage, "amber");
+        return { ok: false, error: errorMessage };
+      }
+    },
+    [language, showToast, t]
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } catch {
+      // Clear local state regardless of network hiccup
+    } finally {
+      setCurrentUser(null);
+      showToast(t.toasts.signedOutTitle, t.toasts.signedOutDesc, "navy");
+    }
   }, [showToast, t]);
 
   const updateCrfPatient = useCallback(
@@ -432,7 +592,9 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         toggleLanguage,
         t,
         currentUser,
-        loginAsRole,
+        authLoading,
+        loginWithCredentials,
+        registerAccount,
         logout,
         selectedReportId,
         setSelectedReportId,
@@ -444,7 +606,8 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         updateCrfPatient,
         createNewCrfPatient,
         submitPatientUpload,
-        isActionGuideOpen,        setIsActionGuideOpen,
+        isActionGuideOpen,
+        setIsActionGuideOpen,
         toast,
         showToast,
         dismissToast,
