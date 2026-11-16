@@ -109,7 +109,7 @@ export const MOCK_LAB_REPORTS: LabReportMock[] = [
     patientName: "Tran Thi Mai",
     patientId: "VN-SLE-084",
     patientAgeSex: "29F",
-    collectionDate: "2026-11-08 08:35 ICT",
+    collectionDate: "08/11/2026 08:35 ICT",
     specimenType: "Venous Serum (SST Tube)",
     orderingPhysician: "Dr. Nguyen Minh, MD",
     clinicalSummary:
@@ -216,7 +216,7 @@ export const MOCK_LAB_REPORTS: LabReportMock[] = [
     patientName: "Tran Thi Mai",
     patientId: "VN-SLE-084",
     patientAgeSex: "29F",
-    collectionDate: "2026-11-08 09:10 ICT",
+    collectionDate: "08/11/2026 09:10 ICT",
     specimenType: "24h Urine + Fasting Serum",
     orderingPhysician: "Dr. Nguyen Minh, MD",
     clinicalSummary:
@@ -309,7 +309,7 @@ export const MOCK_LAB_REPORTS: LabReportMock[] = [
     patientName: "Tran Thi Mai",
     patientId: "VN-SLE-084",
     patientAgeSex: "29F",
-    collectionDate: "2026-11-08 08:40 ICT",
+    collectionDate: "08/11/2026 08:40 ICT",
     specimenType: "EDTA Whole Blood",
     orderingPhysician: "Dr. Nguyen Minh, MD",
     clinicalSummary:

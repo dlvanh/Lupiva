@@ -68,6 +68,14 @@ function resolveDeterministicIds(recordKey: string, patIdx: number) {
 
 function parseTimestampOrNow(value?: string): Date {
   if (!value) return new Date();
+  const ddmmyyyyMatch = value
+    .trim()
+    .match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})(?:\s+ICT)?$/);
+  if (ddmmyyyyMatch) {
+    const [, dd, mm, yyyy, hh, min] = ddmmyyyyMatch;
+    const parsed = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:00+07:00`);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
   const isoCandidate = value.replace(" ", "T").replace(" ICT", "+07:00");
   const withZone = isoCandidate.includes("+")
     ? isoCandidate

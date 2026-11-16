@@ -32,6 +32,7 @@ import {
   buildGiItems,
   UploadedDocFile,
 } from "@/data/crfData";
+import { formatLocalTimestamp } from "@/lib/submissionFilters";
 
 export interface SavedRegistryRecord {
   recordId: string;
@@ -520,10 +521,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         weightKg: "54.0",
         physician: currentUser ? currentUser.name : "Dr. Nguyen Minh, MD, PhD",
         nurse: "RN. Le Thi Huong",
-        lastUpdated: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        lastUpdated: formatLocalTimestamp(),
         signedOffBy: null,
         signedOffRole: null,
         malignantDisease: "NO",
@@ -721,11 +719,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
           : language === "vi"
           ? "Người Đánh giá Lâm sàng (Khách)"
           : "Clinical Evaluator (Guest)",
-        savedAt: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
+        savedAt: formatLocalTimestamp(),
         sledaiImpact,
         fields: fields.map((f) => ({ ...f })),
       };
@@ -748,10 +742,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
           });
           return {
             ...pat,
-            lastUpdated: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
+            lastUpdated: formatLocalTimestamp(),
             ocrFields: updatedOcrFields,
           };
         })

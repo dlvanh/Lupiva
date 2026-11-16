@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
 import {
@@ -45,6 +45,37 @@ interface ApiSubmissionsResponse {
     filteredTotal: number;
   };
   pagination: PaginationMeta;
+}
+
+type DossierLayoutMode = "grid" | "list";
+const LAYOUT_STORAGE_KEY = "lupiva-upload-layout";
+const LAYOUT_CHANGE_EVENT = "lupiva-upload-layout-change";
+
+function subscribeLayoutMode(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === LAYOUT_STORAGE_KEY) callback();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(LAYOUT_CHANGE_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(LAYOUT_CHANGE_EVENT, callback);
+  };
+}
+
+function getClientLayoutMode(): DossierLayoutMode {
+  try {
+    const stored = localStorage.getItem(LAYOUT_STORAGE_KEY);
+    if (stored === "list" || stored === "grid") return stored;
+  } catch {
+    // ignore storage access errors
+  }
+  return "grid";
+}
+
+function getServerLayoutMode(): DossierLayoutMode {
+  return "grid";
 }
 
 function DocumentsAndTreatmentsGrid({
@@ -163,10 +194,10 @@ function PatientDossierCard({
   const sledai = calculateSledai2kSummary(p.sledai2kCriteria);
 
   return (
-    <article className="@container overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+    <article className="@container flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
       {/* Card Header: PID Identifier, Personal Information, Uploaded Date & Status-Specific Actions */}
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-3.5 @lg:px-6">
-        <div className="min-w-0 space-y-1">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/70 px-5 py-3.5 @lg:px-6">
+        <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-xs font-bold text-white">
               {copy.pidPrefix} {p.studyId}
@@ -206,7 +237,7 @@ function PatientDossierCard({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {approved && (
             <button
               type="button"
@@ -228,7 +259,7 @@ function PatientDossierCard({
 
       {approved ? (
         /* Approved Dossiers: Attached Documents & Current Treatments + SLE Score Preview */
-        <div className="grid grid-cols-1 gap-4 px-5 py-3.5 @lg:px-6 @2xl:grid-cols-12 @2xl:items-start">
+        <div className="grid flex-1 grid-cols-1 gap-4 px-5 py-3.5 @lg:px-6 @2xl:grid-cols-12 @2xl:items-start">
           <div className="@2xl:col-span-7">
             <DocumentsAndTreatmentsGrid
               patient={p}
@@ -283,7 +314,7 @@ function PatientDossierCard({
               {copy.triageHeading}
             </h3>
 
-            <div className="grid flex-1 grid-cols-3 gap-2 font-mono text-xs">
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 font-mono text-xs @xs:grid-cols-3">
               <div className="flex items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 whitespace-nowrap text-rose-950">
                 <span className="text-[11px] font-semibold text-rose-800">
                   {copy.manualTierLabel}
@@ -311,7 +342,7 @@ function PatientDossierCard({
             </div>
           </div>
 
-          <details className="group border-t border-slate-200 bg-slate-50/40">
+          <details className="group mt-auto border-t border-slate-200 bg-slate-50/40">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100/80 @lg:px-6">
               <span>
                 {copy.clinicalDetailsSummary(
@@ -364,6 +395,81 @@ export function DoctorSubmissionsView() {
     patient: SleCrfPatientRecord;
     fileId: string;
   } | null>(null);
+  const layoutMode = useSyncExternalStore(
+    subscribeLayoutMode,
+    getClientLayoutMode,
+    getServerLayoutMode
+  );
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const bar = toolbarRef.current;
+    if (!bar || "focusGroup" in HTMLElement.prototype) return;
+    const buttons = Array.from(
+      bar.querySelectorAll<HTMLButtonElement>("button")
+    );
+    buttons.forEach((btn) => {
+      btn.tabIndex = btn.getAttribute("aria-pressed") === "true" ? 0 : -1;
+    });
+  }, [layoutMode]);
+
+  const handleLayoutModeChange = (mode: DossierLayoutMode) => {
+    try {
+      localStorage.setItem(LAYOUT_STORAGE_KEY, mode);
+    } catch {
+      // ignore storage access errors
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(LAYOUT_CHANGE_EVENT));
+    }
+  };
+
+  const handleToolbarFocusCapture = (
+    e: React.FocusEvent<HTMLDivElement>
+  ) => {
+    if ("focusGroup" in HTMLElement.prototype) return;
+    const bar = toolbarRef.current;
+    if (!bar) return;
+    const target = e.target;
+    if (!(target instanceof HTMLButtonElement)) return;
+    const buttons = Array.from(
+      bar.querySelectorAll<HTMLButtonElement>("button")
+    );
+    if (!buttons.includes(target)) return;
+    buttons.forEach((btn) => {
+      btn.tabIndex = btn === target ? 0 : -1;
+    });
+  };
+
+  const handleToolbarKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if ("focusGroup" in HTMLElement.prototype) return;
+    const bar = toolbarRef.current;
+    if (!bar) return;
+    const buttons = Array.from(
+      bar.querySelectorAll<HTMLButtonElement>("button")
+    );
+    const currentIdx = buttons.indexOf(
+      document.activeElement as HTMLButtonElement
+    );
+    if (currentIdx === -1 || buttons.length === 0) return;
+
+    const rtl = getComputedStyle(bar).direction === "rtl";
+    let nextIdx: number | null = null;
+    if (e.key === "ArrowRight") {
+      nextIdx = (currentIdx + (rtl ? -1 : 1) + buttons.length) % buttons.length;
+    } else if (e.key === "ArrowLeft") {
+      nextIdx = (currentIdx + (rtl ? 1 : -1) + buttons.length) % buttons.length;
+    } else if (e.key === "Home") {
+      nextIdx = 0;
+    } else if (e.key === "End") {
+      nextIdx = buttons.length - 1;
+    }
+
+    if (nextIdx !== null) {
+      e.preventDefault();
+      buttons[nextIdx]?.focus();
+    }
+  };
 
   const [apiState, setApiState] = useState<{
     loading: boolean;
@@ -480,7 +586,7 @@ export function DoctorSubmissionsView() {
 
   const handlePageChange = (nextPage: number) => {
     setFilters((prev) => ({ ...prev, page: nextPage }));
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && window.scrollY > 240) {
       const reduceMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)"
       ).matches;
@@ -828,9 +934,11 @@ export function DoctorSubmissionsView() {
                 </div>
               </div>
             </form>
+          </search>
 
-            {/* Live Region Result Summary (only updated once API settles) */}
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          {/* Results Summary, Display Mode Switcher & Inline Pagination */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <p
                 role="status"
                 aria-live="polite"
@@ -854,7 +962,162 @@ export function DoctorSubmissionsView() {
                 </span>
               )}
             </div>
-          </search>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Grid / List View Mode Toolbar */}
+              <div
+                ref={toolbarRef}
+                role="toolbar"
+                aria-label={copy.viewToolbarLabel}
+                aria-controls="doctor-dossiers-container"
+                {...({ focusgroup: "toolbar wrap" } as Record<string, string>)}
+                onFocusCapture={handleToolbarFocusCapture}
+                onKeyDown={handleToolbarKeyDown}
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-100/90 p-0.5"
+              >
+                <div
+                  role="group"
+                  aria-label={copy.viewModeLabel}
+                  className="inline-flex items-center gap-0.5"
+                >
+                  <button
+                    type="button"
+                    id="doctor-layout-grid"
+                    aria-pressed={layoutMode === "grid"}
+                    onClick={() => handleLayoutModeChange("grid")}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-slate-700 transition cursor-pointer hover:text-slate-900 aria-[pressed=true]:bg-teal-700 aria-[pressed=true]:text-white aria-[pressed=true]:shadow-2xs forced-colors:aria-[pressed=true]:border forced-colors:aria-[pressed=true]:border-[Highlight]"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" />
+                      <rect x="14" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                    <span>{copy.viewGridLabel}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="doctor-layout-list"
+                    aria-pressed={layoutMode === "list"}
+                    onClick={() => handleLayoutModeChange("list")}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-slate-700 transition cursor-pointer hover:text-slate-900 aria-[pressed=true]:bg-teal-700 aria-[pressed=true]:text-white aria-[pressed=true]:shadow-2xs forced-colors:aria-[pressed=true]:border forced-colors:aria-[pressed=true]:border-[Highlight]"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="8" y1="6" x2="21" y2="6" />
+                      <line x1="8" y1="12" x2="21" y2="12" />
+                      <line x1="8" y1="18" x2="21" y2="18" />
+                      <circle cx="4" cy="6" r="1" fill="currentColor" stroke="none" />
+                      <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" />
+                      <circle cx="4" cy="18" r="1" fill="currentColor" stroke="none" />
+                    </svg>
+                    <span>{copy.viewListLabel}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Inline Server-Backed Pagination */}
+              {pagination.totalItems > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-700">
+                    <label
+                      htmlFor="doctor-pagination-pagesize"
+                      className="text-slate-600"
+                    >
+                      {copy.perPageLabel}
+                    </label>
+                    <select
+                      id="doctor-pagination-pagesize"
+                      name="pageSize"
+                      value={filters.pageSize}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          page: 1,
+                          pageSize: Number(e.target.value),
+                        }))
+                      }
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-xs text-slate-900 focus:border-teal-700"
+                    >
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <nav
+                    aria-label={copy.paginationLabel}
+                    className="flex flex-wrap items-center gap-1"
+                  >
+                    <button
+                      type="button"
+                      id="doctor-pagination-prev"
+                      disabled={!pagination.hasPreviousPage || apiState.loading}
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
+                    >
+                      ← {copy.prevPage}
+                    </button>
+
+                    {Array.from(
+                      { length: pagination.totalPages },
+                      (_, i) => i + 1
+                    ).map((pageNum) => {
+                      const isCurrent = pageNum === pagination.page;
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          id={`doctor-pagination-page-${pageNum}`}
+                          aria-label={copy.pageLabel(pageNum)}
+                          aria-current={isCurrent ? "page" : undefined}
+                          disabled={apiState.loading}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`min-h-9 min-w-9 rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold transition cursor-pointer ${
+                            isCurrent
+                              ? "bg-teal-700 text-white shadow-2xs"
+                              : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      id="doctor-pagination-next"
+                      disabled={!pagination.hasNextPage || apiState.loading}
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
+                    >
+                      {copy.nextPage} →
+                    </button>
+                  </nav>
+                </div>
+              )}
+            </div>
+          </div>
         </section>
 
         {/* API Error Alert */}
@@ -877,24 +1140,25 @@ export function DoctorSubmissionsView() {
           </div>
         )}
 
-        {/* Patient Dossier Cards */}
+        {/* Patient Dossier Cards (Grid Default / List Toggle) */}
         <div
+          id="doctor-dossiers-container"
           aria-busy={apiState.loading}
-          className={`space-y-4 transition-opacity ${
-            apiState.loading && items.length > 0 ? "opacity-70" : "opacity-100"
-          }`}
+          className={`grid grid-cols-1 gap-4 transition-opacity ${
+            layoutMode === "grid" ? "md:grid-cols-2" : ""
+          } ${apiState.loading && items.length > 0 ? "opacity-70" : "opacity-100"}`}
         >
           {apiState.loading && items.length === 0 ? (
-            <div className="space-y-4">
-              {[0, 1, 2].map((idx) => (
+            <>
+              {[0, 1, 2, 3].map((idx) => (
                 <div
                   key={idx}
                   className="h-44 animate-pulse rounded-2xl border border-slate-200 bg-white p-6"
                 />
               ))}
-            </div>
+            </>
           ) : items.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center md:col-span-full">
               <p className="text-sm font-semibold text-slate-800">
                 {copy.emptyTitle}
               </p>
@@ -923,93 +1187,6 @@ export function DoctorSubmissionsView() {
             ))
           )}
         </div>
-
-        {/* Server-Backed Pagination Bar */}
-        {pagination.totalItems > 0 && (
-          <nav
-            aria-label={copy.paginationLabel}
-            className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 shadow-xs"
-          >
-            <div className="flex items-center gap-3 text-xs text-slate-700">
-              <span className="font-mono font-semibold text-slate-900">
-                {copy.pageOfTotal(pagination.page, pagination.totalPages)}
-              </span>
-              <div className="flex items-center gap-1.5">
-                <label
-                  htmlFor="doctor-pagination-pagesize"
-                  className="text-slate-600"
-                >
-                  {copy.perPageLabel}
-                </label>
-                <select
-                  id="doctor-pagination-pagesize"
-                  name="pageSize"
-                  value={filters.pageSize}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      page: 1,
-                      pageSize: Number(e.target.value),
-                    }))
-                  }
-                  className="min-h-8 rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-xs text-slate-900 focus:border-teal-700"
-                >
-                  {PAGE_SIZE_OPTIONS.map((size) => (
-                    <option key={size} value={size}>
-                      {size}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                id="doctor-pagination-prev"
-                disabled={!pagination.hasPreviousPage || apiState.loading}
-                onClick={() => handlePageChange(pagination.page - 1)}
-                className="min-h-9 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
-              >
-                ← {copy.prevPage}
-              </button>
-
-              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(
-                (pageNum) => {
-                  const isCurrent = pageNum === pagination.page;
-                  return (
-                    <button
-                      key={pageNum}
-                      type="button"
-                      id={`doctor-pagination-page-${pageNum}`}
-                      aria-label={copy.pageLabel(pageNum)}
-                      aria-current={isCurrent ? "page" : undefined}
-                      disabled={apiState.loading}
-                      onClick={() => handlePageChange(pageNum)}
-                      className={`min-h-9 min-w-9 rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold transition cursor-pointer ${
-                        isCurrent
-                          ? "bg-teal-700 text-white shadow-2xs"
-                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                }
-              )}
-
-              <button
-                type="button"
-                id="doctor-pagination-next"
-                disabled={!pagination.hasNextPage || apiState.loading}
-                onClick={() => handlePageChange(pagination.page + 1)}
-                className="min-h-9 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
-              >
-                {copy.nextPage} →
-              </button>
-            </div>
-          </nav>
-        )}
       </div>
 
       {/* On-Screen Attached Document Viewer Modal */}

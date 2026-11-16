@@ -36,7 +36,7 @@ import {
 } from "@/lib/crypto";
 import {
   DEFAULT_SUBMISSION_FILTERS,
-  getCalendarDateInOffset,
+  formatDateInOffset,
   getOcrTierCounts,
   resolveUploadedDateBounds,
   type OcrTierCounts,
@@ -432,12 +432,6 @@ export const createSubmissionSchema = z.object({
 
 export type CreateSubmissionInput = z.infer<typeof createSubmissionSchema>;
 
-function formatDdmmyyyy(date: Date, utcOffsetMinutes: number): string {
-  const isoDate = getCalendarDateInOffset(date, utcOffsetMinutes);
-  const [y, m, d] = isoDate.split("-");
-  return `${d}/${m}/${y}`;
-}
-
 export async function createPatientSubmission(params: {
   user: AuthenticatedUserDTO;
   input: CreateSubmissionInput;
@@ -497,7 +491,7 @@ export async function createPatientSubmission(params: {
     patientName,
     age: "32",
     gender: "Female",
-    icfSignedDate: formatDdmmyyyy(now, input.utcOffsetMinutes),
+    icfSignedDate: formatDateInOffset(now, input.utcOffsetMinutes),
     heightCm: "160",
     weightKg: "54.0",
     physician: doctorName,

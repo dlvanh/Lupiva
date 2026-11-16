@@ -150,13 +150,30 @@ export function getCalendarDateInOffset(
   return shifted.toISOString().slice(0, 10);
 }
 
+export function formatDateInOffset(
+  date: Date,
+  utcOffsetMinutes: number
+): string {
+  const isoDate = getCalendarDateInOffset(date, utcOffsetMinutes);
+  const [yyyy, mm, dd] = isoDate.split("-");
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 export function formatTimestampInOffset(
   date: Date,
   utcOffsetMinutes: number
 ): string {
   const shifted = new Date(date.getTime() + utcOffsetMinutes * 60_000);
   const iso = shifted.toISOString();
-  return `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
+  const yyyy = iso.slice(0, 4);
+  const mm = iso.slice(5, 7);
+  const dd = iso.slice(8, 10);
+  const hhmm = iso.slice(11, 16);
+  return `${dd}/${mm}/${yyyy} ${hhmm}`;
+}
+
+export function formatLocalTimestamp(date: Date = new Date()): string {
+  return formatTimestampInOffset(date, -date.getTimezoneOffset());
 }
 
 function shiftCalendarDate(dateStr: string, deltaDays: number): string {

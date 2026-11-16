@@ -103,6 +103,10 @@ export interface UploadPageCopy {
     nextPage: string;
     pageLabel: (page: number) => string;
     pageOfTotal: (page: number, totalPages: number) => string;
+    viewModeLabel: string;
+    viewToolbarLabel: string;
+    viewGridLabel: string;
+    viewListLabel: string;
   };
   patient: {
     eyebrow: string;
@@ -262,6 +266,10 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       nextPage: "Next",
       pageLabel: (page) => `Page ${page}`,
       pageOfTotal: (page, totalPages) => `Page ${page} of ${totalPages}`,
+      viewModeLabel: "Display",
+      viewToolbarLabel: "Dossier display layout",
+      viewGridLabel: "Grid",
+      viewListLabel: "List",
     },
     patient: {
       eyebrow: "Patient Portal",
@@ -426,6 +434,10 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       nextPage: "Trang sau",
       pageLabel: (page) => `Trang ${page}`,
       pageOfTotal: (page, totalPages) => `Trang ${page} / ${totalPages}`,
+      viewModeLabel: "Hiển thị",
+      viewToolbarLabel: "Chế độ hiển thị hồ sơ",
+      viewGridLabel: "Lưới",
+      viewListLabel: "Danh sách",
     },
     patient: {
       eyebrow: "Cổng Bệnh nhân",

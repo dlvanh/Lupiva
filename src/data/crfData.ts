@@ -902,7 +902,7 @@ export const INITIAL_CRF_PATIENTS: SleCrfPatientRecord[] = [
     uploadedFiles: [
       { id: "f-084-1", name: "Sample_Hospital_Lab_Dossier.pdf", url: null, isImage: false },
     ],
-    submittedAt: "2026-11-10 10:30",
+    submittedAt: "10/11/2026 10:30",
     studyId: "VN-0084-26",
     patientName: "Tran Thi Mai",
     age: "29",
@@ -912,7 +912,7 @@ export const INITIAL_CRF_PATIENTS: SleCrfPatientRecord[] = [
     weightKg: "51.5",
     physician: "Dr. Nguyen Minh, MD, PhD",
     nurse: "RN. Le Thi Huong",
-    lastUpdated: "2026-11-10 10:30 ICT",
+    lastUpdated: "10/11/2026 10:30 ICT",
     signedOffBy: null,
     signedOffRole: null,
 
@@ -2289,7 +2289,7 @@ export const INITIAL_CRF_PATIENTS: SleCrfPatientRecord[] = [
     uploadedFiles: [
       { id: "f-102-1", name: "LeVanHung_Lab_Results.pdf", url: null, isImage: false },
     ],
-    submittedAt: "2026-11-09 15:40",
+    submittedAt: "09/11/2026 15:40",
     studyId: "VN-0102-26",
     patientName: "Le Van Hung",
     age: "36",
@@ -2299,7 +2299,7 @@ export const INITIAL_CRF_PATIENTS: SleCrfPatientRecord[] = [
     weightKg: "64.0",
     physician: "Dr. Nguyen Minh, MD, PhD",
     nurse: "RN. Pham Thi Lan",
-    lastUpdated: "2026-11-09 16:15 ICT",
+    lastUpdated: "09/11/2026 16:15 ICT",
     signedOffBy: "Dr. Nguyen Minh, MD, PhD",
     signedOffRole: "specialist",
 

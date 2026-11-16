@@ -41,7 +41,11 @@ import { POST as loginPost } from "@/app/api/auth/login/route";
 import { GET as submissionsGet, POST as submissionsPost } from "@/app/api/submissions/route";
 import { PATCH as submissionPatch } from "@/app/api/submissions/[id]/route";
 import { requireAuth } from "@/lib/auth";
-import { submissionQuerySchema } from "@/lib/submissionFilters";
+import {
+  formatDateInOffset,
+  formatTimestampInOffset,
+  submissionQuerySchema,
+} from "@/lib/submissionFilters";
 import { querySubmissions } from "@/lib/submissionsService";
 import {
   createTestDatabase,
@@ -128,6 +132,12 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
     await testDb.close();
   });
 
+  it("formats dates and timestamps in DD/MM/YYYY and DD/MM/YYYY HH:mm for the caller offset", () => {
+    const sampleUtc = new Date("2026-11-16T09:10:00Z"); // 16:10 ICT (UTC+7)
+    expect(formatDateInOffset(sampleUtc, 420)).toBe("16/11/2026");
+    expect(formatTimestampInOffset(sampleUtc, 420)).toBe("16/11/2026 16:10");
+  });
+
   it("rejects unauthenticated requests with 401", async () => {
     const res = await submissionsGet(buildRequest("/api/submissions", "GET"));
     expect(res.status).toBe(401);
@@ -156,6 +166,13 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
     });
     expect(page1Data.items).toHaveLength(5);
     expect(page1Data.items[0].record.studyId).toBe("VN-0084-F2-26");
+    expect(page1Data.items[0].record.submittedAt).toBe("16/11/2026 08:45");
+    expect(page1Data.items[0].record.lastUpdated).toBe("16/11/2026 08:45 ICT");
+    expect(
+      page1Data.items.every((item) =>
+        /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/.test(item.record.submittedAt ?? "")
+      )
+    ).toBe(true);
     // Ensure decrypted HIV field was rehydrated properly
     expect(
       page1Data.items[0].record.ocrFields.some((f) => f.code === "HIV-AGAB")

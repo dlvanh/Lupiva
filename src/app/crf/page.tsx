@@ -21,6 +21,7 @@ import {
 import { ClinicalFlag } from "@/data/mockData";
 import { DocxCrfView } from "@/components/DocxCrfView";
 import { SleScoreTables } from "@/components/SleScoreTables";
+import { formatLocalTimestamp } from "@/lib/submissionFilters";
 
 type TriageFilter = "all" | "manual_under_80" | "verify_80_90" | "approved_over_90";
 type ScanDossierFilter =
@@ -155,10 +156,7 @@ export default function SleCrfManagerPage() {
   ) => {
     updateCrfPatient(activePatient.id, (prev) => ({
       ...updater(prev),
-      lastUpdated: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      lastUpdated: formatLocalTimestamp(),
     }));
   };
 
