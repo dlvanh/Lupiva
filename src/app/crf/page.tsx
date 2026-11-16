@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
@@ -15,6 +15,8 @@ import {
   calculateEularAcrSummary,
   calculateSledai2kSummary,
   getInitialOcrTierStatus,
+  getResolvedPatientAntibodyBlots,
+  getResolvedPatientOcrFields,
   getSubmissionStatus,
   syncCriteriaFromVerifiedCrf,
 } from "@/data/crfData";
@@ -23,7 +25,6 @@ import { DocxCrfView } from "@/components/DocxCrfView";
 import { SleScoreTables } from "@/components/SleScoreTables";
 import { formatLocalTimestamp } from "@/lib/submissionFilters";
 
-type TriageFilter = "all" | "manual_under_80" | "verify_80_90" | "approved_over_90";
 type ScanDossierFilter =
   | "all"
   | "immunology"
@@ -44,7 +45,6 @@ export default function SleCrfManagerPage() {
     activeCrfPatientId,
     setActiveCrfPatientId,
     updateCrfPatient,
-    createNewCrfPatient,
     showToast,
   } = useLupiva();
 
@@ -63,23 +63,25 @@ export default function SleCrfManagerPage() {
     [crfPatients, activeCrfPatientId]
   );
 
-  const [activeSection, setActiveSection] = useState<CrfSectionId | "all">(
-    "demographics"
+  const isApprovedRecord = getSubmissionStatus(activePatient) === "approved";
+  const isReadOnly = isApprovedRecord;
+
+  const resolvedOcrFields = useMemo(
+    () => getResolvedPatientOcrFields(activePatient),
+    [activePatient]
   );
-  const [triageFilter, setTriageFilter] = useState<TriageFilter>("all");
+  const resolvedAntibodyBlots = useMemo(
+    () => getResolvedPatientAntibodyBlots(activePatient),
+    [activePatient]
+  );
+
+  const [activeSection, setActiveSection] = useState<CrfSectionId | "all">(
+    "all"
+  );
   const [scanPanelFilter, setScanPanelFilter] =
     useState<ScanDossierFilter>("all");
   const [showDocViewer, setShowDocViewer] = useState<boolean>(true);
-  const [isScanning, setIsScanning] = useState<boolean>(false);
   const [selectedGroundingId, setSelectedGroundingId] = useState<string>("crf-c3");
-  const [uploadedScan, setUploadedScan] = useState<{
-    name: string;
-    url: string | null;
-  } | null>(null);
-  const [isNewPatientModalOpen, setIsNewPatientModalOpen] =
-    useState<boolean>(false);
-  const [newPatientName, setNewPatientName] = useState<string>("");
-  const [newStudyId, setNewStudyId] = useState<string>("");
   const [isJsonModalOpen, setIsJsonModalOpen] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"edit" | "clean">("edit");
   const [viewerTabOverride, setViewerTabOverride] = useState<
@@ -88,8 +90,6 @@ export default function SleCrfManagerPage() {
   const [workflowStep, setWorkflowStep] =
     useState<DoctorWorkflowStep>("step1_triage");
   const [activeFileIdx, setActiveFileIdx] = useState<number>(0);
-
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Auto-calculated BMI from Height (cm) & Weight (kg)
   const calculatedBmi = useMemo(() => {
@@ -154,6 +154,7 @@ export default function SleCrfManagerPage() {
   const patchPatient = (
     updater: (prev: typeof activePatient) => typeof activePatient
   ) => {
+    if (isReadOnly) return;
     updateCrfPatient(activePatient.id, (prev) => ({
       ...updater(prev),
       lastUpdated: formatLocalTimestamp(),
@@ -165,6 +166,7 @@ export default function SleCrfManagerPage() {
     fieldId: string,
     updates: Partial<CrfOcrField>
   ) => {
+    if (isReadOnly) return;
     patchPatient((prev) => ({
       ...prev,
       ocrFields: prev.ocrFields.map((f) => {
@@ -186,6 +188,7 @@ export default function SleCrfManagerPage() {
 
   // Verify a single 80-90% field or confirm a filled <80% field
   const handleVerifyOcrField = (field: CrfOcrField) => {
+    if (isReadOnly || field.notReturnedByOcr) return;
     if (!field.value.trim()) {
       setShowDocViewer(true);
       setSelectedGroundingId(field.id);
@@ -216,6 +219,7 @@ export default function SleCrfManagerPage() {
     blotId: string,
     updates: Partial<CrfAntibodyBlotRow>
   ) => {
+    if (isReadOnly) return;
     patchPatient((prev) => ({
       ...prev,
       antibodyBlots: prev.antibodyBlots.map((b) => {
@@ -234,51 +238,9 @@ export default function SleCrfManagerPage() {
     }));
   };
 
-  // Run AI OCR Scan simulation on the dossier or uploaded document
-  const handleRunOcrOnCrf = () => {
-    setIsScanning(true);
-    setShowDocViewer(true);
-    setTimeout(() => {
-      patchPatient((prev) => ({
-        ...prev,
-        ocrFields: prev.ocrFields.map((f) => {
-          const initialStatus = getInitialOcrTierStatus(f.confidence);
-          return {
-            ...f,
-            value: initialStatus === "manual_required" ? "" : f.printedValue,
-            secondaryValue:
-              initialStatus === "manual_required"
-                ? ""
-                : f.printedSecondaryValue,
-            status: initialStatus,
-          };
-        }),
-        antibodyBlots: prev.antibodyBlots.map((b) => {
-          const initialStatus = getInitialOcrTierStatus(b.confidence);
-          return {
-            ...b,
-            result: initialStatus === "manual_required" ? "" : b.printedResult,
-            intensity:
-              initialStatus === "manual_required" ? "" : b.printedIntensity,
-            status: initialStatus,
-          };
-        }),
-      }));
-      setIsScanning(false);
-      showToast(
-        isVi
-          ? "Hoàn tất Quét OCR & Phân tầng 3 Mức"
-          : "AI OCR Scan & 3-Tier Triage Complete",
-        isVi
-          ? "Đã tự động duyệt các chỉ số >90%, đánh dấu vàng nhóm 80–90% để xác nhận lại, và để trống nhóm <80% để đối chiếu bản gốc."
-          : "Auto-approved >90% fields, flagged 80–90% fields for verification, and left <80% fields blank for manual entry from the original scan.",
-        "teal"
-      );
-    }, 1050);
-  };
-
   // Batch verify all 80-90% pre-filled fields (leaving <80% blank fields for explicit check, or optionally filling them if user clicks Resolve All)
   const handleVerifyAll80To90 = () => {
+    if (isReadOnly) return;
     patchPatient((prev) => ({
       ...prev,
       ocrFields: prev.ocrFields.map((f) =>
@@ -305,6 +267,7 @@ export default function SleCrfManagerPage() {
 
   // Jump to the next unresolved (<80% or 80-90%) field and highlight on original scan
   const handleJumpNextUnresolved = () => {
+    if (isReadOnly) return;
     setWorkflowStep("step1_triage");
     const nextField = activePatient.ocrFields.find(
       (f) =>
@@ -348,6 +311,7 @@ export default function SleCrfManagerPage() {
 
   // Auto-suggest 2019 EULAR/ACR & SLEDAI-2K checkboxes from verified CRF labs & clinical findings
   const handleAutoSuggestScores = () => {
+    if (isReadOnly) return;
     patchPatient(syncCriteriaFromVerifiedCrf);
 
     showToast(
@@ -363,6 +327,7 @@ export default function SleCrfManagerPage() {
 
   // Sign Off & Commit the complete SLE Case Report Form
   const handleSignOffCrf = () => {
+    if (isReadOnly) return;
     if (triageStats.unresolved > 0) {
       showToast(
         isVi
@@ -400,6 +365,7 @@ export default function SleCrfManagerPage() {
         submissionStatus: "approved" as const,
       };
     });
+    setActiveSection("all");
     setViewMode("edit");
 
     showToast(
@@ -409,35 +375,6 @@ export default function SleCrfManagerPage() {
       isVi
         ? `Người ký: ${signerName} • EULAR/ACR: ${nextEular.totalScore} điểm • SLEDAI-2K: ${nextSledai.totalScore} điểm.`
         : `Signed by ${signerName} • EULAR/ACR: ${nextEular.totalScore} pts • SLEDAI-2K: ${nextSledai.totalScore} pts.`,
-      "teal"
-    );
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const isImage = file.type.startsWith("image/");
-    const objectUrl = isImage ? URL.createObjectURL(file) : null;
-    setUploadedScan({ name: file.name, url: objectUrl });
-    handleRunOcrOnCrf();
-  };
-
-  const handleCreatePatientSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const created = createNewCrfPatient(
-      newPatientName.trim() || "Nguyen Thi Thu",
-      newStudyId.trim() || `VN-012${crfPatients.length}-26`
-    );
-    setNewPatientName("");
-    setNewStudyId("");
-    setIsNewPatientModalOpen(false);
-    showToast(
-      isVi
-        ? `Đã tạo Hồ sơ CRF mới: ${created.studyId}`
-        : `Created New SLE CRF: ${created.studyId}`,
-      isVi
-        ? `Bệnh nhân: ${created.patientName}. Hãy nhấn 'Chạy AI OCR' để trích xuất xét nghiệm.`
-        : `Patient: ${created.patientName}. Click 'Run AI OCR' to populate extracted lab fields.`,
       "teal"
     );
   };
@@ -452,32 +389,19 @@ export default function SleCrfManagerPage() {
     { id: "all", labelEn: "View Full CRF", labelVi: "Xem Toàn bộ CRF" },
   ];
 
-  // Filter helper for OCR fields when a Triage Filter is active
-  const matchesTriageFilter = (status: CrfOcrField["status"], hasValue: boolean) => {
-    if (triageFilter === "all") return true;
-    if (triageFilter === "manual_under_80") {
-      return status === "manual_required" || !hasValue;
-    }
-    if (triageFilter === "verify_80_90") {
-      return status === "needs_verify" && hasValue;
-    }
-    if (triageFilter === "approved_over_90") {
-      return (status === "auto_approved" || status === "user_verified") && hasValue;
-    }
-    return true;
-  };
-
   // Reusable renderer for an OCR-extracted field card/row with 3-tier confidence rules
   const renderOcrFieldRow = (field: CrfOcrField) => {
+    const isNotReturned =
+      Boolean(field.notReturnedByOcr) || (isReadOnly && !field.value.trim());
     const isManualRequired =
-      field.status === "manual_required" || !field.value.trim();
+      !isNotReturned &&
+      (field.status === "manual_required" || !field.value.trim());
     const isNeedsVerify =
-      field.status === "needs_verify" && field.value.trim().length > 0;
+      !isNotReturned &&
+      field.status === "needs_verify" &&
+      field.value.trim().length > 0;
     const isSelected = selectedGroundingId === field.id;
-
-    if (!matchesTriageFilter(field.status, field.value.trim().length > 0)) {
-      return null;
-    }
+    const isFieldLocked = isReadOnly || Boolean(field.notReturnedByOcr);
 
     return (
       <div
@@ -486,6 +410,8 @@ export default function SleCrfManagerPage() {
         className={`rounded-xl border p-3 transition cursor-pointer ${
           isSelected
             ? "border-teal-700 bg-teal-50/40 ring-2 ring-teal-600/25"
+            : isNotReturned
+            ? "border-slate-200 bg-slate-50/50 hover:border-slate-300"
             : isManualRequired
             ? "border-rose-300 bg-rose-50/40 hover:bg-rose-50/70"
             : isNeedsVerify
@@ -498,7 +424,9 @@ export default function SleCrfManagerPage() {
             <div className="flex items-center gap-1.5">
               <span
                 className={`h-2 w-2 rounded-full ${
-                  isManualRequired
+                  isNotReturned
+                    ? "bg-slate-400"
+                    : isManualRequired
                     ? "bg-rose-600"
                     : isNeedsVerify
                     ? "bg-amber-500"
@@ -509,7 +437,11 @@ export default function SleCrfManagerPage() {
                 {field.code}
               </span>
               <span className="rounded bg-slate-100 px-1.5 py-0.2 font-mono text-[9px] text-slate-600">
-                {isVi ? "Trích xuất OCR" : "OCR Extracted"}
+                {isNotReturned
+                  ? "N/A"
+                  : isVi
+                  ? "Trích xuất OCR"
+                  : "OCR Extracted"}
               </span>
             </div>
             <label
@@ -525,8 +457,15 @@ export default function SleCrfManagerPage() {
 
           {/* 3-Tier Confidence Badge */}
           <div className="text-right">
-            {isManualRequired ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-rose-100 px-2 py-0.5 font-mono text-[10px] font-bold text-rose-900">
+            {isNotReturned ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                <span>
+                  N/A • {isVi ? "Không có dữ liệu OCR" : "Not returned by OCR"}
+                </span>
+              </span>
+            ) : isManualRequired ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-rose-100 px-2 py-0.5 font-mono text-[10px] font-bold text-rose-950">
                 <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-rose-600" />
                 <span>
                   &lt;80% ({field.confidence}%) •{" "}
@@ -564,7 +503,9 @@ export default function SleCrfManagerPage() {
             <input
               id={`crf-input-${field.id}`}
               type="text"
-              value={field.value}
+              value={isNotReturned ? "N/A" : field.value}
+              readOnly={isFieldLocked}
+              disabled={isFieldLocked}
               placeholder={
                 isManualRequired
                   ? isVi
@@ -576,11 +517,13 @@ export default function SleCrfManagerPage() {
                 handleUpdateOcrField(field.id, { value: e.target.value })
               }
               className={`w-44 rounded-lg border px-2.5 py-1.5 font-mono text-xs font-bold ${
-                isManualRequired
+                isNotReturned
+                  ? "border-slate-200 bg-slate-100 text-slate-600"
+                  : isManualRequired
                   ? "border-rose-400 bg-white text-rose-950 placeholder:font-sans placeholder:text-[10px] placeholder:font-normal placeholder:text-rose-500 focus:border-rose-600"
                   : isNeedsVerify
                   ? "border-amber-400 bg-white text-amber-950 focus:border-amber-600"
-                  : "border-slate-200 bg-slate-50/70 text-slate-900 focus:border-teal-700 focus:bg-white"
+                  : "border-slate-200 bg-slate-50/70 text-slate-900 focus:border-teal-700 focus:bg-white disabled:bg-slate-50 disabled:text-slate-900"
               }`}
             />
 
@@ -588,42 +531,56 @@ export default function SleCrfManagerPage() {
               <input
                 type="text"
                 aria-label={`${field.labelEn} % predicted`}
-                value={field.secondaryValue || ""}
+                value={
+                  isNotReturned ||
+                  (isReadOnly && !(field.secondaryValue || "").trim())
+                    ? "N/A"
+                    : field.secondaryValue || ""
+                }
+                readOnly={isFieldLocked}
+                disabled={isFieldLocked}
                 placeholder="% Pred"
                 onChange={(e) =>
                   handleUpdateOcrField(field.id, {
                     secondaryValue: e.target.value,
                   })
                 }
-                className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 font-mono text-xs font-semibold text-slate-700 focus:border-teal-700 focus:bg-white"
+                className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 font-mono text-xs font-semibold text-slate-700 focus:border-teal-700 focus:bg-white disabled:text-slate-700"
               />
             )}
 
-            <select
-              aria-label={`Flag for ${field.labelEn}`}
-              value={field.flag}
-              onChange={(e) =>
-                handleUpdateOcrField(field.id, {
-                  flag: e.target.value as ClinicalFlag,
-                })
-              }
-              className={`rounded-md border px-2 py-1 font-mono text-[10px] font-bold ${
-                field.flag === "Normal"
-                  ? "border-slate-200 bg-slate-100 text-slate-700"
-                  : "border-rose-200 bg-rose-100 text-rose-900"
-              }`}
-            >
-              <option value="Normal">{isVi ? "Bình thường" : "Normal"}</option>
-              <option value="High">{isVi ? "Cao" : "High"}</option>
-              <option value="Low">{isVi ? "Thấp" : "Low"}</option>
-              <option value="Positive">{isVi ? "Dương tính" : "Positive"}</option>
-            </select>
+            {isNotReturned ? (
+              <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-1 font-mono text-[10px] font-bold text-slate-600">
+                N/A
+              </span>
+            ) : (
+              <select
+                aria-label={`Flag for ${field.labelEn}`}
+                value={field.flag}
+                disabled={isFieldLocked}
+                onChange={(e) =>
+                  handleUpdateOcrField(field.id, {
+                    flag: e.target.value as ClinicalFlag,
+                  })
+                }
+                className={`rounded-md border px-2 py-1 font-mono text-[10px] font-bold disabled:opacity-90 ${
+                  field.flag === "Normal"
+                    ? "border-slate-200 bg-slate-100 text-slate-700"
+                    : "border-rose-200 bg-rose-100 text-rose-900"
+                }`}
+              >
+                <option value="Normal">{isVi ? "Bình thường" : "Normal"}</option>
+                <option value="High">{isVi ? "Cao" : "High"}</option>
+                <option value="Low">{isVi ? "Thấp" : "Low"}</option>
+                <option value="Positive">{isVi ? "Dương tính" : "Positive"}</option>
+              </select>
+            )}
           </div>
 
-          {/* Action Buttons for <80% and 80-90% */}
-          <div className="flex items-center gap-1.5">
-            {isManualRequired && (
-              <>
+          {/* Action Buttons for <80% and 80-90% (only when editable) */}
+          {!isFieldLocked && (
+            <div className="flex items-center gap-1.5">
+              {isManualRequired && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -647,24 +604,24 @@ export default function SleCrfManagerPage() {
                     ? `+ Nhập "${field.printedValue}"`
                     : `+ Fill "${field.printedValue}"`}
                 </button>
-              </>
-            )}
+              )}
 
-            {isNeedsVerify && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleVerifyOcrField(field);
-                }}
-                className="rounded-lg bg-amber-600 px-3 py-1 text-[11px] font-semibold text-white shadow-2xs hover:bg-amber-700 cursor-pointer"
-              >
-                {isVi
-                  ? `Xác nhận (${field.confidence}%)`
-                  : `Verify (${field.confidence}%)`}
-              </button>
-            )}
-          </div>
+              {isNeedsVerify && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleVerifyOcrField(field);
+                  }}
+                  className="rounded-lg bg-amber-600 px-3 py-1 text-[11px] font-semibold text-white shadow-2xs hover:bg-amber-700 cursor-pointer"
+                >
+                  {isVi
+                    ? `Xác nhận (${field.confidence}%)`
+                    : `Verify (${field.confidence}%)`}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {(field.clinicalNoteEn || field.clinicalNoteVi) && (
@@ -691,7 +648,10 @@ export default function SleCrfManagerPage() {
   const currentFile = uploadedFiles[activeFileIdx] ?? uploadedFiles[0];
 
   const showSection = (sec: CrfSectionId) =>
-    workflowStep === "step2_review" && (activeSection === "all" || activeSection === sec);
+    (isApprovedRecord
+      ? viewMode !== "clean"
+      : workflowStep === "step2_review") &&
+    (activeSection === "all" || activeSection === sec);
 
   const fullCrfJsonPayload = {
     schema: "vinmec-mddu-sle-crf-2026-v1",
@@ -726,23 +686,28 @@ export default function SleCrfManagerPage() {
         activityTier: sledaiSummary.activityTierEn,
       },
     },
-    ocrExtractedFields: activePatient.ocrFields.map((f) => ({
+    ocrExtractedFields: resolvedOcrFields.map((f) => ({
       code: f.code,
       label: f.labelEn,
-      value: f.value,
-      secondaryValue: f.secondaryValue,
+      value: f.notReturnedByOcr || !f.value.trim() ? "N/A" : f.value,
+      secondaryValue:
+        f.printedSecondaryValue !== undefined
+          ? f.notReturnedByOcr || !(f.secondaryValue || "").trim()
+            ? "N/A"
+            : f.secondaryValue
+          : undefined,
       unit: f.unit,
-      flag: f.flag,
-      ocrConfidence: f.confidence,
-      triageStatus: f.status,
+      flag: f.notReturnedByOcr ? "N/A" : f.flag,
+      ocrConfidence: f.notReturnedByOcr ? null : f.confidence,
+      triageStatus: f.notReturnedByOcr ? "not_returned" : f.status,
     })),
-    antibodyBlotPanels: activePatient.antibodyBlots.map((b) => ({
+    antibodyBlotPanels: resolvedAntibodyBlots.map((b) => ({
       panel: b.panel,
       antibody: b.name,
-      result: b.result,
-      intensity: b.intensity,
-      ocrConfidence: b.confidence,
-      triageStatus: b.status,
+      result: b.notReturnedByOcr || !b.result ? "N/A" : b.result,
+      intensity: b.notReturnedByOcr || !b.intensity.trim() ? "N/A" : b.intensity,
+      ocrConfidence: b.notReturnedByOcr ? null : b.confidence,
+      triageStatus: b.notReturnedByOcr ? "not_returned" : b.status,
     })),
   };
 
@@ -799,9 +764,17 @@ export default function SleCrfManagerPage() {
                 id="crf-patient-select"
                 value={activePatient.id}
                 onChange={(e) => {
-                  setActiveCrfPatientId(e.target.value);
+                  const nextId = e.target.value;
+                  const nextPat = crfPatients.find((p) => p.id === nextId);
+                  setActiveCrfPatientId(nextId);
                   setViewerTabOverride(null);
                   setActiveFileIdx(0);
+                  setViewMode("edit");
+                  if (nextPat && getSubmissionStatus(nextPat) === "approved") {
+                    setActiveSection("all");
+                  } else {
+                    setWorkflowStep("step1_triage");
+                  }
                 }}
                 className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900"
               >
@@ -815,30 +788,6 @@ export default function SleCrfManagerPage() {
                   </option>
                 ))}
               </select>
-              {activePatient.signedOffBy ? (
-                <span className="inline-flex items-center gap-1.5 rounded bg-teal-700 px-2 py-1 text-xs font-bold text-white">
-                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-white" />
-                  {isVi ? "Đã ký duyệt:" : "Signed off:"} {activePatient.signedOffBy}
-                </span>
-              ) : (
-                <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">
-                  {isVi ? "Bản nháp" : "Draft"}
-                </span>
-              )}
-              <span className="hidden gap-2 font-mono text-xs sm:flex">
-                <span
-                  className={`rounded px-2 py-1 font-bold ${
-                    eularSummary.isClassifiedSle
-                      ? "bg-teal-100 text-teal-900"
-                      : "bg-slate-200 text-slate-700"
-                  }`}
-                >
-                  EULAR/ACR {eularSummary.totalScore}
-                </span>
-                <span className="rounded bg-rose-100 px-2 py-1 font-bold text-rose-900">
-                  SLEDAI-2K {sledaiSummary.totalScore}
-                </span>
-              </span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -876,35 +825,27 @@ export default function SleCrfManagerPage() {
                   {[
                     {
                       id: "crf-menu-docx",
-                      label: isVi ? "Xem bản .docx" : "Preview .docx",
+                      label:
+                        isApprovedRecord && viewMode === "clean"
+                          ? isVi
+                            ? "Xem chi tiết hồ sơ"
+                            : "View CRF details"
+                          : isVi
+                          ? "Xem bản .docx"
+                          : "Preview .docx",
                       run: () => {
-                        setWorkflowStep("step3_signoff");
-                        setViewMode("clean");
-                      },
-                    },
-                    {
-                      id: "crf-btn-print",
-                      label: isVi ? "In hồ sơ" : "Print CRF",
-                      run: () => {
-                        setWorkflowStep("step3_signoff");
-                        setViewMode("clean");
-                        setTimeout(() => window.print(), 150);
+                        if (isApprovedRecord) {
+                          setViewMode((m) => (m === "clean" ? "edit" : "clean"));
+                        } else {
+                          setWorkflowStep("step3_signoff");
+                          setViewMode("clean");
+                        }
                       },
                     },
                     {
                       id: "crf-btn-export-json",
                       label: isVi ? "Xem trước / Xuất JSON" : "Preview / Export JSON",
                       run: () => setIsJsonModalOpen(true),
-                    },
-                    {
-                      id: "crf-menu-rerun",
-                      label: isVi ? "Chạy lại AI OCR" : "Re-run AI OCR",
-                      run: handleRunOcrOnCrf,
-                    },
-                    {
-                      id: "crf-menu-new",
-                      label: isVi ? "+ Hồ sơ CRF mới" : "+ New patient CRF",
-                      run: () => setIsNewPatientModalOpen(true),
                     },
                   ].map((item) => (
                     <button
@@ -925,109 +866,118 @@ export default function SleCrfManagerPage() {
             </div>
           </div>
 
-          {/* Guided 3-step workflow stepper */}
-          <ol
-            aria-label={isVi ? "Quy trình" : "Workflow"}
-            className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-200 pt-3 sm:grid-cols-3"
-          >
-            {(
-              [
-                {
-                  key: "step1_triage",
-                  n: 1,
-                  title: isVi ? "Xử lý mục OCR cần kiểm tra" : "Resolve flagged OCR",
-                  badge:
-                    triageStats.unresolved > 0
-                      ? isVi
-                        ? `${triageStats.unresolved} cần xử lý`
-                        : `${triageStats.unresolved} to resolve`
-                      : isVi ? "Hoàn tất" : "All resolved",
-                  ok: triageStats.unresolved === 0,
-                },
-                {
-                  key: "step2_review",
-                  n: 2,
-                  title: isVi ? "Rà soát CRF & điểm số" : "Review CRF & scores",
-                  badge: `EULAR ${eularSummary.totalScore} • SLEDAI ${sledaiSummary.totalScore}`,
-                  ok: true,
-                },
-                {
-                  key: "step3_signoff",
-                  n: 3,
-                  title: isVi ? "Phê duyệt & Bảng điểm" : "Approve & Scores",
-                  badge: activePatient.signedOffBy
-                    ? isVi ? "Đã ký" : "Signed"
-                    : isVi ? "Chưa ký" : "Not signed",
-                  ok: Boolean(activePatient.signedOffBy),
-                },
-              ] as {
-                key: DoctorWorkflowStep;
-                n: number;
-                title: string;
-                badge: string;
-                ok: boolean;
-              }[]
-            ).map((s) => {
-              const current = workflowStep === s.key;
-              return (
-                <li key={s.key}>
-                  <button
-                    type="button"
-                    id={`crf-step-${s.n}`}
-                    aria-current={current ? "step" : undefined}
-                    onClick={() => {
-                      if (s.key === "step3_signoff") {
-                        patchPatient(syncCriteriaFromVerifiedCrf);
-                      }
-                      setWorkflowStep(s.key);
-                    }}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left cursor-pointer ${
-                      current
-                        ? "border-teal-700 bg-teal-50 ring-1 ring-teal-700/30"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                        current ? "bg-teal-700 text-white" : "bg-slate-200 text-slate-700"
+          {/* Guided 3-step workflow stepper (Case 1: unverified OCR only) */}
+          {!isApprovedRecord && (
+            <ol
+              aria-label={isVi ? "Quy trình" : "Workflow"}
+              className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-200 pt-3 sm:grid-cols-3"
+            >
+              {(
+                [
+                  {
+                    key: "step1_triage",
+                    n: 1,
+                    title: isVi ? "Xử lý mục OCR cần kiểm tra" : "Resolve flagged OCR",
+                    badge:
+                      triageStats.unresolved > 0
+                        ? isVi
+                          ? `${triageStats.unresolved} cần xử lý`
+                          : `${triageStats.unresolved} to resolve`
+                        : isVi ? "Hoàn tất" : "All resolved",
+                    ok: triageStats.unresolved === 0,
+                  },
+                  {
+                    key: "step2_review",
+                    n: 2,
+                    title: isVi ? "Rà soát CRF & điểm số" : "Review CRF & scores",
+                    badge: `EULAR ${eularSummary.totalScore} • SLEDAI ${sledaiSummary.totalScore}`,
+                    ok: true,
+                  },
+                  {
+                    key: "step3_signoff",
+                    n: 3,
+                    title: isVi ? "Phê duyệt & Bảng điểm" : "Approve & Scores",
+                    badge: activePatient.signedOffBy
+                      ? isVi ? "Đã ký" : "Signed"
+                      : isVi ? "Chưa ký" : "Not signed",
+                    ok: Boolean(activePatient.signedOffBy),
+                  },
+                ] as {
+                  key: DoctorWorkflowStep;
+                  n: number;
+                  title: string;
+                  badge: string;
+                  ok: boolean;
+                }[]
+              ).map((s) => {
+                const current = workflowStep === s.key;
+                return (
+                  <li key={s.key}>
+                    <button
+                      type="button"
+                      id={`crf-step-${s.n}`}
+                      aria-current={current ? "step" : undefined}
+                      onClick={() => {
+                        if (s.key === "step3_signoff") {
+                          patchPatient(syncCriteriaFromVerifiedCrf);
+                        }
+                        setWorkflowStep(s.key);
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left cursor-pointer ${
+                        current
+                          ? "border-teal-700 bg-teal-50 ring-1 ring-teal-700/30"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
                       }`}
                     >
-                      {s.n}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-slate-900">
-                        {s.title}
-                      </span>
                       <span
-                        className={`block text-[11px] font-medium ${
-                          s.ok ? "text-teal-800" : "text-rose-700"
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                          current ? "bg-teal-700 text-white" : "bg-slate-200 text-slate-700"
                         }`}
                       >
-                        {s.badge}
+                        {s.n}
                       </span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-slate-900">
+                          {s.title}
+                        </span>
+                        <span
+                          className={`block text-[11px] font-medium ${
+                            s.ok ? "text-teal-800" : "text-rose-700"
+                          }`}
+                        >
+                          {s.badge}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
 
-          {/* Step 2 only: section tabs */}
-          {workflowStep === "step2_review" && (
+          {/* Section tabs: shown in Case 2 (approved patient details) and Case 1 Step 2 */}
+          {(isApprovedRecord || workflowStep === "step2_review") && (
             <div
               role="group"
               aria-label={isVi ? "Mục CRF" : "CRF sections"}
               className="mt-3 flex gap-1.5 overflow-x-auto border-t border-slate-200 pt-3"
             >
               {crfSections.map((sec) => {
-                const isCurrent = activeSection === sec.id;
+                const isCurrent =
+                  activeSection === sec.id &&
+                  (!isApprovedRecord || viewMode !== "clean");
                 return (
                   <button
                     key={sec.id}
                     type="button"
                     id={`crf-sec-tab-${sec.id}`}
                     aria-pressed={isCurrent}
-                    onClick={() => setActiveSection(sec.id)}
+                    onClick={() => {
+                      setActiveSection(sec.id);
+                      if (isApprovedRecord && viewMode === "clean") {
+                        setViewMode("edit");
+                      }
+                    }}
                     className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer ${
                       isCurrent
                         ? "bg-teal-700 text-white"
@@ -1180,34 +1130,6 @@ export default function SleCrfManagerPage() {
                 }`}
               >
                 <div className="relative mx-auto rounded-lg border border-slate-300 bg-[#fcfcfa] p-4 text-slate-800 shadow-md">
-                  {isScanning && (
-                    <div className="animate-ocr-scan pointer-events-none absolute left-0 right-0 z-30 h-1 bg-teal-500 shadow-[0_0_16px_3px_rgba(13,148,136,0.65)]" />
-                  )}
-
-                  {uploadedScan?.url ? (
-                    <div className="mb-3 space-y-2 border-b border-slate-200 pb-3">
-                      <div className="flex items-center justify-between text-[11px] text-slate-600">
-                        <span>
-                          {isVi ? "Tệp đã tải lên:" : "Uploaded file:"}{" "}
-                          <strong>{uploadedScan.name}</strong>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setUploadedScan(null)}
-                          className="font-semibold text-teal-800 underline cursor-pointer"
-                        >
-                          {isVi ? "Đóng ảnh" : "Close preview"}
-                        </button>
-                      </div>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={uploadedScan.url}
-                        alt={uploadedScan.name}
-                        className="max-h-56 w-full rounded border border-slate-200 object-contain"
-                      />
-                    </div>
-                  ) : null}
-
                   {/* Hospital Sheet Header */}
                   <div className="border-b-2 border-slate-800 pb-2.5">
                     <div className="flex items-start justify-between">
@@ -1400,8 +1322,8 @@ export default function SleCrfManagerPage() {
               showDocViewer ? "lg:col-span-7" : "lg:col-span-12"
             }`}
           >
-            {/* STEP 1: focused triage queue */}
-            {workflowStep === "step1_triage" && (
+            {/* STEP 1: focused triage queue (Case 1 only) */}
+            {!isApprovedRecord && workflowStep === "step1_triage" && (
               <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <div className="border-b border-slate-200 pb-3">
                   <h2 className="text-base font-bold text-slate-900">
@@ -1519,11 +1441,12 @@ export default function SleCrfManagerPage() {
                     </span>
                   </summary>
                   <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {activePatient.ocrFields
+                    {resolvedOcrFields
                       .filter(
                         (f) =>
-                          (f.status === "auto_approved" || f.status === "user_verified") &&
-                          f.value.trim()
+                          f.notReturnedByOcr ||
+                          ((f.status === "auto_approved" || f.status === "user_verified") &&
+                            f.value.trim())
                       )
                       .map(renderOcrFieldRow)}
                   </div>
@@ -1531,8 +1454,8 @@ export default function SleCrfManagerPage() {
               </section>
             )}
 
-            {/* STEP 3: readiness summary & Post-Approval Scores */}
-            {workflowStep === "step3_signoff" && (
+            {/* STEP 3: readiness summary & Post-Approval Scores (Case 1 only) */}
+            {!isApprovedRecord && workflowStep === "step3_signoff" && (
               <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -1578,8 +1501,8 @@ export default function SleCrfManagerPage() {
               </section>
             )}
 
-            {/* POST-APPROVAL CLINICAL SCORE TABLES (Step 3 default) */}
-            {workflowStep === "step3_signoff" && viewMode !== "clean" && (
+            {/* POST-APPROVAL CLINICAL SCORE TABLES (Step 3 default in Case 1) */}
+            {!isApprovedRecord && workflowStep === "step3_signoff" && viewMode !== "clean" && (
               <SleScoreTables
                 patient={activePatient}
                 isVi={isVi}
@@ -1608,13 +1531,14 @@ export default function SleCrfManagerPage() {
               />
             )}
 
-            {/* .docx-FORMATTED DOCUMENT VIEW (Step 3 toggle) */}
-            {workflowStep === "step3_signoff" && viewMode === "clean" && (
+            {/* .docx-FORMATTED DOCUMENT VIEW (Step 3 toggle or Case 2 More -> Preview .docx) */}
+            {(isApprovedRecord || workflowStep === "step3_signoff") && viewMode === "clean" && (
               <DocxCrfView
                 patient={activePatient}
                 isVi={isVi}
                 bmi={calculatedBmi}
                 selectedId={selectedGroundingId}
+                readOnly={isReadOnly}
                 onSelect={setSelectedGroundingId}
                 onUpdateField={handleUpdateOcrField}
                 onVerifyField={handleVerifyOcrField}
@@ -1652,11 +1576,13 @@ export default function SleCrfManagerPage() {
                       autoCorrect="off"
                       autoCapitalize="characters"
                       spellCheck={false}
+                      readOnly={isReadOnly}
+                      disabled={isReadOnly}
                       value={activePatient.studyId}
                       onChange={(e) =>
                         patchPatient((p) => ({ ...p, studyId: e.target.value }))
                       }
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs font-bold text-slate-900"
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs font-bold text-slate-900 disabled:bg-slate-50"
                     />
                   </div>
 
@@ -1668,6 +1594,8 @@ export default function SleCrfManagerPage() {
                       id="crf-patient-name"
                       type="text"
                       autoComplete="name"
+                      readOnly={isReadOnly}
+                      disabled={isReadOnly}
                       value={activePatient.patientName}
                       onChange={(e) =>
                         patchPatient((p) => ({
@@ -1675,7 +1603,7 @@ export default function SleCrfManagerPage() {
                           patientName: e.target.value,
                         }))
                       }
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-900"
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-900 disabled:bg-slate-50"
                     />
                   </div>
 
@@ -1687,11 +1615,13 @@ export default function SleCrfManagerPage() {
                       <input
                         id="crf-patient-age"
                         type="number"
+                        readOnly={isReadOnly}
+                        disabled={isReadOnly}
                         value={activePatient.age}
                         onChange={(e) =>
                           patchPatient((p) => ({ ...p, age: e.target.value }))
                         }
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs font-bold text-slate-900"
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs font-bold text-slate-900 disabled:bg-slate-50"
                       />
                     </div>
                     <div>
@@ -1700,6 +1630,7 @@ export default function SleCrfManagerPage() {
                       </label>
                       <select
                         id="crf-patient-gender"
+                        disabled={isReadOnly}
                         value={activePatient.gender}
                         onChange={(e) =>
                           patchPatient((p) => ({
@@ -1707,7 +1638,7 @@ export default function SleCrfManagerPage() {
                             gender: e.target.value as "Female" | "Male",
                           }))
                         }
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-900"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-900 disabled:bg-slate-50"
                       >
                         <option value="Female">
                           {isVi ? "Nữ (Female)" : "Female"}
@@ -1730,6 +1661,8 @@ export default function SleCrfManagerPage() {
                       type="text"
                       autoCorrect="off"
                       spellCheck={false}
+                      readOnly={isReadOnly}
+                      disabled={isReadOnly}
                       value={activePatient.icfSignedDate}
                       onChange={(e) =>
                         patchPatient((p) => ({
@@ -1737,7 +1670,7 @@ export default function SleCrfManagerPage() {
                           icfSignedDate: e.target.value,
                         }))
                       }
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-900"
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-900 disabled:bg-slate-50"
                     />
                   </div>
 
@@ -1749,6 +1682,8 @@ export default function SleCrfManagerPage() {
                       <input
                         id="crf-height-cm"
                         type="number"
+                        readOnly={isReadOnly}
+                        disabled={isReadOnly}
                         value={activePatient.heightCm}
                         onChange={(e) =>
                           patchPatient((p) => ({
@@ -1756,7 +1691,7 @@ export default function SleCrfManagerPage() {
                             heightCm: e.target.value,
                           }))
                         }
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs font-bold text-slate-900"
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs font-bold text-slate-900 disabled:bg-slate-50"
                       />
                     </div>
                     <div>
@@ -1767,6 +1702,8 @@ export default function SleCrfManagerPage() {
                         id="crf-weight-kg"
                         type="number"
                         step="0.1"
+                        readOnly={isReadOnly}
+                        disabled={isReadOnly}
                         value={activePatient.weightKg}
                         onChange={(e) =>
                           patchPatient((p) => ({
@@ -1774,7 +1711,7 @@ export default function SleCrfManagerPage() {
                             weightKg: e.target.value,
                           }))
                         }
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs font-bold text-slate-900"
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs font-bold text-slate-900 disabled:bg-slate-50"
                       />
                     </div>
                   </div>
@@ -1799,6 +1736,8 @@ export default function SleCrfManagerPage() {
                     <input
                       id="crf-physician"
                       type="text"
+                      readOnly={isReadOnly}
+                      disabled={isReadOnly}
                       value={activePatient.physician}
                       onChange={(e) =>
                         patchPatient((p) => ({
@@ -1806,7 +1745,7 @@ export default function SleCrfManagerPage() {
                           physician: e.target.value,
                         }))
                       }
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900"
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 disabled:bg-slate-50"
                     />
                   </div>
 
@@ -1817,11 +1756,13 @@ export default function SleCrfManagerPage() {
                     <input
                       id="crf-nurse"
                       type="text"
+                      readOnly={isReadOnly}
+                      disabled={isReadOnly}
                       value={activePatient.nurse}
                       onChange={(e) =>
                         patchPatient((p) => ({ ...p, nurse: e.target.value }))
                       }
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900"
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 disabled:bg-slate-50"
                     />
                   </div>
                 </div>
@@ -1851,7 +1792,7 @@ export default function SleCrfManagerPage() {
                         : "Pregnancy (If Female) — Beta-hCG"}
                     </h3>
                     <div className="grid grid-cols-1 gap-3">
-                      {activePatient.ocrFields
+                      {resolvedOcrFields
                         .filter((f) => f.code === "BETA-HCG")
                         .map(renderOcrFieldRow)}
                     </div>
@@ -1870,13 +1811,14 @@ export default function SleCrfManagerPage() {
                           <button
                             key={opt}
                             type="button"
+                            disabled={isReadOnly}
                             onClick={() =>
                               patchPatient((p) => ({
                                 ...p,
                                 malignantDisease: opt,
                               }))
                             }
-                            className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                            className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                               activePatient.malignantDisease === opt
                                 ? "bg-slate-900 text-white"
                                 : "border border-slate-200 bg-white text-slate-600"
@@ -1890,6 +1832,8 @@ export default function SleCrfManagerPage() {
                     {activePatient.malignantDisease === "YES" && (
                       <input
                         type="text"
+                        readOnly={isReadOnly}
+                        disabled={isReadOnly}
                         placeholder={isVi ? "Ghi rõ bệnh ác tính..." : "Specify malignant disease..."}
                         value={activePatient.malignantSpecify}
                         onChange={(e) =>
@@ -1898,7 +1842,7 @@ export default function SleCrfManagerPage() {
                             malignantSpecify: e.target.value,
                           }))
                         }
-                        className="mt-2.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                        className="mt-2.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs disabled:bg-slate-50"
                       />
                     )}
                   </div>
@@ -1913,13 +1857,14 @@ export default function SleCrfManagerPage() {
                           <button
                             key={opt}
                             type="button"
+                            disabled={isReadOnly}
                             onClick={() =>
                               patchPatient((p) => ({
                                 ...p,
                                 otherComorbidities: opt,
                               }))
                             }
-                            className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                            className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                               activePatient.otherComorbidities === opt
                                 ? "bg-slate-900 text-white"
                                 : "border border-slate-200 bg-white text-slate-600"
@@ -1933,6 +1878,8 @@ export default function SleCrfManagerPage() {
                     {activePatient.otherComorbidities === "YES" && (
                       <input
                         type="text"
+                        readOnly={isReadOnly}
+                        disabled={isReadOnly}
                         placeholder={isVi ? "Ghi rõ bệnh đồng mắc..." : "Specify comorbidities..."}
                         value={activePatient.otherComorbiditiesSpecify}
                         onChange={(e) =>
@@ -1941,7 +1888,7 @@ export default function SleCrfManagerPage() {
                             otherComorbiditiesSpecify: e.target.value,
                           }))
                         }
-                        className="mt-2.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                        className="mt-2.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs disabled:bg-slate-50"
                       />
                     )}
                   </div>
@@ -1960,13 +1907,14 @@ export default function SleCrfManagerPage() {
                         <button
                           key={opt}
                           type="button"
+                          disabled={isReadOnly}
                           onClick={() =>
                             patchPatient((p) => ({
                               ...p,
                               familyAutoimmuneHistory: opt,
                             }))
                           }
-                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                             activePatient.familyAutoimmuneHistory === opt
                               ? "bg-slate-900 text-white"
                               : "border border-slate-200 bg-white text-slate-600"
@@ -1997,6 +1945,7 @@ export default function SleCrfManagerPage() {
                           >
                             <input
                               type="checkbox"
+                              disabled={isReadOnly}
                               checked={activePatient.familyRelatives[relKey]}
                               onChange={(e) =>
                                 patchPatient((p) => ({
@@ -2020,6 +1969,8 @@ export default function SleCrfManagerPage() {
                         </label>
                         <input
                           type="text"
+                          readOnly={isReadOnly}
+                          disabled={isReadOnly}
                           value={activePatient.familyDiseaseSpecify}
                           onChange={(e) =>
                             patchPatient((p) => ({
@@ -2027,7 +1978,7 @@ export default function SleCrfManagerPage() {
                               familyDiseaseSpecify: e.target.value,
                             }))
                           }
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs disabled:bg-slate-50"
                         />
                       </div>
                     </div>
@@ -2046,10 +1997,11 @@ export default function SleCrfManagerPage() {
                           <button
                             key={opt}
                             type="button"
+                            disabled={isReadOnly}
                             onClick={() =>
                               patchPatient((p) => ({ ...p, fever: opt }))
                             }
-                            className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                            className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                               activePatient.fever === opt
                                 ? "bg-slate-900 text-white"
                                 : "border border-slate-200 bg-white text-slate-600"
@@ -2070,6 +2022,8 @@ export default function SleCrfManagerPage() {
                             </label>
                             <input
                               type="text"
+                              readOnly={isReadOnly}
+                              disabled={isReadOnly}
                               value={activePatient.feverTempC}
                               onChange={(e) =>
                                 patchPatient((p) => ({
@@ -2077,7 +2031,7 @@ export default function SleCrfManagerPage() {
                                   feverTempC: e.target.value,
                                 }))
                               }
-                              className="mt-1 w-full rounded border border-slate-300 bg-white px-2.5 py-1 font-mono"
+                              className="mt-1 w-full rounded border border-slate-300 bg-white px-2.5 py-1 font-mono disabled:bg-slate-50"
                             />
                           </div>
                           <div>
@@ -2086,6 +2040,8 @@ export default function SleCrfManagerPage() {
                             </label>
                             <input
                               type="text"
+                              readOnly={isReadOnly}
+                              disabled={isReadOnly}
                               value={activePatient.feverOnsetDate}
                               onChange={(e) =>
                                 patchPatient((p) => ({
@@ -2093,7 +2049,7 @@ export default function SleCrfManagerPage() {
                                   feverOnsetDate: e.target.value,
                                 }))
                               }
-                              className="mt-1 w-full rounded border border-slate-300 bg-white px-2.5 py-1 font-mono"
+                              className="mt-1 w-full rounded border border-slate-300 bg-white px-2.5 py-1 font-mono disabled:bg-slate-50"
                             />
                           </div>
                         </div>
@@ -2102,6 +2058,7 @@ export default function SleCrfManagerPage() {
                             {isVi ? "Kiểu sốt (Type)" : "Fever Type"}
                           </label>
                           <select
+                            disabled={isReadOnly}
                             value={activePatient.feverType}
                             onChange={(e) =>
                               patchPatient((p) => ({
@@ -2112,7 +2069,7 @@ export default function SleCrfManagerPage() {
                                   | "others",
                               }))
                             }
-                            className="mt-1 w-full rounded border border-slate-300 bg-white px-2.5 py-1"
+                            className="mt-1 w-full rounded border border-slate-300 bg-white px-2.5 py-1 disabled:bg-slate-50"
                           >
                             <option value="periodic">
                               {isVi ? "Sốt chu kỳ (Periodic fever)" : "Periodic fever"}
@@ -2140,13 +2097,14 @@ export default function SleCrfManagerPage() {
                           <button
                             key={opt}
                             type="button"
+                            disabled={isReadOnly}
                             onClick={() =>
                               patchPatient((p) => ({
                                 ...p,
                                 historyOfInfection: opt,
                               }))
                             }
-                            className={`rounded px-2 py-1 font-mono text-[11px] font-bold cursor-pointer ${
+                            className={`rounded px-2 py-1 font-mono text-[11px] font-bold cursor-pointer disabled:cursor-default ${
                               activePatient.historyOfInfection === opt
                                 ? "bg-slate-900 text-white"
                                 : "border border-slate-200 bg-white text-slate-600"
@@ -2167,6 +2125,8 @@ export default function SleCrfManagerPage() {
                           >
                             <input
                               type="text"
+                              readOnly={isReadOnly}
+                              disabled={isReadOnly}
                               placeholder="Factor / Pathogen"
                               value={ep.factor}
                               onChange={(e) =>
@@ -2180,11 +2140,13 @@ export default function SleCrfManagerPage() {
                                   ),
                                 }))
                               }
-                              className="w-full rounded border border-slate-200 px-2 py-1 text-xs font-medium"
+                              className="w-full rounded border border-slate-200 px-2 py-1 text-xs font-medium disabled:bg-slate-50"
                             />
                             <div className="grid grid-cols-2 gap-1.5 font-mono text-[11px]">
                               <input
                                 type="text"
+                                readOnly={isReadOnly}
+                                disabled={isReadOnly}
                                 placeholder="Onset DD/MM/YYYY"
                                 value={ep.dateOfOnset}
                                 onChange={(e) =>
@@ -2201,10 +2163,12 @@ export default function SleCrfManagerPage() {
                                     ),
                                   }))
                                 }
-                                className="rounded border border-slate-200 px-2 py-1"
+                                className="rounded border border-slate-200 px-2 py-1 disabled:bg-slate-50"
                               />
                               <input
                                 type="text"
+                                readOnly={isReadOnly}
+                                disabled={isReadOnly}
                                 placeholder="Normalized DD/MM/YYYY"
                                 value={ep.dateOfNormalization}
                                 onChange={(e) =>
@@ -2222,31 +2186,33 @@ export default function SleCrfManagerPage() {
                                     ),
                                   }))
                                 }
-                                className="rounded border border-slate-200 px-2 py-1"
+                                className="rounded border border-slate-200 px-2 py-1 disabled:bg-slate-50"
                               />
                             </div>
                           </div>
                         ))}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            patchPatient((p) => ({
-                              ...p,
-                              infectionEpisodes: [
-                                ...p.infectionEpisodes,
-                                {
-                                  id: `inf-${Date.now()}`,
-                                  factor: "",
-                                  dateOfOnset: "",
-                                  dateOfNormalization: "",
-                                },
-                              ],
-                            }))
-                          }
-                          className="text-xs font-semibold text-teal-800 hover:underline cursor-pointer"
-                        >
-                          {isVi ? "+ Thêm đợt nhiễm trùng" : "+ Add infection episode"}
-                        </button>
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              patchPatient((p) => ({
+                                ...p,
+                                infectionEpisodes: [
+                                  ...p.infectionEpisodes,
+                                  {
+                                    id: `inf-${Date.now()}`,
+                                    factor: "",
+                                    dateOfOnset: "",
+                                    dateOfNormalization: "",
+                                  },
+                                ],
+                              }))
+                            }
+                            className="text-xs font-semibold text-teal-800 hover:underline cursor-pointer"
+                          >
+                            {isVi ? "+ Thêm đợt nhiễm trùng" : "+ Add infection episode"}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2265,7 +2231,7 @@ export default function SleCrfManagerPage() {
                     </span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {activePatient.ocrFields
+                    {resolvedOcrFields
                       .filter(
                         (f) =>
                           f.sectionId === "medical_history" &&
@@ -2283,30 +2249,32 @@ export default function SleCrfManagerPage() {
                         ? "Điều trị / Tiêm chủng Hiện tại & Trước đây"
                         : "Current / Previous Treatment & Vaccination"}
                     </h3>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        patchPatient((p) => ({
-                          ...p,
-                          treatmentStatus: "YES",
-                          treatments: [
-                            ...p.treatments,
-                            {
-                              id: `trt-${Date.now()}`,
-                              group: "Medication",
-                              name: "",
-                              route: "PO",
-                              dose: "",
-                              frequency: "",
-                              duration: "",
-                            },
-                          ],
-                        }))
-                      }
-                      className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
-                    >
-                      {isVi ? "+ Thêm Thuốc / Vắc-xin" : "+ Add Medication / Vaccine"}
-                    </button>
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchPatient((p) => ({
+                            ...p,
+                            treatmentStatus: "YES",
+                            treatments: [
+                              ...p.treatments,
+                              {
+                                id: `trt-${Date.now()}`,
+                                group: "Medication",
+                                name: "",
+                                route: "PO",
+                                dose: "",
+                                frequency: "",
+                                duration: "",
+                              },
+                            ],
+                          }))
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                      >
+                        {isVi ? "+ Thêm Thuốc / Vắc-xin" : "+ Add Medication / Vaccine"}
+                      </button>
+                    )}
                   </div>
 
                   <div
@@ -2335,6 +2303,7 @@ export default function SleCrfManagerPage() {
                           <tr key={trt.id}>
                             <td className="p-2">
                               <select
+                                disabled={isReadOnly}
                                 value={trt.group}
                                 onChange={(e) =>
                                   patchPatient((p) => ({
@@ -2362,6 +2331,8 @@ export default function SleCrfManagerPage() {
                             <td className="p-2">
                               <input
                                 type="text"
+                                readOnly={isReadOnly}
+                                disabled={isReadOnly}
                                 value={trt.name}
                                 onChange={(e) =>
                                   patchPatient((p) => ({
@@ -2373,12 +2344,14 @@ export default function SleCrfManagerPage() {
                                     ),
                                   }))
                                 }
-                                className="w-full rounded border border-slate-200 px-2 py-1 text-xs font-semibold"
+                                className="w-full rounded border border-slate-200 px-2 py-1 text-xs font-semibold disabled:bg-slate-50"
                               />
                             </td>
                             <td className="p-2">
                               <input
                                 type="text"
+                                readOnly={isReadOnly}
+                                disabled={isReadOnly}
                                 value={trt.route}
                                 onChange={(e) =>
                                   patchPatient((p) => ({
@@ -2390,12 +2363,14 @@ export default function SleCrfManagerPage() {
                                     ),
                                   }))
                                 }
-                                className="w-20 rounded border border-slate-200 px-2 py-1 font-mono text-xs"
+                                className="w-20 rounded border border-slate-200 px-2 py-1 font-mono text-xs disabled:bg-slate-50"
                               />
                             </td>
                             <td className="p-2">
                               <input
                                 type="text"
+                                readOnly={isReadOnly}
+                                disabled={isReadOnly}
                                 value={trt.dose}
                                 onChange={(e) =>
                                   patchPatient((p) => ({
@@ -2407,12 +2382,14 @@ export default function SleCrfManagerPage() {
                                     ),
                                   }))
                                 }
-                                className="w-24 rounded border border-slate-200 px-2 py-1 font-mono text-xs"
+                                className="w-24 rounded border border-slate-200 px-2 py-1 font-mono text-xs disabled:bg-slate-50"
                               />
                             </td>
                             <td className="p-2">
                               <input
                                 type="text"
+                                readOnly={isReadOnly}
+                                disabled={isReadOnly}
                                 value={trt.frequency}
                                 onChange={(e) =>
                                   patchPatient((p) => ({
@@ -2424,12 +2401,14 @@ export default function SleCrfManagerPage() {
                                     ),
                                   }))
                                 }
-                                className="w-28 rounded border border-slate-200 px-2 py-1 text-xs"
+                                className="w-28 rounded border border-slate-200 px-2 py-1 text-xs disabled:bg-slate-50"
                               />
                             </td>
                             <td className="p-2">
                               <input
                                 type="text"
+                                readOnly={isReadOnly}
+                                disabled={isReadOnly}
                                 value={trt.duration}
                                 onChange={(e) =>
                                   patchPatient((p) => ({
@@ -2441,7 +2420,7 @@ export default function SleCrfManagerPage() {
                                     ),
                                   }))
                                 }
-                                className="w-full rounded border border-slate-200 px-2 py-1 font-mono text-xs"
+                                className="w-full rounded border border-slate-200 px-2 py-1 font-mono text-xs disabled:bg-slate-50"
                               />
                             </td>
                           </tr>
@@ -2478,13 +2457,14 @@ export default function SleCrfManagerPage() {
                         <button
                           key={opt}
                           type="button"
+                          disabled={isReadOnly}
                           onClick={() =>
                             patchPatient((p) => ({
                               ...p,
                               skinMucosaAbnormality: opt,
                             }))
                           }
-                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                             activePatient.skinMucosaAbnormality === opt
                               ? "bg-slate-900 text-white"
                               : "border border-slate-200 bg-white text-slate-600"
@@ -2510,6 +2490,7 @@ export default function SleCrfManagerPage() {
                           <label className="flex items-center gap-2 font-semibold text-slate-900 cursor-pointer">
                             <input
                               type="checkbox"
+                              disabled={isReadOnly}
                               checked={item.checked}
                               onChange={(e) =>
                                 patchPatient((p) => ({
@@ -2528,6 +2509,8 @@ export default function SleCrfManagerPage() {
                           {item.checked && (
                             <input
                               type="text"
+                              readOnly={isReadOnly}
+                              disabled={isReadOnly}
                               placeholder={
                                 isVi ? "Mô tả chi tiết..." : "Specify details..."
                               }
@@ -2543,7 +2526,7 @@ export default function SleCrfManagerPage() {
                                   ),
                                 }))
                               }
-                              className="mt-1.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs"
+                              className="mt-1.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs disabled:bg-slate-50"
                             />
                           )}
                         </div>
@@ -2566,10 +2549,11 @@ export default function SleCrfManagerPage() {
                         <button
                           key={opt}
                           type="button"
+                          disabled={isReadOnly}
                           onClick={() =>
                             patchPatient((p) => ({ ...p, muscleDamage: opt }))
                           }
-                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                             activePatient.muscleDamage === opt
                               ? "bg-slate-900 text-white"
                               : "border border-slate-200 bg-white text-slate-600"
@@ -2581,7 +2565,7 @@ export default function SleCrfManagerPage() {
                     </div>
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {activePatient.ocrFields
+                    {resolvedOcrFields
                       .filter((f) => f.subSectionEn === "Muscle")
                       .map(renderOcrFieldRow)}
                   </div>
@@ -2598,10 +2582,11 @@ export default function SleCrfManagerPage() {
                         <button
                           key={opt}
                           type="button"
+                          disabled={isReadOnly}
                           onClick={() =>
                             patchPatient((p) => ({ ...p, jointsDamage: opt }))
                           }
-                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                             activePatient.jointsDamage === opt
                               ? "bg-slate-900 text-white"
                               : "border border-slate-200 bg-white text-slate-600"
@@ -2624,6 +2609,8 @@ export default function SleCrfManagerPage() {
                           </label>
                           <input
                             type="number"
+                            readOnly={isReadOnly}
+                            disabled={isReadOnly}
                             value={activePatient.swollenJointsCount}
                             onChange={(e) =>
                               patchPatient((p) => ({
@@ -2631,7 +2618,7 @@ export default function SleCrfManagerPage() {
                                 swollenJointsCount: e.target.value,
                               }))
                             }
-                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-xs font-bold"
+                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-xs font-bold disabled:bg-slate-50"
                           />
                         </div>
                         <div>
@@ -2642,6 +2629,8 @@ export default function SleCrfManagerPage() {
                           </label>
                           <input
                             type="number"
+                            readOnly={isReadOnly}
+                            disabled={isReadOnly}
                             value={activePatient.tenderJointsCount}
                             onChange={(e) =>
                               patchPatient((p) => ({
@@ -2649,7 +2638,7 @@ export default function SleCrfManagerPage() {
                                 tenderJointsCount: e.target.value,
                               }))
                             }
-                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-xs font-bold"
+                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-xs font-bold disabled:bg-slate-50"
                           />
                         </div>
                         <div>
@@ -2662,6 +2651,8 @@ export default function SleCrfManagerPage() {
                             type="number"
                             min="0"
                             max="100"
+                            readOnly={isReadOnly}
+                            disabled={isReadOnly}
                             value={activePatient.vasScore}
                             onChange={(e) =>
                               patchPatient((p) => ({
@@ -2669,7 +2660,7 @@ export default function SleCrfManagerPage() {
                                 vasScore: e.target.value,
                               }))
                             }
-                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-xs font-bold"
+                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-xs font-bold disabled:bg-slate-50"
                           />
                         </div>
                       </div>
@@ -2688,6 +2679,8 @@ export default function SleCrfManagerPage() {
                           </div>
                           <input
                             type="text"
+                            readOnly={isReadOnly}
+                            disabled={isReadOnly}
                             value={activePatient.abnormalUltrasoundSpecify}
                             onChange={(e) =>
                               patchPatient((p) => ({
@@ -2695,7 +2688,7 @@ export default function SleCrfManagerPage() {
                                 abnormalUltrasoundSpecify: e.target.value,
                               }))
                             }
-                            className="mt-1.5 w-full rounded border border-slate-200 px-2 py-1 text-xs"
+                            className="mt-1.5 w-full rounded border border-slate-200 px-2 py-1 text-xs disabled:bg-slate-50"
                           />
                         </div>
 
@@ -2710,6 +2703,8 @@ export default function SleCrfManagerPage() {
                           </div>
                           <input
                             type="text"
+                            readOnly={isReadOnly}
+                            disabled={isReadOnly}
                             value={activePatient.abnormalXraySpecify}
                             onChange={(e) =>
                               patchPatient((p) => ({
@@ -2717,7 +2712,7 @@ export default function SleCrfManagerPage() {
                                 abnormalXraySpecify: e.target.value,
                               }))
                             }
-                            className="mt-1.5 w-full rounded border border-slate-200 px-2 py-1 text-xs"
+                            className="mt-1.5 w-full rounded border border-slate-200 px-2 py-1 text-xs disabled:bg-slate-50"
                           />
                         </div>
                       </div>
@@ -2739,10 +2734,11 @@ export default function SleCrfManagerPage() {
                         <button
                           key={opt}
                           type="button"
+                          disabled={isReadOnly}
                           onClick={() =>
                             patchPatient((p) => ({ ...p, kidneysDamage: opt }))
                           }
-                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                             activePatient.kidneysDamage === opt
                               ? "bg-slate-900 text-white"
                               : "border border-slate-200 bg-white text-slate-600"
@@ -2755,7 +2751,7 @@ export default function SleCrfManagerPage() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {activePatient.ocrFields
+                    {resolvedOcrFields
                       .filter((f) => f.subSectionEn === "Kidneys")
                       .map(renderOcrFieldRow)}
                   </div>
@@ -2773,13 +2769,14 @@ export default function SleCrfManagerPage() {
                           <button
                             key={opt}
                             type="button"
+                            disabled={isReadOnly}
                             onClick={() =>
                               patchPatient((p) => ({
                                 ...p,
                                 renalBiopsyPerformed: opt,
                               }))
                             }
-                            className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                            className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                               activePatient.renalBiopsyPerformed === opt
                                 ? "bg-slate-900 text-white"
                                 : "border border-slate-200 bg-slate-50 text-slate-600"
@@ -2801,6 +2798,7 @@ export default function SleCrfManagerPage() {
                               <button
                                 key={cls}
                                 type="button"
+                                disabled={isReadOnly}
                                 onClick={() =>
                                   patchPatient((p) => ({
                                     ...p,
@@ -2811,7 +2809,7 @@ export default function SleCrfManagerPage() {
                                       : [...p.renalBiopsyClasses, cls],
                                   }))
                                 }
-                                className={`rounded-lg border px-2.5 py-1 font-mono text-xs font-bold transition cursor-pointer ${
+                                className={`rounded-lg border px-2.5 py-1 font-mono text-xs font-bold transition cursor-pointer disabled:cursor-default ${
                                   checked
                                     ? "border-teal-700 bg-teal-700 text-white"
                                     : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
@@ -2824,6 +2822,8 @@ export default function SleCrfManagerPage() {
                         </div>
                         <input
                           type="text"
+                          readOnly={isReadOnly}
+                          disabled={isReadOnly}
                           value={activePatient.renalBiopsyNote}
                           onChange={(e) =>
                             patchPatient((p) => ({
@@ -2836,7 +2836,7 @@ export default function SleCrfManagerPage() {
                               ? "Ghi chú giải phẫu bệnh sinh thiết thận..."
                               : "Renal biopsy histopathology notes..."
                           }
-                          className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs disabled:bg-slate-50"
                         />
                       </div>
                     )}
@@ -2854,7 +2854,7 @@ export default function SleCrfManagerPage() {
                     </span>
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {activePatient.ocrFields
+                    {resolvedOcrFields
                       .filter((f) => f.subSectionEn === "Haematology")
                       .map(renderOcrFieldRow)}
                   </div>
@@ -2874,13 +2874,14 @@ export default function SleCrfManagerPage() {
                         <button
                           key={opt}
                           type="button"
+                          disabled={isReadOnly}
                           onClick={() =>
                             patchPatient((p) => ({
                               ...p,
                               cardiovascularAbnormality: opt,
                             }))
                           }
-                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                             activePatient.cardiovascularAbnormality === opt
                               ? "bg-slate-900 text-white"
                               : "border border-slate-200 bg-white text-slate-600"
@@ -2905,6 +2906,7 @@ export default function SleCrfManagerPage() {
                           <label className="flex items-center gap-2 font-semibold text-slate-900 cursor-pointer">
                             <input
                               type="checkbox"
+                              disabled={isReadOnly}
                               checked={item.checked}
                               onChange={(e) =>
                                 patchPatient((p) => ({
@@ -2923,6 +2925,8 @@ export default function SleCrfManagerPage() {
                           {item.checked && (
                             <input
                               type="text"
+                              readOnly={isReadOnly}
+                              disabled={isReadOnly}
                               value={item.specify}
                               onChange={(e) =>
                                 patchPatient((p) => ({
@@ -2935,7 +2939,7 @@ export default function SleCrfManagerPage() {
                                     ),
                                 }))
                               }
-                              className="mt-1.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs"
+                              className="mt-1.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs disabled:bg-slate-50"
                             />
                           )}
                         </div>
@@ -2958,10 +2962,11 @@ export default function SleCrfManagerPage() {
                         <button
                           key={opt}
                           type="button"
+                          disabled={isReadOnly}
                           onClick={() =>
                             patchPatient((p) => ({ ...p, lungDamage: opt }))
                           }
-                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer ${
+                          className={`rounded px-2.5 py-1 font-mono text-xs font-bold cursor-pointer disabled:cursor-default ${
                             activePatient.lungDamage === opt
                               ? "bg-slate-900 text-white"
                               : "border border-slate-200 bg-white text-slate-600"
@@ -2974,7 +2979,7 @@ export default function SleCrfManagerPage() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {activePatient.ocrFields
+                    {resolvedOcrFields
                       .filter((f) => f.subSectionEn === "Lungs")
                       .map(renderOcrFieldRow)}
                   </div>
@@ -2985,6 +2990,7 @@ export default function SleCrfManagerPage() {
                         <label className="flex items-center gap-2 font-bold text-slate-900 cursor-pointer">
                           <input
                             type="checkbox"
+                            disabled={isReadOnly}
                             checked={activePatient.lungIld}
                             onChange={(e) =>
                               patchPatient((p) => ({
@@ -3003,6 +3009,7 @@ export default function SleCrfManagerPage() {
                         <label className="flex items-center gap-2 font-bold text-slate-900 cursor-pointer">
                           <input
                             type="checkbox"
+                            disabled={isReadOnly}
                             checked={activePatient.lungPleuritis}
                             onChange={(e) =>
                               patchPatient((p) => ({
@@ -3028,6 +3035,7 @@ export default function SleCrfManagerPage() {
                               <button
                                 key={pat}
                                 type="button"
+                                disabled={isReadOnly}
                                 onClick={() =>
                                   patchPatient((p) => ({
                                     ...p,
@@ -3038,7 +3046,7 @@ export default function SleCrfManagerPage() {
                                       : [...p.lungIldPatterns, pat],
                                   }))
                                 }
-                                className={`rounded-lg border px-2.5 py-1 font-mono text-xs font-semibold cursor-pointer ${
+                                className={`rounded-lg border px-2.5 py-1 font-mono text-xs font-semibold cursor-pointer disabled:cursor-default ${
                                   active
                                     ? "border-teal-700 bg-teal-700 text-white"
                                     : "border-slate-200 bg-slate-50 text-slate-700"
@@ -3067,13 +3075,14 @@ export default function SleCrfManagerPage() {
                             <button
                               key={opt}
                               type="button"
+                              disabled={isReadOnly}
                               onClick={() =>
                                 patchPatient((p) => ({
                                   ...p,
                                   neuropsychiatricDisorders: opt,
                                 }))
                               }
-                              className={`rounded px-2 py-0.5 font-mono text-[11px] font-bold cursor-pointer ${
+                              className={`rounded px-2 py-0.5 font-mono text-[11px] font-bold cursor-pointer disabled:cursor-default ${
                                 activePatient.neuropsychiatricDisorders === opt
                                   ? "bg-slate-900 text-white"
                                   : "border border-slate-200 bg-white text-slate-600"
@@ -3094,6 +3103,7 @@ export default function SleCrfManagerPage() {
                           >
                             <input
                               type="checkbox"
+                              disabled={isReadOnly}
                               checked={it.checked}
                               onChange={(e) =>
                                 patchPatient((p) => ({
@@ -3125,13 +3135,14 @@ export default function SleCrfManagerPage() {
                             <button
                               key={opt}
                               type="button"
+                              disabled={isReadOnly}
                               onClick={() =>
                                 patchPatient((p) => ({
                                   ...p,
                                   giDisorders: opt,
                                 }))
                               }
-                              className={`rounded px-2 py-0.5 font-mono text-[11px] font-bold cursor-pointer ${
+                              className={`rounded px-2 py-0.5 font-mono text-[11px] font-bold cursor-pointer disabled:cursor-default ${
                                 activePatient.giDisorders === opt
                                   ? "bg-slate-900 text-white"
                                   : "border border-slate-200 bg-white text-slate-600"
@@ -3144,7 +3155,7 @@ export default function SleCrfManagerPage() {
                       </div>
                     </div>
                     <div className="mt-3 space-y-2">
-                      {activePatient.ocrFields
+                      {resolvedOcrFields
                         .filter(
                           (f) => f.subSectionEn === "Gastrointestinal system"
                         )
@@ -3169,16 +3180,16 @@ export default function SleCrfManagerPage() {
                   </h2>
                 </div>
 
-                {/* 4.1 Core Quantitative Immunology (21 OCR-extracted tests) */}
+                {/* 4.1 Core Quantitative Immunology (OCR-extracted tests) */}
                 <div>
                   <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-700">
                     4.1{" "}
                     {isVi
-                      ? "Miễn dịch Định lượng & Bổ thể (21 Xét nghiệm OCR)"
-                      : "Quantitative Immunology, APL & Complement (21 OCR Tests)"}
+                      ? "Miễn dịch Định lượng & Bổ thể (Xét nghiệm OCR)"
+                      : "Quantitative Immunology, APL & Complement (OCR Tests)"}
                   </h3>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {activePatient.ocrFields
+                    {resolvedOcrFields
                       .filter((f) => f.sectionId === "immunology")
                       .map(renderOcrFieldRow)}
                   </div>
@@ -3199,10 +3210,8 @@ export default function SleCrfManagerPage() {
                     ],
                   ] as const
                 ).map(([panelKey, titleEn, titleVi]) => {
-                  const rows = activePatient.antibodyBlots.filter(
-                    (b) =>
-                      b.panel === panelKey &&
-                      matchesTriageFilter(b.status, Boolean(b.result))
+                  const rows = resolvedAntibodyBlots.filter(
+                    (b) => b.panel === panelKey
                   );
 
                   return (
@@ -3242,17 +3251,26 @@ export default function SleCrfManagerPage() {
                           </thead>
                           <tbody className="divide-y divide-slate-200">
                             {rows.map((row) => {
+                              const isNotReturned =
+                                Boolean(row.notReturnedByOcr) ||
+                                (isReadOnly && !row.result);
                               const isManual =
-                                row.status === "manual_required" || !row.result;
+                                !isNotReturned &&
+                                (row.status === "manual_required" || !row.result);
                               const isVerify =
+                                !isNotReturned &&
                                 row.status === "needs_verify" &&
                                 Boolean(row.result);
+                              const isRowLocked =
+                                isReadOnly || Boolean(row.notReturnedByOcr);
 
                               return (
                                 <tr
                                   key={row.id}
                                   className={
-                                    isManual
+                                    isNotReturned
+                                      ? "bg-slate-50/40"
+                                      : isManual
                                       ? "bg-rose-50/50"
                                       : isVerify
                                       ? "bg-amber-50/40"
@@ -3263,65 +3281,89 @@ export default function SleCrfManagerPage() {
                                     {row.name}
                                   </td>
                                   <td className="px-3 py-2">
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {(
-                                        [
-                                          "Negative",
-                                          "Positive",
-                                          "Borderline",
-                                        ] as const
-                                      ).map((opt) => (
-                                        <button
-                                          key={opt}
-                                          type="button"
-                                          onClick={() =>
-                                            handleUpdateBlotRow(row.id, {
-                                              result: opt as BlotResultStatus,
-                                              intensity:
-                                                row.intensity ||
-                                                row.printedIntensity,
-                                            })
-                                          }
-                                          className={`rounded px-2 py-0.5 font-mono text-[10px] font-bold cursor-pointer ${
-                                            row.result === opt
-                                              ? opt === "Positive"
-                                                ? "bg-rose-600 text-white"
-                                                : opt === "Borderline"
-                                                ? "bg-amber-600 text-white"
-                                                : "bg-slate-800 text-white"
-                                              : "border border-slate-200 bg-white text-slate-600"
-                                          }`}
-                                        >
-                                          {opt}
-                                        </button>
-                                      ))}
-                                    </div>
+                                    {isNotReturned ? (
+                                      <span className="inline-block rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-600">
+                                        N/A
+                                      </span>
+                                    ) : (
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {(
+                                          [
+                                            "Negative",
+                                            "Positive",
+                                            "Borderline",
+                                          ] as const
+                                        ).map((opt) => (
+                                          <button
+                                            key={opt}
+                                            type="button"
+                                            disabled={isRowLocked}
+                                            onClick={() =>
+                                              handleUpdateBlotRow(row.id, {
+                                                result: opt as BlotResultStatus,
+                                                intensity:
+                                                  row.intensity ||
+                                                  row.printedIntensity,
+                                              })
+                                            }
+                                            className={`rounded px-2 py-0.5 font-mono text-[10px] font-bold cursor-pointer disabled:cursor-default ${
+                                              row.result === opt
+                                                ? opt === "Positive"
+                                                  ? "bg-rose-600 text-white"
+                                                  : opt === "Borderline"
+                                                  ? "bg-amber-600 text-white"
+                                                  : "bg-slate-800 text-white"
+                                                : "border border-slate-200 bg-white text-slate-600"
+                                            }`}
+                                          >
+                                            {opt}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
                                   </td>
                                   <td className="px-3 py-2">
-                                    {(row.result === "Positive" ||
-                                      row.result === "Borderline" ||
-                                      isManual) && (
-                                      <input
-                                        type="text"
-                                        placeholder={
-                                          isManual
-                                            ? isVi
-                                              ? "Xem bản gốc..."
-                                              : "Check scan..."
-                                            : "Intensity (+/++/+++)"
-                                        }
-                                        value={row.intensity}
-                                        onChange={(e) =>
-                                          handleUpdateBlotRow(row.id, {
-                                            intensity: e.target.value,
-                                          })
-                                        }
-                                        className="w-28 rounded border border-slate-300 bg-white px-2 py-1 font-mono text-xs font-bold"
-                                      />
+                                    {isNotReturned ? (
+                                      <span className="font-mono text-xs font-semibold text-slate-500">
+                                        N/A
+                                      </span>
+                                    ) : (
+                                      (row.result === "Positive" ||
+                                        row.result === "Borderline" ||
+                                        isManual) && (
+                                        <input
+                                          type="text"
+                                          readOnly={isRowLocked}
+                                          disabled={isRowLocked}
+                                          placeholder={
+                                            isManual
+                                              ? isVi
+                                                ? "Xem bản gốc..."
+                                                : "Check scan..."
+                                              : "Intensity (+/++/+++)"
+                                          }
+                                          value={
+                                            isReadOnly && !row.intensity.trim()
+                                              ? "N/A"
+                                              : row.intensity
+                                          }
+                                          onChange={(e) =>
+                                            handleUpdateBlotRow(row.id, {
+                                              intensity: e.target.value,
+                                            })
+                                          }
+                                          className="w-28 rounded border border-slate-300 bg-white px-2 py-1 font-mono text-xs font-bold disabled:bg-slate-50"
+                                        />
+                                      )
                                     )}
                                   </td>
                                   <td className="px-3 py-2 text-right">
-                                    {isManual ? (
+                                    {isNotReturned ? (
+                                      <span className="inline-flex items-center justify-end gap-1.5 font-mono text-[10px] font-semibold text-slate-600">
+                                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                        <span>N/A</span>
+                                      </span>
+                                    ) : !isRowLocked && isManual ? (
                                       <button
                                         type="button"
                                         onClick={() =>
@@ -3341,7 +3383,7 @@ export default function SleCrfManagerPage() {
                                             : `Add "${row.printedResult}"`}
                                         </span>
                                       </button>
-                                    ) : isVerify ? (
+                                    ) : !isRowLocked && isVerify ? (
                                       <button
                                         type="button"
                                         onClick={() =>
@@ -3403,16 +3445,18 @@ export default function SleCrfManagerPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      id="crf-btn-autoscore"
-                      onClick={handleAutoSuggestScores}
-                      className="rounded-xl border border-teal-700/40 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
-                    >
-                      {isVi
-                        ? "Tự động Gợi ý Điểm từ Xét nghiệm"
-                        : "Auto-Suggest from Verified CRF Data"}
-                    </button>
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        id="crf-btn-autoscore"
+                        onClick={handleAutoSuggestScores}
+                        className="rounded-xl border border-teal-700/40 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
+                      >
+                        {isVi
+                          ? "Tự động Gợi ý Điểm từ Xét nghiệm"
+                          : "Auto-Suggest from Verified CRF Data"}
+                      </button>
+                    )}
                     <div
                       className={`rounded-xl border px-3.5 py-2 text-right font-mono ${
                         eularSummary.isClassifiedSle
@@ -3445,6 +3489,7 @@ export default function SleCrfManagerPage() {
                   </span>
                   <input
                     type="checkbox"
+                    disabled={isReadOnly}
                     checked={activePatient.anaEntryCriterionMet}
                     onChange={(e) =>
                       patchPatient((p) => ({
@@ -3486,7 +3531,9 @@ export default function SleCrfManagerPage() {
                             return (
                               <label
                                 key={item.id}
-                                className={`flex items-center justify-between rounded-lg border p-2.5 text-xs transition cursor-pointer ${
+                                className={`flex items-center justify-between rounded-lg border p-2.5 text-xs transition ${
+                                  isReadOnly ? "cursor-default" : "cursor-pointer"
+                                } ${
                                   item.checked
                                     ? isCountedMax
                                       ? "border-teal-600 bg-teal-50/70"
@@ -3510,6 +3557,7 @@ export default function SleCrfManagerPage() {
                                   </span>
                                   <input
                                     type="checkbox"
+                                    disabled={isReadOnly}
                                     checked={item.checked}
                                     onChange={(e) =>
                                       patchPatient((p) => ({
@@ -3597,7 +3645,8 @@ export default function SleCrfManagerPage() {
                       {activePatient.sledai2kCriteria.map((item) => (
                         <tr
                           key={item.id}
-                          onClick={() =>
+                          onClick={() => {
+                            if (isReadOnly) return;
                             patchPatient((p) => ({
                               ...p,
                               sledai2kCriteria: p.sledai2kCriteria.map((c) =>
@@ -3605,9 +3654,11 @@ export default function SleCrfManagerPage() {
                                   ? { ...c, checked: !c.checked }
                                   : c
                               ),
-                            }))
-                          }
-                          className={`cursor-pointer transition ${
+                            }));
+                          }}
+                          className={`transition ${
+                            isReadOnly ? "cursor-default" : "cursor-pointer"
+                          } ${
                             item.checked
                               ? "bg-rose-50/60"
                               : "hover:bg-slate-50"
@@ -3628,6 +3679,7 @@ export default function SleCrfManagerPage() {
                           >
                             <input
                               type="checkbox"
+                              disabled={isReadOnly}
                               checked={item.checked}
                               onChange={(e) =>
                                 patchPatient((p) => ({
@@ -3640,7 +3692,7 @@ export default function SleCrfManagerPage() {
                                   ),
                                 }))
                               }
-                              className="h-4 w-4 accent-teal-700 cursor-pointer"
+                              className="h-4 w-4 accent-teal-700 cursor-pointer disabled:cursor-default"
                             />
                           </td>
                         </tr>
@@ -3651,163 +3703,92 @@ export default function SleCrfManagerPage() {
               </section>
             )}
 
-            {/* Step-aware footer: one primary action per step */}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-              <p
-                className={`text-xs font-semibold ${
-                  triageStats.unresolved > 0 ? "text-rose-800" : "text-teal-800"
-                }`}
-              >
-                {triageStats.unresolved > 0
-                  ? isVi
-                    ? `Còn ${triageStats.unresolved} mục OCR chưa xử lý (${triageStats.manualUnder80} <80%, ${triageStats.verify80to90} 80–90%).`
-                    : `${triageStats.unresolved} OCR field(s) unresolved (${triageStats.manualUnder80} <80%, ${triageStats.verify80to90} 80–90%).`
-                  : isVi
-                  ? `Toàn bộ ${triageStats.total} trường OCR đã xác thực.`
-                  : `All ${triageStats.total} OCR fields verified.`}
-              </p>
+            {/* Step-aware footer: one primary action per step (Case 1 only) */}
+            {!isApprovedRecord && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+                <p
+                  className={`text-xs font-semibold ${
+                    triageStats.unresolved > 0 ? "text-rose-800" : "text-teal-800"
+                  }`}
+                >
+                  {triageStats.unresolved > 0
+                    ? isVi
+                      ? `Còn ${triageStats.unresolved} mục OCR chưa xử lý (${triageStats.manualUnder80} <80%, ${triageStats.verify80to90} 80–90%).`
+                      : `${triageStats.unresolved} OCR field(s) unresolved (${triageStats.manualUnder80} <80%, ${triageStats.verify80to90} 80–90%).`
+                    : isVi
+                    ? `Toàn bộ ${triageStats.total} trường OCR đã xác thực.`
+                    : `All ${triageStats.total} OCR fields verified.`}
+                </p>
 
-              <div className="flex flex-wrap items-center gap-2.5">
-                {workflowStep !== "step1_triage" && (
-                  <button
-                    type="button"
-                    id="crf-btn-back"
-                    onClick={() =>
-                      setWorkflowStep(workflowStep === "step3_signoff" ? "step2_review" : "step1_triage")
-                    }
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer"
-                  >
-                    {isVi ? "Quay lại" : "Back"}
-                  </button>
-                )}
-                {workflowStep === "step1_triage" && triageStats.unresolved > 0 && (
-                  <button
-                    type="button"
-                    id="crf-btn-next-unresolved"
-                    onClick={handleJumpNextUnresolved}
-                    className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-xs font-semibold text-rose-800 hover:bg-rose-50 cursor-pointer"
-                  >
-                    {isVi ? "Tới mục tiếp theo" : "Next unresolved field"}
-                  </button>
-                )}
-                {workflowStep === "step2_review" && (
-                  <button
-                    type="button"
-                    id="crf-btn-autoscore"
-                    onClick={handleAutoSuggestScores}
-                    className="rounded-xl border border-teal-700/40 bg-teal-50 px-4 py-2.5 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
-                  >
-                    {isVi ? "Tự động tính điểm" : "Auto-calculate scores"}
-                  </button>
-                )}
-                {workflowStep !== "step3_signoff" ? (
-                  <button
-                    type="button"
-                    id="crf-btn-continue"
-                    onClick={() => {
-                      const nextStep =
-                        workflowStep === "step1_triage"
-                          ? "step2_review"
-                          : "step3_signoff";
-                      if (nextStep === "step3_signoff") {
-                        patchPatient(syncCriteriaFromVerifiedCrf);
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {workflowStep !== "step1_triage" && (
+                    <button
+                      type="button"
+                      id="crf-btn-back"
+                      onClick={() =>
+                        setWorkflowStep(workflowStep === "step3_signoff" ? "step2_review" : "step1_triage")
                       }
-                      setWorkflowStep(nextStep);
-                    }}
-                    className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
-                  >
-                    {workflowStep === "step1_triage"
-                      ? isVi ? "Tiếp tục: Rà soát CRF" : "Continue: Review CRF"
-                      : isVi ? "Tiếp tục: Phê duyệt & Bảng điểm" : "Continue: Approve & Scores"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    id="crf-btn-signoff"
-                    onClick={handleSignOffCrf}
-                    className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
-                  >
-                    {isVi ? "Phê duyệt & Ký CRF" : "Approve & Sign Off CRF"}
-                  </button>
-                )}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer"
+                    >
+                      {isVi ? "Quay lại" : "Back"}
+                    </button>
+                  )}
+                  {workflowStep === "step1_triage" && triageStats.unresolved > 0 && (
+                    <button
+                      type="button"
+                      id="crf-btn-next-unresolved"
+                      onClick={handleJumpNextUnresolved}
+                      className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-xs font-semibold text-rose-800 hover:bg-rose-50 cursor-pointer"
+                    >
+                      {isVi ? "Tới mục tiếp theo" : "Next unresolved field"}
+                    </button>
+                  )}
+                  {workflowStep === "step2_review" && (
+                    <button
+                      type="button"
+                      id="crf-btn-autoscore"
+                      onClick={handleAutoSuggestScores}
+                      className="rounded-xl border border-teal-700/40 bg-teal-50 px-4 py-2.5 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
+                    >
+                      {isVi ? "Tự động tính điểm" : "Auto-calculate scores"}
+                    </button>
+                  )}
+                  {workflowStep !== "step3_signoff" ? (
+                    <button
+                      type="button"
+                      id="crf-btn-continue"
+                      onClick={() => {
+                        const nextStep =
+                          workflowStep === "step1_triage"
+                            ? "step2_review"
+                            : "step3_signoff";
+                        if (nextStep === "step3_signoff") {
+                          patchPatient(syncCriteriaFromVerifiedCrf);
+                        }
+                        setWorkflowStep(nextStep);
+                      }}
+                      className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
+                    >
+                      {workflowStep === "step1_triage"
+                        ? isVi ? "Tiếp tục: Rà soát CRF" : "Continue: Review CRF"
+                        : isVi ? "Tiếp tục: Phê duyệt & Bảng điểm" : "Continue: Approve & Scores"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      id="crf-btn-signoff"
+                      onClick={handleSignOffCrf}
+                      className="rounded-xl bg-teal-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-teal-800 cursor-pointer"
+                    >
+                      {isVi ? "Phê duyệt & Ký CRF" : "Approve & Sign Off CRF"}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Create New Patient CRF Modal */}
-      {isNewPatientModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-new-crf-title"
-        >
-          <form
-            onSubmit={handleCreatePatientSubmit}
-            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
-          >
-            <h2 id="modal-new-crf-title" className="text-base font-bold text-slate-900">
-              {isVi
-                ? "Khởi tạo Hồ sơ Bệnh án SLE (CRF) Mới"
-                : "Create New SLE Case Report Form (CRF)"}
-            </h2>
-            <p className="mt-1 text-xs text-slate-600">
-              {isVi
-                ? "Tạo hồ sơ bệnh nhân mới theo mẫu chuẩn Vinmec MDDU SLE CRF."
-                : "Initialize a new patient CRF record with the Vinmec MDDU SLE schema."}
-            </p>
-            <div className="mt-4 space-y-3">
-              <div>
-                <label htmlFor="modal-new-study-id" className="block text-xs font-semibold text-slate-700">
-                  Study ID (XX-XXXX-XX)
-                </label>
-                <input
-                  id="modal-new-study-id"
-                  type="text"
-                  autoCorrect="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  placeholder="VN-0125-26"
-                  value={newStudyId}
-                  onChange={(e) => setNewStudyId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"
-                />
-              </div>
-              <div>
-                <label htmlFor="modal-new-patient-name" className="block text-xs font-semibold text-slate-700">
-                  {isVi ? "Họ và Tên Bệnh nhân" : "Patient Full Name"}
-                </label>
-                <input
-                  id="modal-new-patient-name"
-                  type="text"
-                  autoComplete="name"
-                  placeholder="Nguyen Thi Thu"
-                  value={newPatientName}
-                  onChange={(e) => setNewPatientName(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs"
-                />
-              </div>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsNewPatientModalOpen(false)}
-                className="rounded-lg border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-700 cursor-pointer"
-              >
-                {isVi ? "Hủy" : "Cancel"}
-              </button>
-              <button
-                type="submit"
-                className="rounded-lg bg-teal-700 px-4 py-1.5 text-xs font-semibold text-white hover:bg-teal-800 cursor-pointer"
-              >
-                {isVi ? "Tạo Hồ sơ CRF" : "Create CRF"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* Full CRF JSON Preview Modal */}
       {isJsonModalOpen && (

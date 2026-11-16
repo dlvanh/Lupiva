@@ -36,6 +36,7 @@ export interface CrfOcrField {
   status: OcrTierStatus;
   clinicalNoteEn?: string;
   clinicalNoteVi?: string;
+  notReturnedByOcr?: boolean;
 }
 
 export type CrfSectionId =
@@ -87,6 +88,7 @@ export interface CrfAntibodyBlotRow {
   printedIntensity: string;
   confidence: number;
   status: OcrTierStatus;
+  notReturnedByOcr?: boolean;
 }
 
 export interface EularAcrCriterionItem {
@@ -2657,6 +2659,99 @@ export const INITIAL_CRF_PATIENTS: SleCrfPatientRecord[] = [
     buildDefaultSledai2kCriteria,
   }),
 ];
+
+/**
+ * Merges a patient's OCR-extracted fields with the canonical SLE e-CRF schema
+ * so that any canonical test not returned by OCR is represented with "N/A".
+ */
+export function getResolvedPatientOcrFields(
+  patient: SleCrfPatientRecord
+): CrfOcrField[] {
+  const canonicalFields = INITIAL_CRF_PATIENTS[0]?.ocrFields ?? [];
+  const byCode = new Map(patient.ocrFields.map((f) => [f.code, f]));
+  const resolved: CrfOcrField[] = [];
+  const seenCodes = new Set<string>();
+
+  for (const tmpl of canonicalFields) {
+    seenCodes.add(tmpl.code);
+    const existing = byCode.get(tmpl.code);
+    if (existing) {
+      resolved.push(existing);
+    } else {
+      resolved.push({
+        ...tmpl,
+        id: `${patient.id}-na-${tmpl.code.toLowerCase()}`,
+        value: "N/A",
+        printedValue: "N/A",
+        secondaryValue:
+          tmpl.printedSecondaryValue !== undefined ? "N/A" : undefined,
+        printedSecondaryValue:
+          tmpl.printedSecondaryValue !== undefined ? "N/A" : undefined,
+        flag: "Normal",
+        confidence: 100,
+        status: "auto_approved",
+        clinicalNoteEn: undefined,
+        clinicalNoteVi: undefined,
+        notReturnedByOcr: true,
+      });
+    }
+  }
+
+  for (const extra of patient.ocrFields) {
+    if (!seenCodes.has(extra.code)) {
+      resolved.push(extra);
+    }
+  }
+
+  return resolved;
+}
+
+/**
+ * Merges a patient's immunoblot rows with the canonical ANA Profile 23 and
+ * Myositis 16 panels so any antibody not returned by OCR displays "N/A".
+ */
+export function getResolvedPatientAntibodyBlots(
+  patient: SleCrfPatientRecord
+): CrfAntibodyBlotRow[] {
+  const canonicalBlots = INITIAL_CRF_PATIENTS[0]?.antibodyBlots ?? [];
+  const byKey = new Map<string, CrfAntibodyBlotRow>();
+  for (const b of patient.antibodyBlots) {
+    byKey.set(`${b.panel}:${b.code}`, b);
+  }
+
+  const resolved: CrfAntibodyBlotRow[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const tmpl of canonicalBlots) {
+    const key = `${tmpl.panel}:${tmpl.code}`;
+    seenKeys.add(key);
+    const existing = byKey.get(key);
+    if (existing) {
+      resolved.push(existing);
+    } else {
+      resolved.push({
+        ...tmpl,
+        id: `${patient.id}-na-${tmpl.panel}-${tmpl.code.toLowerCase()}`,
+        result: "",
+        printedResult: "Negative",
+        intensity: "N/A",
+        printedIntensity: "N/A",
+        confidence: 100,
+        status: "auto_approved",
+        notReturnedByOcr: true,
+      });
+    }
+  }
+
+  for (const extra of patient.antibodyBlots) {
+    const key = `${extra.panel}:${extra.code}`;
+    if (!seenKeys.has(key)) {
+      resolved.push(extra);
+    }
+  }
+
+  return resolved;
+}
 
 /**
  * Computes EULAR/ACR 2019 total score according to official domain-maximum rule:

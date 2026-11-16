@@ -9,6 +9,8 @@ import {
   SleCrfPatientRecord,
   calculateEularAcrSummary,
   calculateSledai2kSummary,
+  getResolvedPatientAntibodyBlots,
+  getResolvedPatientOcrFields,
 } from "@/data/crfData";
 
 interface Props {
@@ -16,6 +18,7 @@ interface Props {
   isVi: boolean;
   bmi: string;
   selectedId: string;
+  readOnly?: boolean;
   onSelect: (id: string) => void;
   onUpdateField: (id: string, updates: Partial<CrfOcrField>) => void;
   onVerifyField: (field: CrfOcrField) => void;
@@ -92,6 +95,7 @@ export function DocxCrfView({
   isVi,
   bmi,
   selectedId,
+  readOnly = false,
   onSelect,
   onUpdateField,
   onVerifyField,
@@ -102,16 +106,23 @@ export function DocxCrfView({
     p.anaEntryCriterionMet
   );
   const sledai = calculateSledai2kSummary(p.sledai2kCriteria);
+  const resolvedOcrFields = getResolvedPatientOcrFields(p);
+  const resolvedBlots = getResolvedPatientAntibodyBlots(p);
 
   const confCell = (
     conf: number,
     isManual: boolean,
     isVerify: boolean,
     onVerify: () => void,
-    onFill?: () => void
+    onFill?: () => void,
+    isNotReturned = false
   ) => (
     <td className={`${TD} whitespace-nowrap font-sans`}>
-      {isManual ? (
+      {isNotReturned ? (
+        <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+          N/A
+        </span>
+      ) : isManual ? (
         <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-900">
           <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-rose-600" />
           <span>&lt;80% ({conf}%)</span>
@@ -127,7 +138,7 @@ export function DocxCrfView({
           <span>{conf}%</span>
         </span>
       )}
-      {isManual && onFill && (
+      {!readOnly && !isNotReturned && isManual && onFill && (
         <button
           type="button"
           onClick={onFill}
@@ -136,7 +147,7 @@ export function DocxCrfView({
           {isVi ? "Nhập từ bản gốc" : "Fill from scan"}
         </button>
       )}
-      {isVerify && (
+      {!readOnly && !isNotReturned && isVerify && (
         <button
           type="button"
           onClick={onVerify}
@@ -161,8 +172,13 @@ export function DocxCrfView({
       </thead>
       <tbody>
         {fields.map((f) => {
-          const isManual = f.status === "manual_required" || !f.value.trim();
-          const isVerify = f.status === "needs_verify" && !!f.value.trim();
+          const isNotReturned =
+            Boolean(f.notReturnedByOcr) || (readOnly && !f.value.trim());
+          const isManual =
+            !isNotReturned && (f.status === "manual_required" || !f.value.trim());
+          const isVerify =
+            !isNotReturned && f.status === "needs_verify" && !!f.value.trim();
+          const locked = readOnly || Boolean(f.notReturnedByOcr);
           return (
             <tr
               key={f.id}
@@ -182,23 +198,33 @@ export function DocxCrfView({
                 <input
                   id={`crf-input-${f.id}`}
                   aria-label={`Result for ${f.labelEn}`}
-                  value={f.value}
+                  value={isNotReturned ? "N/A" : f.value}
+                  readOnly={locked}
+                  disabled={locked}
                   placeholder={isManual ? "Check scan…" : ""}
                   onFocus={() => onSelect(f.id)}
-                  onChange={(e) =>
-                    onUpdateField(f.id, { value: e.target.value })
-                  }
-                  className="w-36 border-b border-slate-400 bg-transparent font-bold focus:outline-none focus:border-teal-700"
+                  onChange={(e) => {
+                    if (locked) return;
+                    onUpdateField(f.id, { value: e.target.value });
+                  }}
+                  className="w-36 border-b border-slate-400 bg-transparent font-bold focus:outline-none focus:border-teal-700 disabled:border-transparent disabled:text-black"
                 />
                 {withPct && (
                   <input
                     aria-label={`% predicted for ${f.labelEn}`}
-                    value={f.secondaryValue || ""}
-                    placeholder="% pred"
-                    onChange={(e) =>
-                      onUpdateField(f.id, { secondaryValue: e.target.value })
+                    value={
+                      isNotReturned || (readOnly && !(f.secondaryValue || "").trim())
+                        ? "N/A"
+                        : f.secondaryValue || ""
                     }
-                    className="ml-2 w-16 border-b border-slate-400 bg-transparent focus:outline-none"
+                    readOnly={locked}
+                    disabled={locked}
+                    placeholder="% pred"
+                    onChange={(e) => {
+                      if (locked) return;
+                      onUpdateField(f.id, { secondaryValue: e.target.value });
+                    }}
+                    className="ml-2 w-16 border-b border-slate-400 bg-transparent focus:outline-none disabled:border-transparent disabled:text-black"
                   />
                 )}
               </td>
@@ -214,7 +240,8 @@ export function DocxCrfView({
                     value: f.printedValue,
                     secondaryValue: f.printedSecondaryValue,
                     status: "user_verified",
-                  })
+                  }),
+                isNotReturned
               )}
             </tr>
           );
@@ -224,7 +251,7 @@ export function DocxCrfView({
   );
 
   const sub = (name: string) =>
-    p.ocrFields.filter((f) => f.subSectionEn === name);
+    resolvedOcrFields.filter((f) => f.subSectionEn === name);
 
   const blotTable = (panel: "ana23" | "myositis16") => (
     <table className="w-full border-collapse border border-black">
@@ -239,11 +266,16 @@ export function DocxCrfView({
         </tr>
       </thead>
       <tbody>
-        {p.antibodyBlots
+        {resolvedBlots
           .filter((b) => b.panel === panel)
           .map((b) => {
-            const isManual = b.status === "manual_required" || !b.result;
-            const isVerify = b.status === "needs_verify" && !!b.result;
+            const isNotReturned =
+              Boolean(b.notReturnedByOcr) || (readOnly && !b.result);
+            const isManual =
+              !isNotReturned && (b.status === "manual_required" || !b.result);
+            const isVerify =
+              !isNotReturned && b.status === "needs_verify" && !!b.result;
+            const locked = readOnly || Boolean(b.notReturnedByOcr);
             return (
               <tr
                 key={b.id}
@@ -254,29 +286,44 @@ export function DocxCrfView({
                 <td className={TD}>{b.name}</td>
                 {(["Negative", "Positive", "Borderline"] as const).map((o) => (
                   <td key={o} className={`${TD} text-center`}>
-                    <button
-                      type="button"
-                      aria-label={`${b.name} ${o}`}
-                      onClick={() =>
-                        onUpdateBlot(b.id, {
-                          result: o as BlotResultStatus,
-                          intensity: b.intensity || b.printedIntensity,
-                        })
-                      }
-                      className="cursor-pointer text-[14px]"
-                    >
-                      {box(b.result === o)}
-                    </button>
+                    {isNotReturned ? (
+                      <span className="font-mono text-[10px] text-slate-600">
+                        N/A
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-label={`${b.name} ${o}`}
+                        disabled={locked}
+                        onClick={() => {
+                          if (locked) return;
+                          onUpdateBlot(b.id, {
+                            result: o as BlotResultStatus,
+                            intensity: b.intensity || b.printedIntensity,
+                          });
+                        }}
+                        className="cursor-pointer text-[14px] disabled:cursor-default"
+                      >
+                        {box(b.result === o)}
+                      </button>
+                    )}
                   </td>
                 ))}
                 <td className={TD}>
                   <input
                     aria-label={`Intensity for ${b.name}`}
-                    value={b.intensity}
-                    onChange={(e) =>
-                      onUpdateBlot(b.id, { intensity: e.target.value })
+                    value={
+                      isNotReturned || (readOnly && !b.intensity.trim())
+                        ? "N/A"
+                        : b.intensity
                     }
-                    className="w-20 border-b border-slate-400 bg-transparent focus:outline-none"
+                    readOnly={locked}
+                    disabled={locked}
+                    onChange={(e) => {
+                      if (locked) return;
+                      onUpdateBlot(b.id, { intensity: e.target.value });
+                    }}
+                    className="w-20 border-b border-slate-400 bg-transparent focus:outline-none disabled:border-transparent disabled:text-black"
                   />
                 </td>
                 {confCell(
@@ -289,7 +336,8 @@ export function DocxCrfView({
                       result: b.printedResult,
                       intensity: b.printedIntensity,
                       status: "user_verified",
-                    })
+                    }),
+                  isNotReturned
                 )}
               </tr>
             );
@@ -334,7 +382,7 @@ export function DocxCrfView({
       {p.gender === "Female" && (
         <>
           <Sub>Pregnancy — if female</Sub>
-          {ocrTable(p.ocrFields.filter((f) => f.code === "BETA-HCG"))}
+          {ocrTable(resolvedOcrFields.filter((f) => f.code === "BETA-HCG"))}
         </>
       )}
       <Sub>Malignant disease</Sub>
@@ -395,7 +443,7 @@ export function DocxCrfView({
       )}
       <Sub>Infectious diseases screening</Sub>
       {ocrTable(
-        p.ocrFields.filter(
+        resolvedOcrFields.filter(
           (f) => f.sectionId === "medical_history" && f.code !== "BETA-HCG"
         )
       )}
@@ -521,7 +569,7 @@ export function DocxCrfView({
       {p.giDisorders === "YES" && <Checklist items={p.giItems} />}
 
       <H>Immunology tests</H>
-      {ocrTable(p.ocrFields.filter((f) => f.sectionId === "immunology"))}
+      {ocrTable(resolvedOcrFields.filter((f) => f.sectionId === "immunology"))}
       <Sub>ANA (Profile 23)</Sub>
       {blotTable("ana23")}
       <Sub>Autoimmune myositis antibody panel</Sub>

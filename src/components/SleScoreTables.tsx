@@ -358,18 +358,18 @@ export function SleScoreTables({
             {["COMP-C3", "COMP-C4", "ANTI-DSDNA", "UPROT-24H", "WBC-TOTAL"].map(
               (code) => {
                 const f = patient.ocrFields.find((item) => item.code === code);
-                if (!f) return null;
+                const val = f?.value.trim() ? f.value : "N/A";
+                const isNormal = !f || f.notReturnedByOcr || f.flag === "Normal";
                 return (
                   <span
                     key={code}
                     className={`rounded border px-1.5 py-0.5 ${
-                      f.flag === "Normal"
+                      isNormal
                         ? "border-slate-200 bg-slate-50 text-slate-700"
                         : "border-rose-200 bg-rose-50 text-rose-800"
                     }`}
                   >
-                    {code.replace("-TOTAL", "").replace("COMP-", "")}:{" "}
-                    {f.value || "—"}
+                    {code.replace("-TOTAL", "").replace("COMP-", "")}: {val}
                   </span>
                 );
               }
