@@ -206,6 +206,7 @@ function FieldRow({
   const date = source ? optionDate(source, sources) : undefined;
   return (
     <div
+      id={`slot-${field.slot}`}
       className={`grid cursor-pointer grid-cols-1 gap-1 border-b border-slate-100 px-2 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] ${
         active ? "bg-sky-50" : "hover:bg-slate-50"
       }`}
@@ -336,7 +337,15 @@ export default function RegistryCrfPage() {
             setError("Hồ sơ này chưa có phiếu CRF ở backend (intake chưa xong hoặc chưa tạo ca).");
           }
         }
-        if (initial && !cancelled && summary.cases.some((item) => item.case_id === initial)) await load(initial);
+        if (initial && !cancelled && summary.cases.some((item) => item.case_id === initial)) {
+          await load(initial);
+          // Opened from the CRF form: show that field and its source.
+          const slot = params.get("slot");
+          if (slot && !cancelled) {
+            setActiveSlot(slot);
+            setTimeout(() => document.getElementById(`slot-${slot}`)?.scrollIntoView({ block: "center" }), 50);
+          }
+        }
       } catch (reason) {
         if (!cancelled) setError((reason as Error).message);
       }
@@ -509,7 +518,10 @@ export default function RegistryCrfPage() {
               </section>
             ))}
             {groups.unknown.length > 0 && (
-              <details className="mt-5 rounded border border-slate-200 bg-white p-4">
+              <details
+                className="mt-5 rounded border border-slate-200 bg-white p-4"
+                open={groups.unknown.some((field) => field.slot === activeSlot) || undefined}
+              >
                 <summary className="cursor-pointer font-medium text-slate-800">
                   Câu hỏi lâm sàng chưa có dữ kiện ({groups.unknown.length})
                   <span className="ml-2 text-xs font-normal text-slate-500">

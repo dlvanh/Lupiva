@@ -65,6 +65,7 @@ export function Navbar() {
           { href: "/", label: isVi ? "Tổng quan" : "Overview", id: "nav-link-home" },
           { href: "/upload", label: isVi ? "Hồ sơ Bệnh nhân" : "Patient Submissions", id: "nav-link-upload" },
           { href: "/registry", label: isVi ? "Duyệt hồ sơ" : "Review", id: "nav-link-registry" },
+          { href: "/crf-form", label: isVi ? "Phiếu CRF" : "CRF form", id: "nav-link-crf-form" },
         ]
       : [
           { href: "/", label: isVi ? "Tổng quan" : "Overview", id: "nav-link-home" },

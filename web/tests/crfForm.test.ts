@@ -1,0 +1,78 @@
+import { describe, expect, it } from "vitest";
+import { approvedCriteria, cellKey, placeFields, shownNote, shownValue, type LayoutBlock } from "@/lib/crfForm";
+import type { CrfField } from "@/lib/crfApproval";
+
+const YNU = [
+  { code: "yes", label: "Có" },
+  { code: "no", label: "Không" },
+  { code: "unknown", label: "Chưa rõ" },
+];
+const field = (over: Partial<CrfField> & { template_block?: number }): CrfField =>
+  ({ slot: "X01/result", label: "X", section: "S", component: "result", choices: [], options: [], ...over }) as CrfField;
+
+describe("shownValue", () => {
+  const question = field({
+    slot: "SKN01/result",
+    choices: YNU,
+    proposal: { id: "p", value: "unknown", origin: "no_evidence" },
+  });
+  it("prints the proposal itself with a note", () => {
+    const shown = shownValue(question, undefined)!;
+    expect(shown.text).toBe("Chưa rõ");
+    expect(shown.kind).toBe("proposal");
+    expect(shownNote(shown)).toContain("chưa duyệt");
+  });
+  it("prefers the approved value, then the source value", () => {
+    expect(shownValue(question, { "SKN01/result": { value: "no" } })).toMatchObject({ text: "Không", kind: "approved" });
+    const lab = field({ options: [{ id: "a", value: "4.36 T/L" }, { id: "b", value: "4.38 T/L" }] });
+    expect(shownValue(lab, undefined)).toMatchObject({ text: "4.36 T/L", kind: "source", more: 1 });
+    expect(shownValue(field({}), undefined)).toBeNull();
+  });
+});
+
+describe("placeFields", () => {
+  const layout: LayoutBlock[] = [
+    { index: 1, text: "CRF" },
+    { index: 2, text: "☐  YES ☐  NO", checkbox_slot: "HIS01/result", checkbox_values: ["yes", "no"] },
+    {
+      index: 3,
+      rows: [
+        [{ text: "Antigen" }, { text: "Negative" }, { text: "Positive" }, { text: "Note" }],
+        [{ text: "Ro-52" }, { text: "" }, { text: "" }, { text: "" }],
+        [{ text: "Hb" }, { text: "", field_id: "HEM02" }],
+      ],
+    },
+  ];
+  const fields = [
+    field({ slot: "HIS01/result", choices: YNU, proposal: { id: "h", value: "no", origin: "no_evidence" } }),
+    field({ slot: "HEM02/result", options: [{ id: "hb", value: "135 g/L" }] }),
+    field({ slot: "MYO14/result", label: "Ro-52", template_block: 2, options: [{ id: "r", value: "0 Negative" }] }),
+    field({ slot: "ZZ01/result", label: "Elsewhere", section: "Khác", template_block: 2, options: [{ id: "z", value: "1" }] }),
+  ];
+  const placed = placeFields(layout, fields, undefined, false);
+
+  it("puts bound fields in their cell and labelled fields in their template row", () => {
+    expect(placed.inCell.get(cellKey(3, 2, 1))?.map((f) => f.slot)).toEqual(["HEM02/result"]);
+    expect(placed.inCell.get(cellKey(3, 1, 3))?.map((f) => f.slot)).toEqual(["MYO14/result"]);
+  });
+  it("ticks the printed result column and does not repeat checkbox answers", () => {
+    expect(placed.ticks.has(cellKey(3, 1, 1))).toBe(true);
+    expect([...placed.inCell.values()].flat().some((f) => f.slot === "HIS01/result")).toBe(false);
+  });
+  it("lists fields without a template place after their block", () => {
+    expect(placed.after.get(2)?.[0]).toMatchObject({ section: "Khác" });
+  });
+});
+
+describe("approvedCriteria", () => {
+  it("sends only approved yes/no criteria and never the totals", () => {
+    const form = { eular: [{ field_id: "EAC01" }, { field_id: "EAC22" }], sledai: [{ field_id: "SDA23" }, { field_id: "SDA01" }] };
+    const approved = {
+      "EAC01/result": { value: "yes" },
+      "EAC22/result": { value: "12" },
+      "SDA23/result": { value: "no" },
+      "SDA01/result": { value: "unknown" },
+    };
+    expect(approvedCriteria(form, approved)).toEqual({ EAC01: "yes", SDA23: "no" });
+  });
+});
