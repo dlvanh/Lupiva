@@ -4,10 +4,10 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import unittest
 from unittest.mock import Mock, patch
 
 from PIL import Image
-import pytest
 
 from ocr_pool.gemini import (InvalidAPIResponse, configuration, extract_image, response_schema,
                              validate_response)
@@ -59,7 +59,7 @@ def strict_objects(schema):
             strict_objects(value)
 
 
-def test_compact_schema_is_strict_and_preserves_core_and_extra_types():
+def check_compact_schema_is_strict_and_preserves_core_and_extra_types():
     base = response_schema(DICTIONARY)
     original = deepcopy(base)
     schema = compact_extraction_schema(base, DICTIONARY)
@@ -78,11 +78,11 @@ def test_compact_schema_is_strict_and_preserves_core_and_extra_types():
     validate_response(compact_document(document(full_row())), schema)
     invalid = compact_document(document(full_row()))
     invalid['rows'][0]['table_kind'] = 'unsupported_table_kind'   # a core enum
-    with pytest.raises(ValueError):
+    with unittest.TestCase().assertRaises(ValueError):
         validate_response(invalid, schema)
 
 
-def test_expand_matches_full_response_and_normalization():
+def check_expand_matches_full_response_and_normalization():
     annotation = dict(text='2+', placement='result_cell', association='confirmed', writing_style='printed')
     full = document(full_row(method_raw='Enzymatic', source_flag_raw='H'),
         full_row(field_id=None, source_label='Synthetic ANA', raw_result='Speckled',
@@ -101,7 +101,7 @@ def test_expand_matches_full_response_and_normalization():
     assert compact == original
 
 
-def test_expand_empty_extras_fills_every_missing_field_with_none():
+def check_expand_empty_extras_fills_every_missing_field_with_none():
     raw = document({**{key: full_row()[key] for key in CORE_ROW_KEYS}, 'extra': []})
     expanded = expand_compact_extraction(raw)
     assert expanded['rows'] == [full_row(**dict.fromkeys((*EXTRA_ROW_KEYS, 'grade_annotation')))]
@@ -109,7 +109,7 @@ def test_expand_empty_extras_fills_every_missing_field_with_none():
     assert expand_compact_extraction(document()) == document()
 
 
-def test_duplicate_and_unknown_extras_keep_first_without_overwriting_core():
+def check_duplicate_and_unknown_extras_keep_first_without_overwriting_core():
     raw = document(compact_row(full_row()))
     raw['warnings'] = ['Original warning']
     raw['rows'][0]['extra'] += [
@@ -130,9 +130,7 @@ def test_duplicate_and_unknown_extras_keep_first_without_overwriting_core():
     assert raw == original
 
 
-@pytest.mark.parametrize('engine', ['gemini', 'tokenharbor'])
-@pytest.mark.parametrize('setting', [None, '0', '1'])
-def test_configuration_compact_rows_is_opt_in_without_touching_env(engine, setting):
+def check_configuration_compact_rows_is_opt_in_without_touching_env(engine, setting):
     prefix = engine.upper()
     text = f'{prefix}_API_KEY=synthetic-key\n{prefix}_MODEL=synthetic-model\n'
     if setting is not None:
@@ -171,8 +169,7 @@ def fake_extraction(raw, *, native, engine='gemini', compact_rows=None):
     return record, requests[0]
 
 
-@pytest.mark.parametrize('native,engine', [(True, 'gemini'), (False, 'gemini'), (False, 'tokenharbor')])
-def test_compact_transport_schema_prompt_and_immutable_audits(native, engine):
+def check_compact_transport_schema_prompt_and_immutable_audits(native, engine):
     full = document(full_row(method_raw='Enzymatic'))
     raw = compact_document(full)
     record, payload = fake_extraction(raw, native=native, engine=engine, compact_rows=True)
@@ -194,7 +191,7 @@ def test_compact_transport_schema_prompt_and_immutable_audits(native, engine):
             name='clinical_extraction', strict=True, schema=schema))
 
 
-def test_transport_warns_about_unknown_and_duplicate_extras_without_losing_raw():
+def check_transport_warns_about_unknown_and_duplicate_extras_without_losing_raw():
     raw = compact_document(document(full_row()))
     raw['rows'][0]['extra'] += [dict(key='method_raw', value='First method'),
         dict(key='method_raw', value='Second method'), dict(key='future_key', value='Unknown value')]
@@ -206,18 +203,14 @@ def test_transport_warns_about_unknown_and_duplicate_extras_without_losing_raw()
     assert 'unknown' in record['extraction']['warnings'][1]
 
 
-@pytest.mark.parametrize('extra', [dict(key='source_header', value=123),
-    dict(key='method_raw', value=123), dict(key='unknown'),
-    dict(key='unknown', value='text', unexpected=True)])
-def test_compact_transport_still_rejects_invalid_known_values_and_malformed_items(extra):
+def check_compact_transport_still_rejects_invalid_known_values_and_malformed_items(extra):
     raw = compact_document(document(full_row()))
     raw['rows'][0]['extra'].append(extra)
-    with pytest.raises(InvalidAPIResponse, match='schema validation'):
+    with unittest.TestCase().assertRaisesRegex(InvalidAPIResponse, 'schema validation'):
         fake_extraction(raw, native=False, engine='tokenharbor', compact_rows=True)
 
 
-@pytest.mark.parametrize('native,engine', [(True, 'gemini'), (False, 'gemini'), (False, 'tokenharbor')])
-def test_default_contract_prompt_schema_and_payload_are_unchanged(native, engine):
+def check_default_contract_prompt_schema_and_payload_are_unchanged(native, engine):
     full = document(full_row())
     record, payload = fake_extraction(full, native=native, engine=engine)
     disabled, disabled_payload = fake_extraction(full, native=native, engine=engine, compact_rows=False)
@@ -252,8 +245,7 @@ def test_default_contract_prompt_schema_and_payload_are_unchanged(native, engine
             dict(type='json_schema', json_schema=dict(name='clinical_extraction', strict=True, schema=schema)))
 
 
-@pytest.mark.parametrize('initial_compact,review_compact', [(True, True), (True, False), (False, True)])
-def test_verification_merges_expanded_rows_and_keeps_both_raw_records(initial_compact, review_compact):
+def check_verification_merges_expanded_rows_and_keeps_both_raw_records(initial_compact, review_compact):
     initial = document(full_row(numeric_value='9.9', class_raw='I', class_header=None))
     reviewed = document(full_row(class_raw='I', class_header='Class'))
 
@@ -280,8 +272,7 @@ def test_verification_merges_expanded_rows_and_keeps_both_raw_records(initial_co
     reviewer.assert_called_once()
 
 
-@pytest.mark.parametrize('profile', ['lab', 'pft'])
-def test_fast_profiles_ignore_compact_mode_and_keep_their_existing_contract(profile):
+def check_fast_profiles_ignore_compact_mode_and_keep_their_existing_contract(profile):
     from ocr_pool import lab_api, pft_api
 
     config = dict(model='synthetic', key='synthetic')
@@ -313,7 +304,7 @@ def test_fast_profiles_ignore_compact_mode_and_keep_their_existing_contract(prof
     assert records[0]['request_contract']['schema'] == module.SCHEMA
 
 
-def test_twenty_row_sparse_table_size_reduction():
+def check_twenty_row_sparse_table_size_reduction():
     analytes = [('Glucose', '5.4', 'mmol/L'), ('Creatinine', '78', 'umol/L'),
         ('Urea', '4.8', 'mmol/L'), ('Sodium', '139', 'mmol/L'), ('Potassium', '4.1', 'mmol/L'),
         ('Chloride', '102', 'mmol/L'), ('Calcium', '2.31', 'mmol/L'), ('Phosphate', '1.12', 'mmol/L'),
@@ -331,3 +322,62 @@ def test_twenty_row_sparse_table_size_reduction():
           f'reduction={1 - compact_size / full_size:.1%}')
     assert compact_size < full_size * 0.80
     assert expand_compact_extraction(compact) == full
+
+
+class CompactExtractionTests(unittest.TestCase):
+    def test_compact_schema_is_strict_and_preserves_core_and_extra_types(self):
+        check_compact_schema_is_strict_and_preserves_core_and_extra_types()
+
+    def test_expand_matches_full_response_and_normalization(self):
+        check_expand_matches_full_response_and_normalization()
+
+    def test_expand_empty_extras_fills_every_missing_field_with_none(self):
+        check_expand_empty_extras_fills_every_missing_field_with_none()
+
+    def test_duplicate_and_unknown_extras_keep_first_without_overwriting_core(self):
+        check_duplicate_and_unknown_extras_keep_first_without_overwriting_core()
+
+    def test_configuration_compact_rows_is_opt_in_without_touching_env(self):
+        for engine in ('gemini', 'tokenharbor'):
+            for setting in (None, '0', '1'):
+                with self.subTest(engine=engine, setting=setting):
+                    check_configuration_compact_rows_is_opt_in_without_touching_env(engine, setting)
+
+    def test_compact_transport_schema_prompt_and_immutable_audits(self):
+        for native, engine in ENGINES:
+            with self.subTest(native=native, engine=engine):
+                check_compact_transport_schema_prompt_and_immutable_audits(native, engine)
+
+    def test_transport_warns_about_unknown_and_duplicate_extras_without_losing_raw(self):
+        check_transport_warns_about_unknown_and_duplicate_extras_without_losing_raw()
+
+    def test_compact_transport_still_rejects_invalid_known_values_and_malformed_items(self):
+        for extra in (dict(key='source_header', value=123), dict(key='method_raw', value=123),
+                      dict(key='unknown'), dict(key='unknown', value='text', unexpected=True)):
+            with self.subTest(extra=extra):
+                check_compact_transport_still_rejects_invalid_known_values_and_malformed_items(extra)
+
+    def test_default_contract_prompt_schema_and_payload_are_unchanged(self):
+        for native, engine in ENGINES:
+            with self.subTest(native=native, engine=engine):
+                check_default_contract_prompt_schema_and_payload_are_unchanged(native, engine)
+
+    def test_verification_merges_expanded_rows_and_keeps_both_raw_records(self):
+        for initial_compact, review_compact in ((True, True), (True, False), (False, True)):
+            with self.subTest(initial_compact=initial_compact, review_compact=review_compact):
+                check_verification_merges_expanded_rows_and_keeps_both_raw_records(initial_compact, review_compact)
+
+    def test_fast_profiles_ignore_compact_mode_and_keep_their_existing_contract(self):
+        for profile in ('lab', 'pft'):
+            with self.subTest(profile=profile):
+                check_fast_profiles_ignore_compact_mode_and_keep_their_existing_contract(profile)
+
+    def test_twenty_row_sparse_table_size_reduction(self):
+        check_twenty_row_sparse_table_size_reduction()
+
+
+ENGINES = ((True, 'gemini'), (False, 'gemini'), (False, 'tokenharbor'))
+
+
+if __name__ == '__main__':
+    unittest.main()
