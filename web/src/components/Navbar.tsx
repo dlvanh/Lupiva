@@ -93,7 +93,7 @@ export function Navbar() {
       >
         {isVi ? "Chuyển tới nội dung chính" : "Skip to main content"}
       </a>
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md">
+      <header className="print:hidden sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-2.5 sm:px-6 lg:px-8">
           {/* Left: Inline Brand Logo + Menu Bar */}
           <div className="flex flex-wrap items-center gap-6">

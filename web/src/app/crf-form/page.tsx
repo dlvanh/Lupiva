@@ -46,6 +46,9 @@ const COMPONENT: Record<string, string> = {
   method: "Phương pháp",
 };
 
+/** "Chưa rõ" is shown on screen but printed as a blank, like an unanswered paper form. */
+const blankOnPrint = (shown: Shown | null) => shown?.value === "unknown";
+
 const NOTE_TONE: Record<Shown["kind"], string> = {
   approved: "text-emerald-700",
   source: "text-slate-500",
@@ -70,7 +73,7 @@ async function backend<T>(path: string, query?: Record<string, string>, body?: u
 function Value({ field, shown, caseId, withLabel }: { field: CrfField; shown: Shown; caseId: string; withLabel: boolean }) {
   const component = COMPONENT[field.component];
   return (
-    <span className="mr-2 inline-block">
+    <span className={`mr-2 inline-block ${blankOnPrint(shown) ? "print:hidden" : ""}`}>
       {withLabel && component && <span className="text-xs text-slate-500">{component}: </span>}
       <Link
         href={`/registry?case=${encodeURIComponent(caseId)}&slot=${encodeURIComponent(field.slot)}`}
@@ -79,7 +82,7 @@ function Value({ field, shown, caseId, withLabel }: { field: CrfField; shown: Sh
       >
         {shown.text}
       </Link>
-      <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]}`}>({shownNote(shown)})</span>
+      <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
     </span>
   );
 }
@@ -94,10 +97,17 @@ function Checkboxes({ spec, shown }: { spec: CheckboxSpec; shown: Shown | null }
         const checked = shown?.value === code;
         return (
           <span key={code} className="mr-2">
-            {checked ? "☑" : "☐"}
+            {checked && !blankOnPrint(shown) ? "☑" : checked ? (
+              <>
+                <span className="print:hidden">☑</span>
+                <span className="hidden print:inline">☐</span>
+              </>
+            ) : (
+              "☐"
+            )}
             {parts[index + 1] ?? ""}
             {checked && shown && shown.kind !== "approved" && (
-              <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]}`}>({shownNote(shown)})</span>
+              <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
             )}
           </span>
         );
@@ -221,14 +231,15 @@ export default function CrfFormPage() {
           used.add(field.slot);
           return (
             <div key={index} className="whitespace-pre-wrap">
+              {blankOnPrint(shown) && <span className="hidden print:inline">{line}</span>}
               <Link
                 href={`/registry?case=${encodeURIComponent(caseId)}&slot=${encodeURIComponent(field.slot)}`}
-                className="hover:underline"
+                className={`hover:underline ${blankOnPrint(shown) ? "print:hidden" : ""}`}
                 title="Mở ô này ở Duyệt hồ sơ"
               >
                 {filled}
               </Link>
-              <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]}`}>({shownNote(shown)})</span>
+              <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
             </div>
           );
         }
@@ -317,7 +328,7 @@ export default function CrfFormPage() {
       {loading && <p className="mt-4 text-sm text-slate-500">Đang tải phiếu…</p>}
       {view && (
         <p
-          className={`mt-3 rounded px-3 py-2 text-sm ${
+          className={`mt-3 rounded px-3 py-2 text-sm print:hidden ${
             counts.pending ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-800"
           }`}
         >
@@ -397,7 +408,7 @@ export default function CrfFormPage() {
                   {summary?.total != null ? (
                     <span className="font-mono">{summary.total} điểm</span>
                   ) : (
-                    <span className="text-amber-700">
+                    <span className="text-amber-700 print:hidden">
                       chưa đủ để tính{summary ? ` (còn ${summary.missing} tiêu chí chưa duyệt)` : ""}
                     </span>
                   )}
