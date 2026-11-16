@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --background: #f8fafc;
   --foreground: #0f172a;
 }
@@ -24,6 +25,20 @@ dd,
 input[type="number"],
 .font-mono {
   font-variant-numeric: tabular-nums;
+}
+
+input,
+select,
+textarea,
+progress {
+  accent-color: #0f766e;
+}
+
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select {
+    min-height: 44px;
+  }
 }
 
 :where(a, button, input, select, textarea, summary, [role="button"], [tabindex="0"]):focus-visible {

@@ -6,6 +6,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 import {
   AuthUser,
@@ -100,6 +101,10 @@ interface LupivaContextValue {
   crfPatients: SleCrfPatientRecord[];
   activeCrfPatientId: string;
   setActiveCrfPatientId: (id: string) => void;
+  mergeCrfPatientsFromApi: (
+    records: SleCrfPatientRecord[],
+    replaceAll?: boolean
+  ) => void;
   updateCrfPatient: (
     patientId: string,
     updater: (prev: SleCrfPatientRecord) => SleCrfPatientRecord
@@ -111,7 +116,7 @@ interface LupivaContextValue {
   submitPatientUpload: (
     patientName: string,
     files: UploadedDocFile[]
-  ) => SleCrfPatientRecord;
+  ) => Promise<SleCrfPatientRecord | null>;
   isActionGuideOpen: boolean;
   setIsActionGuideOpen: (open: boolean) => void;
   toast: ToastMessage | null;
@@ -154,6 +159,24 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
   );
   const [isActionGuideOpen, setIsActionGuideOpen] = useState<boolean>(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+
+  const crfPatientsRef = useRef<SleCrfPatientRecord[]>(crfPatients);
+  useEffect(() => {
+    crfPatientsRef.current = crfPatients;
+  }, [crfPatients]);
+
+  const patchTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
+  useEffect(() => {
+    const timers = patchTimersRef.current;
+    return () => {
+      for (const timer of timers.values()) {
+        clearTimeout(timer);
+      }
+      timers.clear();
+    };
+  }, []);
 
   const t = TRANSLATIONS[language];
 
@@ -216,6 +239,76 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       active = false;
     };
   }, []);
+
+  const mergeCrfPatientsFromApi = useCallback(
+    (incoming: SleCrfPatientRecord[], replaceAll = false) => {
+      setCrfPatients((prev) => {
+        const prevMap = new Map(prev.map((p) => [p.id, p]));
+        const hydrated = incoming.map((rec) => {
+          const existing = prevMap.get(rec.id);
+          if (!existing?.uploadedFiles || !rec.uploadedFiles) return rec;
+          return {
+            ...rec,
+            uploadedFiles: rec.uploadedFiles.map((f, idx) => {
+              const matched =
+                existing.uploadedFiles?.find(
+                  (ef, eIdx) =>
+                    ef.url && (ef.name === f.name || eIdx === idx)
+                ) ?? null;
+              return matched?.url ? { ...f, url: matched.url } : f;
+            }),
+          };
+        });
+
+        if (replaceAll) {
+          return hydrated;
+        }
+
+        const incomingIds = new Set(hydrated.map((r) => r.id));
+        return [...hydrated, ...prev.filter((p) => !incomingIds.has(p.id))];
+      });
+    },
+    []
+  );
+
+  // Sync CRF cohort from API whenever authenticated user session changes
+  useEffect(() => {
+    if (authLoading || !currentUser) return;
+
+    let active = true;
+    const utcOffset = -new Date().getTimezoneOffset();
+
+    async function hydrateCohortFromApi() {
+      try {
+        const res = await fetch(
+          `/api/submissions?page=1&pageSize=50&utcOffsetMinutes=${utcOffset}`,
+          {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store",
+          }
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          items?: Array<{ record: SleCrfPatientRecord }>;
+        };
+        if (active && Array.isArray(data.items) && data.items.length > 0) {
+          const records = data.items.map((item) => item.record);
+          mergeCrfPatientsFromApi(records, true);
+          setActiveCrfPatientId((prevId) =>
+            records.some((r) => r.id === prevId) ? prevId : records[0].id
+          );
+        }
+      } catch {
+        // Keep fallback initial state if API unreachable
+      }
+    }
+
+    void hydrateCohortFromApi();
+    return () => {
+      active = false;
+    };
+  }, [authLoading, currentUser, mergeCrfPatientsFromApi]);
 
   const setLanguage = useCallback(
     (newLang: Language) => {
@@ -353,6 +446,8 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       // Clear local state regardless of network hiccup
     } finally {
       setCurrentUser(null);
+      setCrfPatients(INITIAL_CRF_PATIENTS);
+      setActiveCrfPatientId(INITIAL_CRF_PATIENTS[0].id);
       showToast(t.toasts.signedOutTitle, t.toasts.signedOutDesc, "navy");
     }
   }, [showToast, t]);
@@ -362,11 +457,52 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       patientId: string,
       updater: (prev: SleCrfPatientRecord) => SleCrfPatientRecord
     ) => {
+      const current = crfPatientsRef.current.find((p) => p.id === patientId);
+      const next = current ? updater(current) : null;
+
       setCrfPatients((prev) =>
         prev.map((p) => (p.id === patientId ? updater(p) : p))
       );
+
+      if (next && currentUser?.role === "specialist") {
+        const existingTimer = patchTimersRef.current.get(patientId);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+        }
+
+        const isImmediateSignOff =
+          next.submissionStatus === "approved" ||
+          next.signedOffBy !== current?.signedOffBy;
+
+        const sendPatch = async () => {
+          try {
+            await fetch(`/api/submissions/${encodeURIComponent(patientId)}`, {
+              method: "PATCH",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                record: next,
+                utcOffsetMinutes: -new Date().getTimezoneOffset(),
+              }),
+            });
+          } catch {
+            // Non-blocking background sync
+          }
+        };
+
+        if (isImmediateSignOff) {
+          patchTimersRef.current.delete(patientId);
+          void sendPatch();
+        } else {
+          const timer = setTimeout(() => {
+            patchTimersRef.current.delete(patientId);
+            void sendPatch();
+          }, 450);
+          patchTimersRef.current.set(patientId, timer);
+        }
+      }
     },
-    []
+    [currentUser?.role]
   );
 
   const createNewCrfPatient = useCallback(
@@ -486,36 +622,83 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
   );
 
   const submitPatientUpload = useCallback(
-    (patientName: string, files: UploadedDocFile[]) => {
-      const pat = createNewCrfPatient(patientName, "");
-      const now = new Date();
-      const stamp = `${now.toISOString().slice(0, 10)} ${now.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
-      const doctor = getLocalizedDemoUsers(language).specialist.name;
-      const withFiles: SleCrfPatientRecord = {
-        ...pat,
-        uploadedFiles: files,
-        submittedAt: stamp,
-        submissionStatus: "pending_doctor_review",
-        physician: doctor,
-      };
-      setCrfPatients((prev) =>
-        prev.map((p) => (p.id === pat.id ? withFiles : p))
-      );
-      showToast(
-        language === "vi"
-          ? "Đã gửi tài liệu cho bác sĩ"
-          : "Document sent to doctor",
-        language === "vi"
-          ? `${files.length} tệp đang chờ bác sĩ xác minh kết quả OCR.`
-          : `${files.length} file(s) are awaiting doctor OCR verification.`,
-        "teal"
-      );
-      return withFiles;
+    async (
+      patientName: string,
+      files: UploadedDocFile[]
+    ): Promise<SleCrfPatientRecord | null> => {
+      if (files.length === 0) return null;
+      try {
+        const res = await fetch("/api/submissions", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            patientName,
+            utcOffsetMinutes: -new Date().getTimezoneOffset(),
+            files: files.map((f) => ({
+              name: f.name,
+              mimeType:
+                f.mimeType ?? (f.isImage ? "image/png" : "application/pdf"),
+              sizeBytes: f.sizeBytes ?? 0,
+              isImage: f.isImage,
+            })),
+          }),
+        });
+
+        const payload = (await res.json().catch(() => ({}))) as {
+          record?: SleCrfPatientRecord;
+          error?: string;
+        };
+
+        if (!res.ok || !payload.record) {
+          showToast(
+            language === "vi"
+              ? "Không thể gửi tài liệu"
+              : "Submission failed",
+            payload.error ||
+              (language === "vi"
+                ? "Vui lòng đăng nhập và thử lại."
+                : "Please sign in and try again."),
+            "amber"
+          );
+          return null;
+        }
+
+        const recordWithUrls: SleCrfPatientRecord = {
+          ...payload.record,
+          uploadedFiles: payload.record.uploadedFiles?.map((serverFile, idx) => ({
+            ...serverFile,
+            url: files[idx]?.url ?? null,
+          })),
+        };
+
+        setCrfPatients((prev) => [recordWithUrls, ...prev]);
+        setActiveCrfPatientId(recordWithUrls.id);
+
+        showToast(
+          language === "vi"
+            ? "Đã gửi tài liệu cho bác sĩ"
+            : "Document sent to doctor",
+          language === "vi"
+            ? `${files.length} tệp đã được lưu trên hệ thống và chờ bác sĩ xác minh OCR.`
+            : `${files.length} file(s) persisted and awaiting doctor OCR verification.`,
+          "teal"
+        );
+        return recordWithUrls;
+      } catch {
+        showToast(
+          language === "vi"
+            ? "Lỗi kết nối máy chủ"
+            : "Network error",
+          language === "vi"
+            ? "Không thể kết nối tới API lưu hồ sơ."
+            : "Unable to reach the submissions API.",
+          "amber"
+        );
+        return null;
+      }
     },
-    [createNewCrfPatient, language, showToast]
+    [language, showToast]
   );
 
   const saveReportToRegistry = useCallback(
@@ -603,6 +786,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         crfPatients,
         activeCrfPatientId,
         setActiveCrfPatientId,
+        mergeCrfPatientsFromApi,
         updateCrfPatient,
         createNewCrfPatient,
         submitPatientUpload,

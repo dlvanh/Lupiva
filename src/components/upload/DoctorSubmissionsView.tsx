@@ -1,0 +1,1092 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLupiva } from "@/context/LupivaContext";
+import {
+  SleCrfPatientRecord,
+  calculateEularAcrSummary,
+  calculateSledai2kSummary,
+  getSubmissionStatus,
+} from "@/data/crfData";
+import { getUploadPageCopy, type UploadPageCopy } from "@/data/uploadTranslations";
+import {
+  CLINICAL_RISK_FILTERS,
+  DEFAULT_SUBMISSION_FILTERS,
+  GENDER_FILTERS,
+  PAGE_SIZE_OPTIONS,
+  SUBMISSION_REVIEW_FILTERS,
+  SUBMISSION_SORT_OPTIONS,
+  UPLOADED_DATE_PRESETS,
+  buildSubmissionFilterSearchParams,
+  countActiveDoctorFilters,
+  type OcrTierCounts,
+  type PaginationMeta,
+  type SubmissionQueryFilters,
+  type UploadedDatePreset,
+} from "@/lib/submissionFilters";
+import { TruncatedFilename } from "./TruncatedFilename";
+
+interface ApiSubmissionItem {
+  record: SleCrfPatientRecord;
+  dbSubmissionId: string;
+  submittedAtIso: string;
+  ocrSummary: OcrTierCounts;
+}
+
+interface ApiSubmissionsResponse {
+  items: ApiSubmissionItem[];
+  stats: {
+    total: number;
+    pending: number;
+    approved: number;
+    manualRequiredDossiers: number;
+    filteredTotal: number;
+  };
+  pagination: PaginationMeta;
+}
+
+function buildOrganTags(
+  p: SleCrfPatientRecord,
+  isVi: boolean
+): string[] {
+  const organs: string[] = [];
+  if (p.fever === "YES") {
+    organs.push(
+      isVi
+        ? `Sốt (${p.feverTempC || ">38"}°C)`
+        : `Fever (${p.feverTempC || ">38"}°C)`
+    );
+  }
+  if (p.skinMucosaAbnormality === "YES") {
+    const count = p.skinMucosaItems.filter((i) => i.checked).length;
+    organs.push(isVi ? `Da/Niêm mạc (${count})` : `Skin/Mucosa (${count})`);
+  }
+  if (p.jointsDamage === "YES") {
+    organs.push(
+      isVi
+        ? `Khớp (Sưng ${p.swollenJointsCount}, Đau ${p.tenderJointsCount}, VAS ${p.vasScore})`
+        : `Joints (${p.swollenJointsCount}S / ${p.tenderJointsCount}T, VAS ${p.vasScore})`
+    );
+  }
+  if (p.kidneysDamage === "YES") {
+    const cls =
+      p.renalBiopsyClasses.length > 0
+        ? p.renalBiopsyClasses.join(", ")
+        : isVi
+        ? "Có tổn thương"
+        : "Active";
+    organs.push(isVi ? `Thận (${cls})` : `Renal (${cls})`);
+  }
+  if (p.haematologicalDisorders === "YES") {
+    organs.push(isVi ? "Huyết học" : "Hematologic");
+  }
+  if (p.cardiovascularAbnormality === "YES") {
+    organs.push(isVi ? "Tim mạch" : "Cardiovascular");
+  }
+  if (p.lungDamage === "YES") {
+    organs.push(
+      p.lungIldPatterns.length > 0
+        ? `${isVi ? "Phổi" : "Lung"} (${p.lungIldPatterns.join(", ")})`
+        : isVi
+        ? "Phổi"
+        : "Lung"
+    );
+  }
+  if (p.neuropsychiatricDisorders === "YES") {
+    organs.push(isVi ? "Tâm thần kinh" : "Neuropsychiatric");
+  }
+  return organs;
+}
+
+function getKeyBiomarkers(p: SleCrfPatientRecord) {
+  const highlightCodes = [
+    "ANA-HEP2",
+    "ANTI-DSDNA",
+    "COMP-C3",
+    "COMP-C4",
+    "UPROT-24H",
+    "WBC-TOTAL",
+    "PLT-COUNT",
+  ];
+  return highlightCodes
+    .map((code) => p.ocrFields.find((f) => f.code === code))
+    .filter((f): f is NonNullable<typeof f> => Boolean(f));
+}
+
+function PatientDossierCard({
+  item,
+  isVi,
+  copy,
+  onOpenRoute,
+}: {
+  item: ApiSubmissionItem;
+  isVi: boolean;
+  copy: UploadPageCopy["doctor"];
+  onOpenRoute: (patientId: string, route: "/ocr" | "/scores") => void;
+}) {
+  const p = item.record;
+  const approved = getSubmissionStatus(p) === "approved";
+  const h = parseFloat(p.heightCm);
+  const w = parseFloat(p.weightKg);
+  const bmi = h > 0 && w > 0 ? (w / Math.pow(h / 100, 2)).toFixed(1) : "—";
+  const organs = buildOrganTags(p, isVi);
+  const keyLabs = getKeyBiomarkers(p);
+  const eular = calculateEularAcrSummary(
+    p.eularAcrCriteria,
+    p.anaEntryCriterionMet
+  );
+  const sledai = calculateSledai2kSummary(p.sledai2kCriteria);
+
+  return (
+    <article className="@container overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+      {/* Card Header: Identity, Status Badges, Uploaded Timestamp & Primary Actions */}
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 @lg:px-6">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-xs font-bold text-white">
+              {p.studyId}
+            </span>
+            <h2 className="text-lg font-bold text-slate-900">
+              {p.patientName}
+            </h2>
+            <span
+              className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${
+                approved
+                  ? "bg-teal-100 text-teal-900"
+                  : "bg-amber-100 text-amber-950"
+              }`}
+            >
+              {approved ? copy.approvedBadge : copy.pendingBadge}
+            </span>
+            {organs.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-700"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <p className="mt-1.5 text-xs text-slate-600">
+            {p.age} {copy.ageUnit} •{" "}
+            {p.gender === "Female" ? copy.female : copy.male} • {p.heightCm} cm
+            / {p.weightKg} kg (BMI{" "}
+            <span className="font-mono font-semibold text-slate-800">
+              {bmi}
+            </span>
+            ) • ICF: <span className="font-mono">{p.icfSignedDate}</span>
+            {p.submittedAt ? (
+              <>
+                {" "}
+                • {copy.submittedAtPrefix}{" "}
+                <span className="font-mono font-semibold text-slate-800">
+                  {p.submittedAt}
+                </span>
+              </>
+            ) : null}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenRoute(p.id, "/scores")}
+            className="min-h-9 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 cursor-pointer"
+          >
+            {copy.viewScoresBtn}
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenRoute(p.id, "/ocr")}
+            className="min-h-9 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition hover:bg-teal-800 cursor-pointer"
+          >
+            {approved ? copy.reopenCrfBtn : copy.reviewCrfBtn}
+          </button>
+        </div>
+      </header>
+
+      {/* Primary Triage Grid: AI OCR 3-Tier Counts, Key Biomarkers & SLE Score Preview */}
+      <div className="grid grid-cols-1 gap-5 px-5 py-4 @lg:px-6 @2xl:grid-cols-12">
+        <div className="space-y-3 @2xl:col-span-7">
+          <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+            {copy.triageHeading}
+          </h3>
+
+          <div className="grid grid-cols-3 gap-2 text-center font-mono text-[11px]">
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-950">
+              <p className="text-sm font-bold">{item.ocrSummary.manualCount}</p>
+              <p className="text-[11px] font-medium">{copy.manualTierLabel}</p>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-950">
+              <p className="text-sm font-bold">{item.ocrSummary.verifyCount}</p>
+              <p className="text-[11px] font-medium">{copy.verifyTierLabel}</p>
+            </div>
+            <div className="rounded-lg border border-teal-200 bg-teal-50 px-2 py-1.5 text-teal-950">
+              <p className="text-sm font-bold">
+                {item.ocrSummary.approvedCount}
+              </p>
+              <p className="text-[11px] font-medium">
+                {copy.approvedTierLabel}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
+            {keyLabs.map((f) => {
+              const isBlank = !f.value.trim();
+              return (
+                <span
+                  key={f.id}
+                  className={`rounded border px-2 py-0.5 ${
+                    isBlank
+                      ? "border-rose-300 bg-rose-50 text-rose-950"
+                      : f.flag === "Normal"
+                      ? "border-slate-200 bg-slate-50 text-slate-800"
+                      : "border-rose-200 bg-rose-50/70 font-semibold text-rose-950"
+                  }`}
+                >
+                  {f.code
+                    .replace("-TOTAL", "")
+                    .replace("-COUNT", "")
+                    .replace("COMP-", "")}
+                  :{" "}
+                  {isBlank
+                    ? copy.blankUnder80
+                    : `${f.value}${
+                        f.unit && f.unit !== "Titer" ? ` ${f.unit}` : ""
+                      }`}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-3 border-t border-slate-200 pt-4 @2xl:col-span-5 @2xl:border-t-0 @2xl:border-l @2xl:pl-5 @2xl:pt-0">
+          <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+            {copy.scorePreviewHeading}
+          </h3>
+
+          <div className="grid grid-cols-1 gap-2.5 @sm:grid-cols-2">
+            <div
+              className={`rounded-xl border p-3 ${
+                eular.isClassifiedSle
+                  ? "border-teal-200 bg-teal-50/60"
+                  : "border-slate-200 bg-slate-50"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-700">
+                  EULAR/ACR 2019
+                </span>
+                <span className="font-mono text-base font-bold text-slate-900">
+                  {eular.totalScore} pts
+                </span>
+              </div>
+              <p
+                className={`mt-0.5 font-mono text-[11px] font-semibold ${
+                  eular.isClassifiedSle ? "text-teal-900" : "text-slate-600"
+                }`}
+              >
+                {eular.isClassifiedSle ? copy.eularClassified : copy.eularBelow}
+              </p>
+            </div>
+
+            <div
+              className={`rounded-xl border p-3 ${
+                sledai.badgeTone === "rose"
+                  ? "border-rose-200 bg-rose-50/60"
+                  : sledai.badgeTone === "amber"
+                  ? "border-amber-200 bg-amber-50/60"
+                  : "border-slate-200 bg-slate-50"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-700">SLEDAI-2K</span>
+                <span className="font-mono text-base font-bold text-slate-900">
+                  {sledai.totalScore} pts
+                </span>
+              </div>
+              <p
+                className={`mt-0.5 font-mono text-[11px] font-semibold ${
+                  sledai.badgeTone === "rose"
+                    ? "text-rose-900"
+                    : sledai.badgeTone === "amber"
+                    ? "text-amber-950"
+                    : "text-teal-900"
+                }`}
+              >
+                {isVi ? sledai.activityTierVi : sledai.activityTierEn}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Progressive Disclosure for Secondary Clinical Details */}
+      <details className="group border-t border-slate-200 bg-slate-50/40">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100/80 @lg:px-6">
+          <span>
+            {copy.clinicalDetailsSummary(
+              p.uploadedFiles?.length ?? 0,
+              p.treatments.length
+            )}
+          </span>
+          <svg
+            aria-hidden="true"
+            className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </summary>
+
+        <div className="grid grid-cols-1 gap-5 border-t border-slate-200 bg-white px-5 py-4 @lg:px-6 @2xl:grid-cols-3">
+          <div>
+            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              {copy.docsAndTeamHeading}
+            </h3>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {p.uploadedFiles?.map((f) => (
+                <li key={f.id} className="min-w-0 max-w-full">
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-[11px] font-medium text-slate-800">
+                    <span className="shrink-0 font-bold text-teal-800">
+                      {f.isImage ? "IMG" : "PDF"}:
+                    </span>
+                    <TruncatedFilename name={f.name} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-slate-600">
+              {copy.physicianPrefix}{" "}
+              <strong className="text-slate-900">{p.physician}</strong> •{" "}
+              {copy.nursePrefix}{" "}
+              <span className="text-slate-700">{p.nurse}</span>
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              {copy.organsHeading}
+            </h3>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {organs.length > 0 ? (
+                organs.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-800"
+                  >
+                    {tag}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-slate-600">
+                  {copy.noOrgansRecorded}
+                </span>
+              )}
+            </div>
+            {p.otherComorbidities === "YES" && p.otherComorbiditiesSpecify && (
+              <p className="mt-2 text-xs text-slate-600">
+                <span className="font-semibold text-slate-800">
+                  {copy.comorbiditiesPrefix}
+                </span>{" "}
+                {p.otherComorbiditiesSpecify}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              {copy.treatmentsHeading}
+            </h3>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {p.treatments.length > 0 ? (
+                p.treatments.map((trt) => (
+                  <span
+                    key={trt.id}
+                    className="rounded-md border border-teal-200 bg-teal-50/70 px-2 py-0.5 text-[11px] font-medium text-teal-950"
+                  >
+                    {trt.name} ({trt.dose})
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-slate-600">
+                  {copy.noTreatments}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </details>
+    </article>
+  );
+}
+
+export function DoctorSubmissionsView() {
+  const router = useRouter();
+  const { language, setActiveCrfPatientId, mergeCrfPatientsFromApi } =
+    useLupiva();
+  const isVi = language === "vi";
+  const copy = getUploadPageCopy(language).doctor;
+
+  const [filters, setFilters] = useState<SubmissionQueryFilters>(
+    DEFAULT_SUBMISSION_FILTERS
+  );
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [reloadTick, setReloadTick] = useState(0);
+
+  const [apiState, setApiState] = useState<{
+    loading: boolean;
+    error: string | null;
+    data: ApiSubmissionsResponse | null;
+  }>({
+    loading: true,
+    error: null,
+    data: null,
+  });
+
+  // Debounce text query before triggering API fetch
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Server-side API query whenever any filter or sort changes
+  useEffect(() => {
+    const controller = new AbortController();
+    const utcOffsetMinutes = -new Date().getTimezoneOffset();
+    const effectiveFilters: SubmissionQueryFilters = {
+      ...filters,
+      q: debouncedSearch,
+      utcOffsetMinutes,
+    };
+    const query = buildSubmissionFilterSearchParams(effectiveFilters);
+
+    async function loadSubmissions() {
+      setApiState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const res = await fetch(`/api/submissions?${query.toString()}`, {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = (await res.json().catch(() => ({}))) as
+          | ApiSubmissionsResponse
+          | { error?: string };
+
+        if (!res.ok || !("items" in payload)) {
+          const message =
+            ("error" in payload && payload.error) || copy.errorTitle;
+          setApiState((prev) => ({
+            loading: false,
+            error: message,
+            data: prev.data,
+          }));
+          return;
+        }
+
+        mergeCrfPatientsFromApi(payload.items.map((item) => item.record));
+        setApiState({ loading: false, error: null, data: payload });
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setApiState((prev) => ({
+          loading: false,
+          error: err instanceof Error ? err.message : copy.errorTitle,
+          data: prev.data,
+        }));
+      }
+    }
+
+    void loadSubmissions();
+    return () => controller.abort();
+  }, [
+    filters,
+    debouncedSearch,
+    reloadTick,
+    copy.errorTitle,
+    mergeCrfPatientsFromApi,
+  ]);
+
+  const activeFilterCount = countActiveDoctorFilters({
+    ...filters,
+    q: searchInput,
+  });
+
+  const handleResetFilters = () => {
+    setFilters(DEFAULT_SUBMISSION_FILTERS);
+    setSearchInput("");
+    setDebouncedSearch("");
+  };
+
+  const handleDatePresetChange = (preset: UploadedDatePreset) => {
+    setFilters((prev) => ({
+      ...prev,
+      page: 1,
+      datePreset: preset,
+      fromDate: preset === "custom" ? prev.fromDate : "",
+      toDate: preset === "custom" ? prev.toDate : "",
+    }));
+  };
+
+  const handleCustomDateChange = (
+    bound: "fromDate" | "toDate",
+    value: string
+  ) => {
+    setFilters((prev) => {
+      const nextFrom = bound === "fromDate" ? value : prev.fromDate ?? "";
+      const nextTo = bound === "toDate" ? value : prev.toDate ?? "";
+      return {
+        ...prev,
+        page: 1,
+        datePreset: nextFrom || nextTo ? "custom" : "all",
+        fromDate: nextFrom,
+        toDate: nextTo,
+      };
+    });
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setFilters((prev) => ({ ...prev, page: nextPage }));
+    if (typeof window !== "undefined") {
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+      window.scrollTo({
+        top: 0,
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
+    }
+  };
+
+  const openDoctorRoute = (patientId: string, route: "/ocr" | "/scores") => {
+    setActiveCrfPatientId(patientId);
+    router.push(route);
+  };
+
+  const stats = apiState.data?.stats ?? {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    manualRequiredDossiers: 0,
+    filteredTotal: 0,
+  };
+  const pagination: PaginationMeta = apiState.data?.pagination ?? {
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalItems: 0,
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+  };
+  const items = apiState.data?.items ?? [];
+  const rangeStart =
+    pagination.totalItems === 0
+      ? 0
+      : (pagination.page - 1) * pagination.pageSize + 1;
+  const rangeEnd = Math.min(
+    pagination.page * pagination.pageSize,
+    pagination.totalItems
+  );
+
+  return (
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="flex-1 bg-slate-100/80 py-8 focus:outline-none"
+    >
+      <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
+        {/* Header, Cohort KPIs & Server-Backed Filter Toolbar */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
+                {copy.eyebrow}
+              </span>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900">
+                {copy.heading}
+              </h1>
+            </div>
+
+            <dl className="grid grid-cols-2 gap-2.5 text-center sm:grid-cols-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+                <dt className="text-[11px] font-medium text-slate-600">
+                  {copy.kpiTotal}
+                </dt>
+                <dd className="mt-0.5 font-mono text-xl font-bold text-slate-900">
+                  {stats.total}
+                </dd>
+              </div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5">
+                <dt className="text-[11px] font-medium text-amber-900">
+                  {copy.kpiPending}
+                </dt>
+                <dd className="mt-0.5 font-mono text-xl font-bold text-amber-950">
+                  {stats.pending}
+                </dd>
+              </div>
+              <div className="rounded-xl border border-rose-200 bg-rose-50/70 px-3.5 py-2.5">
+                <dt className="text-[11px] font-medium text-rose-900">
+                  {copy.kpiManual}
+                </dt>
+                <dd className="mt-0.5 font-mono text-xl font-bold text-rose-950">
+                  {stats.manualRequiredDossiers}
+                </dd>
+              </div>
+              <div className="rounded-xl border border-teal-200 bg-teal-50/70 px-3.5 py-2.5">
+                <dt className="text-[11px] font-medium text-teal-900">
+                  {copy.kpiApproved}
+                </dt>
+                <dd className="mt-0.5 font-mono text-xl font-bold text-teal-950">
+                  {stats.approved}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          {/* Semantic <search><form> Filter Controls */}
+          <search className="mt-5 border-t border-slate-200 pt-4">
+            <form
+              aria-labelledby="doctor-filter-heading"
+              onSubmit={(e) => e.preventDefault()}
+              className="space-y-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2
+                  id="doctor-filter-heading"
+                  className="text-xs font-bold uppercase tracking-wider text-slate-700"
+                >
+                  {copy.filterHeading}
+                </h2>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    id="doctor-filter-reset"
+                    onClick={handleResetFilters}
+                    className="min-h-8 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 transition hover:bg-slate-100 cursor-pointer"
+                  >
+                    {copy.resetFilters} ({copy.activeFiltersBadge(activeFilterCount)})
+                  </button>
+                )}
+              </div>
+
+              {/* Row 1: Submission Status + Search + Sort */}
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <fieldset className="space-y-1">
+                  <legend className="text-[11px] font-semibold text-slate-600">
+                    {copy.statusLegend}
+                  </legend>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {SUBMISSION_REVIEW_FILTERS.map((key) => {
+                      const count =
+                        key === "all"
+                          ? stats.total
+                          : key === "pending_doctor_review"
+                          ? stats.pending
+                          : stats.approved;
+                      const isActive = filters.status === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          id={`doctor-filter-status-${key}`}
+                          aria-pressed={isActive}
+                          onClick={() =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              page: 1,
+                              status: key,
+                            }))
+                          }
+                          className={`min-h-9 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                            isActive
+                              ? "bg-teal-700 text-white"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200/80"
+                          }`}
+                        >
+                          {copy.statusOptions[key]} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <div className="grid w-full grid-cols-1 gap-3 sm:w-auto sm:grid-cols-2">
+                  <div className="flex flex-col gap-1 sm:w-72">
+                    <label
+                      htmlFor="doctor-submissions-search"
+                      className="text-[11px] font-semibold text-slate-600"
+                    >
+                      {copy.searchLabel}
+                    </label>
+                    <input
+                      id="doctor-submissions-search"
+                      name="q"
+                      type="search"
+                      value={searchInput}
+                      onChange={(e) => {
+                        setSearchInput(e.target.value);
+                        setFilters((prev) =>
+                          prev.page === 1 ? prev : { ...prev, page: 1 }
+                        );
+                      }}
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      placeholder={copy.searchPlaceholder}
+                      className="min-h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:border-teal-700"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1 sm:w-56">
+                    <label
+                      htmlFor="doctor-filter-sort"
+                      className="text-[11px] font-semibold text-slate-600"
+                    >
+                      {copy.sortLabel}
+                    </label>
+                    <select
+                      id="doctor-filter-sort"
+                      name="sort"
+                      value={filters.sort}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          page: 1,
+                          sort: e.target
+                            .value as SubmissionQueryFilters["sort"],
+                        }))
+                      }
+                      className="min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 focus:border-teal-700"
+                    >
+                      {SUBMISSION_SORT_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {copy.sortOptions[opt]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Uploaded Date, Custom Range, SLE Risk, Sex */}
+              <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="doctor-filter-date-preset"
+                    className="text-[11px] font-semibold text-slate-700"
+                  >
+                    {copy.datePresetLabel}
+                  </label>
+                  <select
+                    id="doctor-filter-date-preset"
+                    name="datePreset"
+                    value={filters.datePreset}
+                    onChange={(e) =>
+                      handleDatePresetChange(
+                        e.target.value as UploadedDatePreset
+                      )
+                    }
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
+                  >
+                    {UPLOADED_DATE_PRESETS.map((preset) => (
+                      <option key={preset} value={preset}>
+                        {copy.datePresetOptions[preset]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="doctor-filter-from-date"
+                    className="text-[11px] font-semibold text-slate-700"
+                  >
+                    {copy.fromDateLabel}
+                  </label>
+                  <input
+                    id="doctor-filter-from-date"
+                    name="fromDate"
+                    type="date"
+                    value={filters.fromDate ?? ""}
+                    max={filters.toDate || undefined}
+                    onChange={(e) =>
+                      handleCustomDateChange("fromDate", e.target.value)
+                    }
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="doctor-filter-to-date"
+                    className="text-[11px] font-semibold text-slate-700"
+                  >
+                    {copy.toDateLabel}
+                  </label>
+                  <input
+                    id="doctor-filter-to-date"
+                    name="toDate"
+                    type="date"
+                    value={filters.toDate ?? ""}
+                    min={filters.fromDate || undefined}
+                    onChange={(e) =>
+                      handleCustomDateChange("toDate", e.target.value)
+                    }
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="doctor-filter-risk"
+                    className="text-[11px] font-semibold text-slate-700"
+                  >
+                    {copy.clinicalRiskLabel}
+                  </label>
+                  <select
+                    id="doctor-filter-risk"
+                    name="clinicalRisk"
+                    value={filters.clinicalRisk}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        page: 1,
+                        clinicalRisk: e.target
+                          .value as SubmissionQueryFilters["clinicalRisk"],
+                      }))
+                    }
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
+                  >
+                    {CLINICAL_RISK_FILTERS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {copy.clinicalRiskOptions[opt]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="doctor-filter-gender"
+                    className="text-[11px] font-semibold text-slate-700"
+                  >
+                    {copy.genderLabel}
+                  </label>
+                  <select
+                    id="doctor-filter-gender"
+                    name="gender"
+                    value={filters.gender}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        page: 1,
+                        gender: e.target
+                          .value as SubmissionQueryFilters["gender"],
+                      }))
+                    }
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
+                  >
+                    {GENDER_FILTERS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {copy.genderOptions[opt]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </form>
+
+            {/* Live Region Result Summary (only updated once API settles) */}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-xs font-medium text-slate-700"
+              >
+                {apiState.data
+                  ? pagination.totalItems === 0
+                    ? copy.resultsEmptyAnnouncement
+                    : copy.resultsAnnouncement(
+                        rangeStart,
+                        rangeEnd,
+                        pagination.totalItems,
+                        pagination.page,
+                        pagination.totalPages
+                      )
+                  : ""}
+              </p>
+              {apiState.loading && (
+                <span className="font-mono text-xs text-teal-800">
+                  {copy.loadingText}
+                </span>
+              )}
+            </div>
+          </search>
+        </section>
+
+        {/* API Error Alert */}
+        {apiState.error && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-950"
+          >
+            <div>
+              <p className="font-semibold">{copy.errorTitle}</p>
+              <p className="mt-0.5 text-xs text-rose-800">{apiState.error}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReloadTick((n) => n + 1)}
+              className="min-h-9 rounded-lg border border-rose-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-rose-900 hover:bg-rose-100 cursor-pointer"
+            >
+              {copy.retryBtn}
+            </button>
+          </div>
+        )}
+
+        {/* Patient Dossier Cards */}
+        <div
+          aria-busy={apiState.loading}
+          className={`space-y-4 transition-opacity ${
+            apiState.loading && items.length > 0 ? "opacity-70" : "opacity-100"
+          }`}
+        >
+          {apiState.loading && items.length === 0 ? (
+            <div className="space-y-4">
+              {[0, 1, 2].map((idx) => (
+                <div
+                  key={idx}
+                  className="h-44 animate-pulse rounded-2xl border border-slate-200 bg-white p-6"
+                />
+              ))}
+            </div>
+          ) : items.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+              <p className="text-sm font-semibold text-slate-800">
+                {copy.emptyTitle}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">{copy.emptyHint}</p>
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="mt-4 min-h-9 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800 cursor-pointer"
+                >
+                  {copy.resetFilters}
+                </button>
+              )}
+            </div>
+          ) : (
+            items.map((item) => (
+              <PatientDossierCard
+                key={item.dbSubmissionId}
+                item={item}
+                isVi={isVi}
+                copy={copy}
+                onOpenRoute={openDoctorRoute}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Server-Backed Pagination Bar */}
+        {pagination.totalItems > 0 && (
+          <nav
+            aria-label={copy.paginationLabel}
+            className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 shadow-xs"
+          >
+            <div className="flex items-center gap-3 text-xs text-slate-700">
+              <span className="font-mono font-semibold text-slate-900">
+                {copy.pageOfTotal(pagination.page, pagination.totalPages)}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <label
+                  htmlFor="doctor-pagination-pagesize"
+                  className="text-slate-600"
+                >
+                  {copy.perPageLabel}
+                </label>
+                <select
+                  id="doctor-pagination-pagesize"
+                  name="pageSize"
+                  value={filters.pageSize}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      page: 1,
+                      pageSize: Number(e.target.value),
+                    }))
+                  }
+                  className="min-h-8 rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-xs text-slate-900 focus:border-teal-700"
+                >
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                id="doctor-pagination-prev"
+                disabled={!pagination.hasPreviousPage || apiState.loading}
+                onClick={() => handlePageChange(pagination.page - 1)}
+                className="min-h-9 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
+              >
+                ← {copy.prevPage}
+              </button>
+
+              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(
+                (pageNum) => {
+                  const isCurrent = pageNum === pagination.page;
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      id={`doctor-pagination-page-${pageNum}`}
+                      aria-label={copy.pageLabel(pageNum)}
+                      aria-current={isCurrent ? "page" : undefined}
+                      disabled={apiState.loading}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`min-h-9 min-w-9 rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold transition cursor-pointer ${
+                        isCurrent
+                          ? "bg-teal-700 text-white shadow-2xs"
+                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                }
+              )}
+
+              <button
+                type="button"
+                id="doctor-pagination-next"
+                disabled={!pagination.hasNextPage || apiState.loading}
+                onClick={() => handlePageChange(pagination.page + 1)}
+                className="min-h-9 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
+              >
+                {copy.nextPage} →
+              </button>
+            </div>
+          </nav>
+        )}
+      </div>
+    </main>
+  );
+}

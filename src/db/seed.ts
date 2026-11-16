@@ -6,7 +6,6 @@ import {
   calculateEularAcrSummary,
   calculateSledai2kSummary,
   getSubmissionStatus,
-  type SleCrfPatientRecord,
 } from "@/data/crfData";
 import { closeDb, getDb, type DatabaseClient } from "@/db";
 import {
@@ -14,9 +13,12 @@ import {
   patientProfiles,
   uploadedDocuments,
   users,
-  type CrfMedicalHistoryPayload,
-  type CrfOrgansDamagePayload,
 } from "@/db/schema";
+import {
+  buildScrubbedMedicalHistory,
+  buildScrubbedOrgansDamage,
+  encryptSensitiveOcrFields,
+} from "@/lib/crfPersistence";
 import {
   assertCryptoConfig,
   computeBlindIndex,
@@ -25,16 +27,11 @@ import {
   normalizeStudyId,
 } from "@/lib/crypto";
 import { hashPassword } from "@/lib/password";
-import {
-  scrubCheckItems,
-  scrubFreeText,
-  scrubInfectionEpisodes,
-  scrubTreatments,
-  stripSensitiveOcrFields,
-} from "@/lib/piiScrubber";
 
 export const SEEDED_SPECIALIST_UUID = "00000000-0000-4000-8000-000000000001";
 export const SEEDED_PATIENT_UUID = "00000000-0000-4000-8000-000000000002";
+
+const PATIENT_LINKED_KEYS = new Set(["crf-pat-084", "crf-pat-103", "crf-pat-108"]);
 
 const SEED_RECORD_IDS: Record<
   string,
@@ -53,6 +50,22 @@ const SEED_RECORD_IDS: Record<
   },
 };
 
+function resolveDeterministicIds(recordKey: string, patIdx: number) {
+  const mapped = SEED_RECORD_IDS[recordKey];
+  const slot = 101 + patIdx;
+  return {
+    profileId:
+      mapped?.profileId ??
+      `00000000-0000-4000-8000-${String(slot).padStart(12, "0")}`,
+    submissionId:
+      mapped?.submissionId ??
+      `00000000-0000-4000-8000-${String(100 + slot).padStart(12, "0")}`,
+    firstDocId:
+      mapped?.docId ??
+      `00000000-0000-4000-8000-${String(200 + slot).padStart(12, "0")}`,
+  };
+}
+
 function parseTimestampOrNow(value?: string): Date {
   if (!value) return new Date();
   const isoCandidate = value.replace(" ", "T").replace(" ICT", "+07:00");
@@ -61,80 +74,6 @@ function parseTimestampOrNow(value?: string): Date {
     : `${isoCandidate}:00+07:00`;
   const parsed = new Date(withZone);
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-}
-
-function buildScrubbedMedicalHistory(
-  pat: SleCrfPatientRecord,
-  redactTokens: string[]
-): CrfMedicalHistoryPayload {
-  const opts = { redactTokens };
-  return {
-    physician: scrubFreeText(pat.physician, opts),
-    nurse: scrubFreeText(pat.nurse, opts),
-    malignantDisease: pat.malignantDisease,
-    malignantSpecify: scrubFreeText(pat.malignantSpecify, opts),
-    otherComorbidities: pat.otherComorbidities,
-    otherComorbiditiesSpecify: scrubFreeText(pat.otherComorbiditiesSpecify, opts),
-    familyAutoimmuneHistory: pat.familyAutoimmuneHistory,
-    familyRelatives: pat.familyRelatives,
-    familyDiseaseSpecify: scrubFreeText(pat.familyDiseaseSpecify, opts),
-    fever: pat.fever,
-    feverTempC: pat.feverTempC,
-    feverOnsetDate: pat.feverOnsetDate,
-    feverType: pat.feverType,
-    feverTypeSpecify: scrubFreeText(pat.feverTypeSpecify, opts),
-    historyOfInfection: pat.historyOfInfection,
-    infectionEpisodes: scrubInfectionEpisodes(pat.infectionEpisodes, opts),
-    treatmentStatus: pat.treatmentStatus,
-    treatments: scrubTreatments(pat.treatments, opts),
-  };
-}
-
-function buildScrubbedOrgansDamage(
-  pat: SleCrfPatientRecord,
-  redactTokens: string[]
-): CrfOrgansDamagePayload {
-  const opts = { redactTokens };
-  return {
-    skinMucosaAbnormality: pat.skinMucosaAbnormality,
-    skinMucosaItems: scrubCheckItems(pat.skinMucosaItems, opts),
-    muscleDamage: pat.muscleDamage,
-    muscleBiopsyOther: pat.muscleBiopsyOther,
-    muscleBiopsySpecify: scrubFreeText(pat.muscleBiopsySpecify, opts),
-    jointsDamage: pat.jointsDamage,
-    swollenJointsCount: pat.swollenJointsCount,
-    tenderJointsCount: pat.tenderJointsCount,
-    vasScore: pat.vasScore,
-    abnormalXray: pat.abnormalXray,
-    abnormalXraySpecify: scrubFreeText(pat.abnormalXraySpecify, opts),
-    abnormalUltrasound: pat.abnormalUltrasound,
-    abnormalUltrasoundSpecify: scrubFreeText(pat.abnormalUltrasoundSpecify, opts),
-    jointDeformity: pat.jointDeformity,
-    jointDeformitySpecify: scrubFreeText(pat.jointDeformitySpecify, opts),
-    jointsOther: pat.jointsOther,
-    jointsOtherSpecify: scrubFreeText(pat.jointsOtherSpecify, opts),
-    kidneysDamage: pat.kidneysDamage,
-    renalBiopsyPerformed: pat.renalBiopsyPerformed,
-    renalBiopsyNote: scrubFreeText(pat.renalBiopsyNote, opts),
-    renalBiopsyClasses: pat.renalBiopsyClasses,
-    kidneysOther: pat.kidneysOther,
-    kidneysOtherSpecify: scrubFreeText(pat.kidneysOtherSpecify, opts),
-    haematologicalDisorders: pat.haematologicalDisorders,
-    haematologicalSpecify: scrubFreeText(pat.haematologicalSpecify, opts),
-    cardiovascularAbnormality: pat.cardiovascularAbnormality,
-    cardiovascularItems: scrubCheckItems(pat.cardiovascularItems, opts),
-    lungDamage: pat.lungDamage,
-    lungIld: pat.lungIld,
-    lungIldPatterns: pat.lungIldPatterns,
-    lungPleuritis: pat.lungPleuritis,
-    lungPleuritisSpecify: scrubFreeText(pat.lungPleuritisSpecify, opts),
-    lungOther: pat.lungOther,
-    lungOtherSpecify: scrubFreeText(pat.lungOtherSpecify, opts),
-    neuropsychiatricDisorders: pat.neuropsychiatricDisorders,
-    neuropsychiatricItems: scrubCheckItems(pat.neuropsychiatricItems, opts),
-    giDisorders: pat.giDisorders,
-    giItems: scrubCheckItems(pat.giItems, opts),
-  };
 }
 
 export interface SeedResult {
@@ -236,8 +175,9 @@ export async function seedDatabase(
   let submissionsSeeded = 0;
   let documentsSeeded = 0;
 
-  for (const pat of INITIAL_CRF_PATIENTS) {
-    const fixedIds = SEED_RECORD_IDS[pat.id];
+  for (let patIdx = 0; patIdx < INITIAL_CRF_PATIENTS.length; patIdx += 1) {
+    const pat = INITIAL_CRF_PATIENTS[patIdx];
+    const deterministicIds = resolveDeterministicIds(pat.id, patIdx);
     const normalizedStudyId = normalizeStudyId(pat.studyId);
     const studyIdBlindIndex = computeBlindIndex(normalizedStudyId, "study_id");
 
@@ -247,10 +187,7 @@ export async function seedDatabase(
       .where(eq(patientProfiles.studyIdBlindIndex, studyIdBlindIndex))
       .limit(1);
 
-    const profileId =
-      existingProfile?.id ??
-      fixedIds?.profileId ??
-      "00000000-0000-4000-8000-000000000199";
+    const profileId = existingProfile?.id ?? deterministicIds.profileId;
 
     const heightCm = Number.parseFloat(pat.heightCm) || null;
     const weightKg = Number.parseFloat(pat.weightKg) || null;
@@ -259,8 +196,9 @@ export async function seedDatabase(
         ? Number((weightKg / Math.pow(heightCm / 100, 2)).toFixed(1))
         : null;
 
-    const linkedUserId =
-      pat.id === "crf-pat-084" ? resolvedUserIds.patient : null;
+    const linkedUserId = PATIENT_LINKED_KEYS.has(pat.id)
+      ? resolvedUserIds.patient
+      : null;
 
     const studyIdEncrypted = encryptField(
       pat.studyId,
@@ -314,22 +252,14 @@ export async function seedDatabase(
       .where(eq(crfSubmissions.legacyRecordKey, pat.id))
       .limit(1);
 
-    const submissionId =
-      existingSub?.id ??
-      fixedIds?.submissionId ??
-      "00000000-0000-4000-8000-000000000299";
+    const submissionId = existingSub?.id ?? deterministicIds.submissionId;
 
     const redactTokens = [pat.patientName, pat.studyId];
-    const { safeOcrFields, hivField } = stripSensitiveOcrFields(pat.ocrFields, {
-      redactTokens,
-    });
-
-    const hivStatusEncrypted = hivField
-      ? encryptField(
-          JSON.stringify(hivField),
-          `crf_submissions:${submissionId}:hiv_status`
-        )
-      : null;
+    const { safeOcrFields, hivStatusEncrypted } = encryptSensitiveOcrFields(
+      pat.ocrFields,
+      submissionId,
+      redactTokens
+    );
 
     const eularSummary = calculateEularAcrSummary(
       pat.eularAcrCriteria,
@@ -405,9 +335,12 @@ export async function seedDatabase(
       for (let i = 0; i < pat.uploadedFiles.length; i += 1) {
         const file = pat.uploadedFiles[i];
         const docId =
-          i === 0 && fixedIds?.docId
-            ? fixedIds.docId
-            : `00000000-0000-4000-8000-${String(400 + i).padStart(12, "0")}`;
+          i === 0
+            ? deterministicIds.firstDocId
+            : `00000000-0000-4000-8000-${String(1000 + patIdx * 20 + i).padStart(
+                12,
+                "0"
+              )}`;
 
         await db
           .insert(uploadedDocuments)

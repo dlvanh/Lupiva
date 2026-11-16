@@ -9,13 +9,15 @@ export type AuditAction =
   | "auth.logout"
   | "auth.register_success"
   | "auth.register_denied"
-  | "auth.register_rate_limited";
+  | "auth.register_rate_limited"
+  | "submission.created"
+  | "submission.updated";
 
 export interface WriteAuditLogInput {
   actorUserId?: string | null;
   actorRole?: string | null;
   action: AuditAction;
-  targetType: "user" | "session" | "auth_gate";
+  targetType: "user" | "session" | "auth_gate" | "crf_submission";
   targetId?: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;

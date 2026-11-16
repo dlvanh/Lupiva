@@ -1,4 +1,5 @@
 import { ClinicalFlag } from "./mockData";
+import { buildAdditionalCohortPatients } from "./mockPatientCohort";
 
 export type OcrTierStatus =
   | "auto_approved" // > 90% confidence -> auto-approved
@@ -116,6 +117,8 @@ export interface UploadedDocFile {
   /** Object URL for images; null for PDFs / sample dossier */
   url: string | null;
   isImage: boolean;
+  mimeType?: string;
+  sizeBytes?: number;
 }
 
 export type SubmissionStatus = "pending_doctor_review" | "approved";
@@ -2643,6 +2646,16 @@ export const INITIAL_CRF_PATIENTS: SleCrfPatientRecord[] = [
       "sledai-thrombocytopenia",
     ]),
   },
+  ...buildAdditionalCohortPatients({
+    makeOcrField,
+    makeBlotRow,
+    buildSkinMucosaItems,
+    buildCardiovascularItems,
+    buildNeuropsychiatricItems,
+    buildGiItems,
+    buildDefaultEularAcrCriteria,
+    buildDefaultSledai2kCriteria,
+  }),
 ];
 
 /**

@@ -103,7 +103,9 @@ describe("Lupiva Database Seed & 3-Zone PII Vault Verification", () => {
         p.studyIdEncrypted,
         `patient_profiles:${p.id}:study_id`
       );
-      expect(["VN-0084-26", "VN-0102-26"]).toContain(decryptedStudyId);
+      expect(INITIAL_CRF_PATIENTS.map((pat) => pat.studyId)).toContain(
+        decryptedStudyId
+      );
     }
 
     const submissionRows = await testDb.db.select().from(crfSubmissions);
