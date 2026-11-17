@@ -262,8 +262,11 @@ class CRFReviewTests(PatientWorkspaceTests):
         self.assertNotIn('EAC22/result', report['values'])
         self.assertEqual(report['summaries']['eular']['classification'], 'ana_not_met')
         report = evaluate_scores(dict(date='2026-11-13', criteria={'SDA20': 'yes'}), [], {})
+        # Unanswered criteria add nothing: the total is the sum of those marked present.
+        self.assertEqual(report['values']['SDA25/result']['value'], '2')
+        self.assertEqual(report['summaries']['sledai'], dict(total=2, missing=23))
+        report = evaluate_scores(dict(date='2026-11-13', criteria={}), [], {})
         self.assertNotIn('SDA25/result', report['values'])
-        self.assertEqual(report['summaries']['sledai']['missing'], 23)
         with self.assertRaises(ValueError):
             evaluate_scores(dict(criteria={'SDA20': 'yes'}), [], {})
         with self.assertRaises(ValueError):

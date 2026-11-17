@@ -23,7 +23,7 @@ EULAR_IDS = tuple(f'EAC{i:02}' for i in range(1, len(EULAR_WEIGHTS) + 1))
 SLEDAI_IDS = tuple(f'SDA{i:02}' for i in range(1, len(SLEDAI_WEIGHTS) + 1))
 GROUPS = {'eular': (EULAR_IDS, EULAR_WEIGHTS, 'EAC22'), 'sledai': (SLEDAI_IDS, SLEDAI_WEIGHTS, 'SDA25')}
 SCORE_FIELDS = frozenset((*EULAR_IDS, *SLEDAI_IDS, 'EAC22', 'SDA25'))
-RULE_VERSION = 'eular-acr-2019_sledai-2k-10d-v1'
+RULE_VERSION = 'eular-acr-2019_sledai-2k-10d-v2'
 NUMBER = re.compile(r'\d{1,12}(?:[.,]\d{1,12})?')
 COUNT_UNIT = re.compile(r'(?:[x×])?10\^?9/l')
 EXPLICIT_POSITIVE = {'positive', 'duong tinh', 'strong positive', 'duong tinh manh'}
@@ -238,7 +238,8 @@ def evaluate_scores(assessment, sources, references, *, rules=RULES):
     for group, (ids, weights, total_id) in GROUPS.items():
         recorded = {fid: criteria[fid] for fid in ids if fid in criteria}
         subtotal = sum(weight for fid, weight in zip(ids, weights) if recorded.get(fid) == 'yes')
-        reason = 'Cộng trọng số của các tiêu chí đã xác nhận trong cửa sổ 10 ngày.'
+        reason = ('Cộng trọng số của các tiêu chí được xác nhận Có trong cửa sổ 10 ngày; '
+                  'tiêu chí chưa trả lời tính 0 điểm.')
         missing = len(ids) - len(recorded)
         if group == 'eular':
             offset, subtotal, unresolved = 0, 0, 0
@@ -259,7 +260,9 @@ def evaluate_scores(assessment, sources, references, *, rules=RULES):
                                     unresolved_domains=unresolved, classification=classification)
             reason = 'Lấy điểm cao nhất của mỗi nhóm sau khi xác nhận điều kiện ANA.'
         else:
-            complete = bool(stamp) and not missing
+            # As on the paper form, SLEDAI-2K is the sum of the criteria marked present: a
+            # criterion left unanswered adds nothing. The count of unanswered ones is kept.
+            complete = bool(stamp) and bool(recorded)
             summaries[group] = dict(total=subtotal if complete else None, missing=missing)
         for fid, answer in recorded.items():
             evidence = suggestions.get(fid) if answer == 'yes' else None
