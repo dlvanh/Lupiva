@@ -780,6 +780,16 @@ class GeminiIntakeTests(unittest.TestCase):
         english=('Collection date: 03/04/2025', [10,20,280,49])
         self.assertIsNone(observation_date(facts(english),'general_lab'))
 
+    def test_staff_names_for_physician_and_nurse(self):
+        from ocr_pool.gemini_workflow import STAFF_FIELDS, _staff_name
+        self.assertEqual(STAFF_FIELDS['ordering_provider'][0], 'ADM08')
+        self.assertEqual(STAFF_FIELDS['specimen_collector'][0], 'ADM09')
+        self.assertEqual(_staff_name('Nguyễn Văn Đĩnh'), 'Nguyễn Văn Đĩnh')
+        self.assertEqual(_staff_name('CN. Nguyễn Thị Ngọc An'), 'Nguyễn Thị Ngọc An')
+        self.assertEqual(_staff_name('Ths.BSNT Đinh Thị Quỳnh Ngọc'), 'Đinh Thị Quỳnh Ngọc')
+        self.assertIsNone(_staff_name('09:19 27/05/2026'))
+        self.assertIsNone(_staff_name('Điện thoại 0911'))
+
     def test_method_identical_to_the_result_is_not_kept(self):
         from ocr_pool.gemini_workflow import _method_is_result
         self.assertTrue(_method_is_result(dict(method_raw='Speckled 1+', raw_result='Speckled  1+')))

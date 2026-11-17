@@ -225,6 +225,20 @@ def _value(row):
     return value
 
 
+# CRF header staff read from the lab sheet header: field and review role.
+STAFF_FIELDS = {'ordering_provider': ('ADM08', 'ordering_provider'),
+                'specimen_collector': ('ADM09', 'specimen_collector')}
+
+
+def _staff_name(value):
+    """A printed person name, without a title prefix; None for times, phones or long text."""
+    text = ' '.join(str(value).split()).strip(' .:')
+    text = re.sub(r'^(?:(?:th\.?s|bsnt|bscki+|bs|cki+|cn|ktv|đd|dd|ys|pgs|ts)\.?\s*)+', '', text, flags=re.I).strip(' .')
+    if not text or len(text) > 60 or re.search(r'\d|:', text) or re.search(r'(?:gio|ngay|dien thoai)', fold(text)):
+        return None
+    return text
+
+
 def _method_is_result(row):
     """A "method" identical to the printed result (e.g. "Speckled 1+") is the result, not a method."""
     method = ' '.join(fold(row['method_raw']).split())
@@ -268,6 +282,27 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 metadata_candidate_id=fact['candidate_id'], extraction_status='found',
                 validation_status='needs_review' if fact['flags'] else 'structure_checks_passed',
                 extraction_method='local_ocr', flags=list(fact['flags']), **pending, **values))
+        # Physician / Nurse of the CRF header: the ordering provider and the specimen
+        # collector printed on the lab sheet header, read locally (never sent to the API).
+        # OCR text of names stays flagged for review.
+        for key, (field_id, role) in STAFF_FIELDS.items():
+            fact = next((f for f in facts if f['key'] == key and isinstance(f.get('value'), str)
+                         and _staff_name(f['value'])), None)
+            if not fact or field_id in administrative_done:
+                continue
+            administrative_done.add(field_id)
+            name = _staff_name(fact['value'])
+            observations.append(dict(observation_id='GOBS'+str(len(observations)).zfill(6),
+                field_id=field_id, component='result', document_id=doc['document_id'],
+                name_raw=fact['label_raw'], result_raw=fact['value_raw'], unit_raw=None,
+                result_type='qualitative', qualitative_value=name, panel=None, specimen=None,
+                source_date=source_date['value'] if source_date else None,
+                date_type=source_date['key'] if source_date else None,
+                evidence_ids=list(dict.fromkeys(fact['evidence_ids'] + (source_date['evidence_ids'] if source_date else []))),
+                date_evidence_ids=source_date['evidence_ids'] if source_date else [],
+                metadata_candidate_id=fact['candidate_id'], extraction_status='found',
+                validation_status='needs_review', extraction_method='local_ocr', source_role=key,
+                flags=list(dict.fromkeys([*fact['flags'], role+'_role_requires_review'])), **pending))
 
     for index, (doc, result) in enumerate(zip(documents, results)):
         did = doc['document_id']; tid = 'G'+str(index).zfill(4)
