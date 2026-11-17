@@ -62,13 +62,33 @@ export function Navbar() {
   const navLinks =
     currentUser?.role === "specialist"
       ? [
-          { href: "/", label: isVi ? "Tổng quan" : "Overview", id: "nav-link-home" },
-          { href: "/upload", label: isVi ? "Hồ sơ Bệnh nhân" : "Patient Submissions", id: "nav-link-upload" },
-          { href: "/ocr", label: isVi ? "Duyệt OCR & e-CRF" : "OCR & e-CRF Review", id: "nav-link-ocr" },
-          { href: "/scores", label: isVi ? "Bảng điểm SLE" : "SLE Scores", id: "nav-link-scores" },
+          {
+            href: "/",
+            label: isVi ? "Tổng quan" : "Overview",
+            id: "nav-link-home",
+          },
+          {
+            href: "/upload",
+            label: isVi ? "Hồ sơ Bệnh nhân" : "Patient Submissions",
+            id: "nav-link-upload",
+          },
+          {
+            href: "/ocr",
+            label: isVi ? "Duyệt hồ sơ" : "Review",
+            id: "nav-link-ocr",
+          },
+          {
+            href: "/scores",
+            label: isVi ? "Bảng điểm SLE" : "SLE Scores",
+            id: "nav-link-scores",
+          },
         ]
       : [
-          { href: "/", label: isVi ? "Tổng quan" : "Overview", id: "nav-link-home" },
+          {
+            href: "/",
+            label: isVi ? "Tổng quan" : "Overview",
+            id: "nav-link-home",
+          },
           {
             href: "/upload",
             label:
@@ -77,8 +97,8 @@ export function Navbar() {
                   ? "Tải tài liệu"
                   : "Upload Document"
                 : isVi
-                ? "Bệnh nhân Tải lên"
-                : "Patient Upload",
+                  ? "Bệnh nhân Tải lên"
+                  : "Patient Upload",
             id: "nav-link-upload",
           },
         ];
@@ -271,8 +291,8 @@ export function Navbar() {
               visibleToast.tone === "teal"
                 ? "bg-teal-700"
                 : visibleToast.tone === "amber"
-                ? "bg-amber-600"
-                : "bg-slate-800"
+                  ? "bg-amber-600"
+                  : "bg-slate-800"
             }`}
           >
             <svg
