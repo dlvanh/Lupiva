@@ -95,3 +95,42 @@ describe("fillTemplateLine", () => {
     expect(fillTemplateLine("Gender\t☐  Female\t☐  Male", gender, shown("Other"))).toBeNull();
   });
 });
+
+describe("score tables", () => {
+  const layout: LayoutBlock[] = [
+    { index: 85, text: "DIAGNOSIS" },
+    {
+      index: 87,
+      rows: [
+        [{ text: "Clinical Domains" }, { text: "Score" }, { text: "Check" }, { text: "Immunological Domains" }, { text: "Score" }, { text: "Check" }],
+        [{ text: "Fever " }, { text: "2 " }, { text: "☐ " }, { text: "Anti-cardiolipin antibody OR Anti-β2GP1 " }, { text: "2 " }, { text: "☐ " }],
+        [{ text: "Leukopenia " }, { text: "3 " }, { text: "☐ " }, { text: "Low C3 OR low C4 " }, { text: "3 " }, { text: "☐ " }],
+        [{ text: "Thrombocytopenia " }, { text: "4 " }, { text: "☐ " }, { text: "Low C3 AND low C4 " }, { text: "4 " }, { text: "☐ " }],
+      ],
+    },
+    { index: 95, rows: [[{ text: "Score" }, { text: "Criterion" }, { text: "Definition" }], [{ text: "8" }, { text: "Seizure" }, { text: "Recent onset." }]] },
+  ];
+  const criterion = (id: string, label: string) => field({ slot: `${id}/result`, label, template_block: 85 });
+  const fields = [
+    criterion("EAC01", "Fever"),
+    criterion("EAC02", "Leukopenia"),
+    criterion("EAC18", "Anti-cardiolipin OR Anti-beta2GP1"),
+    criterion("EAC19", "Low C3 OR low C4"),
+    criterion("EAC20", "Low C3 AND low C4"),
+    criterion("SDA01", "Seizure"),
+  ];
+  const placed = placeFields(layout, fields, undefined, true, new Set(["EAC01", "EAC02", "EAC18", "EAC19", "EAC20", "SDA01"]));
+  const at = (r: number, c: number) => placed.checks.get(cellKey(87, r, c))?.slot;
+
+  it("puts each EULAR criterion in its own Check cell, both halves of the table", () => {
+    expect(at(1, 2)).toBe("EAC01/result");
+    expect(at(2, 2)).toBe("EAC02/result");
+    expect(at(1, 5)).toBe("EAC18/result");
+    expect(at(2, 5)).toBe("EAC19/result");
+    expect(at(3, 5)).toBe("EAC20/result");
+  });
+  it("does not print SLEDAI criteria row by row or as a list", () => {
+    expect([...placed.checks.values()].some((f) => f.slot === "SDA01/result")).toBe(false);
+    expect([...placed.after.values()].flat().flatMap((g) => g.fields).some((f) => f.slot.startsWith("SDA"))).toBe(false);
+  });
+});

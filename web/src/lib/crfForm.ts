@@ -88,6 +88,14 @@ export type Placement = {
   cleared: Set<CellKey>;
   /** Fields without a template cell, grouped under the block that precedes them. */
   after: Map<number, { section: string; fields: CrfField[] }[]>;
+  /** Score criteria ticked in a template "Check ☐" cell (EULAR/ACR table). */
+  checks: Map<CellKey, CrfField>;
+};
+
+const commonPrefix = (a: string, b: string) => {
+  let n = 0;
+  while (n < a.length && n < b.length && a[n] === b[n]) n++;
+  return n;
 };
 
 /**
@@ -100,8 +108,15 @@ export function placeFields(
   fields: CrfField[],
   approved: ReviewValues,
   showEmpty: boolean,
+  scoreCriteria: ReadonlySet<string> = new Set(),
 ): Placement {
-  const placement: Placement = { inCell: new Map(), ticks: new Set(), cleared: new Set(), after: new Map() };
+  const placement: Placement = {
+    inCell: new Map(),
+    ticks: new Set(),
+    cleared: new Set(),
+    after: new Map(),
+    checks: new Map(),
+  };
   const bound = new Map<string, CellKey>();
   const checkboxCodes = new Map<string, Set<string>>();
   const remember = (slot: string | null | undefined, codes: string[] | undefined) => {
@@ -150,7 +165,48 @@ export function placeFields(
     }
     return null;
   };
+  // Score tables print "criterion | weight | ☐": a criterion is ticked in its own check
+  // cell, matched by the longest shared start of the printed and catalogue labels.
+  const checkRows: { table: number; key: CellKey; label: string }[] = [];
+  for (const table of tables) {
+    table.rows!.forEach((cells, r) =>
+      cells.forEach((cell, c) => {
+        const weight = cells[c + 1];
+        const box = cells[c + 2];
+        if (cell.text.trim() && weight && /^\s*\d+\s*$/.test(weight.text) && box?.text.trim() === "☐") {
+          checkRows.push({ table: table.index, key: cellKey(table.index, r, c + 2), label: norm(cell.text) });
+        }
+      }),
+    );
+  }
+  const takenChecks = new Set<CellKey>();
+  const checkCell = (field: PlacedField) => {
+    const start = Number(field.template_block);
+    const label = norm(field.label);
+    let best: { key: CellKey; length: number } | null = null;
+    for (const row of checkRows) {
+      if (takenChecks.has(row.key) || (start && (row.table < start || row.table > start + 3))) continue;
+      const length = commonPrefix(label, row.label);
+      const needed = Math.min(10, Math.max(5, 0.6 * Math.min(label.length, row.label.length)));
+      if (length >= needed && (!best || length > best.length)) {
+        best = { key: row.key, length };
+      }
+    }
+    return best?.key ?? null;
+  };
+
   for (const field of fields as PlacedField[]) {
+    const fieldId = field.slot.split("/")[0];
+    if (scoreCriteria.has(fieldId) && field.component === "result") {
+      // A criterion is ticked where the template has a check box; a score table
+      // without one (SLEDAI-2K) prints only its total.
+      const box = checkCell(field);
+      if (box) {
+        takenChecks.add(box);
+        placement.checks.set(box, field);
+      }
+      continue;
+    }
     const shown = shownValue(field, approved);
     const codes = checkboxCodes.get(field.slot);
     // Template checkboxes already print this answer (or its absence).

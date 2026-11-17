@@ -34,6 +34,12 @@ type FormView = CrfViewWithSources & {
 type Summary = { total: number | null; missing: number; classification?: string };
 type CheckboxSpec = { text?: string; checkbox_values?: string[] };
 
+const scoreCriteriaIds = (form: Record<string, ScoreRow[]> | undefined) =>
+  Object.values(form ?? {})
+    .flat()
+    .map((row) => row.field_id)
+    .filter((id) => id !== "EAC22" && id !== "SDA25");
+
 const COMPONENT: Record<string, string> = {
   intensity: "Cường độ",
   absolute_count: "SL tuyệt đối",
@@ -159,7 +165,10 @@ export default function CrfFormPage() {
   const approved = view?.review?.values;
   const fieldsBySlot = useMemo(() => new Map((view?.fields ?? []).map((field) => [field.slot, field])), [view]);
   const placement = useMemo(
-    () => (view?.layout ? placeFields(view.layout, view.fields, approved, showEmpty) : null),
+    () =>
+      view?.layout
+        ? placeFields(view.layout, view.fields, approved, showEmpty, new Set(scoreCriteriaIds(view.score_form)))
+        : null,
     [view, approved, showEmpty],
   );
 
@@ -200,6 +209,26 @@ export default function CrfFormPage() {
     return field ? shownValue(field, approved) : null;
   };
 
+  // "SLE: 2019 EULAR/ACR score: Total = ……" and "SLEDAI-2K score: Total = ……".
+  const totalFor = (group: "eular" | "sledai") => {
+    const saved = approved?.[(group === "eular" ? "EAC22" : "SDA25") + "/result"]?.value;
+    if (saved) return { value: saved, note: "" };
+    const total = summaries?.[group]?.total;
+    return total != null ? { value: String(total), note: "Tính từ các tiêu chí đã duyệt · chưa duyệt tổng" } : null;
+  };
+  const withTotal = (text: string) => {
+    const group = /total\s*=/i.test(text) ? (/eular/i.test(text) ? "eular" : /sledai/i.test(text) ? "sledai" : null) : null;
+    const total = group ? totalFor(group) : null;
+    if (!total) return text;
+    return (
+      <>
+        {text.replace(/[.…]{3,}\s*$/, "")}
+        <span className="font-mono font-semibold">{total.value}</span>
+        {total.note && <span className="ml-1 text-[10px] text-amber-700 print:hidden">({total.note})</span>}
+      </>
+    );
+  };
+
   const renderFields = (fields: CrfField[]) =>
     fields.map((field) => {
       const shown = shownValue(field, approved);
@@ -216,6 +245,19 @@ export default function CrfFormPage() {
     const k = cellKey(block.index, r, c);
     const placed = placement?.inCell.get(k) ?? [];
     if (placement?.ticks.has(k)) return "☑";
+    const criterion = placement?.checks.get(k);
+    if (criterion) {
+      const shown = shownValue(criterion, approved);
+      const ticked = shown?.value === "yes";
+      return (
+        <>
+          {ticked ? "☑" : "☐"}
+          {ticked && shown && shown.kind !== "approved" && (
+            <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
+          )}
+        </>
+      );
+    }
     if (cell.checkbox_slot) return <Checkboxes spec={cell} shown={shownFor(cell.checkbox_slot)} />;
     if (cell.field_id) return placed.length ? renderFields(placed) : null;
     if (placement?.cleared.has(k)) return <div>{renderFields(placed)}</div>;
@@ -348,7 +390,11 @@ export default function CrfFormPage() {
                   <h2 className="text-center text-base font-bold">{block.text}</h2>
                 ) : (
                   <p className="whitespace-pre-line">
-                    {block.checkbox_slot ? <Checkboxes spec={block} shown={shownFor(block.checkbox_slot)} /> : block.text}
+                    {block.checkbox_slot ? (
+                      <Checkboxes spec={block} shown={shownFor(block.checkbox_slot)} />
+                    ) : (
+                      withTotal(block.text ?? "")
+                    )}
                   </p>
                 )
               ) : (
@@ -378,7 +424,7 @@ export default function CrfFormPage() {
       )}
 
       {view?.score_form && (
-        <article className="mt-6 rounded border border-slate-300 bg-white p-6 text-sm">
+        <article className="mt-6 rounded border border-slate-300 bg-white p-6 text-sm print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-bold">Chấm điểm EULAR/ACR 2019 và SLEDAI-2K</h2>
             <label className="flex items-center gap-2 text-sm print:hidden">
@@ -395,11 +441,11 @@ export default function CrfFormPage() {
             </label>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Mỗi tiêu chí in giá trị đã duyệt, hoặc giá trị đề xuất kèm ghi chú. Tổng điểm do backend tính, chỉ từ các
-            tiêu chí đã duyệt. Ngày đánh giá SLEDAI: {view.score_default_date || "—"}.
+            Tiêu chí EULAR được tích trong bảng của mẫu; SLEDAI-2K chỉ in tổng. Tổng điểm do backend tính từ các tiêu
+            chí đã duyệt ở Duyệt hồ sơ. Ngày đánh giá SLEDAI: {view.score_default_date || "—"}.
           </p>
           {scoreError && <p className="mt-2 text-xs text-red-700">{scoreError}</p>}
-          {Object.entries(view.score_form).map(([group, rows]) => {
+          {Object.keys(view.score_form).map((group) => {
             const summary = summaries?.[group];
             return (
               <div key={group} className="mt-4">
@@ -413,29 +459,6 @@ export default function CrfFormPage() {
                     </span>
                   )}
                 </h3>
-                <table className="mt-1 w-full border-collapse text-xs">
-                  <tbody>
-                    {rows
-                      .filter((row) => row.field_id !== "EAC22" && row.field_id !== "SDA25")
-                      .map((row) => {
-                        const field = fieldsBySlot.get(row.field_id + "/result");
-                        const shown = field ? shownValue(field, approved) : null;
-                        return (
-                          <tr key={row.field_id}>
-                            <td className="border border-slate-300 px-1.5 py-1">{row.label}</td>
-                            <td className="w-12 border border-slate-300 px-1.5 py-1 text-center font-mono">{row.weight}</td>
-                            <td className="border border-slate-300 px-1.5 py-1">
-                              {field && shown ? (
-                                <Value field={field} shown={shown} caseId={caseId} withLabel={false} />
-                              ) : (
-                                <span className="text-slate-300">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
               </div>
             );
           })}
