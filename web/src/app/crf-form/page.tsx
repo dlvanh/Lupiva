@@ -9,6 +9,7 @@
  * approved criteria.
  */
 import Link from "next/link";
+import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLupiva } from "@/context/LupivaContext";
 import type { CrfField } from "@/lib/crfApproval";
@@ -16,6 +17,7 @@ import { withoutHidden, type CrfViewWithSources } from "@/lib/crfEvidence";
 import {
   approvedCriteria,
   cellKey,
+  choiceText,
   fillTemplateLine,
   placeFields,
   shownNote,
@@ -76,24 +78,31 @@ async function backend<T>(path: string, query?: Record<string, string>, body?: u
   return response.json() as Promise<T>;
 }
 
-function Value({ field, shown, caseId, withLabel }: { field: CrfField; shown: Shown; caseId: string; withLabel: boolean }) {
+function Value({
+  field,
+  shown,
+  withLabel,
+  control,
+}: {
+  field: CrfField;
+  shown: Shown | null;
+  withLabel: boolean;
+  control: React.ReactNode;
+}) {
   const component = COMPONENT[field.component];
   return (
     <span className={`mr-2 inline-block ${blankOnPrint(shown) ? "print:hidden" : ""}`}>
       {withLabel && component && <span className="text-xs text-slate-500">{component}: </span>}
-      <Link
-        href={`/registry?case=${encodeURIComponent(caseId)}&slot=${encodeURIComponent(field.slot)}`}
-        className={`font-mono font-semibold hover:underline ${shown.kind === "proposal" ? "italic" : ""}`}
-        title="Mở ô này ở Duyệt hồ sơ"
-      >
-        {shown.text}
-      </Link>
-      <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
+      <span className="print:hidden">{control}</span>
+      {shown && <span className="hidden font-mono print:inline">{shown.text}</span>}
+      {shown && shown.kind !== "approved" && (
+        <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
+      )}
     </span>
   );
 }
 
-function Checkboxes({ spec, shown }: { spec: CheckboxSpec; shown: Shown | null }) {
+function Checkboxes({ spec, shown, onPick }: { spec: CheckboxSpec; shown: Shown | null; onPick: (code: string) => void }) {
   const codes = spec.checkbox_values ?? [];
   const parts = (spec.text ?? "").split("☐");
   return (
@@ -102,7 +111,7 @@ function Checkboxes({ spec, shown }: { spec: CheckboxSpec; shown: Shown | null }
       {codes.map((code, index) => {
         const checked = shown?.value === code;
         return (
-          <span key={code} className="mr-2">
+          <span key={code} className="mr-2 cursor-pointer" onClick={() => onPick(code)}>
             {checked && !blankOnPrint(shown) ? "☑" : checked ? (
               <>
                 <span className="print:hidden">☑</span>
@@ -134,16 +143,29 @@ export default function CrfFormPage() {
   const [scoreError, setScoreError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // What the form shows in each cell, editable: starts from the approved value, else the
+  // source value, else the proposal. "Lưu / Duyệt" approves every filled cell.
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async (id: string) => {
     setCaseId(id);
     setView(null);
     setSummaries(null);
     setError(null);
+    setNotice(null);
     if (!id) return;
     setLoading(true);
     try {
-      setView(withoutHidden(await backend<FormView>("/api/crf", { case_id: id })));
+      const next = withoutHidden(await backend<FormView>("/api/crf", { case_id: id }));
+      const initial: Record<string, string> = {};
+      for (const field of next.fields) {
+        const shown = shownValue(field, next.review?.values);
+        if (shown) initial[field.slot] = shown.value;
+      }
+      setEdits(initial);
+      setView(next);
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -204,9 +226,94 @@ export default function CrfFormPage() {
     );
   }
 
+  /** The cell's current answer: the doctor's edit if any, with where it came from. */
+  const effective = (field: CrfField): Shown | null => {
+    const original = shownValue(field, approved);
+    if (!(field.slot in edits)) return original;
+    const value = edits[field.slot];
+    if (!value) return null;
+    if (original && original.value === value) return original;
+    return { value, text: choiceText(field, value), kind: "approved", origin: "manual_entry" };
+  };
+  const setEdit = (slot: string, value: string) => setEdits((previous) => ({ ...previous, [slot]: value }));
+  const toggle = (slot: string, code: string) =>
+    setEdits((previous) => ({ ...previous, [slot]: previous[slot] === code ? "" : code }));
+  const controlFor = (field: CrfField) =>
+    field.choices.length ? (
+      <select
+        aria-label={field.label}
+        className="rounded border border-slate-300 bg-white px-1 py-0.5 text-xs"
+        value={edits[field.slot] ?? ""}
+        onChange={(event) => setEdit(field.slot, event.target.value)}
+      >
+        <option value="">—</option>
+        {field.choices.map((choice) => (
+          <option key={choice.code} value={choice.code}>
+            {choice.label}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <input
+        aria-label={field.label}
+        className="w-36 rounded border border-slate-300 bg-white px-1 py-0.5 font-mono text-xs"
+        value={edits[field.slot] ?? ""}
+        onChange={(event) => setEdit(field.slot, event.target.value)}
+      />
+    );
   const shownFor = (slot: string | null | undefined) => {
     const field = slot ? fieldsBySlot.get(slot) : undefined;
-    return field ? shownValue(field, approved) : null;
+    return field ? effective(field) : null;
+  };
+  const pick = (slot: string | null | undefined) => (code: string) => {
+    if (slot) toggle(slot, code);
+  };
+
+  // Approve every filled cell: matching draft values by id, other text as typed values,
+  // score criteria as the score assessment.
+  const save = async () => {
+    if (!view) return;
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const scoreIds = new Set(scoreCriteriaIds(view.score_form));
+      const selections: Record<string, string> = {};
+      const manual: Record<string, string> = {};
+      const criteria: Record<string, string> = {};
+      for (const field of view.fields) {
+        const value = (edits[field.slot] ?? "").trim();
+        const fid = field.slot.split("/")[0];
+        if (!value || fid === "EAC22" || fid === "SDA25") continue;
+        if (scoreIds.has(fid)) {
+          if (value === "yes" || value === "no") criteria[fid] = value;
+          continue;
+        }
+        const option =
+          field.options.find((item) => item.value === value) ??
+          (field.proposal?.value === value ? field.proposal : undefined) ??
+          field.manual_options?.find((item) => item.value === value);
+        if (option) selections[field.slot] = option.id;
+        else if (!field.choices.length) manual[field.slot] = value;
+      }
+      const scored = Object.keys(criteria).length > 0 || ana !== "";
+      await backend("/api/crf/approve", undefined, {
+        case_id: caseId,
+        source_snapshot: view.source_snapshot,
+        draft_sha256: view.draft_sha256,
+        selections,
+        manual_values: manual,
+        ...(scored ? { score_assessment: { ana, date: view.score_default_date ?? "", criteria } } : {}),
+      });
+      await load(caseId);
+      setNotice(
+        `Đã duyệt ${Object.keys(selections).length + Object.keys(manual).length} ô và ${Object.keys(criteria).length} tiêu chí chấm điểm.`,
+      );
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // "SLE: 2019 EULAR/ACR score: Total = ……" and "SLEDAI-2K score: Total = ……".
@@ -231,13 +338,9 @@ export default function CrfFormPage() {
 
   const renderFields = (fields: CrfField[]) =>
     fields.map((field) => {
-      const shown = shownValue(field, approved);
-      return shown ? (
-        <Value key={field.slot} field={field} shown={shown} caseId={caseId} withLabel={fields.length > 1} />
-      ) : (
-        <span key={field.slot} className="text-slate-300">
-          —
-        </span>
+      const shown = effective(field);
+      return (
+        <Value key={field.slot} field={field} shown={shown} withLabel={fields.length > 1} control={controlFor(field)} />
       );
     });
 
@@ -247,18 +350,26 @@ export default function CrfFormPage() {
     if (placement?.ticks.has(k)) return "☑";
     const criterion = placement?.checks.get(k);
     if (criterion) {
-      const shown = shownValue(criterion, approved);
+      const shown = effective(criterion);
       const ticked = shown?.value === "yes";
       return (
         <>
-          {ticked ? "☑" : "☐"}
+          <span
+            className="cursor-pointer"
+            title="Bấm để tích / bỏ tích"
+            onClick={() => setEdit(criterion.slot, ticked ? "no" : "yes")}
+          >
+            {ticked ? "☑" : "☐"}
+          </span>
           {ticked && shown && shown.kind !== "approved" && (
             <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
           )}
         </>
       );
     }
-    if (cell.checkbox_slot) return <Checkboxes spec={cell} shown={shownFor(cell.checkbox_slot)} />;
+    if (cell.checkbox_slot) {
+      return <Checkboxes spec={cell} shown={shownFor(cell.checkbox_slot)} onPick={pick(cell.checkbox_slot)} />;
+    }
     if (cell.field_id) return placed.length ? renderFields(placed) : null;
     if (placement?.cleared.has(k)) return <div>{renderFields(placed)}</div>;
     // Write each answer on the template line that prints its label (tick or fill the blanks);
@@ -267,21 +378,20 @@ export default function CrfFormPage() {
     const lines = cell.text.split("\n").map((line, index) => {
       for (const field of placed) {
         if (used.has(field.slot)) continue;
-        const shown = shownValue(field, approved);
+        const shown = effective(field);
         const filled = shown ? fillTemplateLine(line, field, shown) : null;
-        if (filled !== null && shown) {
+        const own = fillTemplateLine(line, field, { value: "x", text: "x", kind: "source" }) !== null;
+        if (own) {
           used.add(field.slot);
+          const plain = !shown || blankOnPrint(shown) || filled === null;
           return (
             <div key={index} className="whitespace-pre-wrap">
-              {blankOnPrint(shown) && <span className="hidden print:inline">{line}</span>}
-              <Link
-                href={`/registry?case=${encodeURIComponent(caseId)}&slot=${encodeURIComponent(field.slot)}`}
-                className={`hover:underline ${blankOnPrint(shown) ? "print:hidden" : ""}`}
-                title="Mở ô này ở Duyệt hồ sơ"
-              >
-                {filled}
-              </Link>
-              <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
+              {plain && <span className="hidden print:inline">{line}</span>}
+              <span className={plain ? "print:hidden" : ""}>{filled ?? line}</span>
+              <span className="ml-2 print:hidden">{controlFor(field)}</span>
+              {shown && shown.kind !== "approved" && (
+                <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
+              )}
             </div>
           );
         }
@@ -306,7 +416,7 @@ export default function CrfFormPage() {
       <div key={`${index}-${group.section}`} className="my-2 rounded border border-dashed border-slate-300 p-2 text-sm">
         <p className="mb-1 text-xs font-semibold text-slate-500">{group.section}</p>
         {group.fields.map((field) => {
-          const shown = shownValue(field, approved);
+          const shown = effective(field);
           const component = COMPONENT[field.component];
           return (
             <div key={field.slot} className="flex flex-wrap gap-x-2">
@@ -314,11 +424,7 @@ export default function CrfFormPage() {
                 {field.label}
                 {component ? ` · ${component}` : ""}:
               </span>
-              {shown ? (
-                <Value field={field} shown={shown} caseId={caseId} withLabel={false} />
-              ) : (
-                <span className="text-slate-300">—</span>
-              )}
+              <Value field={field} shown={shown} withLabel={false} control={controlFor(field)} />
             </div>
           );
         })}
@@ -358,15 +464,24 @@ export default function CrfFormPage() {
               <button type="button" onClick={() => window.print()} className="rounded bg-slate-800 px-3 py-1 text-sm text-white">
                 In / Lưu PDF
               </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void save()}
+                className="rounded bg-emerald-700 px-3 py-1 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {saving ? "Đang lưu…" : "Lưu / Duyệt"}
+              </button>
             </>
           )}
         </div>
       </div>
       <p className="mt-1 text-sm text-slate-500 print:hidden">
-        Phiếu tự điền từ Duyệt hồ sơ: ô đã duyệt in giá trị đã duyệt; ô chưa duyệt in giá trị nguồn hoặc giá trị đề
-        xuất, kèm ghi chú bên ngoài ô. Bấm vào một giá trị để mở ô đó ở Duyệt hồ sơ.
+        Phiếu điền sẵn giá trị đã duyệt, giá trị đọc từ ảnh hoặc đề xuất (ghi chú nguồn bên cạnh). Sửa trực tiếp: bấm
+        ô ☐ để tích, chọn hoặc gõ giá trị vào ô. &quot;Lưu / Duyệt&quot; duyệt mọi ô đang có giá trị trên phiếu.
       </p>
-      {error && <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700 print:hidden">{error}</p>}
+      {notice && <p className="mt-4 rounded bg-emerald-50 p-3 text-sm text-emerald-700 print:hidden">{notice}</p>}
       {loading && <p className="mt-4 text-sm text-slate-500">Đang tải phiếu…</p>}
       {view && (
         <p
@@ -391,7 +506,7 @@ export default function CrfFormPage() {
                 ) : (
                   <p className="whitespace-pre-line">
                     {block.checkbox_slot ? (
-                      <Checkboxes spec={block} shown={shownFor(block.checkbox_slot)} />
+                      <Checkboxes spec={block} shown={shownFor(block.checkbox_slot)} onPick={pick(block.checkbox_slot)} />
                     ) : (
                       withTotal(block.text ?? "")
                     )}
