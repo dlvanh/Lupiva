@@ -512,11 +512,14 @@ class CRFReview:
         return dict(status='running')
 
     def approve(self, store, *, case_id, source_snapshot, draft_sha256, selections, actor, role,
-                score_assessment=None):
+                score_assessment=None, manual_values=None):
         reviewer = actor_info(actor, role)
         if role not in HUMAN_ROLES:
             raise ValueError('CRF cần người dùng duyệt.')
-        if not isinstance(selections, dict) or (not selections and score_assessment is None):
+        if manual_values is None:
+            manual_values = {}
+        if not isinstance(selections, dict) or not isinstance(manual_values, dict) or (
+                not selections and not manual_values and score_assessment is None):
             raise ValueError('Chọn ít nhất một ô có giá trị để duyệt.')
         with store.atomic_batch():
             view = self.view(store, case_id)
@@ -534,6 +537,19 @@ class CRFReview:
             if any(not isinstance(value, str) or value not in valid.get(slot, {}) for slot, value in selections.items()):
                 raise ValueError('Có ô trống hoặc giá trị không thuộc bản nháp hiện hành.')
             values = {slot: valid[slot][value] for slot, value in selections.items()}
+            # Values the reviewer typed on the form (a corrected name, a number, a "Specify"
+            # text). A field with fixed answers only takes one of its answer codes.
+            fields_by_slot = {field['slot']: field for field in view['fields']}
+            for slot, text in manual_values.items():
+                field = fields_by_slot.get(slot)
+                text = ' '.join(text.split()) if isinstance(text, str) else None
+                if field is None or slot in values or not text or len(text) > 300:
+                    raise ValueError('Giá trị nhập tay không hợp lệ cho ô ' + str(slot) + '.')
+                codes = {choice['code'] for choice in field['choices']}
+                if codes and text not in codes:
+                    raise ValueError('Ô ' + slot + ' chỉ nhận một trong các lựa chọn của mẫu.')
+                item = dict(value=text, sources=[], origin='manual_entry')
+                values[slot] = dict(**item, id=digest([slot, item]))
             scores = None
             if score_assessment is not None:
                 scores = self.scores(store, case_id=case_id, source_snapshot=source_snapshot, assessment=score_assessment)

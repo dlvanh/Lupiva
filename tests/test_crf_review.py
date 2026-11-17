@@ -383,6 +383,17 @@ class CRFReviewTests(PatientWorkspaceTests):
         self.assertEqual(receipt['values'][target['slot']]['origin'], 'llm_suggestion')
         self.assertEqual(CRFReview(app).view(self.store, case_id)['review'], receipt)
         self.assertEqual(self.store.effective_pool(case_id)['observations'], [])
+        # Typed values: free text for a text field; a fixed-answer field takes only its codes.
+        text_field = next(f for f in initial['fields'] if not f['choices'] and not f['options']
+                          and f['slot'] not in selections)
+        choice_field = next(f for f in initial['fields'] if f['choices'] and f['slot'] not in selections)
+        typed = crf.approve(self.store, **{**request, 'manual_values': {text_field['slot']: '  Nguyễn  Văn A '}})
+        self.assertEqual(typed['values'][text_field['slot']]['value'], 'Nguyễn Văn A')
+        self.assertEqual(typed['values'][text_field['slot']]['origin'], 'manual_entry')
+        with self.assertRaises(ValueError):
+            crf.approve(self.store, **{**request, 'manual_values': {choice_field['slot']: 'maybe'}})
+        with self.assertRaises(ValueError):
+            crf.approve(self.store, **{**request, 'manual_values': {'NOPE/result': 'x'}})
 
 
 import unittest
