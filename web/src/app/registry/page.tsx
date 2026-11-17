@@ -251,15 +251,55 @@ function FieldRow({
                   .join(" · ")}
               </p>
             )}
-            {!field.options.length && field.proposal && (
-              <p>
-                <span className="rounded border border-dashed border-amber-500 bg-amber-50 px-1.5 py-0.5 font-mono italic">
-                  {label(field, field.proposal.value)}
-                </span>
-                <span className="ml-2 text-xs text-amber-800">{proposalNote(field.proposal.origin)}</span>
-              </p>
+            {field.choices.length > 0 ? (
+              // A question with fixed answers: the result box offers only those answers and is
+              // filled with the proposal; where the answer came from is noted outside the box.
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  aria-label={`Kết quả ${field.label}`}
+                  disabled={!canApprove}
+                  className={`rounded border px-2 py-1 text-sm ${
+                    selected ? "border-emerald-500 bg-emerald-50" : "border-slate-300"
+                  }`}
+                  value={choices.find((choice) => choice.id === selected)?.value ?? ""}
+                  onChange={(event) => {
+                    const code = event.target.value;
+                    const pick =
+                      choices.find((choice) => choice.kind === "source" && choice.value === code) ??
+                      choices.find((choice) => choice.kind === "proposal" && choice.value === code) ??
+                      choices.find((choice) => choice.value === code);
+                    onSelect(pick?.id ?? "");
+                  }}
+                >
+                  <option value="">—</option>
+                  {field.choices.map((choice) => (
+                    <option key={choice.code} value={choice.code}>
+                      {choice.label}
+                    </option>
+                  ))}
+                </select>
+                {field.proposal && (
+                  <span className="text-xs text-amber-800">
+                    {proposalNote(field.proposal.origin)}
+                    {selected !== field.proposal.id ? `: ${label(field, field.proposal.value)}` : ""}
+                  </span>
+                )}
+              </div>
+            ) : (
+              !field.options.length &&
+              field.proposal && (
+                <p>
+                  <span className="rounded border border-dashed border-amber-500 bg-amber-50 px-1.5 py-0.5 font-mono italic">
+                    {label(field, field.proposal.value)}
+                  </span>
+                  <span className="ml-2 text-xs text-amber-800">{proposalNote(field.proposal.origin)}</span>
+                </p>
+              )
             )}
-            {canApprove && choices.length > 0 && (
+            {field.choices.length > 0 && field.proposal?.reason && field.proposal.origin !== "no_evidence" && (
+              <p className="mt-1 text-xs text-slate-500">{field.proposal.reason}</p>
+            )}
+            {canApprove && field.choices.length === 0 && choices.length > 0 && (
               <select
                 aria-label={`Duyệt ${field.label}`}
                 className={`mt-1 w-full rounded border px-2 py-1 text-sm ${
@@ -327,9 +367,18 @@ export default function RegistryCrfPage() {
       const scoreIds = Object.values(next.score_form ?? {}).flat().map((row) => row.field_id);
       const chosen = initialSelections(next);
       const answered: Record<string, Answer> = {};
+      // Proposals are filled straight into their result box (and into the score criteria);
+      // the doctor changes any of them before pressing "Duyệt".
+      for (const field of next.fields) {
+        if (!chosen[field.slot] && !field.options.length && field.proposal && field.choices.length) {
+          chosen[field.slot] = field.proposal.id;
+        }
+      }
       for (const fid of scoreIds) {
         delete chosen[fid + "/result"];
-        const value = next.review?.values[fid + "/result"]?.value;
+        const value =
+          next.review?.values[fid + "/result"]?.value ??
+          next.fields.find((field) => field.slot === fid + "/result")?.proposal?.value;
         if (!TOTALS.has(fid) && (value === "yes" || value === "no")) answered[fid] = value;
       }
       setView(next);
@@ -526,8 +575,9 @@ export default function RegistryCrfPage() {
     <main className="mx-auto max-w-7xl px-4 py-6">
       <h1 className="text-xl font-semibold text-slate-800">Duyệt hồ sơ</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Giá trị đọc từ ảnh và đề xuất đều chờ bác sĩ duyệt. Không ô nào được chọn sẵn; bấm một ô để xem ảnh nguồn,
-        tích từng ô hoặc dùng &quot;Tích cả mục&quot; sau khi đã đối chiếu.
+        Giá trị đọc từ ảnh cần tích để duyệt (từng ô hoặc &quot;Tích cả mục&quot;). Câu hỏi Có/Không/Chưa rõ và tiêu
+        chí chấm điểm được điền sẵn theo đề xuất, có ghi chú nguồn đề xuất bên cạnh; sửa ô nào chưa đúng rồi bấm
+        &quot;Duyệt&quot;. Chưa có gì được lưu cho tới khi bấm &quot;Duyệt&quot;.
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <select
