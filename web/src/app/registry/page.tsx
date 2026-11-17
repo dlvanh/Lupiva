@@ -13,7 +13,7 @@
  * clinical questions collapsed); on the right the source crop of the active
  * field with its date and, when the image size matches, the row box.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLupiva } from "@/context/LupivaContext";
 import {
   approvalPayload,
@@ -35,6 +35,15 @@ import {
 } from "@/lib/crfEvidence";
 
 type CaseItem = { case_id: string; registry_code: string };
+type ScoreRow = { field_id: string; label: string; weight: number; definition?: string };
+type ReviewView = CrfViewWithSources & {
+  score_form?: Record<string, ScoreRow[]>;
+  model?: string | null;
+  job?: { status?: string; error?: string } | null;
+  review: (CrfViewWithSources["review"] & { scores?: { assessment?: { ana?: string; date?: string } } }) | null;
+};
+type Answer = "yes" | "no";
+const TOTALS = new Set(["EAC22", "SDA25"]);
 type Sources = Record<string, SourceDetail> | undefined;
 
 const COMPONENT: Record<string, string> = {
@@ -290,7 +299,11 @@ export default function RegistryCrfPage() {
   const canApprove = currentUser?.role === "specialist";
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [caseId, setCaseId] = useState("");
-  const [view, setView] = useState<CrfViewWithSources | null>(null);
+  const [view, setView] = useState<ReviewView | null>(null);
+  // Score criteria (EULAR/SLEDAI): the doctor's Có/Không per criterion, approved with the rest.
+  const [criteria, setCriteria] = useState<Record<string, Answer>>({});
+  const [ana, setAna] = useState<"" | Answer>("");
+  const [scoreDate, setScoreDate] = useState("");
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const [showEmpty, setShowEmpty] = useState(false);
@@ -310,9 +323,21 @@ export default function RegistryCrfPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const next = withoutHidden(await backend<CrfViewWithSources>("/api/crf", { case_id: id }));
+      const next = withoutHidden(await backend<ReviewView>("/api/crf", { case_id: id }));
+      const scoreIds = Object.values(next.score_form ?? {}).flat().map((row) => row.field_id);
+      const chosen = initialSelections(next);
+      const answered: Record<string, Answer> = {};
+      for (const fid of scoreIds) {
+        delete chosen[fid + "/result"];
+        const value = next.review?.values[fid + "/result"]?.value;
+        if (!TOTALS.has(fid) && (value === "yes" || value === "no")) answered[fid] = value;
+      }
       setView(next);
-      setSelections(initialSelections(next));
+      setSelections(chosen);
+      setCriteria(answered);
+      const previous = next.review?.scores?.assessment;
+      setAna(previous?.ana === "yes" || previous?.ana === "no" ? previous.ana : "");
+      setScoreDate(previous?.date || next.score_default_date || "");
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -363,9 +388,17 @@ export default function RegistryCrfPage() {
     setNotice(null);
     setSaving(true);
     try {
-      const payload = approvalPayload(caseId, view, selections);
-      await backend("/api/crf/approve", undefined, payload);
-      const count = Object.keys(payload.selections).length;
+      const scored = Object.keys(criteria).length > 0 || ana !== "";
+      const anyField = Object.values(selections).some(Boolean);
+      const payload =
+        anyField || !scored
+          ? approvalPayload(caseId, view, selections)
+          : { case_id: caseId, source_snapshot: view.source_snapshot, draft_sha256: view.draft_sha256, selections: {} };
+      await backend("/api/crf/approve", undefined, {
+        ...payload,
+        ...(scored ? { score_assessment: { ana, date: scoreDate, criteria } } : {}),
+      });
+      const count = Object.keys(payload.selections).length + Object.keys(criteria).length;
       await load(caseId);
       setNotice(`Đã duyệt ${count} ô.`);
     } catch (reason) {
@@ -373,7 +406,7 @@ export default function RegistryCrfPage() {
     } finally {
       setSaving(false);
     }
-  }, [caseId, view, selections, load]);
+  }, [caseId, view, selections, criteria, ana, scoreDate, load]);
 
   // Ask the backend LLM to answer the clinical questions from labs, report notes and
   // printed diagnoses; proposals arrive as "LLM đề xuất · chưa duyệt".
@@ -404,8 +437,32 @@ export default function RegistryCrfPage() {
     }
   }, [caseId, load]);
 
+  // No draft yet for this case: create the LLM proposals without being asked.
+  const autoDrafted = useRef(new Set<string>());
+  useEffect(() => {
+    if (!view || !caseId || !canApprove || drafting || view.model || view.job?.status === "running") return;
+    if (autoDrafted.current.has(caseId)) return;
+    autoDrafted.current.add(caseId);
+    void draftClinical();
+  }, [view, caseId, canApprove, drafting, draftClinical]);
+
+  const fieldBySlot = useMemo(() => new Map((view?.fields ?? []).map((field) => [field.slot, field])), [view]);
+  const acceptScoreProposals = () =>
+    setCriteria((previous) => {
+      const next = { ...previous };
+      for (const row of Object.values(view?.score_form ?? {}).flat()) {
+        const value = fieldBySlot.get(row.field_id + "/result")?.proposal?.value;
+        if (!TOTALS.has(row.field_id) && !next[row.field_id] && (value === "yes" || value === "no")) {
+          next[row.field_id] = value;
+        }
+      }
+      return next;
+    });
+
   const groups = useMemo(() => {
-    const fields = view?.fields ?? [];
+    // Score criteria are answered in their own section, not in the field lists.
+    const scoreSlots = new Set(Object.values(view?.score_form ?? {}).flat().map((row) => row.field_id + "/result"));
+    const fields = (view?.fields ?? []).filter((field) => !scoreSlots.has(field.slot));
     const approved = view?.review?.values ?? {};
     const pick = (group: string) => fields.filter((field) => reviewGroup(field) === group);
     return {
@@ -423,9 +480,9 @@ export default function RegistryCrfPage() {
       source: groups.source.reduce((sum, [, list]) => sum + list.length, 0),
       unknown: groups.unknown.length,
       approved: Object.keys(view?.review?.values ?? {}).length,
-      selected: Object.values(selections).filter(Boolean).length,
+      selected: Object.values(selections).filter(Boolean).length + Object.keys(criteria).length,
     }),
-    [view, groups, selections],
+    [view, groups, selections, criteria],
   );
 
   const activeField = useMemo(
@@ -558,6 +615,110 @@ export default function RegistryCrfPage() {
                 {rows(fields)}
               </section>
             ))}
+            {view.score_form && (
+              <section className="mt-5 rounded border border-indigo-200 bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="font-medium text-slate-800">Chấm điểm EULAR/ACR 2019 và SLEDAI-2K</h2>
+                  {canApprove && (
+                    <button
+                      type="button"
+                      className="rounded border border-amber-600 px-2 py-1 text-xs text-amber-900 hover:bg-amber-50"
+                      onClick={acceptScoreProposals}
+                    >
+                      Nhận các đề xuất
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+                  <label className="flex items-center gap-2">
+                    ANA ≥ 1:80 (tiêu chí vào EULAR)
+                    <select
+                      className="rounded border border-slate-300 px-2 py-1"
+                      value={ana}
+                      disabled={!canApprove}
+                      onChange={(event) => setAna(event.target.value as "" | Answer)}
+                    >
+                      <option value="">Chưa xác nhận</option>
+                      <option value="yes">Có</option>
+                      <option value="no">Không</option>
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    Ngày đánh giá SLEDAI
+                    <input
+                      type="date"
+                      className="rounded border border-slate-300 px-2 py-1"
+                      value={scoreDate.slice(0, 10)}
+                      disabled={!canApprove}
+                      onChange={(event) => setScoreDate(event.target.value)}
+                    />
+                  </label>
+                </div>
+                {Object.entries(view.score_form).map(([group, scoreRows]) => (
+                  <details key={group} className="mt-3" open>
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                      {group === "eular" ? "EULAR/ACR 2019" : "SLEDAI-2K"} ·{" "}
+                      {scoreRows.filter((row) => criteria[row.field_id]).length}/
+                      {scoreRows.filter((row) => !TOTALS.has(row.field_id)).length} tiêu chí đã chọn
+                    </summary>
+                    {scoreRows
+                      .filter((row) => !TOTALS.has(row.field_id))
+                      .map((row) => {
+                        const slot = row.field_id + "/result";
+                        const proposal = fieldBySlot.get(slot)?.proposal;
+                        const approvedValue = view.review?.values[slot]?.value;
+                        return (
+                          <div
+                            key={row.field_id}
+                            id={`slot-${slot}`}
+                            className={`grid cursor-pointer grid-cols-1 gap-1 border-b border-slate-100 px-2 py-1.5 text-sm sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] ${
+                              slot === activeSlot ? "bg-sky-50" : "hover:bg-slate-50"
+                            }`}
+                            onClick={() => setActiveSlot(slot)}
+                          >
+                            <div className="text-slate-700" title={row.definition}>
+                              {row.label} <span className="font-mono text-xs text-slate-400">({row.weight})</span>
+                            </div>
+                            <div>
+                              <select
+                                aria-label={`Chấm ${row.label}`}
+                                disabled={!canApprove}
+                                className={`rounded border px-2 py-1 text-sm ${
+                                  criteria[row.field_id] ? "border-emerald-500 bg-emerald-50" : "border-slate-300"
+                                }`}
+                                value={criteria[row.field_id] ?? ""}
+                                onChange={(event) =>
+                                  setCriteria((previous) => {
+                                    const next = { ...previous };
+                                    if (event.target.value) next[row.field_id] = event.target.value as Answer;
+                                    else delete next[row.field_id];
+                                    return next;
+                                  })
+                                }
+                              >
+                                <option value="">— Chưa chấm —</option>
+                                <option value="yes">Có</option>
+                                <option value="no">Không</option>
+                              </select>
+                              {proposal && (proposal.value === "yes" || proposal.value === "no") && (
+                                <span className="ml-2 text-xs text-amber-800">
+                                  {proposalNote(proposal.origin)}: {proposal.value === "yes" ? "Có" : "Không"}
+                                </span>
+                              )}
+                              {approvedValue && (
+                                <span className="ml-2 text-xs text-emerald-700">
+                                  Đã duyệt: {approvedValue === "yes" ? "Có" : approvedValue === "no" ? "Không" : approvedValue}
+                                </span>
+                              )}
+                              {proposal?.reason && <p className="text-xs text-slate-500">{proposal.reason}</p>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </details>
+                ))}
+              </section>
+            )}
             {groups.unknown.length > 0 && (
               <details
                 className="mt-5 rounded border border-slate-200 bg-white p-4"
