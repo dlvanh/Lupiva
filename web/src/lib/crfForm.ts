@@ -214,7 +214,8 @@ export function placeFields(
     const boundCell = bound.get(field.slot.split("/")[0]);
     const matched = boundCell ? null : findTarget(field);
     const target = boundCell ?? matched?.key;
-    if (!shown && !showEmpty && (!target || matched)) continue;
+    // An empty field keeps its template cell so the form can be filled in there.
+    if (!shown && !showEmpty && !target) continue;
     if (target) {
       placement.inCell.set(target, [...(placement.inCell.get(target) ?? []), field]);
       if (matched && /^\s*\(.*\)\s*$/.test(matched.placeholder)) placement.cleared.add(target);
@@ -248,6 +249,11 @@ export function placeFields(
  * "☐ Option" or write the value over the placeholder ("☐ ☐", "……"). Returns
  * null when the line is not this field's line or has nowhere to put the value.
  */
+/** True when the printed line starts with this field's label ("Gender ☐ …", "Age: ☐ ☐"). */
+export function isFieldLine(line: string, field: CrfField): boolean {
+  return labelKeys(field).has(norm(line.split(/[:	☐]/)[0]));
+}
+
 export function fillTemplateLine(line: string, field: CrfField, shown: Shown): string | null {
   const prefix = line.split(/[:	☐]/)[0];
   if (!labelKeys(field).has(norm(prefix))) return null;

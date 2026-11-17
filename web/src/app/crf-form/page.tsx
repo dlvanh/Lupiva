@@ -19,6 +19,7 @@ import {
   cellKey,
   choiceText,
   fillTemplateLine,
+  isFieldLine,
   placeFields,
   shownNote,
   shownValue,
@@ -380,7 +381,7 @@ export default function CrfFormPage() {
         if (used.has(field.slot)) continue;
         const shown = effective(field);
         const filled = shown ? fillTemplateLine(line, field, shown) : null;
-        const own = fillTemplateLine(line, field, { value: "x", text: "x", kind: "source" }) !== null;
+        const own = isFieldLine(line, field);
         if (own) {
           used.add(field.slot);
           const plain = !shown || blankOnPrint(shown) || filled === null;
