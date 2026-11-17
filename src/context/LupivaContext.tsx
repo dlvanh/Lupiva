@@ -8,6 +8,7 @@ import React, {
   useEffect,
   useRef,
 } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   AuthUser,
   DEMO_USERS,
@@ -88,6 +89,7 @@ interface LupivaContextValue {
   ) => Promise<AuthActionResult>;
   registerAccount: (input: RegisterAccountInput) => Promise<AuthActionResult>;
   logout: () => Promise<void>;
+  isSigningOut: () => boolean;
   selectedReportId: string;
   setSelectedReportId: (id: string) => void;
   savedRecords: SavedRegistryRecord[];
@@ -132,6 +134,10 @@ interface LupivaContextValue {
 const LupivaContext = createContext<LupivaContextValue | undefined>(undefined);
 
 export function LupivaProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const isSigningOutRef = useRef<boolean>(false);
+
   const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -196,6 +202,15 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
   const dismissToast = useCallback(() => {
     setToast(null);
   }, []);
+
+  // Reset sign-out guard once navigation to Overview completes
+  useEffect(() => {
+    if (pathname === "/") {
+      isSigningOutRef.current = false;
+    }
+  }, [pathname]);
+
+  const isSigningOut = useCallback(() => isSigningOutRef.current, []);
 
   // Synchronize document lang attribute whenever language changes
   useEffect(() => {
@@ -372,6 +387,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
           return { ok: false, error: errorMessage, status: res.status };
         }
 
+        isSigningOutRef.current = false;
         setCurrentUser(data.user);
         setAuthLoading(false);
         showToast(
@@ -417,6 +433,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
           return { ok: false, error: errorMessage, status: res.status };
         }
 
+        isSigningOutRef.current = false;
         setCurrentUser(data.user);
         setAuthLoading(false);
         showToast(
@@ -438,6 +455,9 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    if (pathname !== "/") {
+      isSigningOutRef.current = true;
+    }
     try {
       await fetch("/api/auth/logout", {
         method: "POST",
@@ -450,8 +470,9 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       setCrfPatients(INITIAL_CRF_PATIENTS);
       setActiveCrfPatientId(INITIAL_CRF_PATIENTS[0].id);
       showToast(t.toasts.signedOutTitle, t.toasts.signedOutDesc, "navy");
+      router.replace("/");
     }
-  }, [showToast, t]);
+  }, [pathname, router, showToast, t]);
 
   const updateCrfPatient = useCallback(
     (
@@ -770,6 +791,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         loginWithCredentials,
         registerAccount,
         logout,
+        isSigningOut,
         selectedReportId,
         setSelectedReportId,
         savedRecords,

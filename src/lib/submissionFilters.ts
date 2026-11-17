@@ -36,7 +36,7 @@ export const SUBMISSION_SORT_OPTIONS = [
 export type SubmissionSortOption = (typeof SUBMISSION_SORT_OPTIONS)[number];
 
 export const PAGE_SIZE_OPTIONS = [5, 10, 20] as const;
-export const DEFAULT_PAGE_SIZE = 5;
+export const DEFAULT_PAGE_SIZE = 10;
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 

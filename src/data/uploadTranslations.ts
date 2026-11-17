@@ -294,7 +294,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
         count === 0
           ? "Upload queue cleared."
           : `${count} file(s) staged for submission.`,
-      submitBtn: "Upload & send to doctor",
+      submitBtn: "Upload",
       submittingBtn: "Sending to clinical registry...",
       guestBannerTitle: "Sign in required to submit to the encrypted registry",
       guestBannerDesc:
@@ -462,7 +462,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
         count === 0
           ? "Đã xóa hết tệp chờ gửi."
           : `Có ${count} tệp sẵn sàng gửi bác sĩ.`,
-      submitBtn: "Tải lên & Gửi cho Bác sĩ",
+      submitBtn: "Tải lên",
       submittingBtn: "Đang gửi hồ sơ lên hệ thống...",
       guestBannerTitle: "Cần đăng nhập để gửi hồ sơ vào hệ thống bảo mật",
       guestBannerDesc:

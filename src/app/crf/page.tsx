@@ -12,6 +12,7 @@ import {
   YesNoUnknown,
   RENAL_BIOPSY_CLASS_OPTIONS,
   ILD_HRCT_PATTERN_OPTIONS,
+  calculateBmi,
   calculateEularAcrSummary,
   calculateSledai2kSummary,
   getInitialOcrTierStatus,
@@ -23,6 +24,7 @@ import {
 import { ClinicalFlag } from "@/data/mockData";
 import { DocxCrfView } from "@/components/DocxCrfView";
 import { SleScoreTables } from "@/components/SleScoreTables";
+import { downloadOriginalClinicalFile } from "@/lib/originalFileGenerator";
 import { formatLocalTimestamp } from "@/lib/submissionFilters";
 
 type ScanDossierFilter =
@@ -41,6 +43,7 @@ export default function SleCrfManagerPage() {
     language,
     currentUser,
     authLoading,
+    isSigningOut,
     crfPatients,
     activeCrfPatientId,
     setActiveCrfPatientId,
@@ -52,10 +55,10 @@ export default function SleCrfManagerPage() {
   const isSpecialist = currentUser?.role === "specialist";
 
   useEffect(() => {
-    if (!authLoading && !isSpecialist) {
+    if (!authLoading && !isSpecialist && !isSigningOut()) {
       router.replace("/login");
     }
-  }, [authLoading, isSpecialist, router]);
+  }, [authLoading, isSpecialist, isSigningOut, router]);
 
   const activePatient = useMemo(
     () =>
@@ -92,13 +95,10 @@ export default function SleCrfManagerPage() {
   const [activeFileIdx, setActiveFileIdx] = useState<number>(0);
 
   // Auto-calculated BMI from Height (cm) & Weight (kg)
-  const calculatedBmi = useMemo(() => {
-    const h = parseFloat(activePatient.heightCm);
-    const w = parseFloat(activePatient.weightKg);
-    if (!h || !w || h <= 0 || w <= 0) return "—";
-    const bmi = w / Math.pow(h / 100, 2);
-    return bmi.toFixed(1);
-  }, [activePatient.heightCm, activePatient.weightKg]);
+  const calculatedBmi = useMemo(
+    () => calculateBmi(activePatient.heightCm, activePatient.weightKg),
+    [activePatient.heightCm, activePatient.weightKg]
+  );
 
   // 3-Tier OCR Triage Counts across both ocrFields and antibodyBlots
   const triageStats = useMemo(() => {
@@ -642,7 +642,7 @@ export default function SleCrfManagerPage() {
   }, [activePatient.ocrFields, scanPanelFilter]);
 
   const uploadedFiles = activePatient.uploadedFiles ?? [];
-  const hasUploadedImage = uploadedFiles.some((f) => f.url);
+  const hasUploadedImage = uploadedFiles.some((f) => f.isImage && f.url);
   const viewerTab: "uploaded" | "grounded" =
     viewerTabOverride ?? (hasUploadedImage ? "uploaded" : "grounded");
   const currentFile = uploadedFiles[activeFileIdx] ?? uploadedFiles[0];
@@ -1083,23 +1083,39 @@ export default function SleCrfManagerPage() {
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      <div className="flex flex-wrap gap-1">
-                        {uploadedFiles.map((f, i) => (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap gap-1">
+                          {uploadedFiles.map((f, i) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={() => setActiveFileIdx(i)}
+                              className={`rounded px-2 py-1 text-[11px] font-semibold cursor-pointer ${
+                                currentFile?.id === f.id
+                                  ? "bg-slate-900 text-white"
+                                  : "bg-white text-slate-700"
+                              }`}
+                            >
+                              {f.name}
+                            </button>
+                          ))}
+                        </div>
+                        {currentFile && (
                           <button
-                            key={f.id}
                             type="button"
-                            onClick={() => setActiveFileIdx(i)}
-                            className={`rounded px-2 py-1 text-[11px] font-semibold cursor-pointer ${
-                              currentFile?.id === f.id
-                                ? "bg-slate-900 text-white"
-                                : "bg-white text-slate-700"
-                            }`}
+                            onClick={() =>
+                              void downloadOriginalClinicalFile(
+                                activePatient,
+                                currentFile
+                              )
+                            }
+                            className="inline-flex items-center gap-1 rounded bg-teal-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-800 cursor-pointer"
                           >
-                            {f.name}
+                            <span>{isVi ? "Tải xuống" : "Download"}</span>
                           </button>
-                        ))}
+                        )}
                       </div>
-                      {currentFile?.url ? (
+                      {currentFile?.isImage && currentFile?.url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={currentFile.url}

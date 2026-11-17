@@ -4,11 +4,13 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   SleCrfPatientRecord,
   UploadedDocFile,
+  calculateBmi,
   calculateEularAcrSummary,
   calculateSledai2kSummary,
   getSubmissionStatus,
 } from "@/data/crfData";
 import type { UploadPageCopy } from "@/data/uploadTranslations";
+import { downloadOriginalClinicalFile } from "@/lib/originalFileGenerator";
 import { TruncatedFilename } from "./TruncatedFilename";
 
 interface DocumentPreviewModalProps {
@@ -32,101 +34,6 @@ function getFileFormatBadge(file: UploadedDocFile): "IMG" | "DOCX" | "PDF" {
     return "DOCX";
   }
   return "PDF";
-}
-
-function buildDownloadableClinicalReportHtml(
-  patient: SleCrfPatientRecord,
-  file: UploadedDocFile,
-  isVi: boolean
-): string {
-  const rowsHtml = patient.ocrFields
-    .map(
-      (f) => `
-      <tr>
-        <td>${isVi ? f.labelVi : f.labelEn} (<code>${f.code}</code>)</td>
-        <td><strong>${f.value || f.printedValue}</strong></td>
-        <td>${f.unit}</td>
-        <td>${f.referenceRange}</td>
-        <td>${f.flag}</td>
-        <td>${f.confidence}%</td>
-      </tr>`
-    )
-    .join("");
-
-  const blotsHtml = patient.antibodyBlots
-    .filter((b) => b.printedResult !== "Negative" || b.confidence <= 90)
-    .map(
-      (b) => `
-      <tr>
-        <td>${b.name} (${b.panel.toUpperCase()})</td>
-        <td><strong>${b.result || b.printedResult}</strong></td>
-        <td>${b.intensity || b.printedIntensity}</td>
-        <td>${b.confidence}%</td>
-      </tr>`
-    )
-    .join("");
-
-  const txHtml = patient.treatments
-    .map(
-      (t) =>
-        `<li><strong>${t.name}</strong> — ${t.dose} (${t.route}, ${t.frequency}) • ${t.duration}</li>`
-    )
-    .join("");
-
-  return `<!DOCTYPE html>
-<html lang="${isVi ? "vi" : "en"}">
-<head>
-  <meta charset="utf-8" />
-  <title>${file.name} — ${patient.studyId}</title>
-  <style>
-    body { font-family: Arial, sans-serif; color: #0f172a; margin: 32px; line-height: 1.45; }
-    h1, h2 { margin-bottom: 6px; }
-    .meta { background: #f1f5f9; padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 18px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 20px; font-size: 12px; }
-    th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
-    th { background: #f8fafc; }
-  </style>
-</head>
-<body>
-  <h1>VINMEC CENTRAL LABORATORY • SLE CLINICAL DOSSIER</h1>
-  <p><strong>Document:</strong> ${file.name}</p>
-  <div class="meta">
-    <strong>PID:</strong> ${patient.studyId} &bull;
-    <strong>Patient:</strong> ${patient.patientName} (${patient.age} / ${patient.gender}) &bull;
-    <strong>ICF:</strong> ${patient.icfSignedDate} &bull;
-    <strong>Uploaded:</strong> ${patient.submittedAt ?? "—"}
-  </div>
-  <h2>1. Clinical Laboratory &amp; Serology Biomarkers</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Biomarker / Assay</th>
-        <th>Result</th>
-        <th>Unit</th>
-        <th>Reference Range</th>
-        <th>Flag</th>
-        <th>OCR</th>
-      </tr>
-    </thead>
-    <tbody>${rowsHtml}</tbody>
-  </table>
-  <h2>2. Immunoblot Strip Summary</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Antibody</th>
-        <th>Result</th>
-        <th>Intensity</th>
-        <th>OCR</th>
-      </tr>
-    </thead>
-    <tbody>${blotsHtml}</tbody>
-  </table>
-  <h2>3. Current Treatments</h2>
-  <ul>${txHtml || "<li>None listed</li>"}</ul>
-  <p><strong>Attending Physician:</strong> ${patient.physician} &bull; <strong>Nurse:</strong> ${patient.nurse}</p>
-</body>
-</html>`;
 }
 
 export function DocumentPreviewModal({
@@ -204,12 +111,12 @@ function DocumentPreviewDialogBody({
   onSelectFile: (fileId: string) => void;
 }) {
   const [zoom, setZoom] = useState<number>(100);
-  const [rotation, setRotation] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const fileFormat = getFileFormatBadge(activeFile);
   const hasDirectImagePreview = Boolean(activeFile.isImage && activeFile.url);
   const totalPages = hasDirectImagePreview ? 1 : 2;
+  const bmi = calculateBmi(patient.heightCm, patient.weightKg);
 
   const approved = getSubmissionStatus(patient) === "approved";
   const eular = calculateEularAcrSummary(
@@ -228,41 +135,10 @@ function DocumentPreviewDialogBody({
 
   const handleResetZoom = () => {
     setZoom(100);
-    setRotation(0);
-  };
-
-  const handleRotateLeft = () => {
-    setRotation((prev) => (prev - 90 + 360) % 360);
-  };
-
-  const handleRotateRight = () => {
-    setRotation((prev) => (prev + 90) % 360);
   };
 
   const handleDownload = () => {
-    if (activeFile.url) {
-      const a = document.createElement("a");
-      a.href = activeFile.url;
-      a.download = activeFile.name;
-      a.click();
-      return;
-    }
-
-    const htmlContent = buildDownloadableClinicalReportHtml(
-      patient,
-      activeFile,
-      isVi
-    );
-    const blob = new Blob([htmlContent], {
-      type: "text/html;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const baseName = activeFile.name.replace(/\.(pdf|docx?)$/i, "");
-    a.download = `${baseName}_Preview.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    void downloadOriginalClinicalFile(patient, activeFile);
   };
 
   const vc = copy.docViewer;
@@ -403,35 +279,6 @@ function DocumentPreviewDialogBody({
               </button>
             </div>
 
-            {/* Rotate Controls */}
-            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 font-mono text-[11px]">
-              <button
-                type="button"
-                id="doc-viewer-rotate-left"
-                onClick={handleRotateLeft}
-                title={vc.rotateLeft}
-                aria-label={vc.rotateLeft}
-                className="min-h-7 rounded px-2 py-0.5 font-semibold text-slate-800 hover:bg-white cursor-pointer"
-              >
-                ↺ -90°
-              </button>
-              <button
-                type="button"
-                id="doc-viewer-rotate-right"
-                onClick={handleRotateRight}
-                title={vc.rotateRight}
-                aria-label={vc.rotateRight}
-                className="min-h-7 rounded px-2 py-0.5 font-semibold text-slate-800 hover:bg-white cursor-pointer"
-              >
-                ↻ +90°
-              </button>
-              {rotation !== 0 && (
-                <span className="px-1.5 text-[10px] font-bold text-teal-800">
-                  {rotation}°
-                </span>
-              )}
-            </div>
-
             {/* Download Action */}
             <button
               type="button"
@@ -463,7 +310,7 @@ function DocumentPreviewDialogBody({
           <div className="flex min-h-full items-start justify-center">
             <div
               style={{
-                transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+                transform: `scale(${zoom / 100})`,
                 transformOrigin: "top center",
               }}
               className="w-full max-w-3xl transition-transform duration-150"
@@ -512,8 +359,8 @@ function DocumentPreviewDialogBody({
                       {patient.gender === "Female" ? copy.female : copy.male})
                     </span>
                     <span>
-                      { patient.heightCm } cm / { patient.weightKg } kg • ICF:{" "}
-                      {patient.icfSignedDate}
+                      {patient.heightCm} cm / {patient.weightKg} kg (BMI{" "}
+                      <strong>{bmi}</strong>) • ICF: {patient.icfSignedDate}
                     </span>
                     {patient.submittedAt && (
                       <span>

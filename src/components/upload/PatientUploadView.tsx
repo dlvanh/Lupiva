@@ -182,10 +182,8 @@ export function PatientUploadView() {
         const isImage =
           file.type.startsWith("image/") ||
           /\.(png|jpe?g|webp)$/i.test(file.name);
-        const objectUrl = isImage ? URL.createObjectURL(file) : null;
-        if (objectUrl) {
-          unsubmittedUrlsRef.current.add(objectUrl);
-        }
+        const objectUrl = URL.createObjectURL(file);
+        unsubmittedUrlsRef.current.add(objectUrl);
 
         added.push({
           id: `up-${Date.now()}-${idx}`,
@@ -300,10 +298,7 @@ export function PatientUploadView() {
         )}
 
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs">
-          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
-            {copy.eyebrow}
-          </span>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-slate-900">
             {copy.heading}
           </h1>
           <p className="mt-1 text-sm text-slate-600">{copy.subheading}</p>
@@ -427,7 +422,7 @@ export function PatientUploadView() {
                         className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                          {f.url ? (
+                          {f.isImage && f.url ? (
                             <button
                               type="button"
                               onClick={() => openImagePreview(f)}

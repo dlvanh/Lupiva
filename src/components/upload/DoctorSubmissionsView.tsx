@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
 import {
   SleCrfPatientRecord,
+  calculateBmi,
   calculateEularAcrSummary,
   calculateSledai2kSummary,
   getSubmissionStatus,
@@ -184,9 +185,7 @@ function PatientDossierCard({
 }) {
   const p = item.record;
   const approved = getSubmissionStatus(p) === "approved";
-  const h = parseFloat(p.heightCm);
-  const w = parseFloat(p.weightKg);
-  const bmi = h > 0 && w > 0 ? (w / Math.pow(h / 100, 2)).toFixed(1) : "—";
+  const bmi = calculateBmi(p.heightCm, p.weightKg);
   const eular = calculateEularAcrSummary(
     p.eularAcrCriteria,
     p.anaEntryCriterionMet
@@ -638,15 +637,12 @@ export function DoctorSubmissionsView() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
-              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
-                {copy.eyebrow}
-              </span>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900">
+              <h1 className="text-2xl font-bold text-slate-900">
                 {copy.heading}
               </h1>
             </div>
 
-            <dl className="grid grid-cols-2 gap-2.5 text-center sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-2.5 text-center sm:grid-cols-3">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
                 <dt className="text-[11px] font-medium text-slate-600">
                   {copy.kpiTotal}
@@ -661,14 +657,6 @@ export function DoctorSubmissionsView() {
                 </dt>
                 <dd className="mt-0.5 font-mono text-xl font-bold text-amber-950">
                   {stats.pending}
-                </dd>
-              </div>
-              <div className="rounded-xl border border-rose-200 bg-rose-50/70 px-3.5 py-2.5">
-                <dt className="text-[11px] font-medium text-rose-900">
-                  {copy.kpiManual}
-                </dt>
-                <dd className="mt-0.5 font-mono text-xl font-bold text-rose-950">
-                  {stats.manualRequiredDossiers}
                 </dd>
               </div>
               <div className="rounded-xl border border-teal-200 bg-teal-50/70 px-3.5 py-2.5">

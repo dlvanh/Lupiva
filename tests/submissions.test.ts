@@ -34,14 +34,16 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(Array.from(mockState.requestHeaders.entries())),
 }));
 
-import { INITIAL_CRF_PATIENTS } from "@/data/crfData";
+import { INITIAL_CRF_PATIENTS, calculateBmi } from "@/data/crfData";
 import { DEMO_USERS } from "@/data/mockData";
 import { seedDatabase } from "@/db/seed";
 import { POST as loginPost } from "@/app/api/auth/login/route";
 import { GET as submissionsGet, POST as submissionsPost } from "@/app/api/submissions/route";
 import { PATCH as submissionPatch } from "@/app/api/submissions/[id]/route";
 import { requireAuth } from "@/lib/auth";
+import { generateClinicalReportPdfBytes } from "@/lib/originalFileGenerator";
 import {
+  DEFAULT_PAGE_SIZE,
   formatDateInOffset,
   formatTimestampInOffset,
   submissionQuerySchema,
@@ -145,17 +147,34 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
 
   it("paginates all 12 seeded diverse patient dossiers on the backend (LIMIT/OFFSET) sorted newest-first", async () => {
     expect(INITIAL_CRF_PATIENTS.length).toBe(12);
+    expect(DEFAULT_PAGE_SIZE).toBe(10);
     await signInAs("specialist");
 
-    // Default page=1&pageSize=5 returns first 5 of 12 dossiers across 3 pages
-    const page1Res = await submissionsGet(
+    // Default page=1&pageSize=10 returns first 10 of 12 dossiers across 2 pages
+    const defaultRes = await submissionsGet(
       buildRequest("/api/submissions?utcOffsetMinutes=420", "GET")
+    );
+    expect(defaultRes.status).toBe(200);
+    const defaultData = (await defaultRes.json()) as SubmissionsResponseBody;
+    expect(defaultData.roleScope).toBe("specialist");
+    expect(defaultData.stats.total).toBe(12);
+    expect(defaultData.stats.filteredTotal).toBe(12);
+    expect(defaultData.pagination).toEqual({
+      page: 1,
+      pageSize: 10,
+      totalItems: 12,
+      totalPages: 2,
+      hasPreviousPage: false,
+      hasNextPage: true,
+    });
+    expect(defaultData.items).toHaveLength(10);
+
+    // Explicit pageSize=5 returns first 5 of 12 dossiers across 3 pages
+    const page1Res = await submissionsGet(
+      buildRequest("/api/submissions?page=1&pageSize=5&utcOffsetMinutes=420", "GET")
     );
     expect(page1Res.status).toBe(200);
     const page1Data = (await page1Res.json()) as SubmissionsResponseBody;
-    expect(page1Data.roleScope).toBe("specialist");
-    expect(page1Data.stats.total).toBe(12);
-    expect(page1Data.stats.filteredTotal).toBe(12);
     expect(page1Data.pagination).toEqual({
       page: 1,
       pageSize: 5,
@@ -227,6 +246,21 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
       ...page3Data.items,
     ].map((i) => i.record.studyId);
     expect(new Set(allPaginatedIds).size).toBe(12);
+  });
+
+  it("auto-calculates BMI from height & weight and generates valid native PDF bytes for original file download", () => {
+    expect(calculateBmi("158", "51.5")).toBe("20.6");
+    expect(calculateBmi("170", "65")).toBe("22.5");
+    expect(calculateBmi("", "50")).toBe("—");
+
+    const samplePatient = INITIAL_CRF_PATIENTS[0];
+    const sampleFile = samplePatient.uploadedFiles![0];
+    const pdfBytes = generateClinicalReportPdfBytes(samplePatient, sampleFile);
+    const pdfText = new TextDecoder().decode(pdfBytes);
+    expect(pdfText.startsWith("%PDF-1.4\n")).toBe(true);
+    expect(pdfText).toContain(sampleFile.name);
+    expect(pdfText).toContain(samplePatient.studyId);
+    expect(pdfText.trim().endsWith("%%EOF")).toBe(true);
   });
 
   it("filters by custom uploaded date range and datePreset on the API", async () => {

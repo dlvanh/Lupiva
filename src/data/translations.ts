@@ -727,13 +727,13 @@ export function getLocalizedDemoUsers(lang: Language): Record<UserRole, DemoUser
       ...DEMO_USERS.specialist,
       title: "Bác sĩ Cố vấn Cấp cao — Miễn dịch & Dị ứng Lâm sàng",
       departmentOrRegistryId: "Vinmec Times City • Khoa Miễn dịch Lâm sàng",
-      badgeText: "Bác sĩ Duyệt HITL",
+      badgeText: "",
     },
     patient: {
       ...DEMO_USERS.patient,
       title: "Người tham gia Đoàn hệ SLE • Mã Đăng ký #VN-SLE-084",
       departmentOrRegistryId: "Đoàn hệ Đăng ký SLE • Tham gia Tháng 10/2026",
-      badgeText: "Đủ điều kiện Voucher",
+      badgeText: "",
     },
   };
 }
@@ -961,8 +961,8 @@ export function getLocalizedButtonActionMap(lang: Language): ButtonMappingItem[]
       page: "Global Navbar",
       buttonLabel: "Đăng nhập / Đăng xuất",
       elementId: "nav-btn-auth",
-      mockAction: "Chuyển tới trang /login hoặc thu hồi phiên HttpOnly trên PostgreSQL qua POST /api/auth/logout.",
-      expectedOutcome: "Cập nhật huy hiệu vai trò ở góc phải phía trên và hiển thị thông báo trạng thái.",
+      mockAction: "Chuyển tới trang /login hoặc thu hồi phiên HttpOnly trên PostgreSQL qua POST /api/auth/logout và điều hướng về Tổng quan (/).",
+      expectedOutcome: "Cập nhật huy hiệu vai trò ở góc phải phía trên, chuyển về trang Tổng quan khi đăng xuất và hiển thị thông báo trạng thái.",
     },
     {
       page: "Landing Page (/)",

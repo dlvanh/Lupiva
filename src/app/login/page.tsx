@@ -512,9 +512,6 @@ function LoginFormContent() {
                       : activePersona.name}
                   </h2>
                 </div>
-                <span className="rounded-md bg-teal-100 px-2.5 py-1 font-mono text-xs font-bold text-teal-900">
-                  {activePersona.badgeText}
-                </span>
               </div>
 
               <dl className="mt-4 space-y-3 text-xs">

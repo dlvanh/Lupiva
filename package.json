@@ -12,8 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run --configLoader runner",
+    "test:watch": "vitest --configLoader runner"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",

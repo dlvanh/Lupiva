@@ -224,8 +224,7 @@ export async function POST(request: Request) {
       data.role === "specialist"
         ? "Vinmec Times City • Dept. of Clinical Immunology"
         : `SLE Registry Cohort • Joined ${formatDateInOffset(now, 420)}`;
-    const badgeText =
-      data.role === "specialist" ? "HITL Verifier" : "Voucher Eligible";
+    const badgeText = "";
 
     try {
       await db.insert(users).values({

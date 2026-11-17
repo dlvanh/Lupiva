@@ -82,7 +82,7 @@ export const DEMO_USERS: Record<UserRole, DemoUser> = {
     email: "dr.minh.immunology@vinmec.com",
     passwordHint: "VinmecSLE#2026",
     departmentOrRegistryId: "Vinmec Times City • Dept. of Clinical Immunology",
-    badgeText: "HITL Verifier",
+    badgeText: "",
     consentSigned: true,
   },
   patient: {
@@ -93,7 +93,7 @@ export const DEMO_USERS: Record<UserRole, DemoUser> = {
     email: "mai.tran.patient@lupiva.vn",
     passwordHint: "PatientCare#2026",
     departmentOrRegistryId: "SLE Registry Cohort • Enrolled Oct 2026",
-    badgeText: "Voucher Eligible",
+    badgeText: "",
     consentSigned: true,
   },
 };
@@ -409,8 +409,8 @@ export const BUTTON_ACTION_MAP: ButtonMappingItem[] = [
     page: "Global Navbar",
     buttonLabel: "Sign In / Sign Out",
     elementId: "nav-btn-auth",
-    mockAction: "Routes to /login or revokes the active PostgreSQL HttpOnly session via POST /api/auth/logout.",
-    expectedOutcome: "Updates top-right user role pill and shows session status toast.",
+    mockAction: "Routes to /login or revokes the active PostgreSQL HttpOnly session via POST /api/auth/logout and redirects to Overview (/).",
+    expectedOutcome: "Updates top-right user role pill, navigates to / on sign out, and shows session status toast.",
   },
   {
     page: "Landing Page (/)",

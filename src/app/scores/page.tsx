@@ -16,6 +16,7 @@ export default function SleScoresPage() {
     language,
     currentUser,
     authLoading,
+    isSigningOut,
     crfPatients,
     activeCrfPatientId,
     setActiveCrfPatientId,
@@ -27,10 +28,10 @@ export default function SleScoresPage() {
   const isSpecialist = currentUser?.role === "specialist";
 
   useEffect(() => {
-    if (!authLoading && !isSpecialist) {
+    if (!authLoading && !isSpecialist && !isSigningOut()) {
       router.replace("/login");
     }
-  }, [authLoading, isSpecialist, router]);
+  }, [authLoading, isSpecialist, isSigningOut, router]);
 
   const activePatient = useMemo(
     () =>

@@ -9,6 +9,7 @@ import {
   buildGiItems,
   buildNeuropsychiatricItems,
   buildSkinMucosaItems,
+  calculateBmiNumeric,
   calculateEularAcrSummary,
   calculateSledai2kSummary,
   type SleCrfPatientRecord,
@@ -772,6 +773,35 @@ export async function updateSubmissionRecord(params: {
     (next.signedOffBy ? "approved" : "pending_doctor_review");
   const isApproved = nextStatus === "approved";
 
+  const parsedAge = Number.parseInt(next.age, 10);
+  const nextAge =
+    Number.isFinite(parsedAge) && parsedAge > 0 ? parsedAge : existing.age;
+  const nextGender: "Female" | "Male" =
+    next.gender === "Male" ? "Male" : "Female";
+  const parsedHeight = Number.parseFloat(next.heightCm);
+  const nextHeightCm =
+    Number.isFinite(parsedHeight) && parsedHeight > 0
+      ? parsedHeight
+      : existing.heightCm;
+  const parsedWeight = Number.parseFloat(next.weightKg);
+  const nextWeightKg =
+    Number.isFinite(parsedWeight) && parsedWeight > 0
+      ? parsedWeight
+      : existing.weightKg;
+  const nextBmi = calculateBmiNumeric(nextHeightCm, nextWeightKg);
+
+  await db
+    .update(patientProfiles)
+    .set({
+      age: nextAge,
+      gender: nextGender,
+      heightCm: nextHeightCm,
+      weightKg: nextWeightKg,
+      bmi: nextBmi,
+      updatedAt: now,
+    })
+    .where(eq(patientProfiles.id, existing.profileId));
+
   await db
     .update(crfSubmissions)
     .set({
@@ -838,10 +868,10 @@ export async function updateSubmissionRecord(params: {
       studyIdEncrypted: existing.studyIdEncrypted,
       patientNameEncrypted: existing.patientNameEncrypted,
       icfSignedDateEncrypted: existing.icfSignedDateEncrypted,
-      age: existing.age,
-      gender: existing.gender,
-      heightCm: existing.heightCm,
-      weightKg: existing.weightKg,
+      age: nextAge,
+      gender: nextGender,
+      heightCm: nextHeightCm,
+      weightKg: nextWeightKg,
     },
     docs,
     utcOffset

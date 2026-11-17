@@ -190,9 +190,6 @@ export function Navbar() {
                 <span className="hidden text-xs font-semibold text-slate-900 sm:inline">
                   {currentUser.name}
                 </span>
-                <span className="hidden rounded bg-teal-50 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-teal-800 md:inline">
-                  {currentUser.badgeText}
-                </span>
                 <button
                   type="button"
                   id="nav-btn-signout"

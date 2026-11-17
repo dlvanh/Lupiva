@@ -227,6 +227,29 @@ export function getSubmissionStatus(p: SleCrfPatientRecord): SubmissionStatus {
   return p.submissionStatus ?? (p.signedOffBy ? "approved" : "pending_doctor_review");
 }
 
+export function calculateBmiNumeric(
+  heightCm: string | number | null | undefined,
+  weightKg: string | number | null | undefined
+): number | null {
+  const h =
+    typeof heightCm === "number" ? heightCm : Number.parseFloat(heightCm ?? "");
+  const w =
+    typeof weightKg === "number" ? weightKg : Number.parseFloat(weightKg ?? "");
+  if (!Number.isFinite(h) || !Number.isFinite(w) || h <= 0 || w <= 0) {
+    return null;
+  }
+  const bmi = w / Math.pow(h / 100, 2);
+  return Number(bmi.toFixed(1));
+}
+
+export function calculateBmi(
+  heightCm: string | number | null | undefined,
+  weightKg: string | number | null | undefined
+): string {
+  const numeric = calculateBmiNumeric(heightCm, weightKg);
+  return numeric !== null ? numeric.toFixed(1) : "—";
+}
+
 export const RENAL_BIOPSY_CLASS_OPTIONS = [
   "Class I",
   "Class II",
