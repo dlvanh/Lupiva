@@ -298,6 +298,7 @@ export default function RegistryCrfPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [drafting, setDrafting] = useState(false);
 
   const load = useCallback(async (id: string) => {
     setCaseId(id);
@@ -373,6 +374,35 @@ export default function RegistryCrfPage() {
       setSaving(false);
     }
   }, [caseId, view, selections, load]);
+
+  // Ask the backend LLM to answer the clinical questions from labs, report notes and
+  // printed diagnoses; proposals arrive as "LLM đề xuất · chưa duyệt".
+  const draftClinical = useCallback(async () => {
+    if (!caseId) return;
+    setError(null);
+    setNotice(null);
+    setDrafting(true);
+    try {
+      await backend("/api/crf/generate", undefined, { case_id: caseId });
+      for (let i = 0; i < 60; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        const next = await backend<CrfViewWithSources & { job?: { status?: string; error?: string } }>("/api/crf", {
+          case_id: caseId,
+        });
+        if (next.job?.status !== "running") {
+          if (next.job?.status === "failed") throw new Error(next.job.error ?? "Không tạo được đề xuất.");
+          await load(caseId);
+          setNotice("Đã tạo đề xuất LLM cho các câu lâm sàng; xem mục Cần bác sĩ quyết định.");
+          return;
+        }
+      }
+      throw new Error("Tạo đề xuất quá lâu; tải lại trang sau.");
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setDrafting(false);
+    }
+  }, [caseId, load]);
 
   const groups = useMemo(() => {
     const fields = view?.fields ?? [];
@@ -460,6 +490,16 @@ export default function RegistryCrfPage() {
           <input type="checkbox" checked={showEmpty} onChange={(event) => setShowEmpty(event.target.checked)} />
           Hiện cả các ô trống
         </label>
+        {view && canApprove && (
+          <button
+            type="button"
+            disabled={drafting}
+            onClick={() => void draftClinical()}
+            className="rounded border border-amber-600 px-2 py-1 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-50"
+          >
+            {drafting ? "Đang tạo đề xuất…" : "Tạo đề xuất LLM"}
+          </button>
+        )}
         {view && (
           <span className="text-xs text-slate-500">
             {counts.decide} ô cần quyết định · {counts.source} giá trị đọc từ ảnh · {counts.unknown} câu chưa rõ ·{" "}

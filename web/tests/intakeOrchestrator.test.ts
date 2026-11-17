@@ -33,7 +33,7 @@ function fakeBackend(options: { automatic?: boolean; finalStatus?: string } = {}
       return { job_id: query.job_id, status: "completed", automatic_plan: options.automatic === false ? null : AUTO_PLAN };
     }
     if (pathName === "/api/intakes" && method === "POST") return { status: "created", job: { job_id: "intake-abc" } };
-    if (pathName === "/api/intakes") return { jobs: [{ job_id: "intake-abc", status: options.finalStatus ?? "completed" }] };
+    if (pathName === "/api/intakes") return { jobs: [{ job_id: "intake-abc", status: options.finalStatus ?? "completed", case_id: "case-1" }] };
     return { status: "ok" };
   };
   return { call, calls };
@@ -160,6 +160,9 @@ describe("patient submission to backend (database)", () => {
     const [row] = await testDb.db.select().from(crfSubmissions).where(eq(crfSubmissions.id, created.dbSubmissionId));
     expect(row.pipelineStatus).toBe("completed");
     expect(row.pipelineIntakeId).toBe("intake-abc");
+    // The clinical draft is requested once the images are read.
+    const draft = backend.calls.find((c) => c.path === "/api/crf/generate");
+    expect(draft?.method).toBe("POST");
 
     const listing = await querySubmissions({ user: patient, db: testDb.db, filters: submissionQuerySchema.parse({ utcOffsetMinutes: 420 }) });
     const mine = listing.items.map(toPatientStatus).find((item) => item.dbSubmissionId === created.dbSubmissionId);

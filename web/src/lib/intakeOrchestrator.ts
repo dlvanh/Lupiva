@@ -195,7 +195,9 @@ export async function refreshPipelineStatuses({
   if (!pending.length) return 0;
   const listing = await call("GET", "/api/intakes");
   const jobs = new Map(
-    ((listing.jobs as { job_id: string; status: string; error?: string | null }[] | undefined) ?? []).map((job) => [job.job_id, job]),
+    ((listing.jobs as { job_id: string; status: string; error?: string | null; case_id?: string | null }[] | undefined) ?? []).map(
+      (job) => [job.job_id, job],
+    ),
   );
   let changed = 0;
   for (const row of pending) {
@@ -208,6 +210,11 @@ export async function refreshPipelineStatuses({
       .set({ pipelineStatus: next, pipelineError: next === "failed" ? String(job.error ?? job.status).slice(0, 500) : null })
       .where(eq(crfSubmissions.id, row.id));
     changed += 1;
+    if (next === "completed" && job.case_id) {
+      // Draft the clinical answers (LLM proposals) as soon as the images are read;
+      // the doctor reviews them. A failure here never blocks the submission.
+      await call("POST", "/api/crf/generate", {}, { json: { case_id: job.case_id } }).catch(() => undefined);
+    }
   }
   return changed;
 }
