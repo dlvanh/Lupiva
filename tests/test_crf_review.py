@@ -380,3 +380,38 @@ class CRFReviewTests(PatientWorkspaceTests):
         self.assertEqual(receipt['values'][target['slot']]['origin'], 'llm_suggestion')
         self.assertEqual(CRFReview(app).view(self.store, case_id)['review'], receipt)
         self.assertEqual(self.store.effective_pool(case_id)['observations'], [])
+
+
+import unittest
+
+
+class SuggestionInputTests(unittest.TestCase):
+    """crf-suggestions-4: report notes and printed diagnoses are facts; score criteria are targets."""
+
+    def source(self, **over):
+        base = dict(kind='metadata', field_id=None, current_revision=True, review_status='pending', selection_id='sel-1',
+                    metadata_key='gemini_source_note', value='Không thấy tràn dịch màng phổi hai bên.')
+        base.update(over)
+        return base
+
+    def test_report_notes_and_diagnoses_become_text_facts(self):
+        workspace = dict(candidates=[
+            self.source(),
+            self.source(selection_id='sel-2', metadata_key='source_diagnosis', value={'value': 'Raynaud - Viêm cơ tự miễn'}),
+            self.source(selection_id='sel-3', value='Không thấy tràn dịch màng phổi hai bên.'),   # duplicate text
+            self.source(selection_id='sel-4', metadata_key='ordering_provider', value='Bác sĩ A'),  # never sent
+        ])
+        facts, index = model_facts(DICTIONARY, workspace)
+        self.assertEqual([(f['kind'], f['text']) for f in facts],
+                         [('note', 'Không thấy tràn dịch màng phổi hai bên.'), ('diagnosis', 'Raynaud - Viêm cơ tự miễn')])
+        self.assertEqual([index[f['id']] for f in facts], ['sel-1', 'sel-2'])
+
+    def test_suggestions_may_combine_facts_from_different_times(self):
+        from registry_review.crf import checked_suggestions
+        targets = [dict(slot='EAC01/result', choices=[{'code': 'yes'}, {'code': 'no'}])]
+        facts = [dict(id='F1', time_group='T1'), dict(id='N1')]
+        items = [dict(slot='EAC01/result', value='no', reason='Suy luận: không sốt', evidence=['F1', 'N1'])]
+        kept = list(checked_suggestions(items, targets, {'F1': 's1', 'N1': 's2'}, facts))
+        self.assertEqual(kept[0]['sources'], ['s1', 's2'])
+        items[0]['value'] = 'unknown'
+        self.assertEqual(list(checked_suggestions(items, targets, {'F1': 's1', 'N1': 's2'}, facts)), [])
