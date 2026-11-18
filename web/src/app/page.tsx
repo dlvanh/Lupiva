@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { PatientInfoSections } from "@/components/landing/PatientInfoSections";
 import { useLupiva } from "@/context/LupivaContext";
 
 export default function LandingPage() {
@@ -108,7 +109,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 3-Step Clinical OCR Workflow Section */}
+      {isSpecialist ? <SpecialistWorkflow /> : <PatientInfoSections />}
+    </main>
+  );
+}
+
+function SpecialistWorkflow() {
+  const { t } = useLupiva();
+
+  return (
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -123,11 +132,7 @@ export default function LandingPage() {
             href={"/upload"}
             className="text-xs font-semibold text-teal-800 hover:underline"
           >
-            {isSpecialist
-              ? t.landing.workflowJumpLink
-              : language === "vi"
-              ? "Tới cổng tải tài liệu →"
-              : "Go to Patient Upload →"}
+            {t.landing.workflowJumpLink}
           </Link>
         </div>
 
@@ -185,6 +190,5 @@ export default function LandingPage() {
         </div>
       </section>
 
-    </main>
   );
 }

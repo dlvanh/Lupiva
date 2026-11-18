@@ -46,21 +46,26 @@ function LoginFormContent() {
 
   const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
   const localizedUsers = getLocalizedDemoUsers(language);
-  const initialRole: UserRole = currentUser?.role || "specialist";
+  const initialMode: AuthMode = searchParams.get("mode") === "register" ? "register" : "login";
+  const isEConsentEntry = searchParams.get("consent") === "1";
+  const initialRole: UserRole = initialMode === "register" || isEConsentEntry
+    ? "patient"
+    : currentUser?.role ?? "specialist";
+  const autofillLogin = isDemoMode && initialMode === "login";
 
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
   const activePersona = localizedUsers[selectedRole];
 
   const [fullName, setFullName] = useState<string>("");
   const [email, setEmail] = useState<string>(() =>
-    isDemoMode ? localizedUsers[initialRole].email : ""
+    autofillLogin ? localizedUsers[initialRole].email : ""
   );
   const [password, setPassword] = useState<string>(() =>
-    isDemoMode ? localizedUsers[initialRole].passwordHint : ""
+    autofillLogin ? localizedUsers[initialRole].passwordHint : ""
   );
   const [inviteCode, setInviteCode] = useState<string>("");
-  const [consentChecked, setConsentChecked] = useState<boolean>(isDemoMode);
+  const [consentChecked, setConsentChecked] = useState(autofillLogin || isEConsentEntry);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -473,7 +478,7 @@ function LoginFormContent() {
                   >
                     {selectedRole === "specialist"
                       ? t.login.specialistConsent
-                      : t.login.patientConsent}
+                      : isEConsentEntry ? t.login.patientEConsent : t.login.patientConsent}
                   </label>
                 </div>
               </div>

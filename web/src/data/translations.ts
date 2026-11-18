@@ -88,6 +88,33 @@ export interface Translations {
     needsReviewBadge: (count: number) => string;
     inspectCardBtn: string;
   };
+  patientPortal: {
+    aboutTitle: string;
+    aboutBody: string;
+    benefitsTitle: string;
+    benefitImprovedTitle: string;
+    benefitImprovedBody: string;
+    benefitAnonTitle: string;
+    benefitAnonBody: string;
+    howTitle: string;
+    step1Title: string;
+    step1Body: string;
+    step1Btn: string;
+    step1Done: string;
+    step2Title: string;
+    step2Body: string;
+    step2Btn: string;
+    contactTitle: string;
+    contactLeadLabel: string;
+    contactLead: string;
+    contactEmail: string;
+    successTitle: string;
+    successBody: (contactLead: string, contactEmail: string) => string;
+    successCodeLabel: string;
+    successFilesLabel: string;
+    successStatusBtn: string;
+    successHomeBtn: string;
+  };
   login: {
     roleAccessTag: string;
     title: string;
@@ -114,6 +141,7 @@ export interface Translations {
     inviteCodePlaceholder: string;
     inviteCodeHint: string;
     specialistConsent: string;
+    patientEConsent: string;
     patientConsent: string;
     submitBtn: (name: string) => string;
     submitRegisterBtn: (roleLabel: string) => string;
@@ -312,6 +340,34 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       needsReviewBadge: (count) => `${count} Low-Confidence OCR Reads`,
       inspectCardBtn: "Inspect in OCR Workspace",
     },
+    patientPortal: {
+      aboutTitle: "About the Lupiva project",
+      aboutBody: "Lupiva is a registry for systemic lupus erythematosus (SLE). Specialists review the records you submit, and data in the registry is pseudonymized.",
+      benefitsTitle: "Benefits for Patients",
+      benefitImprovedTitle: "Improved Treatment",
+      benefitImprovedBody: "Registry data helps researchers identify better treatment strategies for people living with lupus.",
+      benefitAnonTitle: "Anonymity and Security",
+      benefitAnonBody: "Registry records use pseudonyms in place of identifying information to protect your privacy.",
+      howTitle: "How to Join",
+      step1Title: "E-consent",
+      step1Body: "Complete e-consent to participate in the Lupiva project.",
+      step1Btn: "Complete E-consent",
+      step1Done: "E-consent completed",
+      step2Title: "Submit your records",
+      step2Body: "Upload your records for a specialist to review. You can track their status on the upload page.",
+      step2Btn: "Upload your records",
+      contactTitle: "Contact",
+      contactLeadLabel: "Project lead",
+      contactLead: "…",
+      contactEmail: "…",
+      successTitle: "Submission successful!",
+      successBody: (contactLead, contactEmail) =>
+        `Thank you for submitting your records to the project. Your information will be forwarded to specialists. If you have any questions, please contact the project lead, ${contactLead}, by email at ${contactEmail}. We are happy to help.`,
+      successCodeLabel: "Submission code",
+      successFilesLabel: "Number of files",
+      successStatusBtn: "View status",
+      successHomeBtn: "Back to home",
+    },
     login: {
       roleAccessTag: "Role-Based Clinical Access",
       title: "Sign in to Lupiva Platform",
@@ -342,6 +398,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
         "Gated on the server via SPECIALIST_INVITE_CODE to protect physician e-CRF privileges.",
       specialistConsent:
         "I confirm Physician-in-the-Loop (HITL) supervision responsibility: all flagged OCR biomarkers (<85% confidence) will be reviewed against the source scan before e-CRF commit.",
+      patientEConsent: "I agree to participate (E-consent)",
       patientConsent:
         "I consent to contribute de-identified SLE lab values to the Vinmec Clinical Immunology Registry for review by my doctor.",
       submitBtn: (name) => `Sign In as ${name} →`,
@@ -559,6 +616,34 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       needsReviewBadge: (count) => `${count} Kết quả OCR Cần Kiểm tra`,
       inspectCardBtn: "Xem chi tiết trong Không gian OCR",
     },
+    patientPortal: {
+      aboutTitle: "Giới thiệu dự án Lupiva",
+      aboutBody: "Lupiva là dự án xây dựng cơ sở dữ liệu đăng ký bệnh lupus ban đỏ hệ thống (SLE). Hồ sơ bạn gửi được bác sĩ chuyên khoa duyệt và dữ liệu trong cơ sở đăng ký được giả danh hóa.",
+      benefitsTitle: "Quyền lợi của bệnh nhân",
+      benefitImprovedTitle: "Điều trị tốt hơn",
+      benefitImprovedBody: "Dữ liệu từ cơ sở đăng ký giúp các nhà nghiên cứu tìm ra chiến lược điều trị tốt hơn cho người bệnh lupus.",
+      benefitAnonTitle: "Ẩn danh và bảo mật",
+      benefitAnonBody: "Hồ sơ trong cơ sở đăng ký được giả danh hóa để tách dữ liệu nghiên cứu khỏi thông tin nhận dạng cá nhân.",
+      howTitle: "Cách thức đăng ký",
+      step1Title: "E-consent",
+      step1Body: "Hoàn thiện đồng thuận điện tử để tham gia dự án Lupiva.",
+      step1Btn: "Hoàn thiện E-consent",
+      step1Done: "Đã hoàn thiện E-consent",
+      step2Title: "Nộp hồ sơ",
+      step2Body: "Tải hồ sơ để bác sĩ chuyên khoa xem xét. Bạn có thể theo dõi trạng thái tại trang tải hồ sơ.",
+      step2Btn: "Tải hồ sơ lên",
+      contactTitle: "Liên hệ",
+      contactLeadLabel: "Chủ nhiệm dự án",
+      contactLead: "…",
+      contactEmail: "…",
+      successTitle: "Nộp hồ sơ thành công!",
+      successBody: (contactLead, contactEmail) =>
+        `Cảm ơn bạn đã nộp hồ sơ tới dự án. Thông tin của bạn sẽ được chuyển đến các bác sĩ chuyên khoa. Nếu có bất kỳ thắc mắc gì, bạn vui lòng liên hệ tới chủ nhiệm dự án ${contactLead}, email ${contactEmail}, chúng tôi sẵn sàng hỗ trợ giải đáp.`,
+      successCodeLabel: "Mã hồ sơ",
+      successFilesLabel: "Số tệp",
+      successStatusBtn: "Xem trạng thái",
+      successHomeBtn: "Về trang chủ",
+    },
     login: {
       roleAccessTag: "Truy cập Lâm sàng Phân quyền",
       title: "Đăng nhập Nền tảng Lupiva",
@@ -589,6 +674,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
         "Kiểm tra phía máy chủ qua SPECIALIST_INVITE_CODE nhằm bảo vệ quyền ghi e-CRF.",
       specialistConsent:
         "Tôi xác nhận trách nhiệm giám sát Bác sĩ Tham gia (HITL): toàn bộ chỉ số OCR bị cảnh báo (<85% độ tin cậy) sẽ được đối chiếu kỹ lưỡng với bản chụp gốc trước khi lưu vào e-CRF.",
+      patientEConsent: "Tôi đồng ý tham gia (E-consent)",
       patientConsent:
         "Tôi đồng ý đóng góp các chỉ số xét nghiệm SLE đã ẩn danh vào Cơ sở Dữ liệu Miễn dịch Lâm sàng Vinmec để bác sĩ xem xét.",
       submitBtn: (name) => `Đăng nhập với tên ${name} →`,
