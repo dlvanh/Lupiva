@@ -7,6 +7,7 @@ import { CenterNotice } from "@/components/CenterNotice";
 import { useLupiva } from "@/context/LupivaContext";
 import { UploadedDocFile } from "@/data/crfData";
 import type { PatientStatusRecord } from "@/lib/submissionsService";
+import { patientTabAfterLoad, type PatientTab } from "@/lib/patientTabs";
 import { getUploadPageCopy } from "@/data/uploadTranslations";
 import { DEFAULT_PAGE_SIZE, type PaginationMeta } from "@/lib/submissionFilters";
 import { TruncatedFilename } from "./TruncatedFilename";
@@ -93,6 +94,13 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
     },
   });
   const [trackerTick, setTrackerTick] = useState(0);
+  // Patients get two tabs: submit, and the status of what they already sent.
+  const usesTabs = !embedded && currentUser?.role === "patient";
+  const [chosenTab, setChosenTab] = useState<PatientTab | null>(null);
+  const tab: PatientTab = trackerState.loading && chosenTab === null
+    ? "submit"
+    : patientTabAfterLoad(chosenTab, trackerState.pagination.totalItems);
+  const isVi = language === "vi";
 
   // Revoke any un-submitted object URLs when leaving the page
   useEffect(() => {
@@ -238,13 +246,18 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
 
   const closeSuccessNotice = useCallback(() => {
     setReceipt(null);
-    browseButtonRef.current?.focus({ preventScroll: true });
+    setChosenTab("status");
+    setTimeout(() => trackerHeadingRef.current?.focus({ preventScroll: true }), 0);
   }, []);
 
   const showSubmissionStatus = () => {
     setReceipt(null);
-    trackerHeadingRef.current?.focus({ preventScroll: true });
-    trackerHeadingRef.current?.scrollIntoView({ block: "start" });
+    setChosenTab("status");
+    // The status panel mounts on the next render; focus it then.
+    setTimeout(() => {
+      trackerHeadingRef.current?.focus({ preventScroll: true });
+      trackerHeadingRef.current?.scrollIntoView({ block: "start" });
+    }, 0);
   };
 
   const returnHome = () => {
@@ -312,7 +325,35 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
           </section>
         )}
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs">
+        {usesTabs && (
+          <div role="tablist" aria-label={isVi ? "Hồ sơ của bạn" : "Your submissions"} className="flex gap-2 border-b border-slate-200">
+            {([
+              ["submit", isVi ? "Nộp hồ sơ" : "Submit"],
+              ["status", (isVi ? "Trạng thái hồ sơ" : "Submission status") + ` (${trackerState.pagination.totalItems})`],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                id={`patient-tab-${key}`}
+                aria-selected={tab === key}
+                aria-controls={`patient-panel-${key}`}
+                onClick={() => setChosenTab(key)}
+                className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+                  tab === key ? "border-teal-700 text-teal-900" : "border-transparent text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {(!usesTabs || tab === "submit") && (
+        <section
+          {...(usesTabs ? { id: "patient-panel-submit", role: "tabpanel", "aria-labelledby": "patient-tab-submit" } : {})}
+          className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs"
+        >
           <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
             {copy.eyebrow}
           </span>
@@ -514,9 +555,13 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
             </button>
           </form>
         </section>
+        )}
 
-        {currentUser?.role === "patient" && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs">
+        {currentUser?.role === "patient" && (!usesTabs || tab === "status") && (
+          <section
+            {...(usesTabs ? { id: "patient-panel-status", role: "tabpanel", "aria-labelledby": "patient-tab-status" } : {})}
+            className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs"
+          >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
                 <h2 ref={trackerHeadingRef} tabIndex={-1} className="scroll-mt-24 text-base font-bold text-slate-900">
@@ -678,6 +723,18 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
                   </button>
                 </div>
               </nav>
+            )}
+            {usesTabs && (
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="button"
+                  id="patient-submit-more"
+                  onClick={() => setChosenTab("submit")}
+                  className="min-h-10 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800 cursor-pointer"
+                >
+                  {isVi ? "+ Nộp thêm hồ sơ" : "+ Submit more"}
+                </button>
+              </div>
             )}
           </section>
         )}

@@ -117,20 +117,13 @@ describe("patient upload confirmation", () => {
     expect(await noticeMarkup({ id: "abc" })).toBe("");
   });
 
-  it("closes the notice and scrolls to the status tracker", async () => {
-    await submitFiles({ id: "abc" });
-    const upload = renderUpload();
-    const heading = findElement(upload, (element) => element.type === "h2" && element.props.tabIndex === -1) as
-      ReactElement<{ ref: { current: { focus: () => void; scrollIntoView: () => void } | null } }>;
-    const tracker = { focus: vi.fn(), scrollIntoView: vi.fn() };
-    heading.props.ref.current = tracker;
-    const notice = findElement(upload, (element) => element.type === CenterNotice) as ReactElement<CenterNoticeProps>;
-
-    notice.props.actions.find((action) => action.label === TRANSLATIONS.vi.patientPortal.successStatusBtn)!.onClick();
-
-    expect(tracker.focus).toHaveBeenCalledOnce();
-    expect(tracker.scrollIntoView).toHaveBeenCalledOnce();
-    expect(findElement(renderUpload(), (element) => element.type === CenterNotice)).toBeUndefined();
+  it("closes the notice and switches to the status tab", async () => {
+    const notice = await submitFiles({ id: "abc" });
+    notice!.props.actions.find((action) => action.label === TRANSLATIONS.vi.patientPortal.successStatusBtn)!.onClick();
+    const after = renderUpload();
+    expect(findElement(after, (element) => element.type === CenterNotice)).toBeUndefined();
+    expect(findElement(after, (element) => element.props?.id === "patient-panel-status")).toBeDefined();
+    expect(findElement(after, (element) => element.props?.id === "patient-panel-submit")).toBeUndefined();
   });
 
   it("navigates home from the success notice", async () => {
