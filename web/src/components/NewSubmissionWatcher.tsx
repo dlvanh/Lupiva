@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CenterNotice } from "@/components/CenterNotice";
 import { useLupiva } from "@/context/LupivaContext";
-import { setNewSubmissionCount, unnotifiedIds, type NewSubmissionEntry } from "@/lib/newSubmissionStore";
+import { announcedCount, setNewSubmissionCount, unnotifiedIds, type NewSubmissionEntry } from "@/lib/newSubmissionStore";
 
 const POLL_MS = 20_000;
 const STORAGE_KEY = "lupiva-notified-submissions";
@@ -51,7 +51,7 @@ export function NewSubmissionWatcher() {
         if (fresh.length) {
           fresh.forEach((id) => notified.add(id));
           writeNotified(notified);
-          setAnnounce(fresh.length);
+          setAnnounce(announcedCount(fresh.length, body.latest.length, body.count));
         }
       } catch {
         // backend unreachable: try again next tick

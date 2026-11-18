@@ -32,3 +32,8 @@ export function useNewSubmissionCount(): number {
 export function unnotifiedIds(latest: readonly NewSubmissionEntry[], notified: ReadonlySet<string>): string[] {
   return latest.filter((entry) => !notified.has(entry.id)).map((entry) => entry.id);
 }
+
+/** How many to announce: all of them when the whole capped list is unannounced (e.g. right after sign-in). */
+export function announcedCount(freshCount: number, listedCount: number, total: number): number {
+  return freshCount > 0 && freshCount === listedCount ? Math.max(total, freshCount) : freshCount;
+}
