@@ -22,6 +22,7 @@ import {
   TRANSLATIONS,
   getLocalizedDemoUsers,
 } from "@/data/translations";
+import { getUploadPageCopy } from "@/data/uploadTranslations";
 import {
   SleCrfPatientRecord,
   INITIAL_CRF_PATIENTS,
@@ -236,7 +237,12 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         }
         const data = (await res.json()) as { user?: AuthUser | null };
         if (active) {
-          setCurrentUser(data.user ?? null);
+          const user = data.user ?? null;
+          setCurrentUser(user);
+          if (user?.role === "patient") {
+            setCrfPatients([]);
+            setActiveCrfPatientId("");
+          }
         }
       } catch {
         if (active) {
@@ -291,6 +297,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading || !currentUser) return;
 
+    const isPatient = currentUser.role === "patient";
     let active = true;
     const utcOffset = -new Date().getTimezoneOffset();
 
@@ -308,15 +315,22 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         const data = (await res.json()) as {
           items?: Array<{ record: SleCrfPatientRecord }>;
         };
-        if (active && Array.isArray(data.items) && data.items.length > 0) {
-          const records = data.items.map((item) => item.record);
+        if (!active || !Array.isArray(data.items)) return;
+
+        const records = data.items.map((item) => item.record);
+        if (isPatient || records.length > 0) {
           mergeCrfPatientsFromApi(records, true);
           setActiveCrfPatientId((prevId) =>
-            records.some((r) => r.id === prevId) ? prevId : records[0].id
+            records.some((r) => r.id === prevId)
+              ? prevId
+              : (records[0]?.id ?? "")
           );
         }
       } catch {
-        // Keep fallback initial state if API unreachable
+        if (active && isPatient) {
+          setCrfPatients([]);
+          setActiveCrfPatientId("");
+        }
       }
     }
 
@@ -389,6 +403,10 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
         isSigningOutRef.current = false;
         setCurrentUser(data.user);
+        if (data.user.role === "patient") {
+          setCrfPatients([]);
+          setActiveCrfPatientId("");
+        }
         setAuthLoading(false);
         showToast(
           t.toasts.signedIn(data.user.name),
@@ -435,6 +453,10 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
         isSigningOutRef.current = false;
         setCurrentUser(data.user);
+        if (data.user.role === "patient") {
+          setCrfPatients([]);
+          setActiveCrfPatientId("");
+        }
         setAuthLoading(false);
         showToast(
           t.toasts.accountCreatedTitle(data.user.name),
@@ -694,13 +716,10 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         setCrfPatients((prev) => [recordWithUrls, ...prev]);
         setActiveCrfPatientId(recordWithUrls.id);
 
+        const patientCopy = getUploadPageCopy(language).patient;
         showToast(
-          language === "vi"
-            ? "Đã gửi tài liệu cho bác sĩ"
-            : "Document sent to doctor",
-          language === "vi"
-            ? `${files.length} tệp đã được lưu trên hệ thống và chờ bác sĩ xác minh OCR.`
-            : `${files.length} file(s) persisted and awaiting doctor OCR verification.`,
+          patientCopy.uploadSuccessTitle,
+          patientCopy.uploadSuccessMessage,
           "teal"
         );
         return recordWithUrls;

@@ -116,7 +116,8 @@ export interface UploadPageCopy {
     dropzonePrompt: string;
     dropzoneHint: string;
     browseBtn: string;
-    sampleBtn: string;
+    cameraBtn: string;
+    scanBtn: string;
     stagedListHeading: (count: number) => string;
     previewImageAction: (name: string) => string;
     removeFileAction: (name: string) => string;
@@ -127,6 +128,36 @@ export interface UploadPageCopy {
     stagedAnnouncement: (count: number) => string;
     submitBtn: string;
     submittingBtn: string;
+    uploadSuccessTitle: string;
+    uploadSuccessMessage: string;
+    uploadSuccessDismiss: string;
+    scanner: {
+      photoTitle: string;
+      scanTitle: string;
+      photoSubtitle: string;
+      scanSubtitle: string;
+      closeBtn: string;
+      startingCamera: string;
+      cameraUnavailableTitle: string;
+      cameraUnavailableHint: string;
+      nativeCameraBtn: string;
+      switchCameraBtn: string;
+      alignGuideText: string;
+      captureBtn: string;
+      scanCaptureBtn: string;
+      retakeBtn: string;
+      rotateBtn: string;
+      filterLabel: string;
+      filterScanBw: string;
+      filterScanColor: string;
+      filterOriginal: string;
+      addMorePageBtn: string;
+      pagesCapturedLabel: (count: number) => string;
+      confirmSingleBtn: string;
+      confirmMultiBtn: (count: number) => string;
+      capturedPageAlt: (index: number) => string;
+      removeCapturedPage: (index: number) => string;
+    };
     guestBannerTitle: string;
     guestBannerDesc: string;
     guestSignInCta: string;
@@ -276,11 +307,12 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       heading: "Upload your document",
       subheading:
         "Upload your hospital lab report or medical record. Our AI extracts structured biomarkers and a Vinmec doctor verifies the result.",
-      dropzoneLabel: "Select or drop lab images and PDF documents",
-      dropzonePrompt: "Drag & drop images / PDFs here, or click to select",
+      dropzoneLabel: "Select, photograph, or scan lab images and PDF documents",
+      dropzonePrompt: "Drag & drop images / PDFs here, or choose an option below",
       dropzoneHint: "Accepted: PNG, JPG, WEBP, PDF • Max 15 MB per file",
       browseBtn: "Browse files",
-      sampleBtn: "Use sample hospital dossier",
+      cameraBtn: "Take photo",
+      scanBtn: "Scan document",
       stagedListHeading: (count) => `Files ready to submit (${count})`,
       previewImageAction: (name) => `Preview ${name}`,
       removeFileAction: (name) => `Remove ${name}`,
@@ -296,9 +328,42 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
           : `${count} file(s) staged for submission.`,
       submitBtn: "Upload",
       submittingBtn: "Sending to clinical registry...",
+      uploadSuccessTitle: "Submission Received",
+      uploadSuccessMessage:
+        "Cảm ơn bạn đã nộp hồ sơ tới dự án, thông tin của bạn sẽ được chuyển đến các bác sĩ chuyên khoa. Nếu có bất kỳ thắc mắc gì bạn vui lòng liên hệ đến chủ nhiệm dự án, email,... Chúng tôi sẵn sàng hỗ trợ giải đáp",
+      uploadSuccessDismiss: "Dismiss notice",
+      scanner: {
+        photoTitle: "Take Document Photo",
+        scanTitle: "Direct Document Scanner",
+        photoSubtitle: "Capture a clear photo of your laboratory report or medical record.",
+        scanSubtitle:
+          "Align the page inside the frame. High-contrast scan filtering brightens paper and sharpens text automatically.",
+        closeBtn: "Close",
+        startingCamera: "Starting camera...",
+        cameraUnavailableTitle: "Unable to access live camera in this browser",
+        cameraUnavailableHint:
+          "Please allow camera permission or tap below to open your device's camera app directly.",
+        nativeCameraBtn: "Open Device Camera",
+        switchCameraBtn: "Switch Camera",
+        alignGuideText: "Align document within the frame",
+        captureBtn: "Take Photo",
+        scanCaptureBtn: "Scan Page",
+        retakeBtn: "Retake",
+        rotateBtn: "Rotate 90°",
+        filterLabel: "Image mode:",
+        filterScanBw: "Crisp Scan (B&W)",
+        filterScanColor: "Color Scan",
+        filterOriginal: "Original Photo",
+        addMorePageBtn: "+ Scan Another Page",
+        pagesCapturedLabel: (count) => `Captured pages (${count})`,
+        confirmSingleBtn: "Use This Image",
+        confirmMultiBtn: (count) => `Add ${count} Page(s) to Upload`,
+        capturedPageAlt: (index) => `Captured page ${index}`,
+        removeCapturedPage: (index) => `Remove captured page ${index}`,
+      },
       guestBannerTitle: "Sign in required to submit to the encrypted registry",
       guestBannerDesc:
-        "Sign in with your Patient account (or Doctor demo account) so your documents persist to PostgreSQL and appear in the review queue.",
+        "Sign in with your Patient account so your documents are securely saved and routed to clinical specialists.",
       guestSignInCta: "Sign in to continue →",
       trackerHeading: "Your submissions",
       trackerSortNote: "Ordered by upload date (newest first)",
@@ -444,11 +509,12 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       heading: "Tải lên tài liệu của bạn",
       subheading:
         "Bạn chỉ cần tải lên phiếu xét nghiệm hoặc hồ sơ y tế. AI sẽ đọc tài liệu và bác sĩ Vinmec sẽ xác minh kết quả.",
-      dropzoneLabel: "Chọn hoặc thả ảnh và tài liệu PDF xét nghiệm",
-      dropzonePrompt: "Kéo thả ảnh / PDF vào đây, hoặc nhấp để chọn tệp",
+      dropzoneLabel: "Chọn, chụp ảnh hoặc quét (scan) tài liệu xét nghiệm",
+      dropzonePrompt: "Kéo thả ảnh / PDF vào đây, hoặc chọn cách thêm tài liệu bên dưới",
       dropzoneHint: "Chấp nhận: PNG, JPG, WEBP, PDF • Tối đa 15 MB mỗi tệp",
       browseBtn: "Chọn tệp",
-      sampleBtn: "Dùng hồ sơ mẫu",
+      cameraBtn: "Chụp ảnh",
+      scanBtn: "Quét tài liệu (Scan)",
       stagedListHeading: (count) => `Tệp sẵn sàng gửi (${count})`,
       previewImageAction: (name) => `Xem trước ${name}`,
       removeFileAction: (name) => `Xóa ${name}`,
@@ -464,9 +530,42 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
           : `Có ${count} tệp sẵn sàng gửi bác sĩ.`,
       submitBtn: "Tải lên",
       submittingBtn: "Đang gửi hồ sơ lên hệ thống...",
+      uploadSuccessTitle: "Đã tiếp nhận hồ sơ",
+      uploadSuccessMessage:
+        "Cảm ơn bạn đã nộp hồ sơ tới dự án, thông tin của bạn sẽ được chuyển đến các bác sĩ chuyên khoa. Nếu có bất kỳ thắc mắc gì bạn vui lòng liên hệ đến chủ nhiệm dự án, email,... Chúng tôi sẵn sàng hỗ trợ giải đáp",
+      uploadSuccessDismiss: "Đóng thông báo",
+      scanner: {
+        photoTitle: "Chụp ảnh Tài liệu",
+        scanTitle: "Quét Tài liệu Trực tiếp (Scan)",
+        photoSubtitle: "Chụp ảnh rõ nét phiếu xét nghiệm hoặc hồ sơ khám bệnh của bạn.",
+        scanSubtitle:
+          "Đặt trang giấy gọn trong khung. Bộ lọc Scan tự động làm sáng nền giấy và tăng độ nét chữ số xét nghiệm.",
+        closeBtn: "Đóng",
+        startingCamera: "Đang khởi động camera...",
+        cameraUnavailableTitle: "Không thể mở camera trực tiếp trên trình duyệt",
+        cameraUnavailableHint:
+          "Vui lòng cấp quyền camera hoặc bấm nút bên dưới để mở ứng dụng camera mặc định của thiết bị.",
+        nativeCameraBtn: "Mở Camera Thiết bị",
+        switchCameraBtn: "Đổi Camera",
+        alignGuideText: "Căn chỉnh phiếu xét nghiệm nằm gọn trong khung",
+        captureBtn: "Chụp ảnh",
+        scanCaptureBtn: "Quét trang này",
+        retakeBtn: "Chụp lại",
+        rotateBtn: "Xoay 90°",
+        filterLabel: "Chế độ ảnh:",
+        filterScanBw: "Scan rõ chữ (Đen trắng)",
+        filterScanColor: "Scan giữ màu",
+        filterOriginal: "Ảnh gốc",
+        addMorePageBtn: "+ Quét thêm trang",
+        pagesCapturedLabel: (count) => `Trang đã quét (${count})`,
+        confirmSingleBtn: "Dùng ảnh này",
+        confirmMultiBtn: (count) => `Thêm ${count} trang vào danh sách`,
+        capturedPageAlt: (index) => `Trang đã quét ${index}`,
+        removeCapturedPage: (index) => `Xóa trang đã quét ${index}`,
+      },
       guestBannerTitle: "Cần đăng nhập để gửi hồ sơ vào hệ thống bảo mật",
       guestBannerDesc:
-        "Vui lòng đăng nhập bằng tài khoản Bệnh nhân (hoặc tài khoản Bác sĩ mẫu) để lưu hồ sơ vào PostgreSQL và theo dõi tiến độ duyệt.",
+        "Vui lòng đăng nhập bằng tài khoản Bệnh nhân để lưu hồ sơ bảo mật và chuyển tới đội ngũ bác sĩ chuyên khoa.",
       guestSignInCta: "Đăng nhập ngay →",
       trackerHeading: "Trạng thái tài liệu đã gửi",
       trackerSortNote: "Mặc định sắp xếp theo ngày tải lên (mới nhất trước)",

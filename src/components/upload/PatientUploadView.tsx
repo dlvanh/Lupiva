@@ -11,6 +11,10 @@ import {
 import { getUploadPageCopy } from "@/data/uploadTranslations";
 import { DEFAULT_PAGE_SIZE, type PaginationMeta } from "@/lib/submissionFilters";
 import { TruncatedFilename } from "./TruncatedFilename";
+import {
+  PatientCameraScannerDialog,
+  type CameraCaptureMode,
+} from "./PatientCameraScannerDialog";
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 const MAX_FILE_MB = 15;
@@ -59,6 +63,8 @@ export function PatientUploadView() {
   const [files, setFiles] = useState<UploadedDocFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadSuccessNotice, setUploadSuccessNotice] = useState(false);
+  const [scannerMode, setScannerMode] = useState<CameraCaptureMode | null>(null);
   const [validationMessages, setValidationMessages] = useState<string[]>([]);
   const [previewTarget, setPreviewTarget] = useState<UploadedDocFile | null>(
     null
@@ -150,11 +156,10 @@ export function PatientUploadView() {
     return () => controller.abort();
   }, [currentUser, trackerPage, trackerTick, copy.trackerErrorTitle]);
 
-  const patientName =
-    currentUser?.role === "patient" ? currentUser.name : "Tran Thi Mai";
+  const patientName = currentUser?.name?.trim() ?? "";
 
   const addFiles = useCallback(
-    (list: FileList | null) => {
+    (list: FileList | File[] | null) => {
       if (!list || list.length === 0) return;
 
       const messages: string[] = [];
@@ -212,26 +217,6 @@ export function PatientUploadView() {
     setValidationMessages([]);
   };
 
-  const loadSample = () => {
-    const sampleName = "Sample_Hospital_Lab_Dossier.pdf";
-    if (files.some((f) => f.name.toLowerCase() === sampleName.toLowerCase())) {
-      setValidationMessages([copy.duplicateFile(sampleName)]);
-      return;
-    }
-    setValidationMessages([]);
-    setFiles((prev) => [
-      ...prev,
-      {
-        id: `sample-${Date.now()}`,
-        name: sampleName,
-        url: null,
-        isImage: false,
-        mimeType: "application/pdf",
-        sizeBytes: 245760,
-      },
-    ]);
-  };
-
   const openImagePreview = (file: UploadedDocFile) => {
     if (!file.url) return;
     setPreviewTarget(file);
@@ -248,6 +233,7 @@ export function PatientUploadView() {
     if (files.length === 0 || !currentUser || isSubmitting) return;
 
     setIsSubmitting(true);
+    setUploadSuccessNotice(false);
     try {
       const created = await submitPatientUpload(patientName, files);
       if (created) {
@@ -259,6 +245,7 @@ export function PatientUploadView() {
         }
         setFiles([]);
         setValidationMessages([]);
+        setUploadSuccessNotice(true);
         setTrackerPage(1);
         setTrackerTick((t) => t + 1);
       }
@@ -302,6 +289,51 @@ export function PatientUploadView() {
             {copy.heading}
           </h1>
           <p className="mt-1 text-sm text-slate-600">{copy.subheading}</p>
+
+          {uploadSuccessNotice && (
+            <div
+              id="upload-success-notice"
+              role="status"
+              aria-live="polite"
+              className="mt-4 flex items-start justify-between gap-4 rounded-xl border border-teal-300 bg-teal-50 p-4 text-teal-950 shadow-2xs"
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  aria-hidden="true"
+                  className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-700 text-white"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+                <div>
+                  <h2 className="text-sm font-bold text-teal-950">
+                    {copy.uploadSuccessTitle}
+                  </h2>
+                  <p className="mt-1 text-sm leading-relaxed text-teal-900">
+                    {copy.uploadSuccessMessage}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUploadSuccessNotice(false)}
+                aria-label={copy.uploadSuccessDismiss}
+                className="shrink-0 rounded-lg border border-teal-200 bg-white px-2.5 py-1 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
+              >
+                {copy.uploadSuccessDismiss}
+              </button>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="mt-5">
             <div
@@ -375,17 +407,67 @@ export function PatientUploadView() {
                   type="button"
                   id="upload-btn-browse"
                   onClick={() => inputRef.current?.click()}
-                  className="min-h-10 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer"
                 >
-                  {copy.browseBtn}
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4 text-slate-700"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <span>{copy.browseBtn}</span>
                 </button>
                 <button
                   type="button"
-                  id="upload-btn-sample"
-                  onClick={loadSample}
-                  className="min-h-10 rounded-lg border border-teal-700/30 bg-teal-50 px-4 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
+                  id="upload-btn-camera"
+                  onClick={() => setScannerMode("photo")}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-teal-700/30 bg-teal-50 px-4 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-100 cursor-pointer"
                 >
-                  {copy.sampleBtn}
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4 text-teal-800"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <span>{copy.cameraBtn}</span>
+                </button>
+                <button
+                  type="button"
+                  id="upload-btn-scan"
+                  onClick={() => setScannerMode("scan")}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-teal-700 bg-teal-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-teal-800 cursor-pointer"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4 text-white"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                    <line x1="7" y1="12" x2="17" y2="12" />
+                  </svg>
+                  <span>{copy.scanBtn}</span>
                 </button>
               </div>
             </div>
@@ -638,6 +720,18 @@ export function PatientUploadView() {
           </section>
         )}
       </div>
+
+      {/* Camera & Direct Document Scanner Modal */}
+      {scannerMode !== null && (
+        <PatientCameraScannerDialog
+          key={scannerMode}
+          open
+          mode={scannerMode}
+          copy={copy.scanner}
+          onClose={() => setScannerMode(null)}
+          onCaptureFiles={(captured) => addFiles(captured)}
+        />
+      )}
 
       {/* Native <dialog> Thumbnail Lightbox Preview */}
       <dialog

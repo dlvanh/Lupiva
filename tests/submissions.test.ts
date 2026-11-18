@@ -398,10 +398,44 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
     expect(sortOldestData.pagination.totalItems).toBe(12);
   });
 
-  it("scopes patient view to their own submissions sorted newest-first and supports backend pagination", async () => {
+  it("returns zero mock dossiers to patients and scopes patient view to their own real uploads sorted newest-first", async () => {
     await signInAs("patient");
 
-    // Even if doctor query params are passed, patient view enforces patient scope & upload-date sort
+    // Seeded mock dossiers must NOT appear in patient view
+    const initialRes = await submissionsGet(
+      buildRequest("/api/submissions?page=1&pageSize=10", "GET")
+    );
+    expect(initialRes.status).toBe(200);
+    const initialData = (await initialRes.json()) as SubmissionsResponseBody;
+    expect(initialData.roleScope).toBe("patient");
+    expect(initialData.pagination.totalItems).toBe(0);
+    expect(initialData.items).toHaveLength(0);
+
+    // Create 3 real patient uploads sequentially so submittedAt ordering is deterministic
+    const uploadedNames = [
+      "Patient_Real_Upload_1.pdf",
+      "Patient_Real_Upload_2.jpg",
+      "Patient_Real_Upload_3.jpg",
+    ];
+    for (const fileName of uploadedNames) {
+      const postRes = await submissionsPost(
+        buildRequest("/api/submissions", "POST", {
+          patientName: DEMO_USERS.patient.name,
+          utcOffsetMinutes: 420,
+          files: [
+            {
+              name: fileName,
+              mimeType: fileName.endsWith(".pdf") ? "application/pdf" : "image/jpeg",
+              sizeBytes: 42000,
+              isImage: !fileName.endsWith(".pdf"),
+            },
+          ],
+        })
+      );
+      expect(postRes.status).toBe(201);
+    }
+
+    // Even if doctor query params are passed, patient view enforces patient scope & upload-date newest-first sort
     const res = await submissionsGet(
       buildRequest(
         "/api/submissions?status=approved&sort=oldest&q=Le%20Van%20Hung&page=1&pageSize=2",
@@ -419,9 +453,9 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
       hasPreviousPage: false,
       hasNextPage: true,
     });
-    expect(data.items.map((i) => i.record.studyId)).toEqual([
-      "VN-0084-F2-26",
-      "VN-0084-26",
+    expect(data.items.map((i) => i.record.uploadedFiles?.[0]?.name)).toEqual([
+      "Patient_Real_Upload_3.jpg",
+      "Patient_Real_Upload_2.jpg",
     ]);
 
     const page2Data = (await (
@@ -429,8 +463,8 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
         buildRequest("/api/submissions?page=2&pageSize=2", "GET")
       )
     ).json()) as SubmissionsResponseBody;
-    expect(page2Data.items.map((i) => i.record.studyId)).toEqual([
-      "VN-0084-F1-26",
+    expect(page2Data.items.map((i) => i.record.uploadedFiles?.[0]?.name)).toEqual([
+      "Patient_Real_Upload_1.pdf",
     ]);
     expect(
       page2Data.items.every((i) => i.record.patientName === DEMO_USERS.patient.name)

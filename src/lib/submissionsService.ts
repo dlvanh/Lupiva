@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, like, lt, lte, or, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import {
   INITIAL_CRF_PATIENTS,
@@ -114,6 +114,7 @@ export async function querySubmissions(params: {
   const baseScopeConditions: SQL[] = [];
   if (roleScope === "patient") {
     baseScopeConditions.push(eq(patientProfiles.userId, user.id));
+    baseScopeConditions.push(like(crfSubmissions.legacyRecordKey, "crf-up-%"));
   }
 
   // 1. Cohort-wide KPIs within the user's authorized scope
@@ -445,7 +446,7 @@ export async function createPatientSubmission(params: {
   const patientName =
     user.role === "patient"
       ? user.name
-      : input.patientName?.trim() || "Tran Thi Mai";
+      : input.patientName?.trim() || user.name;
 
   const studyId =
     input.studyId?.trim() ||

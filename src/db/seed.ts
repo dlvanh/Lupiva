@@ -31,7 +31,7 @@ import { hashPassword } from "@/lib/password";
 export const SEEDED_SPECIALIST_UUID = "00000000-0000-4000-8000-000000000001";
 export const SEEDED_PATIENT_UUID = "00000000-0000-4000-8000-000000000002";
 
-const PATIENT_LINKED_KEYS = new Set(["crf-pat-084", "crf-pat-103", "crf-pat-108"]);
+const PATIENT_LINKED_KEYS = new Set<string>();
 
 const SEED_RECORD_IDS: Record<
   string,

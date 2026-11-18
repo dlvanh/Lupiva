@@ -305,20 +305,12 @@ export const TRANSLATIONS: Record<Language, Translations> = {
         "Joining the registry provides patients with organized long-term health tracking while safeguarding personal privacy.",
       benefitsItems: [
         {
-          title: "Centralized Lifelong Medical Archive",
-          desc: "All immunological, hematological, and renal test results across visits are neatly organized chronologically so important records are never lost before follow-up appointments.",
+          title: "Improved Treatment",
+          desc: "Centralized immunological, hematological, and renal records across visits are reviewed by Vinmec Clinical Immunology & Allergy specialists, helping physicians monitor disease progression accurately, personalize care, and advance Lupus treatment.",
         },
         {
-          title: "Reviewed by Vinmec Immunology Specialists",
-          desc: "Every uploaded dossier is evaluated by our Clinical Immunology & Allergy physicians to ensure clinical biomarkers are accurately recorded.",
-        },
-        {
-          title: "Strict Data Privacy & Encryption",
-          desc: "Personal identity fields are encrypted separately from clinical datasets, complying with strict medical confidentiality and research ethics standards.",
-        },
-        {
-          title: "Continuous Care & Scientific Contribution",
-          desc: "Structured records assist physicians in tailoring individualized care while contributing real-world evidence to advance Lupus treatment in Vietnam.",
+          title: "Anonymity and Security",
+          desc: "Personal identifying information is de-identified and encrypted separately from clinical datasets, strictly complying with medical confidentiality regulations and research ethics standards.",
         },
       ],
       registrationKicker: "Participation Guide",
@@ -352,7 +344,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       patientTabBadge: "Patient",
       patientTabDesc: "Sign E-consent & upload records",
       fullNameLabel: "Full Name",
-      fullNamePlaceholder: "e.g., Tran Thi Mai",
+      fullNamePlaceholder: "Enter your full name",
       emailLabel: "Email",
       passwordLabel: "Password",
       passwordHint: "Seeded demo passkey pre-filled",
@@ -583,20 +575,12 @@ export const TRANSLATIONS: Record<Language, Translations> = {
         "Tham gia Hệ thống Đăng ký giúp người bệnh quản lý hồ sơ sức khỏe khoa học và được bảo vệ quyền riêng tư ở mức cao nhất.",
       benefitsItems: [
         {
-          title: "Quản lý hồ sơ xét nghiệm tập trung",
-          desc: "Toàn bộ lịch sử xét nghiệm miễn dịch, huyết học và chức năng thận được lưu trữ có hệ thống theo thời gian, tránh thất lạc giấy tờ khi đi tái khám.",
+          title: "Cải thiện hiệu quả điều trị",
+          desc: "Toàn bộ lịch sử xét nghiệm miễn dịch, huyết học và chức năng thận qua các đợt khám được lưu trữ tập trung và được Bác sĩ Chuyên khoa Miễn dịch - Dị ứng Vinmec thẩm định, giúp theo dõi diễn tiến bệnh chính xác, tối ưu phác đồ cá thể hóa và nâng cao hiệu quả điều trị Lupus.",
         },
         {
-          title: "Được Bác sĩ Chuyên khoa Vinmec thẩm định",
-          desc: "Mỗi hồ sơ nộp lên đều được đội ngũ Bác sĩ Chuyên khoa Miễn dịch - Dị ứng rà soát và đánh giá các chỉ số lâm sàng quan trọng.",
-        },
-        {
-          title: "Bảo mật & mã hóa thông tin cá nhân",
-          desc: "Thông tin định danh cá nhân được mã hóa tách biệt với dữ liệu chuyên môn, tuân thủ nghiêm ngặt quy định bảo mật dữ liệu y tế và đạo đức nghiên cứu.",
-        },
-        {
-          title: "Đồng hành điều trị & đóng góp nghiên cứu",
-          desc: "Hỗ trợ bác sĩ tối ưu phác đồ điều trị phù hợp với từng cá nhân, đồng thời đóng góp dữ liệu y khoa giúp nâng cao hiệu quả chăm sóc bệnh nhân Lupus tại Việt Nam.",
+          title: "Ẩn danh và Bảo mật",
+          desc: "Thông tin định danh cá nhân được ẩn danh và mã hóa tách biệt hoàn toàn với dữ liệu chuyên môn, tuân thủ nghiêm ngặt quy định bảo mật dữ liệu y tế và đạo đức nghiên cứu.",
         },
       ],
       registrationKicker: "Hướng dẫn tham gia",
@@ -630,7 +614,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       patientTabBadge: "Bệnh nhân",
       patientTabDesc: "Ký E-consent & nộp hồ sơ xét nghiệm",
       fullNameLabel: "Họ và Tên",
-      fullNamePlaceholder: "VD: Trần Thị Mai",
+      fullNamePlaceholder: "Nhập họ và tên đầy đủ",
       emailLabel: "Email",
       passwordLabel: "Mật khẩu",
       passwordHint: "Đã điền sẵn mật khẩu tài khoản mẫu",
