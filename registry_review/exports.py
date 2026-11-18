@@ -193,14 +193,19 @@ class ExportManager:
                 candidate['source_available']=key in self.application.bundles
                 candidate['evidence']=[]
                 if key in self.application.bundles:
-                    from registry_pool.specimens import evidence_region_id
+                    from registry_pool.specimens import evidence_crop_id, evidence_region_id
                     package=self.application.bundles[key][1]
                     evidence={e['evidence_id']:e for e in package['evidence']}
                     document=next(d for d in package['documents'] if d['document_id']==candidate['document_id'])
                     candidate['source_url']=self.application.asset_url(key,document['source_key'])
-                    for eid in candidate['evidence_ids']:
-                        tid=evidence_region_id(evidence[eid]['source_data'])
-                        candidate['evidence'].append(dict(crop_url=self.application.asset_url(key,'artifacts/crops/'+tid+'.png'),
+                    for index, eid in enumerate(candidate['evidence_ids']):
+                        data=evidence[eid]['source_data']
+                        tid=evidence_region_id(data)
+                        crop_id=evidence_crop_id(data)
+                        crop_url=self.application.asset_url(key,'artifacts/crops/'+crop_id+'.png')
+                        if index == 0 and crop_id != tid:
+                            candidate['source_url']=crop_url
+                        candidate['evidence'].append(dict(crop_url=crop_url,
                             raw_url=self.application.asset_url(key,'artifacts/raw/'+tid+'.txt')))
             scoped['workspace']=workspace
         finally:store.close()

@@ -9,7 +9,7 @@ from ocr_pool.llm import configuration, request_json
 from registry_export.mapping import context_blocks, review_layout
 from registry_export.word import display, reviewed_word
 from registry_pool.dictionary import digest
-from registry_pool.specimens import evidence_region_id
+from registry_pool.specimens import evidence_crop_id
 from registry_pool.slots import parse_slot
 from .store import HUMAN_ROLES, ReviewStore, actor_info, now
 from .workspace import StalePatient, patient_workspace
@@ -465,7 +465,7 @@ class CRFReview:
             if bundle and source['evidence_ids']:
                 _, package = bundle
                 evidence = next(e for e in package['evidence'] if e['evidence_id'] == source['evidence_ids'][0])
-                region = evidence_region_id(evidence['source_data'])
+                region = evidence_crop_id(evidence['source_data'])
                 detail['url'] = self.application.asset_url(key, 'artifacts/crops/'+region+'.png')
                 location = (evidence['source_data'].get('region') or {}).get('llm_row_location')
                 if location:

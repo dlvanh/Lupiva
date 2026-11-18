@@ -1,4 +1,6 @@
 """Additional API contract for the synthetic full-image prototype only."""
+from collections import defaultdict
+
 from .llm_extraction import valid_row_box
 from .local_dates import _parse_date
 from .metadata import ADM_FIELDS, normalize_value, select_fact
@@ -22,7 +24,12 @@ Return pii_boxes for every occurrence of a patient name, patient ID (including r
 and insurance numbers), birth date, address, phone, barcode or QR code, and patient
 signature anywhere on the image. Return only the kind and box, never the text of the
 identifier. Use patient_id for record and insurance numbers and barcode for QR codes.
-Return pii_boxes=[] if none are visible. Both types of boxes are [left, top, right,
+Return pii_boxes=[] if none are visible. Return tables with one entry per result table,
+using a unique integer table_index starting at 0. Each table box must cover the column
+header row and all result rows in that table. Use null for the box if you cannot locate
+the table reliably. Each result row must carry its table's table_index, or null if it
+does not belong to an identifiable table. Return tables=[] when there are no tables.
+All boxes are [left, top, right,
 bottom] in integer coordinates from 0 to 1000 on the exact input image, with the
 origin at the top left.
 Keep Physician, Nurse, and requested sample/result/measurement date values as header
@@ -41,7 +48,13 @@ def extend_schema(schema):
     schema['properties']['pii_boxes'] = dict(type='array', items=dict(
         type='object', properties=dict(kind=dict(type='string', enum=list(PII_KINDS)), box=box),
         required=['kind', 'box'], additionalProperties=False))
-    schema['required'].extend(['header_facts', 'pii_boxes'])
+    schema['properties']['tables'] = dict(type='array', items=dict(
+        type='object', properties=dict(table_index=dict(type='integer'), box=dict(box, type=['array', 'null'])),
+        required=['table_index', 'box'], additionalProperties=False))
+    schema['required'].extend(['header_facts', 'pii_boxes', 'tables'])
+    row = schema['properties']['rows']['items']
+    row['properties']['table_index'] = dict(type=['integer', 'null'])
+    row['required'].append('table_index')
     return schema
 
 
@@ -53,6 +66,41 @@ def padded_pixel_box(box, image_size, padding):
             max(0, top - padding) * height // 1000,
             (min(1000, right + padding) * width + 999) // 1000,
             (min(1000, bottom + padding) * height + 999) // 1000)
+
+
+def table_crop_bounds(extraction, image_size):
+    """Locate declared tables, using their rows when table geometry is unavailable."""
+    row_boxes = defaultdict(list)
+    for row in extraction['rows']:
+        if row.get('table_index') is not None and valid_row_box(row.get('row_box')):
+            row_boxes[row['table_index']].append(row['row_box'])
+
+    crops = {}
+    for table in extraction.get('tables', []):
+        index, box = table['table_index'], table['box']
+        granularity = 'llm_table_box'
+        if not valid_row_box(box):
+            if not row_boxes[index]:
+                continue
+            left, top, right, bottom = zip(*row_boxes[index])
+            box = [min(left), max(0, min(top) - 30), max(right), max(bottom)]
+            granularity = 'llm_rows_union'
+        crops[index] = padded_pixel_box(box, image_size, 15), granularity
+    return crops
+
+
+def remap_row_box(box, image_size, bounds):
+    """Clip a normalized page box to a crop, then normalize it to the crop size."""
+    width, height = image_size
+    left, top, right, bottom = bounds
+    return [min(1000, max(0, round((value * scale - origin * 1000) / size)))
+            for value, scale, origin, size in zip(box, (width, height) * 2, (left, top) * 2,
+                                                  (right - left, bottom - top) * 2)]
+
+
+def mask_count_in_crop(masks, bounds):
+    left, top, right, bottom = bounds
+    return sum(left < x1 and x0 < right and top < y1 and y0 < bottom for x0, y0, x1, y1 in masks)
 
 
 def masked_display_page(image, pii_boxes):
