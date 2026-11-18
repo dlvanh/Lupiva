@@ -8,6 +8,7 @@ import hashlib
 import json
 import mimetypes
 from pathlib import Path
+import re
 import secrets
 from http.server import BaseHTTPRequestHandler,HTTPServer
 from urllib.parse import parse_qs,urlsplit,urlencode
@@ -25,6 +26,26 @@ from .intake import IntakeManager,MAX_IMAGE
 from .privacy import PrivacyProposals
 from .crf import CRFReview
 from .crf_knowledge import knowledge_library, read_knowledge
+
+
+def _review_asset_key(package, key):
+    """Map original direct-LLM source links and withhold legacy unmasked crops."""
+    if not key.startswith(('sources/', 'artifacts/crops/')):
+        return key
+    source_id = next((d['source_document_id'] for d in package['documents'] if d['source_key'] == key), None)
+    crop = re.fullmatch(r'artifacts/crops/(G[0-9]{4,})(?:S|HEADER[0-9]+)?\.png', key)
+    documents = package['source_run'].get('provenance', {}).get('documents', [])
+    for index, document in enumerate(documents):
+        if not document.get('privacy', {}).get('direct_llm'):
+            continue
+        stem = f'G{index:04d}'
+        masked = 'display_masking' in document
+        if crop and crop[1] == stem:
+            return key if masked else None
+        if source_id == document['source_document_id']:
+            masked_key = f'artifacts/crops/{stem}.png'
+            return masked_key if masked and any(a['key'] == masked_key for a in package['assets']) else None
+    return key
 
 
 class ReviewApplication:
@@ -56,7 +77,10 @@ class ReviewApplication:
         self.crf=CRFReview(self)
 
     def asset_url(self,key,asset):
-        return '/asset?'+urlencode(dict(package_id=key[0],revision=key[1],key=asset))
+        if key in self.bundles:
+            asset = _review_asset_key(self.bundles[key][1], asset)
+        if asset is not None:
+            return '/asset?'+urlencode(dict(package_id=key[0],revision=key[1],key=asset))
 
     def package_view(self,store,package_id,revision):
         package=store.registry.package(package_id,revision)
@@ -138,11 +162,15 @@ class ReviewApplication:
                 for kind,(group,_) in GROUPS.items()},
             note='Source approvals are versioned separately. Case identity and clinical acceptance require separate decisions.')
 
-    def asset(self,package_id,revision,key):
+    def asset(self,package_id,revision,key,*,require_masked=False):
         bundle=self.bundles.get((package_id,revision))
         if not bundle:
             raise KeyError('No verified source bundle for this revision')
         root,package=bundle
+        review_key = _review_asset_key(package, key)
+        if review_key is None or (require_masked and review_key == key):
+            raise KeyError('No masked review image for this document')
+        key = review_key
         asset=next((a for a in package['assets'] if a['key']==key),None)
         if asset is None:
             raise KeyError('Unknown bundled asset')
@@ -227,7 +255,7 @@ def make_handler(application):
                     self.send(200,body,kind)
                     return
                 if self.command=='GET' and url.path=='/api/intakes/source':
-                    body,kind=application.intakes.source(param('job_id'),param('file_id'))
+                    body,kind=application.intakes.source(param('job_id'),param('file_id'),for_review=True)
                     self.send(200,body,kind)
                     return
                 if self.command=='POST' and url.path=='/api/privacy-proposals':

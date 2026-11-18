@@ -8,6 +8,7 @@ from pathlib import Path
 import time
 import unittest
 from unittest.mock import Mock, patch
+from urllib.parse import parse_qs, urlsplit
 
 from PIL import Image
 from ocr_pool.flags import prototype_direct_llm
@@ -15,6 +16,8 @@ from ocr_pool.llm import extract_image, prepare_image, privacy_plan, response_sc
 from ocr_pool.llm_workflow import run
 from registry_pool.exchange import read, verify_bundle
 from registry_review.privacy import PrivacyProposals, test_auto_send
+from registry_review.exports import ExportManager
+from registry_review.server import ReviewApplication
 from registry_review.store import ReviewStore
 from registry_review.workspace import patient_workspace
 import test_patient_intake as fixture
@@ -29,13 +32,14 @@ ROOT = Path(__file__).resolve().parents[1]
 def api_result():
     record = result()
     record['extraction']['header_facts'] = [
-        dict(key=key, label_raw=label, value_raw=value) for key, label, value in (
+        dict(key=key, label_raw=label, value_raw=value, box=None) for key, label, value in (
             ('sample_date', 'Ngày lấy mẫu', '19/03/2025 07:35'),
             ('result_date', 'Result date', '2025-03-20'),
             ('sex', 'Giới tính', 'Nữ'), ('age', 'Age', '42 years'),
             ('height', 'Height (cm)', '165'), ('weight', 'Weight (kg)', '57.5'),
             ('ordering_provider', 'Physician', 'BS. Synthetic Physician'),
             ('specimen_collector', 'Nurse', 'Synthetic Nurse'))]
+    record['extraction']['pii_boxes'] = [dict(kind='patient_name', box=[10, 30, 400, 150])]
     return record
 
 
@@ -160,6 +164,8 @@ class DirectLlmTests(unittest.TestCase):
             job = self.manager.create(request_id='direct', file_count=1, same_patient=True, engine='gemini',
                                       privacy=[doc['privacy']], **self.person)['job']
         self.manager.upload(job['job_id'], 'image-0', 'synthetic.png', body)
+        with self.assertRaises(KeyError):
+            self.manager.source(job['job_id'], 'image-0', for_review=True)
         self.manager.runner = lambda job, files, folder: run(read(folder/'manifest.json'),
             folder/job['output'], self.root, extractor=lambda *_: api_result())
         with (patch('ocr_pool.llm_workflow.scan_source_dates', side_effect=AssertionError('local OCR')),
@@ -174,6 +180,21 @@ class DirectLlmTests(unittest.TestCase):
             self.assertTrue({'ADM02', 'ADM03', 'ADM05', 'ADM06', 'ADM08', 'ADM09'} <= fields)
             self.assertTrue(all(c['review_status'] == 'pending' for c in view['candidates']))
             self.assertEqual(store.effective_pool(job['case_id'])['observations'], [])
+            app = ReviewApplication.__new__(ReviewApplication)
+            app.database, app.bundles = self.db, self.app.bundles
+            self.manager.application = app
+            key = (done['package_id'], done['revision'])
+            self.assertEqual(self.manager.source(job['job_id'], 'image-0')[0], body)
+            self.assertEqual(self.manager.source(job['job_id'], 'image-0', for_review=True),
+                             app.asset(*key, 'artifacts/crops/G0000.png'))
+            package_view = app.package_view(store, *key)
+            patient_view = ExportManager(app).patient(job['case_id'])
+            sources = (package_view['documents'] + patient_view['documents'] +
+                       patient_view['workspace']['candidates'])
+            self.assertTrue(package_view['documents'] and patient_view['documents'])
+            for entry in sources:
+                params = parse_qs(urlsplit(entry['source_url']).query)
+                self.assertEqual(params['key'], ['artifacts/crops/G0000.png'])
         finally:
             store.close()
 
@@ -232,6 +253,7 @@ class DirectLlmTests(unittest.TestCase):
                     raw['rows'] = raw['rows'][:1]
                     if not direct:
                         del raw['header_facts']
+                        del raw['pii_boxes']
                     response = (dict(candidates=[dict(finishReason='STOP', content=dict(parts=[dict(text=json.dumps(raw))]))])
                         if native else dict(choices=[dict(finish_reason='stop', message=dict(content=json.dumps(raw)))], model='synthetic'))
                     opener = Mock(open=Mock(return_value=io.BytesIO(json.dumps(response).encode())))
@@ -239,9 +261,11 @@ class DirectLlmTests(unittest.TestCase):
                                   endpoint='https://example.invalid', direct_llm=direct)
                     record = extract_image(body, DICTIONARY, ROOT, config=config, opener=opener)
                     self.assertEqual('header_facts' in record['request_contract']['schema']['properties'], direct)
+                    self.assertEqual('pii_boxes' in record['request_contract']['schema']['properties'], direct)
                     self.assertEqual('SYNTHETIC FULL-IMAGE PROTOTYPE' in record['request_contract']['prompt'], direct)
                     if direct:
                         self.assertEqual(record['extraction']['header_facts'], raw['header_facts'])
+                        self.assertEqual(record['extraction']['pii_boxes'], raw['pii_boxes'])
         self.assertNotIn('header_facts', response_schema(DICTIONARY)['properties'])
 
     def test_compact_schema_also_accepts_header_facts_without_changing_normal_schema(self):
@@ -250,7 +274,31 @@ class DirectLlmTests(unittest.TestCase):
         raw['rows'] = []
         validate_response(raw, schema)
         self.assertIn('header_facts', schema['required'])
+        self.assertIn('pii_boxes', schema['required'])
         self.assertNotIn('header_facts', response_schema(DICTIONARY, compact_rows=True)['properties'])
+
+    def test_direct_schema_requires_strict_box_objects(self):
+        schema = response_schema(DICTIONARY, direct_llm=True)
+        raw = api_result()['raw_extraction']
+        raw['header_facts'][0]['box'] = [100, 200, 300, 400]
+        validate_response(raw, schema)
+        for invalid in (
+            dict(kind='patient_name', box=[100, 200, 300]),
+            dict(kind='patient_name', box=[100, 200, 300, 400, 500]),
+            dict(kind='patient_name', box=[100, 200, '300', 400]),
+            dict(kind='patient_name', box=[True, 200, 300, 400]),
+            dict(kind='patient_name', box=None),
+            dict(kind='unknown', box=[100, 200, 300, 400]),
+            dict(kind='patient_name', box=[100, 200, 300, 400], text='unexpected'),
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                validate_response(dict(raw, pii_boxes=[invalid]), schema)
+        for key in ('header_facts', 'pii_boxes'):
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                validate_response({k: value for k, value in raw.items() if k != key}, schema)
+        del raw['header_facts'][0]['box']
+        with self.assertRaises(ValueError):
+            validate_response(raw, schema)
 
 
 if __name__ == '__main__':

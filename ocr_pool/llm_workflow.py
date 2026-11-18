@@ -22,7 +22,8 @@ from .ocr_crosscheck import number_disagreements
 from .lab_reference_cells import attach_complement_ranges
 from .llm_extraction import VERSION as LLM_CONTRACT_VERSION, valid_row_box
 from .local_dates import local_date_evidence, local_metadata_evidence, observation_date, scan_source_dates, unmasked_crop_lines
-from .direct_llm import DATE_KEYS as DIRECT_DATE_KEYS, header_facts, source_date as direct_source_date
+from .direct_llm import (DATE_KEYS as DIRECT_DATE_KEYS, header_facts, masked_display_page,
+                         padded_pixel_box, source_date as direct_source_date)
 from .mixed_lab import extract_split_lab, fluorescence_split
 from .pft_api import extract_pft_image, pft_crop_evidence
 from .result_rules import load_result_rules
@@ -318,6 +319,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
         evidence.extend(background_evidence)
         add_administrative_observations(doc, background_facts, date_facts)
         if result is None: continue
+        direct = doc['privacy'].get('direct_llm')
         raw_source = result['raw_extraction']
         if result.get('verification', {}).get('attempted'):
             raw_source = dict(initial_extraction=result['raw_extraction'],
@@ -333,7 +335,14 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
         (run/'raw'/(tid+'.txt')).write_text(raw, encoding='utf-8')
         with Image.open(io.BytesIO(result['outgoing_bytes'])) as crop:
             image_size = list(crop.size)
-            crop.save(run/'crops'/(tid+'.png'))
+            if direct:
+                pii_boxes = result['extraction'].get('pii_boxes', [])
+                display_page, masks = masked_display_page(crop, pii_boxes)
+                display_page.save(run/'crops'/(tid+'.png'))
+                result['display_masking'] = dict(pii_boxes_applied=len(masks),
+                    invalid_pii_boxes=len(pii_boxes)-len(masks), invalid_header_boxes=0, header_band_masked=not masks)
+            else:
+                crop.save(run/'crops'/(tid+'.png'))
         literal_rules = {change['row_index']: change['rule'] for change in result.get('normalization_audit', [])
                          if change['reason'] == 'literal_result_from_source_cell'}
         def ev(number, row):
@@ -347,6 +356,8 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 region_granularity='reviewed_result_region', generation_status='ok', truncated=False,
                 extraction_method=extraction_method, model_requested=result.get('model_requested'),
                 model_returned=result.get('model_returned'), outgoing_sha256=result['outgoing_sha256']))
+            if direct:
+                evidence[-1].update(region_granularity='masked_full_page', pii_boxes_applied=len(masks))
             if number in literal_rules:
                 evidence[-1]['result_literal_rule'] = literal_rules[number]
             profile = result.get('request_contract', {}).get('profile')
@@ -359,7 +370,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                     'box': row['row_box'], 'image_size': image_size, 'coordinate_space': 'outgoing_image_1000',
                 }
             return eid
-        if doc['privacy'].get('direct_llm'):
+        if direct:
             direct_dates, direct_headers = [], []
             for fact_index, fact in enumerate(header_facts(result['extraction'])):
                 eid = ev(-2-fact_index, dict(source_label=fact['label_raw'], raw_result=fact['value_raw']))
@@ -367,13 +378,23 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 prefix = fact['label_raw'] + ': '
                 fact_raw = prefix + fact['value_raw']
                 (run/'raw'/(rid+'.txt')).write_text(fact_raw, encoding='utf-8')
-                with Image.open(io.BytesIO(result['outgoing_bytes'])) as image:
-                    image.save(run/'crops'/(rid+'.png'))
+                box = fact.pop('box')
+                image, granularity, applied = display_page, 'masked_full_page', len(masks)
+                if valid_row_box(box):
+                    bounds = padded_pixel_box(box, image_size, 20)
+                    image = display_page.crop(bounds)
+                    granularity = 'llm_header_box'
+                    left, top, right, bottom = bounds
+                    applied = sum(left < x1 and x0 < right and top < y1 and y0 < bottom
+                                  for x0, y0, x1, y1 in masks)
+                elif box is not None:
+                    result['display_masking']['invalid_header_boxes'] += 1
+                image.save(run/'crops'/(rid+'.png'))
                 evidence[-1].update(evidence_kind='metadata', mapping_method='api_explicit_header_label',
                                     label_raw=fact['label_raw'], value_raw=fact['value_raw'], table_id=rid,
                                     table_sha256=hashlib.sha256(fact_raw.encode('utf-8')).hexdigest(),
                                     raw_span_0based=[len(prefix), len(fact_raw)], row_index_0based=0,
-                                    region_granularity='full_outgoing_image')
+                                    region_granularity=granularity, pii_boxes_applied=applied)
                 if fact['key'] in DIRECT_DATE_KEYS:
                     evidence[-1]['date_type'] = fact['key']
                 fact.update(candidate_id='GMD'+str(len(metadata)).zfill(6), document_id=did,
@@ -428,7 +449,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 evidence[-1].update(extraction_method=method, model_requested=None, model_returned=None)
             if value['result_type']=='unparsed': flags.append('unparsed_result')
             if row.get('warning'): flags.append('api_source_warning')
-            date = (direct_source_date(date_facts, row.get('table_kind')) if doc['privacy'].get('direct_llm')
+            date = (direct_source_date(date_facts, row.get('table_kind')) if direct
                     else observation_date(date_facts, row.get('table_kind')))
             date_links = date['evidence_ids'] if date else []
             common = dict(document_id=did, flags=flags, source_date=date['value'] if date else None,
@@ -511,11 +532,16 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 lines.append('\t'.join([marker+' '+label, '', _cell(amount), '', '', '']))
             form_raw='\n'.join(lines)
             (run/'raw'/(sid+'.txt')).write_text(form_raw, encoding='utf-8')
-            with Image.open(io.BytesIO(result['outgoing_bytes'])) as crop: crop.save(run/'crops'/(sid+'.png'))
+            if direct:
+                display_page.save(run/'crops'/(sid+'.png'))
+            else:
+                with Image.open(io.BytesIO(result['outgoing_bytes'])) as crop: crop.save(run/'crops'/(sid+'.png'))
             extracted=extract_sample_collections([dict(document_id=did, input_sha256=doc['input_sha256'], tables=[dict(table_id=sid, raw=form_raw)])])
             for entry in extracted['evidence']:
                 entry.update(evidence_kind='sample_form_row', extraction_method=extraction_method,
                              derivation='Gemini JSON rendered to source-form table for review; not local OCR')
+                if direct:
+                    entry.update(region_granularity='masked_full_page', pii_boxes_applied=len(masks))
             for entry in extracted['candidates']:
                 entry['flags'].append(extraction_flag)
                 entry['extraction_method']=extraction_method
@@ -826,7 +852,11 @@ def _finish(output, workspace, dictionary, documents, results, candidate, failed
                         privacy=d['privacy'], outgoing_sha256=r['outgoing_sha256'] if r else None,
                         local_source_date_status=date_status[d['document_id']]) for d,r in zip(documents,results)])
     if any(d['privacy'].get('direct_llm') for d in documents):
-        provenance['privacy'] = 'Synthetic prototype: direct_llm documents send the full oriented image without masks or local OCR'
+        provenance['privacy'] = ('Synthetic prototype: direct_llm documents send the full oriented image without masks '
+                                 'or local OCR and use masked images for display')
+        for entry, result in zip(provenance['documents'], results):
+            if entry['privacy'].get('direct_llm') and result:
+                entry['display_masking'] = result['display_masking']
     if config is not None and 'result_rules' in config:
         provenance['result_literal_rule_versions']=sorted(set(config['result_rules'].values()))
     write(output/'provenance.json',provenance)
