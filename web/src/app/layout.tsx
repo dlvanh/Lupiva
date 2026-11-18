@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lupiva — Intelligent SLE Clinical Registry & Lab Document OCR",
+  title: "VietNam Lupus Registry",
   description:
     "Standardized Systemic Lupus Erythematosus (SLE) e-CRF registry and Physician-in-the-Loop lab report OCR platform built for the Vinmec Innovation Challenge 2026.",
 };

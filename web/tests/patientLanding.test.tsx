@@ -3,6 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
+import AboutPage from "@/app/gioi-thieu/page";
+import PatientsPage from "@/app/benh-nhan/page";
+import ContactPage from "@/app/lien-he/page";
 import LoginPage from "@/app/login/page";
 import { Navbar } from "@/components/Navbar";
 import { TRANSLATIONS, type Language } from "@/data/translations";
@@ -28,63 +31,74 @@ beforeEach(() => {
   state.searchParams = new URLSearchParams();
 });
 
-describe("patient landing page", () => {
-  it("leads with a plain-language hero, then benefits and joining before the research details", () => {
+describe("public site pages", () => {
+  it("home: VietNam Lupus Registry hero, one start action, links to the patient and about pages", () => {
     const markup = renderToStaticMarkup(<LandingPage />);
     const hero = markup.match(/<section\b[^>]*>[\s\S]*?<\/section>/)?.[0];
-    expect(hero).toContain("Chia sẻ kết quả khám và xét nghiệm để cùng bác sĩ hiểu rõ hơn về bệnh lupus.");
+    expect(hero).toContain("VietNam Lupus Registry");
+    expect(hero).toContain("Chia sẻ kết quả khám và xét nghiệm");
     expect(hero).not.toMatch(/registry tiến cứu|CRF|chuẩn hóa/i);
-    expect(markup.indexOf("Quyền lợi")).toBeLessThan(markup.indexOf("Cách tham gia"));
-    expect(markup.indexOf("Cách tham gia")).toBeLessThan(markup.indexOf("Mục tiêu và hướng nghiên cứu"));
-    expect(markup).toMatch(/<details[^>]*>.*<summary[^>]*>.*Mục tiêu và hướng nghiên cứu.*Xem thêm.*<\/summary>/);
-    expect(markup).toContain("EULAR/ACR 2019");
-    expect(markup).toContain("SLEDAI-2K");
+    expect(markup).toContain('href="/benh-nhan"');
+    expect(markup).toContain('href="/gioi-thieu"');
+    expect(markup).toContain("Registry hoạt động như thế nào");
+    expect(markup.match(/href="\/login\?mode=register"/g)).toHaveLength(1);
+    expect(markup).not.toContain("Câu hỏi thường gặp");
   });
 
-  it("presents the registry in English", () => {
-    state.language = "en";
-    const markup = renderToStaticMarkup(<LandingPage />);
-    for (const text of ["Lupus Patient Registry", "Aim and research directions", "Background", "How the registry works"]) {
+  it("about: background, research directions, how it operates, future directions and partners", () => {
+    const markup = renderToStaticMarkup(<AboutPage />);
+    for (const text of ["Bối cảnh", "EULAR/ACR 2019", "SLEDAI-2K", "Cách registry vận hành", "75%",
+      "Hướng phát triển", "biobank", "đợt bùng phát", "Đơn vị thực hiện", "Vinmec-VinUni"]) {
       expect(markup).toContain(text);
     }
   });
 
-  it("explains consent, fee, access, timing and use, and gives a contact number placeholder", () => {
-    const markup = renderToStaticMarkup(<LandingPage />);
+  it("patients: lupus explained, benefits incl. talking with a specialist, joining, FAQ and notice", () => {
+    const markup = renderToStaticMarkup(<PatientsPage />);
     for (const text of [
-      "Đồng ý tham gia (ký điện tử)", "rút khỏi dự án", "miễn phí", "bác sĩ chuyên khoa của dự án",
-      "giả danh hóa", "Mất bao lâu?", "Hồ sơ dùng vào việc gì?", "Liên hệ", "Điện thoại", "...",
-      "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.",
+      "Lupus ban đỏ hệ thống là gì?", "Quyền lợi", "Cơ hội trao đổi với bác sĩ chuyên khoa",
+      "Đồng ý tham gia (ký điện tử)", "rút khỏi dự án", "miễn phí", "giả danh hóa", "Mất bao lâu?",
+      "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.", "Bắt đầu tham gia",
     ]) {
       expect(markup).toContain(text);
     }
+    expect(markup.indexOf("Quyền lợi")).toBeLessThan(markup.indexOf("Cách tham gia"));
     expect(markup).not.toContain("E-consent");
   });
 
-  it("shows the patient sections after switching to English", () => {
+  it("contact: partners, principal investigator and placeholders for email and phone", () => {
+    const markup = renderToStaticMarkup(<ContactPage />);
+    for (const text of ["Liên hệ", "Chủ nhiệm nghiên cứu", "Nguyen Van Dinh", "Vinmec Times City", "Điện thoại", "..."]) {
+      expect(markup).toContain(text);
+    }
+  });
+
+  it("presents the pages in English", () => {
     state.language = "en";
-    const markup = renderToStaticMarkup(<LandingPage />);
-    expect(markup).toContain("Benefits for Patients");
-    expect(markup).toContain("Agree to take part (sign electronically)");
-    expect(markup).toContain("Start participation");
+    expect(renderToStaticMarkup(<LandingPage />)).toContain("How the registry works");
+    expect(renderToStaticMarkup(<AboutPage />)).toContain("Future directions");
+    const patients = renderToStaticMarkup(<PatientsPage />);
+    expect(patients).toContain("A chance to talk with a specialist");
+    expect(patients).toContain("Agree to take part (sign electronically)");
   });
 
-  it("gives guests one registration action and keeps a single sign-in link in the menu", () => {
-    const markup = renderToStaticMarkup(<><Navbar /><LandingPage /></>);
-    expect(markup).toMatch(/href="\/login\?mode=register"[^>]*>Bắt đầu tham gia<\/a>/);
-    expect(markup.match(/href="\/login\?mode=register"/g)).toHaveLength(1);
-    expect(markup.match(/href="\/login"/g)).toHaveLength(1);
+  it("menu: VietNam Lupus Registry brand, the four public pages and one sign-in link", () => {
+    const markup = renderToStaticMarkup(<Navbar />);
+    expect(markup).toContain("VietNam Lupus Registry");
+    expect(markup).not.toMatch(/>Lupiva</);
+    for (const href of ["/", "/gioi-thieu", "/benh-nhan", "/lien-he"]) {
+      expect(markup).toContain(`href="${href}"`);
+    }
     expect(markup).toMatch(/id="nav-link-upload"[^>]*>Nộp hồ sơ<\/a>/);
-    expect(markup).toContain("Đăng nhập");
+    expect(markup.match(/href="\/login"/g)).toHaveLength(1);
   });
 
-  it("shows Hồ sơ của tôi and links consented patients to upload", () => {
+  it("shows Hồ sơ của tôi and the consent done state to consented patients", () => {
     state.currentUser = { role: "patient", consentSigned: true };
-    const markup = renderToStaticMarkup(<><Navbar /><LandingPage /></>);
+    const markup = renderToStaticMarkup(<><Navbar /><PatientsPage /></>);
     expect(markup).toContain("Bạn đã đồng ý tham gia");
     expect(markup).not.toContain("mode=register");
     expect(markup).toMatch(/id="nav-link-upload"[^>]*>Hồ sơ của tôi<\/a>/);
-    expect(markup).toMatch(/href="\/upload"[^>]*>Nộp hồ sơ<\/a>/);
   });
 
   it("opens patient registration with the consent box for the patient to check", () => {

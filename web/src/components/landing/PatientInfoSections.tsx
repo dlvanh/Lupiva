@@ -3,16 +3,20 @@
 import React from "react";
 import { UiIcon } from "@/components/UiIcon";
 import { useLupiva } from "@/context/LupivaContext";
+import { SITE_CONTENT } from "@/components/landing/siteContent";
 
 const headingClass = "text-xl font-bold text-slate-900 sm:text-2xl";
 
 export function PatientInfoSections() {
-  const { currentUser, t } = useLupiva();
+  const { currentUser, t, language } = useLupiva();
   const copy = t.patientPortal;
+  const extra = SITE_CONTENT[language].patients;
   const hasConsent = currentUser?.role === "patient" && currentUser.consentSigned;
   const benefits = [
     { title: copy.benefitImprovedTitle, body: copy.benefitImprovedBody },
     { title: copy.benefitPrivacyTitle, body: copy.benefitPrivacyBody },
+    // TODO: research team to confirm how patients can talk with a specialist.
+    { title: extra.doctorBenefitTitle, body: extra.doctorBenefitBody },
   ];
   const steps = [
     { title: copy.registerTitle, body: copy.registerBody },
@@ -24,7 +28,7 @@ export function PatientInfoSections() {
     <>
       <section aria-labelledby="patient-benefits-heading">
         <h2 id="patient-benefits-heading" className={headingClass}>{copy.benefitsTitle}</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
           {benefits.map(({ title, body }) => (
             <article key={title} className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
               <h3 className="text-lg font-semibold text-teal-900">{title}</h3>

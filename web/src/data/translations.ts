@@ -434,8 +434,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     login: {
       modeLabel: "Sign in or create an account",
       roleLabel: "Account type",
-      title: "Sign in to Lupiva Platform",
-      registerTitle: "Create a Lupiva Account",
+      title: "Sign in to VietNam Lupus Registry",
+      registerTitle: "Create a VietNam Lupus Registry account",
       autofillBtn: "Autofill Demo Credentials",
       subtitle: "Sign in with your account.",
       registerSubtitle:
@@ -468,7 +468,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       signingInBtn: "Signing in…",
       creatingAccountBtn: "Creating account…",
       skipBtn: "Continue Without Signing In",
-      portalTitle: "Using Lupiva",
+      portalTitle: "Using VietNam Lupus Registry",
       patientUse: "Patients submit documents and track their submissions.",
       doctorUse: "Doctors review submissions and their case report forms (CRFs).",
       dataProtection: "Access to your data is restricted by account permissions.",
@@ -579,7 +579,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       accountCreatedTitle: (name) => `Account created for ${name}`,
       activeMode: (title) => `Active mode: ${title}`,
       authFailedTitle: "Authentication Error",
-      signedOutTitle: "Signed out of Lupiva session",
+      signedOutTitle: "Signed out of VietNam Lupus Registry",
       signedOutDesc: "You are now browsing in public evaluator mode.",
       savedRegistryTitle: (id) => `Saved ${id} to SLE e-CRF Registry`,
       savedRegistryDesc: (count, sledai) =>
@@ -754,8 +754,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     login: {
       modeLabel: "Đăng nhập hoặc tạo tài khoản",
       roleLabel: "Loại tài khoản",
-      title: "Đăng nhập Nền tảng Lupiva",
-      registerTitle: "Tạo Tài khoản Lupiva",
+      title: "Đăng nhập VietNam Lupus Registry",
+      registerTitle: "Tạo tài khoản VietNam Lupus Registry",
       autofillBtn: "Tự động Điền Tài khoản Mẫu",
       subtitle: "Đăng nhập bằng tài khoản của bạn.",
       registerSubtitle:
@@ -788,7 +788,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       signingInBtn: "Đang đăng nhập…",
       creatingAccountBtn: "Đang tạo tài khoản…",
       skipBtn: "Tiếp tục mà không đăng nhập",
-      portalTitle: "Sử dụng Lupiva",
+      portalTitle: "Sử dụng VietNam Lupus Registry",
       patientUse: "Bệnh nhân nộp tài liệu và theo dõi hồ sơ.",
       doctorUse: "Bác sĩ duyệt hồ sơ và phiếu CRF.",
       dataProtection: "Chỉ những tài khoản được cấp quyền mới có thể truy cập dữ liệu của bạn.",
@@ -899,7 +899,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       accountCreatedTitle: (name) => `Đã tạo tài khoản cho ${name}`,
       activeMode: (title) => `Chế độ hoạt động: ${title}`,
       authFailedTitle: "Lỗi Xác thực",
-      signedOutTitle: "Đã đăng xuất khỏi phiên Lupiva",
+      signedOutTitle: "Đã đăng xuất khỏi VietNam Lupus Registry",
       signedOutDesc: "Bạn hiện đang duyệt ở chế độ Người Đánh giá Khách.",
       savedRegistryTitle: (id) => `Đã lưu hồ sơ ${id} vào CSDL e-CRF SLE`,
       savedRegistryDesc: (count, sledai) =>

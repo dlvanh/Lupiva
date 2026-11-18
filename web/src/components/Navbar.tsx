@@ -1,5 +1,6 @@
 "use client";
 
+import { SITE_NAME, SITE_PAGES } from "@/components/landing/siteContent";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -69,7 +70,7 @@ export function Navbar() {
           { href: "/crf-form", label: isVi ? "Phiếu CRF" : "CRF form", id: "nav-link-crf-form" },
         ]
       : [
-          { href: "/", label: isVi ? "Tổng quan" : "Overview", id: "nav-link-home" },
+          ...SITE_PAGES.map((page) => ({ href: page.href, label: isVi ? page.vi : page.en, id: page.id })),
           {
             href: "/upload",
             label:
@@ -114,7 +115,7 @@ export function Navbar() {
                 </svg>
               </span>
               <span className="text-lg font-bold tracking-tight text-slate-900">
-                Lupiva
+                {SITE_NAME}
               </span>
             </Link>
 
