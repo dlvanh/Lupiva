@@ -8,6 +8,7 @@
  * anything: approval stays on /registry.
  */
 import type { CrfField } from "@/lib/crfApproval";
+import { parseSlot } from "@/lib/crfSlot";
 
 export type LayoutCell = {
   text: string;
@@ -70,7 +71,7 @@ const norm = (text: string) =>
     .replace(/[^a-z0-9]/g, "");
 
 function labelKeys(field: CrfField): Set<string> {
-  const label = field.label || "";
+  const label = (field.label || "").replace(/ -\d+$/, "");
   const keys = [label, label.split(/[:,(]/)[0]];
   if (!label.includes(":") && label.includes("/")) keys.push(label.split("/").pop() ?? "");
   return new Set(keys.map(norm).filter((item) => item.length >= 2));
@@ -118,6 +119,7 @@ export function placeFields(
     checks: new Map(),
   };
   const bound = new Map<string, CellKey>();
+  const targets = new Map<string, CellKey>();
   const checkboxCodes = new Map<string, Set<string>>();
   const remember = (slot: string | null | undefined, codes: string[] | undefined) => {
     if (!slot) return;
@@ -133,6 +135,7 @@ export function placeFields(
     block.rows.forEach((cells, r) =>
       cells.forEach((cell, c) => {
         if (cell.field_id && !bound.has(cell.field_id)) bound.set(cell.field_id, cellKey(block.index, r, c));
+        if (cell.checkbox_slot && !targets.has(cell.checkbox_slot)) targets.set(cell.checkbox_slot, cellKey(block.index, r, c));
         remember(cell.checkbox_slot, cell.checkbox_values);
       }),
     );
@@ -195,15 +198,25 @@ export function placeFields(
     return best?.key ?? null;
   };
 
-  for (const field of fields as PlacedField[]) {
-    const fieldId = field.slot.split("/")[0];
-    if (scoreCriteria.has(fieldId) && field.component === "result") {
+  const baseOrder = new Map<string, number>();
+  fields.forEach((field, index) => {
+    const { baseSlot } = parseSlot(field.slot);
+    if (!baseOrder.has(baseSlot)) baseOrder.set(baseSlot, index);
+  });
+  const ordered = [...fields].sort((a, b) => {
+    const left = parseSlot(a.slot), right = parseSlot(b.slot);
+    return baseOrder.get(left.baseSlot)! - baseOrder.get(right.baseSlot)! || left.instance - right.instance;
+  });
+  for (const field of ordered as PlacedField[]) {
+    const { fieldId, component, instance, baseSlot } = parseSlot(field.slot);
+    if (instance === 1 && scoreCriteria.has(fieldId) && component === "result") {
       // A criterion is ticked where the template has a check box; a score table
       // without one (SLEDAI-2K) prints only its total.
       const box = checkCell(field);
       if (box) {
         takenChecks.add(box);
         placement.checks.set(box, field);
+        targets.set(baseSlot, box);
       }
       continue;
     }
@@ -211,15 +224,16 @@ export function placeFields(
     const codes = checkboxCodes.get(field.slot);
     // Template checkboxes already print this answer (or its absence).
     if (codes && (!shown || codes.has(shown.value))) continue;
-    const boundCell = bound.get(field.slot.split("/")[0]);
+    const boundCell = (instance > 1 ? targets.get(baseSlot) : undefined) ?? bound.get(fieldId);
     const matched = boundCell ? null : findTarget(field);
     const target = boundCell ?? matched?.key;
     // An empty field keeps its template cell so the form can be filled in there.
     if (!shown && !showEmpty && !target) continue;
     if (target) {
+      targets.set(baseSlot, target);
       placement.inCell.set(target, [...(placement.inCell.get(target) ?? []), field]);
       if (matched && /^\s*\(.*\)\s*$/.test(matched.placeholder)) placement.cleared.add(target);
-      if (matched && matched.row !== null && field.component === "result" && shown) {
+      if (instance === 1 && matched && matched.row !== null && component === "result" && shown) {
         const word = ["negative", "positive", "borderline"].find((item) =>
           new RegExp(`\\b${item}\\b`, "i").test(shown.value),
         );
@@ -251,10 +265,12 @@ export function placeFields(
  */
 /** True when the printed line starts with this field's label ("Gender ☐ …", "Age: ☐ ☐"). */
 export function isFieldLine(line: string, field: CrfField): boolean {
+  if (parseSlot(field.slot).instance > 1) return false;
   return labelKeys(field).has(norm(line.split(/[:	☐]/)[0]));
 }
 
 export function fillTemplateLine(line: string, field: CrfField, shown: Shown): string | null {
+  if (parseSlot(field.slot).instance > 1) return null;
   const prefix = line.split(/[:	☐]/)[0];
   if (!labelKeys(field).has(norm(prefix))) return null;
   const head = line.slice(0, prefix.length);

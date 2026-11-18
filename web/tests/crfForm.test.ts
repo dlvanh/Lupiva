@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { approvedCriteria, cellKey, fillTemplateLine, placeFields, shownNote, shownValue, type LayoutBlock } from "@/lib/crfForm";
 import type { CrfField } from "@/lib/crfApproval";
+import { parseSlot } from "@/lib/crfSlot";
 
 const YNU = [
   { code: "yes", label: "Có" },
@@ -9,6 +10,45 @@ const YNU = [
 ];
 const field = (over: Partial<CrfField> & { template_block?: number }): CrfField =>
   ({ slot: "X01/result", label: "X", section: "S", component: "result", choices: [], options: [], ...over }) as CrfField;
+
+describe("measurement instances", () => {
+  const first = field({ slot: "HEM05/result", label: "WBC -1", instance: 1, instances: 2,
+    template_block: 1, options: [{ id: "a", value: "9.54 G/L" }] });
+  const second = field({ ...first, slot: "HEM05/result#2", label: "WBC -2", instance: 2,
+    options: [{ id: "b", value: "8.70 G/L" }] });
+
+  it("parses legacy and repeated component slots", () => {
+    expect(parseSlot("HEM05/result")).toEqual({ fieldId: "HEM05", component: "result", instance: 1, baseSlot: "HEM05/result" });
+    expect(parseSlot("HEM07/absolute_count#2")).toEqual({ fieldId: "HEM07", component: "absolute_count", instance: 2, baseSlot: "HEM07/absolute_count" });
+    for (const slot of ["HEM05", "HEM05/result#0", "HEM05/result#x"]) expect(() => parseSlot(slot)).toThrow();
+  });
+
+  it("places #2 directly after #1 in a bound cell, even with reversed input", () => {
+    const layout = [{ index: 1, rows: [[{ text: "WBC" }, { text: "", field_id: "HEM05" }]] }];
+    const placed = placeFields(layout, [second, first], undefined, false);
+    expect(placed.inCell.get(cellKey(1, 0, 1))?.map((f) => f.slot)).toEqual([first.slot, second.slot]);
+    expect(shownValue(second, { [second.slot]: { value: "8.71 G/L" } })?.text).toBe("8.71 G/L");
+    expect(placed.after.size).toBe(0);
+  });
+
+  it("finds the original label cell and only fills the template line with #1", () => {
+    const layout = [{ index: 1, rows: [[{ text: "WBC" }, { text: "(...)" }]] }];
+    const placed = placeFields(layout, [first, second], undefined, false);
+    expect(placed.inCell.get(cellKey(1, 0, 1))?.map((f) => f.slot)).toEqual([first.slot, second.slot]);
+    expect(fillTemplateLine("WBC: ...", first, shownValue(first, undefined)!)).toBe("WBC: 9.54 G/L");
+    expect(fillTemplateLine("WBC: ...", second, shownValue(second, undefined)!)).toBeNull();
+  });
+
+  it("retains #2 beside a template checkbox without replacing its first answer", () => {
+    const yes = field({ ...first, slot: "CV06/result", label: "Effusion -1", choices: YNU,
+      options: [{ id: "yes", value: "yes" }] });
+    const no = field({ ...yes, slot: "CV06/result#2", label: "Effusion -2", instance: 2,
+      options: [{ id: "no", value: "no" }] });
+    const layout = [{ index: 1, rows: [[{ text: "☐ Yes ☐ No", checkbox_slot: yes.slot, checkbox_values: ["yes", "no"] }]] }];
+    const placed = placeFields(layout, [yes, no], undefined, false);
+    expect(placed.inCell.get(cellKey(1, 0, 0))?.map((f) => f.slot)).toEqual([no.slot]);
+  });
+});
 
 describe("shownValue", () => {
   const question = field({

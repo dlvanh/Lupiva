@@ -20,6 +20,8 @@ export type CrfField = {
   label: string;
   section: string;
   component: string;
+  instance?: number;
+  instances?: number;
   choices: { code: string; label: string }[];
   options: CrfOption[];
   manual_options?: CrfOption[];

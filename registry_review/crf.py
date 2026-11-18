@@ -10,6 +10,7 @@ from registry_export.mapping import context_blocks, review_layout
 from registry_export.word import display, reviewed_word
 from registry_pool.dictionary import digest
 from registry_pool.specimens import evidence_region_id
+from registry_pool.slots import parse_slot
 from .store import HUMAN_ROLES, ReviewStore, actor_info, now
 from .workspace import StalePatient, patient_workspace
 from .references import matched_references, record_references, reference_view
@@ -103,6 +104,60 @@ def form_finding_proposals(workspace, rules):
     return proposals
 
 
+def measurement_groups(sources, choice_codes):
+    """Repeat distinct values on the first repeated image; other images are choices.
+
+    Prefer physical row boxes, then table/row order, then extraction order.
+    Equal printable values on an image still share one measurement.
+    """
+    records = []
+    for index, source in enumerate(sources):
+        value = display({**source['value'], 'source_date': None})
+        if value != '[no printable value]':
+            value = choice_codes.get(value.strip().casefold(), value)
+            records.append((index, source, value))
+    documents = defaultdict(list)
+    for record in records:
+        # Unknown document identity cannot establish same-image repetition.
+        documents[record[1].get('document_id') or ('unknown', record[0])].append(record)
+    repeated = next((rows for rows in documents.values() if len({r[2] for r in rows}) > 1), None)
+    if repeated is None:
+        return [records]
+
+    table_order = {}
+    for _, source, _ in repeated:
+        for position in source.get('source_positions', []):
+            table = position.get('table_id')
+            table_order.setdefault(table, len(table_order))
+
+    def position(record):
+        index, source, _ = record
+        positions = source.get('source_positions', [])
+        box_position = row_position = None
+        for item in positions:
+            box = ((item.get('region') or {}).get('llm_row_location') or {}).get('box')
+            if (box_position is None and isinstance(box, list) and len(box) == 4
+                    and all(isinstance(n, (int, float)) for n in box)):
+                box_position = (box[1], box[0], index)
+            row = item.get('row_index_0based')
+            if row_position is None and isinstance(row, int) and row >= 0:
+                row_position = (table_order[item.get('table_id')], row, index)
+        return box_position, row_position
+
+    positions = {record[0]: position(record) for record in repeated}
+    # Compare like coordinates. A lone box must not move a later row ahead
+    # of an earlier row whose box is unavailable.
+    mode = next((i for i in (0, 1) if all(p[i] is not None for p in positions.values())), None)
+    ordered = sorted(repeated, key=lambda record: positions[record[0]][mode]) if mode is not None else repeated
+    instances = {}
+    for record in ordered:
+        instances.setdefault(record[2], []).append(record)
+    groups = list(instances.values())
+    repeated_indices = {record[0] for record in repeated}
+    groups[0] = groups[0] + [record for record in records if record[0] not in repeated_indices]
+    return groups
+
+
 def form_fields(dictionary, workspace):
     by_slot = defaultdict(list)
     for source in current_sources(workspace):
@@ -126,24 +181,23 @@ def form_fields(dictionary, workspace):
             for code, label in [('yes', 'có'), ('no', 'không'), ('unknown', 'chưa rõ')]:
                 if code in choice_codes:
                     choice_codes[label] = code
-            values = defaultdict(list)
-            for source in by_slot[key]:
-                # Dates remain on each evidence item. Equal values from several
-                # sources agree; different values require a human choice.
-                value = display({**source['value'], 'source_date': None})
-                if value != '[no printable value]':
-                    value = choice_codes.get(value.strip().casefold(), value)
-                    values[value].append(source['selection_id'])
-            if key == ('ADM01', 'result') and workspace['case'].get('study_id'):
-                values[workspace['case']['study_id']] = []
-            options = [dict(id=digest([key, value, sources]), value=value, sources=sources)
-                       for value, sources in values.items()]
-            eligible = not options and (assessment or finding or key == ('REN10', 'result'))
             manual_options = [dict(id=digest(['manual_crf', key, choice['code']]), value=choice['code'], sources=[])
                               for choice in manual_choices]
-            yield dict(slot='/'.join(key), label=field['label'], section=field['section'],
-                       component=key[1], choices=manual_choices or choices, options=options,
-                       manual_options=manual_options, eligible=eligible)
+            groups = measurement_groups(by_slot[key], choice_codes)
+            for instance, group in enumerate(groups, 1):
+                values = defaultdict(list)
+                for _, source, value in group:
+                    values[value].append(source['selection_id'])
+                if instance == 1 and key == ('ADM01', 'result') and workspace['case'].get('study_id'):
+                    values[workspace['case']['study_id']] = []
+                options = [dict(id=digest([key, value, sources]), value=value, sources=sources)
+                           for value, sources in values.items()]
+                eligible = not options and (assessment or finding or key == ('REN10', 'result'))
+                yield dict(slot='/'.join(key) + (f'#{instance}' if instance > 1 else ''),
+                           label=field['label'] + (f' -{instance}' if len(groups) > 1 else ''),
+                           section=field['section'], instance=instance, instances=len(groups),
+                           component=key[1], choices=manual_choices or choices, options=options,
+                           manual_options=manual_options, eligible=eligible)
 
 
 def model_facts(dictionary, workspace, references=None):
@@ -326,7 +380,7 @@ class CRFReview:
         lab_proposals = lab_finding_proposals(workspace, references, lab_rules,
                                               assessment_date=iso_date(assessment.get('date', '')))
         for slot, proposal in lab_proposals.items():
-            field_id = slot.split('/', 1)[0]
+            field_id, _, _ = parse_slot(slot)
             if field_id in SCORE_FIELDS and field_id not in report['suggestions']:
                 report['suggestions'][field_id] = proposal
         return report
@@ -350,7 +404,7 @@ class CRFReview:
             contexts = {item['field_id']: min(context_blocks(item['source_context']) & blocks,default=None)
                         for item in mapping['fields']}
             for field in fields:
-                field['template_block'] = contexts[field['slot'].split('/',1)[0]]
+                field['template_block'] = contexts[parse_slot(field['slot'])[0]]
         else:
             layout = None
         bmi = calculated_bmi(workspace)
@@ -372,7 +426,7 @@ class CRFReview:
             proposals.setdefault(fid + '/result', dict(suggestion, origin='knowledge_rule'))
         for field in fields:
             slot = field['slot']
-            field_id, component = slot.split('/', 1)
+            field_id, component, _ = parse_slot(slot)
             if component == 'result' and field_id in finding_rules:
                 field['knowledge'] = finding_rules[field_id]
             proposal = proposals.get(slot)
@@ -432,14 +486,14 @@ class CRFReview:
             raise StalePatient('Phiếu đã duyệt thay đổi. Tải lại trước khi xuất.')
         labels = {field['field_id']+'/result': {c['code']:c['label'] for c in field['choices']}
                   for field in dictionary['fields']}
-        values = {slot: labels.get(slot, {}).get(item['value'],
+        values = {slot: labels.get('/'.join(parse_slot(slot)[:2]), {}).get(item['value'],
                    {'yes':'Có','no':'Không','unknown':'Chưa rõ'}.get(item['value'],item['value'])
                    if item['origin'] in {'llm_suggestion', 'score_assessment', 'manual_crf'} else item['value'])
                   for slot,item in review['values'].items()}
-        scores = {slot.split('/')[0]: item['value'] for slot, item in review['values'].items()
-                  if item['origin'] in {'score_assessment', 'score_calculated'}}
-        checkbox_values = {slot.split('/')[0]: item['value'] for slot,item in review['values'].items()
-                           if slot.endswith('/result')}
+        scores = {parse_slot(slot)[0]: item['value'] for slot, item in review['values'].items()
+                  if parse_slot(slot)[2] == 1 and item['origin'] in {'score_assessment', 'score_calculated'}}
+        checkbox_values = {parse_slot(slot)[0]: item['value'] for slot,item in review['values'].items()
+                           if parse_slot(slot)[1:] == ('result', 1)}
         return reviewed_word(self.application.exports.template,mapping,dictionary,values,scores,checkbox_values)
 
     def generate(self, store, case_id):
@@ -454,7 +508,7 @@ class CRFReview:
         libraries = (load_knowledge(store.db), finding_rules, lab_rules)
         targets = []
         for field in fields:
-            field_id = field['slot'].split('/', 1)[0]
+            field_id, _, _ = parse_slot(field['slot'])
             score_criterion = (field_id in SCORE_FIELDS and field['component'] == 'result'
                                and field_id not in {'EAC22', 'SDA25'} and not field['options'])
             if (not field['eligible'] and not score_criterion) or field['slot'] in local_proposals:

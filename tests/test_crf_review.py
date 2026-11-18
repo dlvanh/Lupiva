@@ -286,13 +286,16 @@ class CRFReviewTests(PatientWorkspaceTests):
         report = evaluate_scores({'date': '2026-11-14'}, [c3, {**c4, 'document_id': 'other'}], {})
         self.assertEqual(set(report['suggestions']), {'EAC19'})
         report = evaluate_scores({'date': '2026-11-13'}, [c3, source('IMM11', '1.0', 'c3b')], {})
-        self.assertEqual(report['suggestions'], {})
+        self.assertEqual(set(report['suggestions']), {'EAC19', 'SDA20'})
+        self.assertEqual(report['suggestions']['EAC19']['sources'], ['c3'])
         p = source('REN08', '0.60', 'protein')
         p['value']['unit_raw'] = 'g/24 h'
         self.assertEqual(set(evaluate_scores({'date': '2026-11-13'}, [p], {})['suggestions']),
                          {'EAC15', 'SDA13'})
         conflicting = {**p, 'selection_id': 'protein2', 'value': {**p['value'], 'numeric_value': '0.30'}}
-        self.assertEqual(evaluate_scores({'date': '2026-11-13'}, [p, conflicting], {})['suggestions'], {})
+        repeated = evaluate_scores({'date': '2026-11-13'}, [p, conflicting], {})
+        self.assertEqual(set(repeated['suggestions']), {'EAC15', 'SDA13'})
+        self.assertTrue(all(item['sources'] == ['protein'] for item in repeated['suggestions'].values()))
         p['value']['unit_raw'] = 'g/L'
         self.assertEqual(evaluate_scores({'date': '2026-11-13'}, [p], {})['suggestions'], {})
 

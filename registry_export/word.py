@@ -4,6 +4,7 @@ import hashlib
 import io
 import zipfile
 from xml.dom import minidom
+from registry_pool.slots import parse_slot
 
 from .mapping import (CRF_TEMPLATE_SHA256, PFT_COMPONENT_LABELS, PFT_REPEATED_ROWS,
                       PFT_TEMPLATE_ROWS, checkbox_groups, validate_mapping, NS)
@@ -113,8 +114,13 @@ def reviewed_word(template,mapping,dictionary,values,score_values=None,checkbox_
                                      or fields[field]['word']['binding']
                                      and fields[field]['word']['binding'].get('inline')
                                      and checkbox_values.get(field) in ('no','unknown'))}
+    repeats=[]
     for slot,value in values.items():
-        fid,component=slot.split('/',1)
+        fid,component,instance=parse_slot(slot)
+        if instance > 1:
+            detail = value if component == 'result' else f'{component}: {value}'
+            repeats.append((fid, component, instance, f"{fields[fid]['label']} -{instance}: {detail}"))
+            continue
         if (scores and fid in scores) or (fid in boxes and component == 'result'
                                          and (fid != 'LUNG02' or boxes[fid] == 'yes')
                                          and not (fields[fid]['word']['binding'] or {}).get('inline')):
@@ -160,7 +166,7 @@ def reviewed_word(template,mapping,dictionary,values,score_values=None,checkbox_
                     replace_text(document,cell(f'B65.R{row}.C2'),' · '.join(parts))
                     if row + 1 in PFT_REPEATED_ROWS:
                         replace_text(document,cell(f'B65.R{row+1}.C2'),'')
-        appendix=[]
+        appendix=[line for _, _, _, line in sorted(repeats)]
         for fid,items in grouped.items():
             field=fields[fid];binding=field['word']['binding'];value='; '.join(items)
             if not binding:

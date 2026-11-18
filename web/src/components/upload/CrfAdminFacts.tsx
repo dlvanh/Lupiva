@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import type { CrfField, CrfView } from "@/lib/crfApproval";
 import { caseForIntake } from "@/lib/crfEvidence";
 import { shownValue, type Shown } from "@/lib/crfForm";
+import { parseSlot } from "@/lib/crfSlot";
 
 const FACTS: { id: string; label: string }[] = [
   { id: "ADM02", label: "Tuổi" },
@@ -48,7 +49,10 @@ function intakeJobs(): Promise<Jobs> {
 function factsFrom(view: CrfView): Fact[] {
   const approved = view.review?.values;
   return FACTS.map(({ id, label }) => {
-    const fields = view.fields.filter((field: CrfField) => field.slot.split("/")[0] === id);
+    const fields = view.fields.filter((field: CrfField) => {
+      const slot = parseSlot(field.slot);
+      return slot.fieldId === id && slot.instance === 1;
+    });
     const field = fields.find((item) => item.component === "result") ?? fields[0];
     return { id, label, slot: field?.slot ?? `${id}/result`, shown: field ? shownValue(field, approved) : null };
   });

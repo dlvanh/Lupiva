@@ -13,6 +13,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLupiva } from "@/context/LupivaContext";
 import type { CrfField } from "@/lib/crfApproval";
+import { parseSlot } from "@/lib/crfSlot";
 import { withoutHidden, type CrfViewWithSources } from "@/lib/crfEvidence";
 import {
   approvedCriteria,
@@ -91,8 +92,10 @@ function Value({
   control: React.ReactNode;
 }) {
   const component = COMPONENT[field.component];
+  const instance = parseSlot(field.slot).instance;
   return (
-    <span className={`mr-2 inline-block ${blankOnPrint(shown) ? "print:hidden" : ""}`}>
+    <span className={`mr-2 ${instance > 1 ? "block" : "inline-block"} ${blankOnPrint(shown) ? "print:hidden" : ""}`}>
+      {instance > 1 && <span>-{instance}: </span>}
       {withLabel && component && <span className="text-xs text-slate-500">{component}: </span>}
       <span className="print:hidden">{control}</span>
       {shown && <span className="hidden font-mono print:inline">{shown.text}</span>}
@@ -284,9 +287,9 @@ export default function CrfFormPage() {
       const criteria: Record<string, string> = {};
       for (const field of view.fields) {
         const value = (edits[field.slot] ?? "").trim();
-        const fid = field.slot.split("/")[0];
+        const { fieldId: fid, instance } = parseSlot(field.slot);
         if (!value || fid === "EAC22" || fid === "SDA25") continue;
-        if (scoreIds.has(fid)) {
+        if (instance === 1 && scoreIds.has(fid)) {
           if (value === "yes" || value === "no") criteria[fid] = value;
           continue;
         }
@@ -365,11 +368,12 @@ export default function CrfFormPage() {
           {ticked && shown && shown.kind !== "approved" && (
             <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
           )}
+          {renderFields(placed)}
         </>
       );
     }
     if (cell.checkbox_slot) {
-      return <Checkboxes spec={cell} shown={shownFor(cell.checkbox_slot)} onPick={pick(cell.checkbox_slot)} />;
+      return <><Checkboxes spec={cell} shown={shownFor(cell.checkbox_slot)} onPick={pick(cell.checkbox_slot)} />{renderFields(placed)}</>;
     }
     if (cell.field_id) return placed.length ? renderFields(placed) : null;
     if (placement?.cleared.has(k)) return <div>{renderFields(placed)}</div>;
@@ -384,6 +388,11 @@ export default function CrfFormPage() {
         const own = isFieldLine(line, field);
         if (own) {
           used.add(field.slot);
+          const repeats = placed.filter((item) => {
+            const slot = parseSlot(item.slot);
+            return slot.instance > 1 && slot.baseSlot === parseSlot(field.slot).baseSlot;
+          });
+          repeats.forEach((item) => used.add(item.slot));
           const plain = !shown || blankOnPrint(shown) || filled === null;
           return (
             <div key={index} className="whitespace-pre-wrap">
@@ -393,6 +402,7 @@ export default function CrfFormPage() {
               {shown && shown.kind !== "approved" && (
                 <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
               )}
+              {renderFields(repeats)}
             </div>
           );
         }

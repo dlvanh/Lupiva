@@ -28,6 +28,17 @@ const view: CrfView = {
 };
 
 describe("CRF approval", () => {
+  it("approves and restores #2 independently from the original slot", () => {
+    const repeated: CrfView = { ...view, fields: [view.fields[0], {
+      ...view.fields[0], slot: "HEM01/result#2", label: "Hb -2", instance: 2, instances: 2,
+      options: [{ id: "repeat", value: "117" }],
+    }] };
+    expect(approvalPayload("case", repeated, { "HEM01/result#2": "repeat" }).selections)
+      .toEqual({ "HEM01/result#2": "repeat" });
+    expect(initialSelections({ ...repeated, review: { reviewed_at: "now", values: {
+      "HEM01/result#2": { id: "repeat", value: "117", origin: "source" },
+    } } })).toEqual({ "HEM01/result#2": "repeat" });
+  });
   it("lists source values, then the proposal, then manual choices", () => {
     expect(fieldChoices(view.fields[1]).map((c) => [c.id, c.kind])).toEqual([
       ["p1", "proposal"],

@@ -461,12 +461,14 @@ function renderCrf(){
  const root=$('crfFields');const opened=new Map([...root.querySelectorAll('.crf-group')].map(group=>[group.dataset.section,group.open]));root.replaceChildren();
  const nextSelections=new Map();
  const sections=new Map(),reviewed=crfEditing?null:crfView.review,showEmpty=$('crfAllFields').checked;
- const slots=new Map(),anchors=new Map(),tables=[];
+ const slots=new Map(),anchors=new Map(),tables=[],instanceTargets=new Map();
+ const parseSlot=slot=>{const [,fieldId,component,number]=/^([^/]+)\/([^/#]+)(?:#([1-9]\d*))?$/.exec(slot);
+  return {fieldId,component,instance:number?Number(number):1,baseSlot:fieldId+'/'+component}};
  const inlineChoices=new Map();
  // Fields without a bound cell are placed in the template row or line that prints their label,
  // searched only in the tables just after the field's own template block.
  const norm=text=>String(text||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
- const labelKeys=field=>{const label=field.label||'';const keys=[label,label.split(/[:,(]/)[0]];
+ const labelKeys=field=>{const label=(field.label||'').replace(/ -\d+$/,'');const keys=[label,label.split(/[:,(]/)[0]];
   if(!label.includes(':')&&label.includes('/'))keys.push(label.split('/').pop());
   return new Set(keys.map(norm).filter(key=>key.length>=2))};
  const templateTarget=field=>{
@@ -497,6 +499,7 @@ function renderCrf(){
  };
  const fieldsBySlot=new Map(crfView.fields.map(field=>[field.slot,field]));
  const renderCheckboxes=(target,spec)=>{
+  if(!instanceTargets.has(spec.checkbox_slot))instanceTargets.set(spec.checkbox_slot,target);
   const field=fieldsBySlot.get(spec.checkbox_slot);
   if(!field)return;
   const codes=spec.checkbox_values||[spec.checkbox_value];
@@ -546,6 +549,7 @@ function renderCrf(){
   }
  }
  for(const field of crfView.fields){
+  const identity=parseSlot(field.slot);
   const saved=reviewed?.values[field.slot];
   const scored=reviewed||crfScoreDirty?null:crfScorePreview?.values[field.slot];
   const available=reviewed?(saved?[saved]:[]):scored?[scored]:[...field.options,...(field.proposal?[field.proposal]:[])];
@@ -557,8 +561,10 @@ function renderCrf(){
    continue;
   }
   if(inline&&reviewed&&inline.has(saved?.value)&&!saved.knowledge_version)continue;
-  const matched=slots.get(field.slot.split('/')[0])?null:templateTarget(field);
-  const target=slots.get(field.slot.split('/')[0])||matched?.td;
+  const bound=(identity.instance>1?instanceTargets.get(identity.baseSlot):null)||slots.get(identity.fieldId);
+  const matched=bound?null:templateTarget(field);
+  const target=bound||matched?.td;
+  if(target)instanceTargets.set(identity.baseSlot,target);
   if(matched?.cells&&!target.childElementCount&&/^\s*\(.*\)\s*$/.test(target.textContent))target.textContent='';
   const groupKey=String(field.template_block||'')+'|'+field.section;
   if(!available.length&&!manual.length&&!showEmpty&&(!target||matched))continue;
@@ -569,14 +575,15 @@ function renderCrf(){
   }
   const row=node('div',undefined,'crf-field'+(available.length?'':' crf-empty'));
   const componentLabel=componentNames[field.component]||field.component;
-  const label=node('label',target?.dataset.inlineLabel||(target&&(field.slot.startsWith('PFT')||matched?.cells)?componentLabel:
-   field.label+(field.component==='result'?'':' · '+componentLabel)));
+  const label=node('label',(identity.instance>1?'-'+identity.instance+': ':'')+(target?.dataset.inlineLabel||
+   (target&&(field.slot.startsWith('PFT')||matched?.cells)?componentLabel:
+   field.label+(field.component==='result'?'':' · '+componentLabel))));
   label.htmlFor='crf-'+field.slot.replace('/','-');row.append(label);
   const cell=node('div',undefined,'crf-value');row.append(cell);
   const selection=reviewed?saved?.id:crfSelections.get(field.slot);
   if(selection&&[...available,...manual].some(value=>value.id===selection))nextSelections.set(field.slot,selection);
   const shown=[...available,...manual].find(value=>value.id===selection)||available[0];
-  if(field.component==='result')markResultColumn(matched,shown?.value);
+  if(identity.instance===1&&field.component==='result')markResultColumn(matched,shown?.value);
   const choiceLabel=value=>field.choices.find(choice=>choice.code===value)?.label||
    ((saved||scored)?.origin==='score_assessment'?({yes:'Có',no:'Không'}[value]||value):value);
   const setSelection=id=>{if(id)crfSelections.set(field.slot,id);else crfSelections.delete(field.slot);renderCrf()};

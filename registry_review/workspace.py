@@ -132,6 +132,12 @@ def patient_workspace(store,dictionary,case_id):
                     evidence_ids=list(dict.fromkeys(item['evidence_ids']+item.get('date_evidence_ids',[])))))
                 candidates[-1]['confidence']=assess_confidence(candidates[-1],
                     [evidence_index[eid] for eid in candidates[-1]['evidence_ids'] if eid in evidence_index])
+                # Result evidence precedes date evidence. Keep its row provenance
+                # available to CRF repeat numbering, even after a value correction.
+                candidates[-1]['source_positions'] = [
+                    {key: evidence_index[eid].get(key)
+                     for key in ('table_id', 'row_index_0based', 'region')}
+                    for eid in item['evidence_ids'] if eid in evidence_index]
                 # Calibration uses the original extraction, before observing a
                 # correction/rejection label. Never score a corrected value as
                 # though it were the model's original successful prediction.

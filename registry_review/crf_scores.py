@@ -202,8 +202,13 @@ def evidence_proposals(sources, references, assessment_date, rules):
             if rule.get('days') and (not day or not assessment_date
                                      or not 0 <= (assessment_date - day).days <= rule['days']):
                 continue
-            matched = [findings[field] for field in rule['fields'] if field in findings and all(
-                matches_rule(source, references, rule) for source in findings[field])]
+            matched = []
+            for field in rule['fields']:
+                group = [source for source in findings[field] if matches_rule(source, references, rule)]
+                # Repeated laboratory measurements are independent evidence.
+                # Preserve the existing guard for contradictory clinical findings.
+                if group and (rule['rule'] != 'imaging_effusion' or len(group) == len(findings[field])):
+                    matched.append(group)
             if matched and (not rule.get('all_fields') or len(matched) == len(rule['fields'])):
                 evidence.update(source['selection_id'] for group in matched for source in group)
         if evidence:

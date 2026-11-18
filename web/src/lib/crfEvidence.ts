@@ -7,6 +7,7 @@
  * what the page shows; it never selects anything on the physician's behalf.
  */
 import type { CrfField, CrfOption, CrfView } from "@/lib/crfApproval";
+import { parseSlot } from "@/lib/crfSlot";
 
 export type RowLocation = {
   box?: unknown;
@@ -44,7 +45,7 @@ export type CrfViewWithSources = CrfView & { sources?: Record<string, SourceDeta
 export const HIDDEN_SLOTS = new Set(["IMM01/method"]);
 
 export function withoutHidden<T extends CrfView>(view: T): T {
-  return { ...view, fields: view.fields.filter((field) => !HIDDEN_SLOTS.has(field.slot)) };
+  return { ...view, fields: view.fields.filter((field) => !HIDDEN_SLOTS.has(parseSlot(field.slot).baseSlot)) };
 }
 
 const DATE_KIND: Record<string, string> = {
