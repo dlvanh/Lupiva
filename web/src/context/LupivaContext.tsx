@@ -136,7 +136,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         // ignore
       }
     }
-    return "en";
+    return "vi";
   });
 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
