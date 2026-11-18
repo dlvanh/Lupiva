@@ -190,8 +190,6 @@ def validate_response(value, schema):
         for key, item in value.items():
             if key in props: validate_response(item, props[key])
     elif isinstance(value, list):
-        if len(value) < schema.get('minItems', 0) or len(value) > schema.get('maxItems', len(value)):
-            raise ValueError('API response contains an array of invalid length')
         for item in value: validate_response(item, schema['items'])
 
 

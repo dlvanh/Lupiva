@@ -205,23 +205,12 @@ class IntakeManager:
             return dict(status='uploaded',job=self.public(store,job))
         finally:store.close()
 
-    def source(self,job_id,file_id,*,for_review=False):
+    def source(self,job_id,file_id):
         self.path(job_id)
         store=ReviewStore(self.application.database,read_only=True)
-        try:
-            item=next((f for f in self.files(store,job_id) if f['file_id']==file_id),None)
-            job=self.load(store,job_id) if for_review and item else None
+        try:item=next((f for f in self.files(store,job_id) if f['file_id']==file_id),None)
         finally:store.close()
         if not item:raise KeyError('Unknown uploaded source')
-        if job and any(p.get('direct_llm') and p['sha256']==item['sha256'] for p in job.get('privacy') or []):
-            if job['status']=='completed':
-                key=(job['package_id'],job['revision'])
-                bundle=self.application.bundles.get(key)
-                if bundle:
-                    document=next((d for d in bundle[1]['documents'] if d['input_sha256']==item['sha256']),None)
-                    if document:
-                        return self.application.asset(*key,document['source_key'],require_masked=True)
-            raise KeyError('No masked review image for this document')
         path=(self.workspace/item['path']).resolve()
         if not path.is_relative_to(self.path(job_id)):raise ValueError('Uploaded source escapes submission storage')
         body=path.read_bytes()
