@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { CenterNotice } from "@/components/CenterNotice";
 import { useLupiva } from "@/context/LupivaContext";
 import { UploadedDocFile } from "@/data/crfData";
 import type { PatientStatusRecord } from "@/lib/submissionsService";
@@ -44,16 +46,21 @@ interface PatientSubmissionDto {
  * a doctor (``embedded`` inside the submission list) uploads for a named patient.
  */
 export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?: boolean; onSubmitted?: () => void } = {}) {
+  const router = useRouter();
   const {
     language,
+    t,
     currentUser,
     authLoading,
     submitPatientUpload,
   } = useLupiva();
 
   const copy = getUploadPageCopy(language).patient;
+  const portal = t.patientPortal;
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const browseButtonRef = useRef<HTMLButtonElement>(null);
+  const trackerHeadingRef = useRef<HTMLHeadingElement>(null);
   const previewDialogRef = useRef<HTMLDialogElement | null>(null);
   const unsubmittedUrlsRef = useRef<Set<string>>(new Set());
 
@@ -61,6 +68,7 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationMessages, setValidationMessages] = useState<string[]>([]);
+  const [receipt, setReceipt] = useState<{ id: string; fileCount: number } | null>(null);
   const [previewTarget, setPreviewTarget] = useState<UploadedDocFile | null>(
     null
   );
@@ -228,6 +236,22 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
     setPreviewTarget(null);
   };
 
+  const closeSuccessNotice = useCallback(() => {
+    setReceipt(null);
+    browseButtonRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  const showSubmissionStatus = () => {
+    setReceipt(null);
+    trackerHeadingRef.current?.focus({ preventScroll: true });
+    trackerHeadingRef.current?.scrollIntoView({ block: "start" });
+  };
+
+  const returnHome = () => {
+    setReceipt(null);
+    router.push("/");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length === 0 || !currentUser || isSubmitting) return;
@@ -236,11 +260,15 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
     try {
       const created = await submitPatientUpload(patientName, files);
       if (created) {
-        // Hand off object URLs cleanly to LupivaContext so /ocr can preview them
+        // Specialists keep object URLs in context for OCR previews.
         for (const f of files) {
           if (f.url) {
+            if (currentUser.role === "patient") URL.revokeObjectURL(f.url);
             unsubmittedUrlsRef.current.delete(f.url);
           }
+        }
+        if (currentUser.role === "patient" && created.filesUploaded !== false) {
+          setReceipt({ id: created.id, fileCount: files.length });
         }
         setFiles([]);
         setValidationMessages([]);
@@ -364,6 +392,7 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
                 <button
                   type="button"
                   id="upload-btn-browse"
+                  ref={browseButtonRef}
                   onClick={() => inputRef.current?.click()}
                   className="min-h-10 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer"
                 >
@@ -490,7 +519,7 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
-                <h2 className="text-base font-bold text-slate-900">
+                <h2 ref={trackerHeadingRef} tabIndex={-1} className="scroll-mt-24 text-base font-bold text-slate-900">
                   {copy.trackerHeading}
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-600">
@@ -653,6 +682,31 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
           </section>
         )}
       </div>
+
+      {currentUser?.role === "patient" && receipt && (
+        <CenterNotice
+          open
+          tone="success"
+          title={portal.successTitle}
+          onClose={closeSuccessNotice}
+          actions={[
+            { label: portal.successStatusBtn, onClick: showSubmissionStatus },
+            { label: portal.successHomeBtn, onClick: returnHome, variant: "secondary" },
+          ]}
+        >
+          <p>{portal.successBody(portal.contactLead, portal.contactEmail)}</p>
+          <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-slate-700">
+            <div>
+              <dt>{portal.successCodeLabel}</dt>
+              <dd className="break-all font-mono font-semibold text-slate-900">{receipt.id}</dd>
+            </div>
+            <div>
+              <dt>{portal.successFilesLabel}</dt>
+              <dd className="font-mono font-semibold text-slate-900">{receipt.fileCount}</dd>
+            </div>
+          </dl>
+        </CenterNotice>
+      )}
 
       {/* Native <dialog> Thumbnail Lightbox Preview */}
       <dialog

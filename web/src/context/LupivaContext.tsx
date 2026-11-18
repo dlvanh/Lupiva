@@ -110,7 +110,7 @@ interface LupivaContextValue {
   submitPatientUpload: (
     patientName: string,
     files: UploadedDocFile[]
-  ) => Promise<{ id: string } | null>;
+  ) => Promise<{ id: string; filesUploaded?: boolean } | null>;
   isActionGuideOpen: boolean;
   setIsActionGuideOpen: (open: boolean) => void;
   toast: ToastMessage | null;
@@ -560,7 +560,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     async (
       patientName: string,
       files: UploadedDocFile[]
-    ): Promise<{ id: string } | null> => {
+    ): Promise<{ id: string; filesUploaded?: boolean } | null> => {
       if (files.length === 0) return null;
       try {
         const res = await fetch("/api/submissions", {
@@ -600,9 +600,10 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
           return null;
         }
 
+        let filesUploaded = true;
         if (payload.dbSubmissionId) {
-          const sent = await sendImagesToPipeline(payload.dbSubmissionId, payload.record.uploadedFiles ?? [], files);
-          if (!sent) {
+          filesUploaded = await sendImagesToPipeline(payload.dbSubmissionId, payload.record.uploadedFiles ?? [], files);
+          if (!filesUploaded) {
             showToast(
               language === "vi" ? "Ảnh chưa được gửi đi xử lý" : "Images not sent for processing",
               language === "vi"
@@ -615,14 +616,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
         if (!("ocrFields" in payload.record)) {
           // A patient gets a status-only receipt; there is no CRF to cache.
-          showToast(
-            language === "vi" ? "Đã gửi tài liệu cho bác sĩ" : "Document sent to doctor",
-            language === "vi"
-              ? `${files.length} tệp đã được gửi và đang chờ bác sĩ xử lý.`
-              : `${files.length} file(s) sent and awaiting the doctor.`,
-            "teal"
-          );
-          return { id: payload.record.id };
+          return { id: payload.record.id, filesUploaded };
         }
 
         const recordWithUrls: SleCrfPatientRecord = {
