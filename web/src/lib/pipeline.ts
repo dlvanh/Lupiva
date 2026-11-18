@@ -25,6 +25,8 @@ export const PIPELINE_GET: Record<string, readonly UserRole[]> = {
   "/api/intakes": ["specialist"],
   "/api/privacy-proposals": ["specialist"],
   "/asset": ["specialist"],
+  "/api/exports/options": ["specialist"],
+  "/api/exports/download": ["specialist"],
 };
 
 /**
@@ -39,6 +41,8 @@ export const PIPELINE_POST: Record<string, readonly UserRole[]> = {
   "/api/crf/generate": ["specialist"],
   "/api/crf/scores": ["specialist"],
   "/api/crf/approve": ["specialist"],
+  "/api/exports/preview": ["specialist"],
+  "/api/exports/create": ["specialist"],
 };
 
 /** Normalise a proxied path and refuse traversal or encoded tricks. */

@@ -31,8 +31,20 @@ describe("pipeline proxy guards", () => {
     expect(allowedPipelineCall("POST", "/api/crf/generate", "patient")).toBe(false);
     expect(allowedPipelineCall("POST", "/api/intakes", "patient")).toBe(false);
     expect(allowedPipelineCall("POST", "/api/intakes/image", "patient")).toBe(false);
-    for (const path of ["/api/review", "/api/patient-review", "/api/exports/create", "/api/source-review"]) {
+    for (const path of ["/api/review", "/api/patient-review", "/api/source-review"]) {
       expect(allowedPipelineCall("POST", path, "specialist")).toBe(false);
+    }
+  });
+
+  it("lets only specialists reach the REDCap export endpoints", () => {
+    for (const [method, path] of [
+      ["GET", "/api/exports/options"],
+      ["GET", "/api/exports/download"],
+      ["POST", "/api/exports/preview"],
+      ["POST", "/api/exports/create"],
+    ] as const) {
+      expect(allowedPipelineCall(method, path, "specialist")).toBe(true);
+      expect(allowedPipelineCall(method, path, "patient")).toBe(false);
     }
   });
 
