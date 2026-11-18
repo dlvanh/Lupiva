@@ -2,12 +2,14 @@
 
 import React, { useState } from "react";
 import { useLupiva } from "@/context/LupivaContext";
+import { TRANSLATIONS } from "@/data/translations";
 import { DoctorSubmissionsView } from "@/components/upload/DoctorSubmissionsView";
 import { PatientUploadView } from "@/components/upload/PatientUploadView";
 
 export default function PatientUploadPage() {
-  const { currentUser, authLoading } = useLupiva();
+  const { currentUser, authLoading, language } = useLupiva();
   const [listKey, setListKey] = useState(0);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   if (authLoading) {
     return (
@@ -26,16 +28,37 @@ export default function PatientUploadPage() {
   }
 
   if (currentUser?.role === "specialist") {
+    const dc = TRANSLATIONS[language].doctor;
     return (
-      <>
-        <details className="mx-auto mt-6 w-full max-w-4xl rounded-xl border border-slate-200 bg-white px-4 py-3 sm:px-6">
-          <summary className="cursor-pointer text-sm font-semibold text-teal-800">
-            + Tải ảnh lên cho bệnh nhân
-          </summary>
-          <PatientUploadView embedded onSubmitted={() => setListKey((k) => k + 1)} />
-        </details>
-        <DoctorSubmissionsView key={listKey} />
-      </>
+      <DoctorSubmissionsView
+        key={listKey}
+        headerAction={
+          <button
+            type="button"
+            id="doctor-upload-for-patient"
+            aria-expanded={uploadOpen}
+            aria-controls="doctor-upload-for-patient-panel"
+            onClick={() => setUploadOpen((open) => !open)}
+            className={`min-h-9 cursor-pointer rounded-lg border px-3.5 py-1.5 text-xs font-semibold transition ${
+              uploadOpen
+                ? "border-teal-700 bg-teal-50 text-teal-900"
+                : "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+            }`}
+          >
+            {uploadOpen ? dc.closeUpload : dc.uploadForPatient}
+          </button>
+        }
+        uploadPanel={
+          uploadOpen ? (
+            <section
+              id="doctor-upload-for-patient-panel"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:px-6"
+            >
+              <PatientUploadView embedded onSubmitted={() => setListKey((k) => k + 1)} />
+            </section>
+          ) : null
+        }
+      />
     );
   }
 

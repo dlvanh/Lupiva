@@ -12,6 +12,7 @@ import Link from "next/link";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLupiva } from "@/context/LupivaContext";
+import { UiIcon } from "@/components/UiIcon";
 import type { CrfField } from "@/lib/crfApproval";
 import { parseSlot } from "@/lib/crfSlot";
 import { withoutHidden, type CrfViewWithSources } from "@/lib/crfEvidence";
@@ -116,13 +117,12 @@ function Checkboxes({ spec, shown, onPick }: { spec: CheckboxSpec; shown: Shown 
         const checked = shown?.value === code;
         return (
           <span key={code} className="mr-2 cursor-pointer" onClick={() => onPick(code)}>
-            {checked && !blankOnPrint(shown) ? "☑" : checked ? (
-              <>
-                <span className="print:hidden">☑</span>
-                <span className="hidden print:inline">☐</span>
-              </>
-            ) : (
-              "☐"
+            <UiIcon
+              name={checked ? "checked" : "unchecked"}
+              className={`inline size-[1em] align-text-bottom ${checked && blankOnPrint(shown) ? "print:hidden" : ""}`}
+            />
+            {checked && blankOnPrint(shown) && (
+              <UiIcon name="unchecked" className="hidden size-[1em] align-text-bottom print:inline" />
             )}
             {parts[index + 1] ?? ""}
             {checked && shown && shown.kind !== "approved" && (
@@ -363,20 +363,24 @@ export default function CrfFormPage() {
   const renderCell = (block: LayoutBlock, cell: LayoutCell, r: number, c: number) => {
     const k = cellKey(block.index, r, c);
     const placed = placement?.inCell.get(k) ?? [];
-    if (placement?.ticks.has(k)) return "☑";
+    if (placement?.ticks.has(k)) return <UiIcon name="checked" className="inline size-[1em] align-text-bottom" />;
     const criterion = placement?.checks.get(k);
     if (criterion) {
       const shown = effective(criterion);
       const ticked = shown?.value === "yes";
       return (
         <>
-          <span
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={ticked}
+            aria-label={criterion.label}
             className="cursor-pointer"
             title="Bấm để tích / bỏ tích"
             onClick={() => setEdit(criterion.slot, ticked ? "no" : "yes")}
           >
-            {ticked ? "☑" : "☐"}
-          </span>
+            <UiIcon name={ticked ? "checked" : "unchecked"} className="inline size-[1em] align-text-bottom" />
+          </button>
           {ticked && shown && shown.kind !== "approved" && (
             <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
           )}
@@ -500,7 +504,7 @@ export default function CrfFormPage() {
         </div>
       </div>
       <p className="mt-1 text-sm text-slate-500 print:hidden">
-        Phiếu chỉ điền các giá trị đã duyệt ở Duyệt hồ sơ. Vẫn sửa trực tiếp được: bấm ô ☐ để tích, chọn hoặc gõ giá
+        Phiếu chỉ điền các giá trị đã duyệt ở Duyệt hồ sơ. Vẫn sửa trực tiếp được: bấm ô để tích, chọn hoặc gõ giá
         trị vào ô, rồi &quot;Lưu / Duyệt&quot;.
       </p>
       {error && <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700 print:hidden">{error}</p>}

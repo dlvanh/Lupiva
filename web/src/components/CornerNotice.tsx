@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { UiIcon } from "@/components/UiIcon";
 
 export interface CornerNoticeProps {
   title: string;
@@ -54,7 +55,7 @@ export function CornerNotice({
           onClick={onClose}
           className="-mr-1 -mt-1 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
         >
-          <span aria-hidden="true">✕</span>
+          <UiIcon name="close" />
         </button>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approvalPayload, fieldChoices, initialSelections, type CrfView } from "@/lib/crfApproval";
+import { approvalPayload, fieldChoices, initialSelections, reviewFieldPayload, type CrfView } from "@/lib/crfApproval";
 
 const view: CrfView = {
   source_snapshot: "snap",
@@ -75,5 +75,32 @@ describe("CRF approval", () => {
     expect(() => approvalPayload("case-1", view, {})).toThrow();
     expect(() => approvalPayload("case-1", view, { "HEM01/result": "p1" })).toThrow();
     expect(() => approvalPayload("case-1", view, { "XXX/result": "s1" })).toThrow();
+  });
+
+  it("submits only changes to previously approved evidence or corrections", () => {
+    const reviewed: CrfView = {
+      ...view,
+      fields: [...view.fields, { ...view.fields[0], slot: "ADM08/result", options: [] }],
+      review: {
+        reviewed_at: "now",
+        values: {
+          "HEM01/result": { id: "s2", value: "118", origin: "source" },
+          "ADM08/result": { id: "handwritten", value: "Dr A", origin: "manual" },
+        },
+      },
+    };
+    expect(reviewFieldPayload("case", reviewed, {}, {})).toEqual({
+      case_id: "case",
+      source_snapshot: "snap",
+      draft_sha256: "draft",
+      expected_review_sha256: null,
+      selections: {},
+      manual_values: {},
+    });
+    const unchanged = reviewFieldPayload("case", reviewed, { "HEM01/result": "s2" }, { "ADM08/result": " Dr A " });
+    expect(unchanged.selections).toEqual({});
+    expect(unchanged.manual_values).toEqual({});
+    expect(reviewFieldPayload("case", reviewed, { "HEM01/result": "s1" }, { "ADM08/result": "Dr B" }))
+      .toMatchObject({ selections: { "HEM01/result": "s1" }, manual_values: { "ADM08/result": "Dr B" } });
   });
 });

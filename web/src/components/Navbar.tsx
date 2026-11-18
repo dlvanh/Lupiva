@@ -74,12 +74,8 @@ export function Navbar() {
             href: "/upload",
             label:
               currentUser?.role === "patient"
-                ? isVi
-                  ? "Tải tài liệu"
-                  : "Upload Document"
-                : isVi
-                ? "Bệnh nhân Tải lên"
-                : "Patient Upload",
+                ? t.patientPortal.patientMenuLabel
+                : t.patientPortal.submitMenuLabel,
             id: "nav-link-upload",
           },
         ];

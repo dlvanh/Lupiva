@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import {
   buildBlankCrfRecord,
@@ -16,6 +16,8 @@ import {
 } from "@/db/schema";
 import { AuthError, type AuthenticatedUserDTO } from "@/lib/auth";
 import type { PipelineStatus } from "@/db/schema";
+import type { CrfView } from "@/lib/crfApproval";
+import { canFinalizeReview, caseForIntake, withoutHidden } from "@/lib/crfEvidence";
 import {
   buildScrubbedMedicalHistory,
   buildScrubbedOrgansDamage,
@@ -36,6 +38,7 @@ import {
   type PaginationMeta,
   type SubmissionQueryFilters,
 } from "@/lib/submissionFilters";
+import { callPipeline } from "@/lib/pipeline";
 
 export interface SubmissionItemDTO {
   record: SleCrfPatientRecord;
@@ -265,8 +268,15 @@ export async function querySubmissions(params: {
 
   const sqlOrderBy =
     effectiveFilters.sort === "oldest"
-      ? [asc(crfSubmissions.submittedAt)]
-      : [desc(crfSubmissions.submittedAt)];
+      ? [asc(crfSubmissions.submittedAt), asc(crfSubmissions.id)]
+      : roleScope === "specialist"
+      ? // Doctors see new dossiers first, then opened-but-unapproved, approved last.
+        [
+          asc(sql`case when ${crfSubmissions.status} = 'approved' then 2 when ${crfSubmissions.firstOpenedAt} is null then 0 else 1 end`),
+          desc(crfSubmissions.submittedAt),
+          asc(crfSubmissions.id),
+        ]
+      : [desc(crfSubmissions.submittedAt), asc(crfSubmissions.id)];
 
   // 3. Execute SQL-level LIMIT/OFFSET pagination directly when no encrypted text search is active
   let pagination: PaginationMeta;
@@ -390,7 +400,7 @@ export async function querySubmissions(params: {
       })
       .from(uploadedDocuments)
       .where(inArray(uploadedDocuments.submissionId, submissionIds))
-      .orderBy(uploadedDocuments.createdAt);
+      .orderBy(uploadedDocuments.position, uploadedDocuments.createdAt);
 
     for (const d of docRows) {
       const list = docsBySubmission.get(d.submissionId) ?? [];
@@ -409,6 +419,7 @@ export async function querySubmissions(params: {
     dto: SubmissionItemDTO;
     submittedAtMs: number;
     sledaiScore: number;
+    reviewRank: number;
   }> = [];
 
   for (const row of sqlRows) {
@@ -447,17 +458,18 @@ export async function querySubmissions(params: {
       },
       submittedAtMs: row.submittedAt.getTime(),
       sledaiScore: row.sledaiTotalScore,
+      reviewRank: row.status === "approved" ? 2 : row.firstOpenedAt ? 1 : 0,
     });
   }
 
   let pagedItems: SubmissionItemDTO[];
 
   if (requiresPostDecryptionScan) {
-    hydratedItems.sort((a, b) =>
-      effectiveFilters.sort === "oldest"
-        ? a.submittedAtMs - b.submittedAtMs
-        : b.submittedAtMs - a.submittedAtMs
-    );
+    hydratedItems.sort((a, b) => {
+      if (effectiveFilters.sort === "oldest") return a.submittedAtMs - b.submittedAtMs;
+      if (roleScope === "specialist" && a.reviewRank !== b.reviewRank) return a.reviewRank - b.reviewRank;
+      return b.submittedAtMs - a.submittedAtMs;
+    });
 
     pagination = computePagination(
       effectiveFilters.page,
@@ -619,7 +631,7 @@ export async function createPatientSubmission(params: {
       lastUpdatedAt: now,
     });
 
-    for (const file of input.files) {
+    for (const [index, file] of input.files.entries()) {
       const docId = crypto.randomUUID();
       await tx.insert(uploadedDocuments).values({
         id: docId,
@@ -632,6 +644,7 @@ export async function createPatientSubmission(params: {
         storageProvider: "sample",
         storageKey: `uploads/${submissionId}/${file.name}`,
         ocrJobStatus: "pending",
+        position: index,
       });
       docs.push({
         id: docId,
@@ -683,6 +696,21 @@ export async function createPatientSubmission(params: {
   };
 }
 
+async function verifyPipelineReview(intakeId: string, user: AuthenticatedUserDTO): Promise<void> {
+  const read = async <T,>(path: string, query = new URLSearchParams()): Promise<T> => {
+    const result = await callPipeline("GET", path, query, null, user);
+    if (result.status !== 200) throw new Error("Unable to verify the backend CRF.");
+    return JSON.parse(new TextDecoder().decode(result.body)) as T;
+  };
+  const { jobs } = await read<{ jobs?: Parameters<typeof caseForIntake>[0] }>("/api/intakes");
+  const caseId = caseForIntake(jobs, intakeId);
+  if (!caseId) throw new AuthError(400, "No backend CRF is linked to this submission.");
+  const view = await read<CrfView>("/api/crf", new URLSearchParams({ case_id: caseId }));
+  if (!canFinalizeReview(withoutHidden(view))) {
+    throw new AuthError(400, "Approve the remaining CRF cells before approving the dossier.");
+  }
+}
+
 export async function updateSubmissionRecord(params: {
   user: AuthenticatedUserDTO;
   idOrKey: string;
@@ -707,6 +735,7 @@ export async function updateSubmissionRecord(params: {
       submissionId: crfSubmissions.id,
       legacyRecordKey: crfSubmissions.legacyRecordKey,
       submittedAt: crfSubmissions.submittedAt,
+      pipelineIntakeId: crfSubmissions.pipelineIntakeId,
       profileId: patientProfiles.id,
       studyIdEncrypted: patientProfiles.studyIdEncrypted,
       patientNameEncrypted: patientProfiles.patientNameEncrypted,
@@ -730,51 +759,91 @@ export async function updateSubmissionRecord(params: {
 
   const now = new Date();
   const next = params.updatedRecord;
-  const redactTokens = [next.patientName, next.studyId];
-  const medicalHistoryJson = buildScrubbedMedicalHistory(next, redactTokens);
-  const organsDamageJson = buildScrubbedOrgansDamage(next, redactTokens);
-  const { safeOcrFields, hivStatusEncrypted } = encryptSensitiveOcrFields(
-    next.ocrFields,
-    existing.submissionId,
-    redactTokens
-  );
-
-  const eularSummary = calculateEularAcrSummary(
-    next.eularAcrCriteria,
-    next.anaEntryCriterionMet
-  );
-  const sledaiSummary = calculateSledai2kSummary(next.sledai2kCriteria);
-
-  const nextStatus =
-    next.submissionStatus ??
-    (next.signedOffBy ? "approved" : "pending_doctor_review");
+  const nextStatus = next.submissionStatus ?? (next.signedOffBy ? "approved" : "pending_doctor_review");
   const isApproved = nextStatus === "approved";
 
-  await db
-    .update(crfSubmissions)
-    .set({
-      status: nextStatus,
-      signedOffByUserId: isApproved ? params.user.id : null,
-      signedOffByName: isApproved ? next.signedOffBy ?? params.user.name : null,
-      signedOffRole: isApproved ? next.signedOffRole ?? params.user.role : null,
-      signedOffAt: isApproved ? now : null,
-      eularTotalScore: eularSummary.totalScore,
-      eularClassifiedSle: eularSummary.isClassifiedSle,
-      sledaiTotalScore: sledaiSummary.totalScore,
-      sledaiActivityTier: sledaiSummary.activityTierEn,
-      hivStatusEncrypted,
-      medicalHistoryJson,
-      organsDamageJson,
-      ocrFieldsJson: safeOcrFields,
-      antibodyBlotsJson: next.antibodyBlots,
-      eularAcrJson: {
-        anaEntryCriterionMet: next.anaEntryCriterionMet,
-        criteria: next.eularAcrCriteria,
-      },
-      sledai2kJson: next.sledai2kCriteria,
-      lastUpdatedAt: now,
-    })
-    .where(eq(crfSubmissions.id, existing.submissionId));
+  let saved: typeof crfSubmissions.$inferSelect | undefined;
+  if (isApproved && existing.pipelineIntakeId) {
+    // The pipeline owns the CRF for linked dossiers. Sign off without rewriting
+    // the clinical record returned to the browser when the page first opened.
+    const intakeId = existing.pipelineIntakeId;
+    await verifyPipelineReview(intakeId, params.user);
+    [saved] = await db
+      .update(crfSubmissions)
+      .set({
+        status: "approved",
+        signedOffByUserId: params.user.id,
+        signedOffByName: params.user.name,
+        signedOffRole: params.user.role,
+        signedOffAt: now,
+        lastUpdatedAt: now,
+      })
+      .where(and(
+        eq(crfSubmissions.id, existing.submissionId),
+        eq(crfSubmissions.pipelineIntakeId, intakeId),
+        eq(crfSubmissions.status, "pending_doctor_review"),
+      ))
+      .returning();
+    if (!saved) {
+      [saved] = await db.select().from(crfSubmissions).where(and(
+        eq(crfSubmissions.id, existing.submissionId),
+        eq(crfSubmissions.pipelineIntakeId, intakeId),
+        eq(crfSubmissions.status, "approved"),
+      ));
+      if (!saved) throw new AuthError(400, "The linked intake changed. Reload the dossier and try again.");
+    }
+  } else {
+    const redactTokens = [next.patientName, next.studyId];
+    const medicalHistoryJson = buildScrubbedMedicalHistory(next, redactTokens);
+    const organsDamageJson = buildScrubbedOrgansDamage(next, redactTokens);
+    const { safeOcrFields, hivStatusEncrypted } = encryptSensitiveOcrFields(
+      next.ocrFields,
+      existing.submissionId,
+      redactTokens
+    );
+
+    const eularSummary = calculateEularAcrSummary(
+      next.eularAcrCriteria,
+      next.anaEntryCriterionMet
+    );
+    const sledaiSummary = calculateSledai2kSummary(next.sledai2kCriteria);
+
+    [saved] = await db
+      .update(crfSubmissions)
+      .set({
+        status: nextStatus,
+        signedOffByUserId: isApproved ? params.user.id : null,
+        signedOffByName: isApproved ? next.signedOffBy ?? params.user.name : null,
+        signedOffRole: isApproved ? next.signedOffRole ?? params.user.role : null,
+        signedOffAt: isApproved ? now : null,
+        eularTotalScore: eularSummary.totalScore,
+        eularClassifiedSle: eularSummary.isClassifiedSle,
+        sledaiTotalScore: sledaiSummary.totalScore,
+        sledaiActivityTier: sledaiSummary.activityTierEn,
+        hivStatusEncrypted,
+        medicalHistoryJson,
+        organsDamageJson,
+        ocrFieldsJson: safeOcrFields,
+        antibodyBlotsJson: next.antibodyBlots,
+        eularAcrJson: {
+          anaEntryCriterionMet: next.anaEntryCriterionMet,
+          criteria: next.eularAcrCriteria,
+        },
+        sledai2kJson: next.sledai2kCriteria,
+        lastUpdatedAt: now,
+      })
+      .where(and(
+        eq(crfSubmissions.id, existing.submissionId),
+        existing.pipelineIntakeId ? eq(crfSubmissions.status, "pending_doctor_review") : undefined,
+        isApproved ? isNull(crfSubmissions.pipelineIntakeId) : undefined,
+      ))
+      .returning();
+    if (!saved && existing.pipelineIntakeId) {
+      throw new AuthError(400, "The dossier has already been approved. Reload it before making changes.");
+    }
+  }
+
+  if (!saved) return null;
 
   const docRows = await db
     .select({
@@ -783,7 +852,8 @@ export async function updateSubmissionRecord(params: {
       isImage: uploadedDocuments.isImage,
     })
     .from(uploadedDocuments)
-    .where(eq(uploadedDocuments.submissionId, existing.submissionId));
+    .where(eq(uploadedDocuments.submissionId, existing.submissionId))
+    .orderBy(uploadedDocuments.position, uploadedDocuments.createdAt);
 
   const docs: UploadedDocFile[] = docRows.map((d) => ({
     id: d.id,
@@ -797,21 +867,18 @@ export async function updateSubmissionRecord(params: {
     {
       submissionId: existing.submissionId,
       legacyRecordKey: existing.legacyRecordKey,
-      status: nextStatus,
+      status: saved.status,
       submittedAt: existing.submittedAt,
-      signedOffByName: isApproved ? next.signedOffBy ?? params.user.name : null,
-      signedOffRole: isApproved ? next.signedOffRole ?? params.user.role : null,
-      hivStatusEncrypted,
-      medicalHistoryJson,
-      organsDamageJson,
-      ocrFieldsJson: safeOcrFields,
-      antibodyBlotsJson: next.antibodyBlots,
-      eularAcrJson: {
-        anaEntryCriterionMet: next.anaEntryCriterionMet,
-        criteria: next.eularAcrCriteria,
-      },
-      sledai2kJson: next.sledai2kCriteria,
-      lastUpdatedAt: now,
+      signedOffByName: saved.signedOffByName,
+      signedOffRole: saved.signedOffRole,
+      hivStatusEncrypted: saved.hivStatusEncrypted,
+      medicalHistoryJson: saved.medicalHistoryJson,
+      organsDamageJson: saved.organsDamageJson,
+      ocrFieldsJson: saved.ocrFieldsJson,
+      antibodyBlotsJson: saved.antibodyBlotsJson,
+      eularAcrJson: saved.eularAcrJson,
+      sledai2kJson: saved.sledai2kJson,
+      lastUpdatedAt: saved.lastUpdatedAt,
       profileId: existing.profileId,
       studyIdEncrypted: existing.studyIdEncrypted,
       patientNameEncrypted: existing.patientNameEncrypted,
@@ -830,5 +897,8 @@ export async function updateSubmissionRecord(params: {
     dbSubmissionId: existing.submissionId,
     submittedAtIso: existing.submittedAt.toISOString(),
     ocrSummary: getOcrTierCounts(hydrated),
+    pipelineIntakeId: saved.pipelineIntakeId,
+    pipelineStatus: saved.pipelineStatus,
+    firstOpenedAt: saved.firstOpenedAt?.toISOString() ?? null,
   };
 }

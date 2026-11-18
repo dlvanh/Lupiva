@@ -190,7 +190,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     await expect(requireAuth(["specialist"], testDb.db)).rejects.toThrow(AuthError);
   });
 
-  it("blocks role-tab mismatch with 403 and rejects invalid/unknown credentials with 401", async () => {
+  it("signs in with the account's own role whatever tab is selected; rejects invalid/unknown credentials with 401", async () => {
     const mismatchRes = await loginPost(
       buildJsonRequest("/api/auth/login", {
         email: DEMO_USERS.patient.email,
@@ -199,8 +199,9 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
         consentChecked: true,
       })
     );
-    expect(mismatchRes.status).toBe(403);
-    expect(mockState.cookieJar.get(SESSION_COOKIE_NAME)).toBeUndefined();
+    expect(mismatchRes.status).toBe(200);
+    expect((await mismatchRes.json()).user.role).toBe("patient");
+    mockState.cookieJar.delete(SESSION_COOKIE_NAME);
 
     const wrongPwdRes = await loginPost(
       buildJsonRequest("/api/auth/login", {
@@ -223,7 +224,6 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const auditActions = (await testDb.db.select().from(auditLogs)).map(
       (row) => row.action
     );
-    expect(auditActions).toContain("auth.role_mismatch");
     expect(auditActions).toContain("auth.login_failed");
   });
 

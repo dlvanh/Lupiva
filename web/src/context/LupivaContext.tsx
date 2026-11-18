@@ -67,6 +67,8 @@ export interface AuthActionResult {
   user?: AuthUser;
   error?: string;
   status?: number;
+  /** A patient account that has not signed the consent yet must tick it to sign in. */
+  consentRequired?: boolean;
 }
 
 interface LupivaContextValue {
@@ -349,6 +351,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         const data = (await res.json().catch(() => ({}))) as {
           user?: AuthUser;
           error?: string;
+          consentRequired?: boolean;
         };
 
         if (!res.ok || !data.user) {
@@ -358,7 +361,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
               ? "Đăng nhập thất bại. Vui lòng kiểm tra thông tin."
               : "Sign-in failed. Please verify your credentials.");
           showToast(t.toasts.authFailedTitle, errorMessage, "amber");
-          return { ok: false, error: errorMessage, status: res.status };
+          return { ok: false, error: errorMessage, status: res.status, consentRequired: data.consentRequired === true };
         }
 
         setCurrentUser(data.user);

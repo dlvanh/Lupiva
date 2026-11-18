@@ -89,25 +89,35 @@ export interface Translations {
     inspectCardBtn: string;
   };
   patientPortal: {
-    aboutTitle: string;
-    aboutBody: string;
+    overviewTitle: string;
+    overviewIntro: string;
+    startBtn: string;
+    submitMenuLabel: string;
+    patientMenuLabel: string;
     benefitsTitle: string;
     benefitImprovedTitle: string;
     benefitImprovedBody: string;
-    benefitAnonTitle: string;
-    benefitAnonBody: string;
+    benefitPrivacyTitle: string;
+    benefitPrivacyBody: string;
     howTitle: string;
+    registerTitle: string;
+    registerBody: string;
     step1Title: string;
     step1Body: string;
     step1Btn: string;
     step1Done: string;
     step2Title: string;
     step2Body: string;
-    step2Btn: string;
+    faqTitle: string;
+    faq: readonly { question: string; answer: string }[];
+    appointmentNotice: string;
     contactTitle: string;
     contactLeadLabel: string;
     contactLead: string;
     contactEmail: string;
+    contactPhoneLabel: string;
+    contactPhone: string;
+    supportLine: (email: string, phone: string) => string;
     successTitle: string;
     successBody: (contactLead: string, contactEmail: string) => string;
     successCodeLabel: string;
@@ -116,7 +126,8 @@ export interface Translations {
     successHomeBtn: string;
   };
   login: {
-    roleAccessTag: string;
+    modeLabel: string;
+    roleLabel: string;
     title: string;
     registerTitle: string;
     autofillBtn: string;
@@ -143,21 +154,16 @@ export interface Translations {
     specialistConsent: string;
     patientEConsent: string;
     patientConsent: string;
-    submitBtn: (name: string) => string;
+    submitBtn: string;
     submitRegisterBtn: (roleLabel: string) => string;
     signingInBtn: string;
     creatingAccountBtn: string;
     skipBtn: string;
-    selectedProfileTitle: string;
-    registerProfileTitle: string;
-    roleAffiliation: string;
-    deptCohort: string;
-    whatUnlocks: string;
-    activeSessionTitle: string;
+    portalTitle: string;
+    patientUse: string;
+    doctorUse: string;
+    dataProtection: string;
     loggedInAs: (name: string) => string;
-    guestNotice: string;
-    securityVaultTitle: string;
-    securityVaultDesc: string;
   };
   ocr: {
     sampleScanLabel: string;
@@ -214,6 +220,43 @@ export interface Translations {
     defaultAddedName: string;
     defaultAddedNote: string;
   };
+  doctor: {
+    counterNew: string;
+    counterPending: string;
+    counterApproved: string;
+    crfFormBtn: string;
+    redcapBtn: string;
+    moreFilters: string;
+    hideFilters: string;
+    uploadForPatient: string;
+    closeUpload: string;
+    reviewBtn: string;
+    imagesCount: (count: number) => string;
+    cellsProgress: (approved: number, total: number) => string;
+    progressLoading: string;
+    progressUnavailable: string;
+    detailsBtn: string;
+    collapseBtn: string;
+    approveDossierBtn: string;
+    approveDossierBusy: string;
+    dossierApprovedBtn: string;
+    approveDossierHint: string;
+    dossierApprovedNotice: string;
+    reviewSaved: (count: number) => string;
+    scoreSaved: string;
+    reviewBar: (approved: number, total: number, pending: number) => string;
+    sectionsLabel: string;
+    backendIdLabel: string;
+    keyboardHint: string;
+    editBtn: string;
+    originLlm: string;
+    originSource: string;
+    originApproved: string;
+    originManual: string;
+    decideShort: string;
+    scoreShort: string;
+    unknownShort: string;
+  };
   toasts: {
     signedIn: (name: string) => string;
     accountCreatedTitle: (name: string) => string;
@@ -250,6 +293,12 @@ export interface Translations {
     langSwitchedDesc: string;
   };
 }
+
+const patientContact = {
+  contactLead: "...",
+  contactEmail: "...",
+  contactPhone: "...",
+};
 
 export const TRANSLATIONS: Record<Language, Translations> = {
   en: {
@@ -341,25 +390,39 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       inspectCardBtn: "Inspect in OCR Workspace",
     },
     patientPortal: {
-      aboutTitle: "About the Lupiva project",
-      aboutBody: "Lupiva is a registry for systemic lupus erythematosus (SLE). Specialists review the records you submit, and data in the registry is pseudonymized.",
+      overviewTitle: "Lupus Patient Registry",
+      overviewIntro: "Share your visit and test results to help doctors better understand lupus.",
+      startBtn: "Start participation",
+      submitMenuLabel: "Submit records",
+      patientMenuLabel: "My records",
       benefitsTitle: "Benefits for Patients",
-      benefitImprovedTitle: "Improved Treatment",
-      benefitImprovedBody: "Registry data helps researchers identify better treatment strategies for people living with lupus.",
-      benefitAnonTitle: "Anonymity and Security",
-      benefitAnonBody: "Registry records use pseudonyms in place of identifying information to protect your privacy.",
-      howTitle: "How to Join",
-      step1Title: "E-consent",
-      step1Body: "Complete e-consent to participate in the Lupiva project.",
-      step1Btn: "Complete E-consent",
-      step1Done: "E-consent completed",
+      benefitImprovedTitle: "Contribute to lupus research",
+      benefitImprovedBody: "Your records can help researchers better understand lupus and how people respond to treatment.",
+      benefitPrivacyTitle: "Protecting your privacy",
+      benefitPrivacyBody: "The project uses codes in place of names and other details that identify you in the research data.",
+      howTitle: "How to join",
+      registerTitle: "Create an account",
+      registerBody: "Use your email address to sign up and track the records you send.",
+      step1Title: "Agree to take part (sign electronically)",
+      step1Body: "When you agree to take part, you let the project use the records you share for lupus research. You can contact the project team to withdraw.",
+      step1Btn: "Review consent",
+      step1Done: "You’ve agreed to take part",
       step2Title: "Submit your records",
-      step2Body: "Upload your records for a specialist to review. You can track their status on the upload page.",
-      step2Btn: "Upload your records",
+      step2Body: "Take or choose photos of your records to send to the project specialists. You can check their status in My records.",
+      faqTitle: "Frequently asked questions",
+      // TODO: research team to confirm wording
+      faq: [
+        { question: "Does it cost anything?", answer: "Taking part in the project is free." },
+        { question: "Who can see my records?", answer: "The project’s specialists can review your records. The research data is pseudonymized, which means it uses codes in place of identifying details." },
+        { question: "How long does it take?", answer: "Submitting depends on how many photos you send. Review usually takes a few working days." },
+        { question: "How will my records be used?", answer: "Specialists review the records, and the project uses the data to study how lupus changes over time and how people respond to treatment." },
+      ],
+      appointmentNotice: "This does not book an appointment or replace seeing a doctor.",
       contactTitle: "Contact",
       contactLeadLabel: "Project lead",
-      contactLead: "…",
-      contactEmail: "…",
+      contactPhoneLabel: "Phone",
+      ...patientContact,
+      supportLine: (email, phone) => `Need help? Email ${email} or call ${phone}`,
       successTitle: "Submission successful!",
       successBody: (contactLead, contactEmail) =>
         `Thank you for submitting your records to the project. Your information will be forwarded to specialists. If you have any questions, please contact the project lead, ${contactLead}, by email at ${contactEmail}. We are happy to help.`,
@@ -369,14 +432,14 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       successHomeBtn: "Back to home",
     },
     login: {
-      roleAccessTag: "Role-Based Clinical Access",
+      modeLabel: "Sign in or create an account",
+      roleLabel: "Account type",
       title: "Sign in to Lupiva Platform",
       registerTitle: "Create a Lupiva Account",
       autofillBtn: "Autofill Demo Credentials",
-      subtitle:
-        "Sign in with a seeded demo account or registered institutional credentials backed by PostgreSQL + AES-256-GCM PII encryption.",
+      subtitle: "Sign in with your account.",
       registerSubtitle:
-        "Create an encrypted patient portal account or an invite-gated Vinmec Clinical Specialist account.",
+        "Create a patient account or use an invitation to register as a Vinmec clinical specialist.",
       modeSignInTab: "Sign In",
       modeRegisterTab: "Create Account",
       specialistTabTitle: "Clinical Specialist",
@@ -394,30 +457,22 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       passwordHintRegister: "Min 8 chars, 1 letter, 1 number & 1 special char",
       inviteCodeLabel: "Institutional Specialist Invite Code",
       inviteCodePlaceholder: "Required for Vinmec Clinical Specialists",
-      inviteCodeHint:
-        "Gated on the server via SPECIALIST_INVITE_CODE to protect physician e-CRF privileges.",
+      inviteCodeHint: "Enter the invitation code provided by your institution.",
       specialistConsent:
         "I confirm Physician-in-the-Loop (HITL) supervision responsibility: all flagged OCR biomarkers (<85% confidence) will be reviewed against the source scan before e-CRF commit.",
       patientEConsent: "I agree to participate (E-consent)",
       patientConsent:
         "I consent to contribute de-identified SLE lab values to the Vinmec Clinical Immunology Registry for review by my doctor.",
-      submitBtn: (name) => `Sign In as ${name} →`,
+      submitBtn: "Sign in",
       submitRegisterBtn: (roleLabel) => `Create ${roleLabel} Account →`,
-      signingInBtn: "Verifying Session...",
-      creatingAccountBtn: "Creating Encrypted Account...",
+      signingInBtn: "Signing in…",
+      creatingAccountBtn: "Creating account…",
       skipBtn: "Continue Without Signing In",
-      selectedProfileTitle: "Selected Account Profile",
-      registerProfileTitle: "Encrypted Account Preview",
-      roleAffiliation: "Role & Affiliation",
-      deptCohort: "Department / Cohort ID",
-      whatUnlocks: "What This Role Unlocks in Lupiva",
-      activeSessionTitle: "Currently Active Session",
-      loggedInAs: (name) =>
-        `Logged in as ${name}. Signing in above will switch the active session cookie to the new account.`,
-      guestNotice: "No active session (unauthenticated guest mode).",
-      securityVaultTitle: "3-Zone PII Vault Protection",
-      securityVaultDesc:
-        "Email & Full Name are stored with AES-256-GCM (AAD row binding) and keyed HMAC-SHA256 blind indexes; passwords use scrypt + HttpOnly DB sessions.",
+      portalTitle: "Using Lupiva",
+      patientUse: "Patients submit documents and track their submissions.",
+      doctorUse: "Doctors review submissions and their case report forms (CRFs).",
+      dataProtection: "Access to your data is restricted by account permissions.",
+      loggedInAs: (name) => `You’re signed in as ${name}.`,
     },
     ocr: {
       sampleScanLabel: "Sample Lab Scan:",
@@ -480,6 +535,44 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       jsonModalDownloadBtn: "Download .json File",
       defaultAddedName: "Anti-Smith (Anti-Sm) IgG",
       defaultAddedNote: "Manually added by reviewer during HITL inspection.",
+    },
+    doctor: {
+      counterNew: "New dossiers",
+      counterPending: "Unreviewed",
+      counterApproved: "Approved",
+      crfFormBtn: "CRF form",
+      redcapBtn: "REDCap",
+      moreFilters: "More filters",
+      hideFilters: "Hide filters",
+      uploadForPatient: "+ Upload images for a patient",
+      closeUpload: "Close upload panel",
+      reviewBtn: "Review",
+      imagesCount: (count) => `${count} image(s)`,
+      cellsProgress: (approved, total) => `${approved}/${total} cells approved`,
+      progressLoading: "reading progress…",
+      progressUnavailable: "progress unavailable",
+      detailsBtn: "Details",
+      collapseBtn: "Collapse",
+      approveDossierBtn: "Approve dossier",
+      approveDossierBusy: "Approving…",
+      dossierApprovedBtn: "Dossier approved",
+      approveDossierHint: "Approve every remaining CRF cell before approving the dossier.",
+      dossierApprovedNotice: "Dossier approved; it now counts as Approved on the dashboard.",
+      reviewSaved: (count) => `Approved ${count} cell(s).`,
+      scoreSaved: "Score assessment saved.",
+      reviewBar: (approved, total, pending) =>
+        `Approved ${approved}/${total} · ${pending} cell(s) left to decide`,
+      sectionsLabel: "Sections",
+      backendIdLabel: "Backend id",
+      keyboardHint: "↑/↓ move between cells · Enter ticks the active cell",
+      editBtn: "Edit manually",
+      originLlm: "LLM proposal",
+      originSource: "read from image",
+      originApproved: "approved",
+      originManual: "manual edit",
+      decideShort: "To decide",
+      scoreShort: "Scores",
+      unknownShort: "Unknown",
     },
     toasts: {
       signedIn: (name) => `Signed in as ${name}`,
@@ -617,25 +710,39 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       inspectCardBtn: "Xem chi tiết trong Không gian OCR",
     },
     patientPortal: {
-      aboutTitle: "Giới thiệu dự án Lupiva",
-      aboutBody: "Lupiva là dự án xây dựng cơ sở dữ liệu đăng ký bệnh lupus ban đỏ hệ thống (SLE). Hồ sơ bạn gửi được bác sĩ chuyên khoa duyệt và dữ liệu trong cơ sở đăng ký được giả danh hóa.",
-      benefitsTitle: "Quyền lợi của bệnh nhân",
-      benefitImprovedTitle: "Điều trị tốt hơn",
-      benefitImprovedBody: "Dữ liệu từ cơ sở đăng ký giúp các nhà nghiên cứu tìm ra chiến lược điều trị tốt hơn cho người bệnh lupus.",
-      benefitAnonTitle: "Ẩn danh và bảo mật",
-      benefitAnonBody: "Hồ sơ trong cơ sở đăng ký được giả danh hóa để tách dữ liệu nghiên cứu khỏi thông tin nhận dạng cá nhân.",
-      howTitle: "Cách thức đăng ký",
-      step1Title: "E-consent",
-      step1Body: "Hoàn thiện đồng thuận điện tử để tham gia dự án Lupiva.",
-      step1Btn: "Hoàn thiện E-consent",
-      step1Done: "Đã hoàn thiện E-consent",
+      overviewTitle: "Đăng ký bệnh nhân Lupus",
+      overviewIntro: "Chia sẻ kết quả khám và xét nghiệm để cùng bác sĩ hiểu rõ hơn về bệnh lupus.",
+      startBtn: "Bắt đầu tham gia",
+      submitMenuLabel: "Nộp hồ sơ",
+      patientMenuLabel: "Hồ sơ của tôi",
+      benefitsTitle: "Quyền lợi",
+      benefitImprovedTitle: "Góp phần nghiên cứu bệnh lupus",
+      benefitImprovedBody: "Hồ sơ bạn chia sẻ giúp nhóm nghiên cứu hiểu thêm về bệnh lupus và cách người bệnh đáp ứng với điều trị.",
+      benefitPrivacyTitle: "Bảo vệ thông tin cá nhân",
+      benefitPrivacyBody: "Dữ liệu nghiên cứu dùng mã số thay cho tên và những thông tin có thể nhận ra bạn.",
+      howTitle: "Cách tham gia",
+      registerTitle: "Tạo tài khoản",
+      registerBody: "Dùng email để tạo tài khoản và theo dõi hồ sơ bạn đã gửi.",
+      step1Title: "Đồng ý tham gia (ký điện tử)",
+      step1Body: "Khi đồng ý tham gia, bạn cho phép dự án dùng hồ sơ bạn chia sẻ để nghiên cứu bệnh lupus. Bạn có thể liên hệ nhóm dự án để rút khỏi dự án.",
+      step1Btn: "Xem nội dung đồng ý tham gia",
+      step1Done: "Bạn đã đồng ý tham gia",
       step2Title: "Nộp hồ sơ",
-      step2Body: "Tải hồ sơ để bác sĩ chuyên khoa xem xét. Bạn có thể theo dõi trạng thái tại trang tải hồ sơ.",
-      step2Btn: "Tải hồ sơ lên",
+      step2Body: "Chụp hoặc chọn ảnh hồ sơ để gửi cho bác sĩ chuyên khoa của dự án. Bạn có thể theo dõi tiến độ trong mục Hồ sơ của tôi.",
+      faqTitle: "Câu hỏi thường gặp",
+      // TODO: research team to confirm wording
+      faq: [
+        { question: "Có mất phí không?", answer: "Tham gia dự án là miễn phí." },
+        { question: "Ai được xem hồ sơ?", answer: "Các bác sĩ chuyên khoa của dự án có thể xem hồ sơ bạn gửi. Dữ liệu nghiên cứu được giả danh hóa, tức là dùng mã số thay cho thông tin nhận diện." },
+        { question: "Mất bao lâu?", answer: "Thời gian gửi tùy vào số ảnh bạn nộp. Hồ sơ thường được xem trong vài ngày làm việc." },
+        { question: "Hồ sơ dùng vào việc gì?", answer: "Bác sĩ xem hồ sơ và dự án dùng dữ liệu để tìm hiểu bệnh lupus thay đổi theo thời gian ra sao và người bệnh đáp ứng với điều trị thế nào." },
+      ],
+      appointmentNotice: "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.",
       contactTitle: "Liên hệ",
       contactLeadLabel: "Chủ nhiệm dự án",
-      contactLead: "…",
-      contactEmail: "…",
+      contactPhoneLabel: "Điện thoại",
+      ...patientContact,
+      supportLine: (email, phone) => `Cần hỗ trợ? Gửi email ${email} hoặc gọi ${phone}`,
       successTitle: "Nộp hồ sơ thành công!",
       successBody: (contactLead, contactEmail) =>
         `Cảm ơn bạn đã nộp hồ sơ tới dự án. Thông tin của bạn sẽ được chuyển đến các bác sĩ chuyên khoa. Nếu có bất kỳ thắc mắc gì, bạn vui lòng liên hệ tới chủ nhiệm dự án ${contactLead}, email ${contactEmail}, chúng tôi sẵn sàng hỗ trợ giải đáp.`,
@@ -645,14 +752,14 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       successHomeBtn: "Về trang chủ",
     },
     login: {
-      roleAccessTag: "Truy cập Lâm sàng Phân quyền",
+      modeLabel: "Đăng nhập hoặc tạo tài khoản",
+      roleLabel: "Loại tài khoản",
       title: "Đăng nhập Nền tảng Lupiva",
       registerTitle: "Tạo Tài khoản Lupiva",
       autofillBtn: "Tự động Điền Tài khoản Mẫu",
-      subtitle:
-        "Đăng nhập bằng tài khoản mẫu có sẵn hoặc tài khoản đã đăng ký, bảo vệ bởi PostgreSQL + mã hóa PII AES-256-GCM.",
+      subtitle: "Đăng nhập bằng tài khoản của bạn.",
       registerSubtitle:
-        "Tạo tài khoản Cổng Bệnh nhân được mã hóa hoặc tài khoản Bác sĩ Chuyên khoa Vinmec (yêu cầu mã mời).",
+        "Tạo tài khoản bệnh nhân hoặc dùng mã mời để đăng ký tài khoản bác sĩ chuyên khoa Vinmec.",
       modeSignInTab: "Đăng nhập",
       modeRegisterTab: "Tạo Tài khoản",
       specialistTabTitle: "Bác sĩ Chuyên khoa",
@@ -670,30 +777,22 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       passwordHintRegister: "Tối thiểu 8 ký tự, gồm chữ cái, số & ký tự đặc biệt",
       inviteCodeLabel: "Mã Mời Bác sĩ Chuyên khoa Vinmec",
       inviteCodePlaceholder: "Bắt buộc đối với Bác sĩ Chuyên khoa",
-      inviteCodeHint:
-        "Kiểm tra phía máy chủ qua SPECIALIST_INVITE_CODE nhằm bảo vệ quyền ghi e-CRF.",
+      inviteCodeHint: "Nhập mã mời do đơn vị của bạn cung cấp.",
       specialistConsent:
         "Tôi xác nhận trách nhiệm giám sát Bác sĩ Tham gia (HITL): toàn bộ chỉ số OCR bị cảnh báo (<85% độ tin cậy) sẽ được đối chiếu kỹ lưỡng với bản chụp gốc trước khi lưu vào e-CRF.",
       patientEConsent: "Tôi đồng ý tham gia (E-consent)",
       patientConsent:
         "Tôi đồng ý đóng góp các chỉ số xét nghiệm SLE đã ẩn danh vào Cơ sở Dữ liệu Miễn dịch Lâm sàng Vinmec để bác sĩ xem xét.",
-      submitBtn: (name) => `Đăng nhập với tên ${name} →`,
+      submitBtn: "Đăng nhập",
       submitRegisterBtn: (roleLabel) => `Tạo Tài khoản ${roleLabel} →`,
-      signingInBtn: "Đang xác thực phiên...",
-      creatingAccountBtn: "Đang khởi tạo tài khoản mã hóa...",
+      signingInBtn: "Đang đăng nhập…",
+      creatingAccountBtn: "Đang tạo tài khoản…",
       skipBtn: "Tiếp tục mà không đăng nhập",
-      selectedProfileTitle: "Hồ sơ Tài khoản Được Chọn",
-      registerProfileTitle: "Xem trước Tài khoản Mã hóa",
-      roleAffiliation: "Vai trò & Đơn vị",
-      deptCohort: "Khoa / Mã Đoàn hệ Đăng ký",
-      whatUnlocks: "Quyền hạn của Vai trò trên Lupiva",
-      activeSessionTitle: "Phiên Làm việc Hiện tại",
-      loggedInAs: (name) =>
-        `Đang đăng nhập với tên ${name}. Đăng nhập ở trên sẽ cập nhật phiên HttpOnly sang tài khoản mới.`,
-      guestNotice: "Chưa có phiên đăng nhập hoạt động (Chế độ Khách).",
-      securityVaultTitle: "Bảo vệ Hầm Dữ liệu PII 3 Vùng",
-      securityVaultDesc:
-        "Email & Họ tên được mã hóa AES-256-GCM (ràng buộc AAD theo hàng) kèm blind index HMAC-SHA256; mật khẩu băm scrypt + phiên DB HttpOnly.",
+      portalTitle: "Sử dụng Lupiva",
+      patientUse: "Bệnh nhân nộp tài liệu và theo dõi hồ sơ.",
+      doctorUse: "Bác sĩ duyệt hồ sơ và phiếu CRF.",
+      dataProtection: "Chỉ những tài khoản được cấp quyền mới có thể truy cập dữ liệu của bạn.",
+      loggedInAs: (name) => `Bạn đang đăng nhập bằng tài khoản của ${name}.`,
     },
     ocr: {
       sampleScanLabel: "Chọn Bản quét Mẫu:",
@@ -756,6 +855,44 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       jsonModalDownloadBtn: "Tải file .json Về máy",
       defaultAddedName: "Kháng thể Anti-Smith (Anti-Sm) IgG",
       defaultAddedNote: "Được bổ sung thủ công bởi người kiểm duyệt trong quá trình rà soát HITL.",
+    },
+    doctor: {
+      counterNew: "Hồ sơ mới",
+      counterPending: "Chưa duyệt",
+      counterApproved: "Đã duyệt",
+      crfFormBtn: "Phiếu CRF",
+      redcapBtn: "REDCap",
+      moreFilters: "Lọc thêm",
+      hideFilters: "Ẩn lọc",
+      uploadForPatient: "+ Tải ảnh lên cho bệnh nhân",
+      closeUpload: "Đóng khung tải ảnh",
+      reviewBtn: "Duyệt",
+      imagesCount: (count) => `${count} ảnh`,
+      cellsProgress: (approved, total) => `đã duyệt ${approved}/${total} ô`,
+      progressLoading: "đang đọc tiến độ…",
+      progressUnavailable: "không đọc được tiến độ",
+      detailsBtn: "Chi tiết",
+      collapseBtn: "Thu gọn",
+      approveDossierBtn: "Phê duyệt hồ sơ",
+      approveDossierBusy: "Đang phê duyệt…",
+      dossierApprovedBtn: "Hồ sơ đã phê duyệt",
+      approveDossierHint: "Duyệt hết các ô CRF còn lại trước khi phê duyệt hồ sơ.",
+      dossierApprovedNotice: "Đã phê duyệt hồ sơ; hồ sơ được tính vào mục Đã duyệt trên bảng hồ sơ.",
+      reviewSaved: (count) => `Đã duyệt ${count} ô.`,
+      scoreSaved: "Đã lưu đánh giá điểm.",
+      reviewBar: (approved, total, pending) =>
+        `Đã duyệt ${approved}/${total} · còn ${pending} ô cần quyết định`,
+      sectionsLabel: "Mục",
+      backendIdLabel: "Mã backend",
+      keyboardHint: "↑/↓ chuyển ô · Enter tích ô đang chọn",
+      editBtn: "Sửa tay",
+      originLlm: "LLM đề xuất",
+      originSource: "đọc từ ảnh",
+      originApproved: "đã duyệt",
+      originManual: "sửa tay",
+      decideShort: "Cần quyết định",
+      scoreShort: "Chấm điểm",
+      unknownShort: "Chưa rõ",
     },
     toasts: {
       signedIn: (name) => `Đã đăng nhập vai trò ${name}`,

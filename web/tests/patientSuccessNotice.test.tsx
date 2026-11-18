@@ -50,17 +50,21 @@ function findElement(tree: ReactNode, matches: (element: Element) => boolean): E
 
 function renderUpload() {
   hooks.index = 0;
-  return PatientUploadView();
+  return PatientUploadView({ embedded: context.currentUser.role === "specialist" });
+}
+
+function selectFiles(files: File[], id = "upload-file-input") {
+  const input = findElement(renderUpload(), (element) => element.props.id === id) as
+    ReactElement<{ onChange: React.ChangeEventHandler<HTMLInputElement> }>;
+  input.props.onChange({ target: { files, value: "" } } as unknown as React.ChangeEvent<HTMLInputElement>);
 }
 
 async function submitFiles(result: { id: string; filesUploaded?: boolean } | null) {
   context.submitPatientUpload.mockResolvedValueOnce(result);
-  const input = findElement(renderUpload(), (element) => element.props.id === "upload-file-input") as
-    ReactElement<{ onChange: React.ChangeEventHandler<HTMLInputElement> }>;
-  const files = ["result1.pdf", "result2.pdf"].map((name) =>
-    new File(["sample"], name, { type: "application/pdf" })
-  );
-  input.props.onChange({ target: { files, value: "" } } as unknown as React.ChangeEvent<HTMLInputElement>);
+  const files = context.currentUser.role === "patient"
+    ? ["result1.jpg", "result2.jpg"].map((name) => new File(["sample"], name, { type: "image/jpeg" }))
+    : [new File(["sample"], "result.pdf", { type: "application/pdf" })];
+  selectFiles(files);
 
   const form = findElement(renderUpload(), (element) => element.type === "form") as
     ReactElement<{ onSubmit: (event: React.FormEvent) => Promise<void> }>;
@@ -96,6 +100,32 @@ describe("patient upload confirmation", () => {
     expect(markup).toContain(copy.successBody(copy.contactLead, copy.contactEmail));
     expect(markup).toContain("abc");
     expect(markup).toContain(">2</dd>");
+  });
+
+  it("stages images at the 20 MB limit, rejects larger files and PDFs, and labels each preview", () => {
+    const limit = 20 * 1024 * 1024;
+    selectFiles([
+      new File([new Uint8Array(limit)], "exact.jpg", { type: "image/jpeg" }),
+      new File([new Uint8Array(limit + 1)], "too-big.png", { type: "image/png" }),
+      new File(["sample"], "report.pdf", { type: "application/pdf" }),
+      new File(["sample"], "pretend.jpg", { type: "application/pdf" }),
+      new File(["sample"], "existing.WEBP"),
+    ]);
+    const markup = renderToStaticMarkup(renderUpload());
+    expect(markup).toMatch(/src="blob:[^\"]+"[^>]*alt=""/);
+    expect(markup).toContain("Ảnh 1");
+    expect(markup).toContain("Ảnh 2");
+    expect(markup).not.toContain("Ảnh 3");
+    expect(markup).toContain("vượt quá giới hạn 20 MB");
+    expect(markup.match(/chỉ hỗ trợ ảnh/g)).toHaveLength(2);
+    expect(markup).not.toMatch(/id="upload-btn-submit"[^>]* disabled=""/);
+  });
+
+  it("keeps the native camera renaming when staging a capture", () => {
+    selectFiles([new File(["sample"], "image.jpg", { type: "image/jpeg" })], "upload-camera-input");
+    const markup = renderToStaticMarkup(renderUpload());
+    expect(markup).toMatch(/chup-anh-\d+\.jpg/);
+    expect(markup).toContain("Ảnh 1");
   });
 
   it("shows no success notice when submission fails", async () => {

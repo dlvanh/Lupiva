@@ -109,15 +109,18 @@ export interface UploadPageCopy {
     viewListLabel: string;
   };
   patient: {
-    eyebrow: string;
     heading: string;
     subheading: string;
-    dropzoneLabel: string;
     dropzonePrompt: string;
-    dropzoneHint: string;
+    dropzoneHint: (maxMb: number) => string;
     browseBtn: string;
-    sampleBtn: string;
+    cameraBtn: string;
+    photoTipsHeading: string;
+    photoTips: readonly string[];
+    suggestedRecordsHeading: string;
+    suggestedRecords: string;
     stagedListHeading: (count: number) => string;
+    imageLabel: (n: number) => string;
     previewImageAction: (name: string) => string;
     removeFileAction: (name: string) => string;
     validationNoticeTitle: string;
@@ -127,18 +130,20 @@ export interface UploadPageCopy {
     stagedAnnouncement: (count: number) => string;
     submitBtn: string;
     submittingBtn: string;
+    submitEmptyHint: string;
+    submitSignInHint: string;
     guestBannerTitle: string;
     guestBannerDesc: string;
     guestSignInCta: string;
     trackerHeading: string;
-    trackerSortNote: string;
     trackerCount: (count: number) => string;
     trackerEmpty: string;
     trackerErrorTitle: string;
-    stepUploaded: string;
-    stepOcrExtracted: string;
+    stepReceived: string;
+    stepProcessing: string;
+    stepDoctorReview: string;
     stepApproved: string;
-    stepPendingDoctor: string;
+    waitingNote: string;
     previewDialogTitle: string;
     previewDialogClose: string;
     paginationLabel: string;
@@ -273,45 +278,52 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       viewListLabel: "List",
     },
     patient: {
-      eyebrow: "Patient Portal",
-      heading: "Upload your document",
-      subheading:
-        "Upload your hospital lab report or medical record. Our AI extracts structured biomarkers and a Vinmec doctor verifies the result.",
-      dropzoneLabel: "Select or drop lab images and PDF documents",
-      dropzonePrompt: "Drag & drop images / PDFs here, or click to select",
-      dropzoneHint: "Accepted: PNG, JPG, WEBP, PDF • Max 15 MB per file",
-      browseBtn: "Browse files",
-      sampleBtn: "Use sample hospital dossier",
-      stagedListHeading: (count) => `Files ready to submit (${count})`,
+      heading: "Submit your records",
+      subheading: "Send photos of your visit or test results for the project’s specialists to review.",
+      dropzonePrompt: "Drag photos here to add them",
+      dropzoneHint: (maxMb) => `PNG, JPG or WEBP images, up to ${maxMb} MB each.`,
+      browseBtn: "Choose existing photos",
+      cameraBtn: "Take a photo",
+      photoTipsHeading: "How to take a clear photo",
+      photoTips: [
+        "Hold the camera straight above the page. Use good light and fit the whole sheet in the photo.",
+        "Take one photo per page.",
+        "Include the sample collection date if it’s on the page.",
+      ],
+      suggestedRecordsHeading: "Which records to send",
+      suggestedRecords: "Lupus-related results such as blood tests, urine tests, antibody tests (ANA, anti-dsDNA), complement tests, lung function tests or ultrasound reports.",
+      stagedListHeading: (count) => `Review your photos (${count})`,
+      imageLabel: (n) => `Image ${n}`,
       previewImageAction: (name) => `Preview ${name}`,
       removeFileAction: (name) => `Remove ${name}`,
       validationNoticeTitle: "File check",
       invalidFileType: (name) =>
-        `Skipped "${name}": only PNG, JPG, WEBP, or PDF files are accepted.`,
+        `Skipped "${name}" because only PNG, JPG and WEBP images are accepted.`,
       fileTooLarge: (name, maxMb) =>
         `Skipped "${name}": exceeds the ${maxMb} MB per-file limit.`,
       duplicateFile: (name) => `"${name}" is already in your upload list.`,
       stagedAnnouncement: (count) =>
         count === 0
-          ? "Upload queue cleared."
-          : `${count} file(s) staged for submission.`,
-      submitBtn: "Upload & send to doctor",
-      submittingBtn: "Sending to clinical registry...",
-      guestBannerTitle: "Sign in required to submit to the encrypted registry",
-      guestBannerDesc:
-        "Sign in with your Patient account (or Doctor demo account) so your documents persist to PostgreSQL and appear in the review queue.",
-      guestSignInCta: "Sign in to continue →",
+          ? "No photos selected."
+          : `${count} ${count === 1 ? "photo is" : "photos are"} ready to send.`,
+      submitBtn: "Send records",
+      submittingBtn: "Sending records…",
+      submitEmptyHint: "Choose at least 1 photo to send",
+      submitSignInHint: "Sign in before you send your photos",
+      guestBannerTitle: "Sign in to send your records",
+      guestBannerDesc: "Use your patient account to send photos and track their status.",
+      guestSignInCta: "Sign in",
       trackerHeading: "Your submissions",
-      trackerSortNote: "Ordered by upload date (newest first)",
-      trackerCount: (count) => `${count} dossier(s)`,
-      trackerEmpty: "You have no submitted documents yet.",
+      trackerCount: (count) => `${count} ${count === 1 ? "submission" : "submissions"}`,
+      trackerEmpty: "You haven’t sent any records yet.",
       trackerErrorTitle: "Unable to load your submission history.",
-      stepUploaded: "1. Uploaded",
-      stepOcrExtracted: "2. AI OCR extracted",
-      stepApproved: "3. Approved by doctor",
-      stepPendingDoctor: "3. Pending doctor review",
-      previewDialogTitle: "Uploaded document preview",
-      previewDialogClose: "Close preview",
+      stepReceived: "Received",
+      stepProcessing: "Processing",
+      stepDoctorReview: "Doctor reviewing",
+      stepApproved: "Approved by doctor",
+      waitingNote: "This usually takes a few working days. You don’t need to do anything else.",
+      previewDialogTitle: "Photo preview",
+      previewDialogClose: "Close",
       paginationLabel: "Your submissions pagination",
       prevPage: "Previous",
       nextPage: "Next",
@@ -442,45 +454,52 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       viewListLabel: "Danh sách",
     },
     patient: {
-      eyebrow: "Cổng Bệnh nhân",
-      heading: "Tải lên tài liệu của bạn",
-      subheading:
-        "Bạn chỉ cần tải lên phiếu xét nghiệm hoặc hồ sơ y tế. AI sẽ đọc tài liệu và bác sĩ Vinmec sẽ xác minh kết quả.",
-      dropzoneLabel: "Chọn hoặc thả ảnh và tài liệu PDF xét nghiệm",
-      dropzonePrompt: "Kéo thả ảnh / PDF vào đây, hoặc nhấp để chọn tệp",
-      dropzoneHint: "Chấp nhận: PNG, JPG, WEBP, PDF • Tối đa 15 MB mỗi tệp",
-      browseBtn: "Chọn tệp",
-      sampleBtn: "Dùng hồ sơ mẫu",
-      stagedListHeading: (count) => `Tệp sẵn sàng gửi (${count})`,
+      heading: "Nộp hồ sơ",
+      subheading: "Gửi ảnh kết quả khám hoặc xét nghiệm để bác sĩ chuyên khoa của dự án xem.",
+      dropzonePrompt: "Kéo thả ảnh vào đây để thêm ảnh",
+      dropzoneHint: (maxMb) => `Ảnh PNG, JPG hoặc WEBP, tối đa ${maxMb} MB mỗi ảnh.`,
+      browseBtn: "Chọn ảnh có sẵn",
+      cameraBtn: "Chụp ảnh phiếu",
+      photoTipsHeading: "Cách chụp ảnh rõ",
+      photoTips: [
+        "Chụp thẳng từ trên xuống, đủ sáng và thấy hết tờ giấy.",
+        "Mỗi trang một ảnh.",
+        "Chụp cả phần có ngày lấy mẫu nếu ngày này ghi trên phiếu.",
+      ],
+      suggestedRecordsHeading: "Nên nộp gì",
+      suggestedRecords: "Kết quả liên quan đến bệnh lupus, như xét nghiệm máu, nước tiểu, kháng thể (ANA, anti-dsDNA), bổ thể, đo chức năng hô hấp hoặc siêu âm.",
+      stagedListHeading: (count) => `Kiểm tra ảnh trước khi gửi (${count})`,
+      imageLabel: (n) => `Ảnh ${n}`,
       previewImageAction: (name) => `Xem trước ${name}`,
       removeFileAction: (name) => `Xóa ${name}`,
       validationNoticeTitle: "Kiểm tra tệp",
       invalidFileType: (name) =>
-        `Đã bỏ qua "${name}": chỉ hỗ trợ ảnh PNG, JPG, WEBP hoặc PDF.`,
+        `Đã bỏ qua "${name}" vì chỉ hỗ trợ ảnh PNG, JPG và WEBP.`,
       fileTooLarge: (name, maxMb) =>
         `Đã bỏ qua "${name}": vượt quá giới hạn ${maxMb} MB mỗi tệp.`,
       duplicateFile: (name) => `Tệp "${name}" đã có trong danh sách tải lên.`,
       stagedAnnouncement: (count) =>
         count === 0
-          ? "Đã xóa hết tệp chờ gửi."
-          : `Có ${count} tệp sẵn sàng gửi bác sĩ.`,
-      submitBtn: "Tải lên & Gửi cho Bác sĩ",
-      submittingBtn: "Đang gửi hồ sơ lên hệ thống...",
-      guestBannerTitle: "Cần đăng nhập để gửi hồ sơ vào hệ thống bảo mật",
-      guestBannerDesc:
-        "Vui lòng đăng nhập bằng tài khoản Bệnh nhân (hoặc tài khoản Bác sĩ mẫu) để lưu hồ sơ vào PostgreSQL và theo dõi tiến độ duyệt.",
-      guestSignInCta: "Đăng nhập ngay →",
-      trackerHeading: "Trạng thái tài liệu đã gửi",
-      trackerSortNote: "Mặc định sắp xếp theo ngày tải lên (mới nhất trước)",
+          ? "Chưa chọn ảnh nào."
+          : `Có ${count} ảnh sẵn sàng gửi.`,
+      submitBtn: "Gửi hồ sơ",
+      submittingBtn: "Đang gửi hồ sơ…",
+      submitEmptyHint: "Chọn ít nhất 1 ảnh để gửi",
+      submitSignInHint: "Đăng nhập để gửi ảnh",
+      guestBannerTitle: "Đăng nhập để gửi hồ sơ",
+      guestBannerDesc: "Dùng tài khoản bệnh nhân để gửi ảnh và theo dõi trạng thái hồ sơ.",
+      guestSignInCta: "Đăng nhập",
+      trackerHeading: "Hồ sơ đã gửi",
       trackerCount: (count) => `${count} hồ sơ`,
-      trackerEmpty: "Bạn chưa có tài liệu nào được gửi.",
-      trackerErrorTitle: "Không thể tải lịch sử tài liệu đã gửi.",
-      stepUploaded: "1. Đã tải lên",
-      stepOcrExtracted: "2. AI đã trích xuất",
-      stepApproved: "3. Bác sĩ đã duyệt",
-      stepPendingDoctor: "3. Chờ bác sĩ xác minh",
-      previewDialogTitle: "Xem trước ảnh tài liệu tải lên",
-      previewDialogClose: "Đóng xem trước",
+      trackerEmpty: "Bạn chưa gửi hồ sơ nào.",
+      trackerErrorTitle: "Không tải được danh sách hồ sơ đã gửi.",
+      stepReceived: "Đã nhận",
+      stepProcessing: "Đang xử lý",
+      stepDoctorReview: "Bác sĩ đang xem",
+      stepApproved: "Bác sĩ đã duyệt",
+      waitingNote: "Thường trong vài ngày làm việc. Bạn không cần làm gì thêm.",
+      previewDialogTitle: "Xem trước ảnh",
+      previewDialogClose: "Đóng",
       paginationLabel: "Phân trang lịch sử gửi tài liệu",
       prevPage: "Trang trước",
       nextPage: "Trang sau",
@@ -491,4 +510,45 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
 
 export function getUploadPageCopy(language: Language): UploadPageCopy {
   return UPLOAD_COPY[language];
+}
+
+// The specialist's embedded uploader still supports metadata-only documents.
+export const EMBEDDED_UPLOAD_COPY = {
+  en: {
+    eyebrow: "Patient Portal",
+    heading: "Upload your document",
+    subheading: "Upload your hospital lab report or medical record. Our AI extracts structured biomarkers and a Vinmec doctor verifies the result.",
+    dropzonePrompt: "Drag & drop images / PDFs here, or click to select",
+    dropzoneHint: "Accepted: PNG, JPG, WEBP, PDF • Max 15 MB per file",
+    browseBtn: "Browse files",
+    cameraBtn: "Take photo",
+    stagedListHeading: (count: number) => `Files ready to submit (${count})`,
+    invalidFileType: (name: string) => `Skipped "${name}": only PNG, JPG, WEBP, or PDF files are accepted.`,
+    stagedAnnouncement: (count: number) => count === 0 ? "Upload queue cleared." : `${count} file(s) staged for submission.`,
+    submitBtn: "Upload & send to doctor",
+    submittingBtn: "Sending to clinical registry...",
+    previewDialogTitle: "Uploaded document preview",
+    previewDialogClose: "Close preview",
+  },
+  vi: {
+    eyebrow: "Cổng Bệnh nhân",
+    heading: "Tải lên tài liệu của bạn",
+    subheading: "Bạn chỉ cần tải lên phiếu xét nghiệm hoặc hồ sơ y tế. AI sẽ đọc tài liệu và bác sĩ Vinmec sẽ xác minh kết quả.",
+    dropzonePrompt: "Kéo thả ảnh / PDF vào đây, hoặc nhấp để chọn tệp",
+    dropzoneHint: "Chấp nhận: PNG, JPG, WEBP, PDF • Tối đa 15 MB mỗi tệp",
+    browseBtn: "Chọn tệp",
+    cameraBtn: "Chụp ảnh",
+    stagedListHeading: (count: number) => `Tệp sẵn sàng gửi (${count})`,
+    invalidFileType: (name: string) => `Đã bỏ qua "${name}": chỉ hỗ trợ ảnh PNG, JPG, WEBP hoặc PDF.`,
+    stagedAnnouncement: (count: number) => count === 0 ? "Đã xóa hết tệp chờ gửi." : `Có ${count} tệp sẵn sàng gửi bác sĩ.`,
+    submitBtn: "Tải lên & Gửi cho Bác sĩ",
+    submittingBtn: "Đang gửi hồ sơ lên hệ thống...",
+    previewDialogTitle: "Xem trước ảnh tài liệu tải lên",
+    previewDialogClose: "Đóng xem trước",
+  },
+};
+
+/** Numbered label for a staged image; `index` is 0-based, the label starts at 1. */
+export function fileLabel(index: number, language: Language): string {
+  return getUploadPageCopy(language).patient.imageLabel(index + 1);
 }

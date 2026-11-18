@@ -55,7 +55,6 @@ function LoginFormContent() {
 
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
-  const activePersona = localizedUsers[selectedRole];
 
   const [fullName, setFullName] = useState<string>("");
   const [email, setEmail] = useState<string>(() =>
@@ -66,6 +65,11 @@ function LoginFormContent() {
   );
   const [inviteCode, setInviteCode] = useState<string>("");
   const [consentChecked, setConsentChecked] = useState(autofillLogin || isEConsentEntry);
+  // Sign-in: the account decides the role. The consent box shows only when the
+  // server says this patient account has not signed it yet (or in demo mode).
+  const [loginNeedsConsent, setLoginNeedsConsent] = useState<boolean>(isEConsentEntry);
+  const showRoleTabs = mode === "register";
+  const showConsent = mode === "register" || isDemoMode || loginNeedsConsent;
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -93,11 +97,7 @@ function LoginFormContent() {
   const handleSelectRole = (role: UserRole) => {
     setSelectedRole(role);
     setErrorMessage(null);
-    if (mode === "login" && isDemoMode) {
-      setEmail(localizedUsers[role].email);
-      setPassword(localizedUsers[role].passwordHint);
-      setConsentChecked(true);
-    } else if (role === "patient") {
+    if (role === "patient") {
       setInviteCode("");
     }
   };
@@ -140,7 +140,7 @@ function LoginFormContent() {
     }
 
     if (
-      (mode === "register" || selectedRole === "patient") &&
+      (mode === "register" || loginNeedsConsent) &&
       !consentChecked
     ) {
       setErrorMessage(t.toasts.consentRequiredDesc);
@@ -159,8 +159,7 @@ function LoginFormContent() {
           ? await loginWithCredentials({
               email: email.trim(),
               password,
-              selectedRole,
-              consentChecked,
+              ...(showConsent ? { consentChecked } : {}),
             })
           : await registerAccount({
               fullName: fullName.trim(),
@@ -173,6 +172,11 @@ function LoginFormContent() {
             });
 
       if (!result.ok || !result.user) {
+        if (mode === "login" && result.consentRequired) {
+          setLoginNeedsConsent(true);
+          setErrorMessage(t.toasts.consentRequiredDesc);
+          return;
+        }
         setErrorMessage(
           result.error ||
             (language === "vi"
@@ -216,9 +220,6 @@ function LoginFormContent() {
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs sm:p-8 lg:col-span-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
-                  {t.login.roleAccessTag}
-                </span>
                 <h1
                   id="login-form-heading"
                   className="mt-1 text-2xl font-bold text-slate-900"
@@ -240,17 +241,13 @@ function LoginFormContent() {
             </div>
 
             <p className="mt-2 text-xs text-slate-600">
-              {mode === "register"
-                ? t.login.registerSubtitle
-                : isDemoMode
-                  ? t.login.subtitle
-                  : language === "vi" ? "Đăng nhập bằng tài khoản của bạn." : "Sign in with your account."}
+              {mode === "register" ? t.login.registerSubtitle : t.login.subtitle}
             </p>
 
             {/* Sign In vs Create Account Switcher */}
             <div
               role="tablist"
-              aria-label={t.login.roleAccessTag}
+              aria-label={t.login.modeLabel}
               className="mt-4 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1"
             >
               <button
@@ -283,10 +280,11 @@ function LoginFormContent() {
               </button>
             </div>
 
-            {/* Role Switcher Tabs */}
+            {/* Role Switcher Tabs (registration only; sign-in uses the account's role) */}
+            {showRoleTabs && (
             <div
               role="group"
-              aria-label={t.login.roleAccessTag}
+              aria-label={t.login.roleLabel}
               className="mt-4 grid grid-cols-2 gap-2 rounded-lg border border-slate-200/80 bg-slate-100 p-1.5"
             >
               <button
@@ -339,6 +337,7 @@ function LoginFormContent() {
                 </p>
               </button>
             </div>
+            )}
 
             {errorMessage && (
               <div
@@ -462,6 +461,7 @@ function LoginFormContent() {
               )}
 
               {/* Informed Consent / Governance Checkbox */}
+              {showConsent && (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5">
                 <div className="flex items-start gap-2.5">
                   <input
@@ -476,12 +476,13 @@ function LoginFormContent() {
                     htmlFor="login-checkbox-consent"
                     className="text-xs leading-relaxed text-slate-600 cursor-pointer"
                   >
-                    {selectedRole === "specialist"
+                    {selectedRole === "specialist" && !(mode === "login" && loginNeedsConsent)
                       ? t.login.specialistConsent
                       : isEConsentEntry ? t.login.patientEConsent : t.login.patientConsent}
                   </label>
                 </div>
               </div>
+              )}
 
               <div className="pt-2 flex flex-col gap-2.5 sm:flex-row">
                 <button
@@ -495,166 +496,24 @@ function LoginFormContent() {
                       ? t.login.signingInBtn
                       : t.login.creatingAccountBtn
                     : mode === "login"
-                    ? t.login.submitBtn(
-                        isDemoMode &&
-                          email.trim().toLowerCase() ===
-                            activePersona.email.toLowerCase()
-                          ? activePersona.name
-                          : roleDisplayLabel
-                      )
+                    ? t.login.submitBtn
                     : t.login.submitRegisterBtn(roleDisplayLabel)}
                 </button>
               </div>
             </form>
           </div>
 
-          {/* Right Column: Active Persona / Encryption Vault & Permissions Map */}
-          <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8 lg:col-span-5">
-            <div>
-              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-                <div>
-                  <span className="font-mono text-[11px] font-semibold uppercase text-slate-500">
-                    {mode === "login"
-                      ? t.login.selectedProfileTitle
-                      : t.login.registerProfileTitle}
-                  </span>
-                  <h2 className="mt-0.5 text-lg font-bold text-slate-900">
-                    {mode === "register"
-                      ? fullName.trim() || roleDisplayLabel
-                      : isDemoMode ? activePersona.name : roleDisplayLabel}
-                  </h2>
-                </div>
-                {isDemoMode && (
-                  <span className="rounded-md bg-teal-100 px-2.5 py-1 font-mono text-xs font-bold text-teal-900">
-                    {activePersona.badgeText}
-                  </span>
-                )}
-              </div>
-
-              <dl className="mt-4 space-y-3 text-xs">
-                <div>
-                  <dt className="text-slate-500">{t.login.roleAffiliation}</dt>
-                  <dd className="mt-0.5 font-semibold text-slate-800">
-                    {isDemoMode ? activePersona.title : roleDisplayLabel}
-                  </dd>
-                </div>
-                {isDemoMode && <div>
-                  <dt className="text-slate-500">{t.login.deptCohort}</dt>
-                  <dd className="mt-0.5 font-mono text-slate-800">
-                    {activePersona.departmentOrRegistryId}
-                  </dd>
-                </div>}
-                <div>
-                  <dt className="text-slate-500">{t.login.whatUnlocks}</dt>
-                  <dd className="mt-1.5 space-y-1.5 text-slate-600">
-                    {selectedRole === "specialist" ? (
-                      <ul className="list-disc space-y-1 pl-4">
-                        {language === "vi" ? (
-                          <>
-                            <li>
-                              Phê duyệt các chỉ số OCR có độ tin cậy thấp (&lt;85%) như{" "}
-                              <code className="font-mono text-slate-800">
-                                Bổ thể C3
-                              </code>{" "}
-                              và{" "}
-                              <code className="font-mono text-slate-800">UPCR</code>
-                            </li>
-                            <li>
-                              Chỉnh sửa trực tiếp giá trị số và đơn vị tham chiếu của chỉ số
-                            </li>
-                            <li>
-                              Lưu trữ hồ sơ đã xác thực vào cơ sở dữ liệu e-CRF SLE dưới chữ ký Bác sĩ
-                            </li>
-                          </>
-                        ) : (
-                          <>
-                            <li>
-                              Approve low-confidence (&lt;85%) OCR reads such as{" "}
-                              <code className="font-mono text-slate-800">
-                                Complement C3
-                              </code>{" "}
-                              and{" "}
-                              <code className="font-mono text-slate-800">UPCR</code>
-                            </li>
-                            <li>
-                              Edit biomarker numerical values and reference units inline
-                            </li>
-                            <li>
-                              Commit verified records to the SLE e-CRF database under specialist signature
-                            </li>
-                          </>
-                        )}
-                      </ul>
-                    ) : (
-                      <ul className="list-disc space-y-1 pl-4">
-                        {language === "vi" ? (
-                          <>
-                            <li>
-                              Tải lên ảnh chụp hoặc tệp PDF phiếu xét nghiệm từ các bệnh viện ngoài
-                            </li>
-                            <li>
-                              Theo dõi trạng thái tài liệu đã gửi cho bác sĩ
-                            </li>
-                            <li>
-                              Xem trạng thái phê duyệt của hồ sơ
-                            </li>
-                          </>
-                        ) : (
-                          <>
-                            <li>
-                              Upload smartphone photos or PDFs of external hospital lab reports
-                            </li>
-                            <li>
-                              Track the status of documents sent to your doctor
-                            </li>
-                            <li>
-                              View the review status of your submission
-                            </li>
-                          </>
-                        )}
-                      </ul>
-                    )}
-                  </dd>
-                </div>
-              </dl>
-
-              <div className="mt-5 rounded-xl border border-teal-200/80 bg-teal-50/50 p-3.5 text-xs">
-                <p className="font-semibold text-teal-950">
-                  {t.login.securityVaultTitle}
-                </p>
-                <p className="mt-1 leading-relaxed text-teal-900/90">
-                  {t.login.securityVaultDesc}
-                </p>
-              </div>
+          <aside className="self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8 lg:col-span-5">
+            <h2 className="text-lg font-bold text-slate-900">
+              {mode === "login" ? t.login.portalTitle : fullName.trim() || roleDisplayLabel}
+            </h2>
+            <div className="mt-3 space-y-2 text-sm leading-relaxed text-slate-700">
+              {(mode === "login" || selectedRole === "patient") && <p>{t.login.patientUse}</p>}
+              {(mode === "login" || selectedRole === "specialist") && <p>{t.login.doctorUse}</p>}
             </div>
-
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs">
-              <p className="font-semibold text-slate-800">
-                {t.login.activeSessionTitle}
-              </p>
-              <p className="mt-1 text-slate-600">
-                {currentUser ? (
-                  <>
-                    {language === "vi" ? (
-                      <>
-                        Đang đăng nhập với tên{" "}
-                        <strong className="text-teal-900">{currentUser.name}</strong>
-                        . Đăng nhập ở trên sẽ cập nhật phiên HttpOnly sang tài khoản mới.
-                      </>
-                    ) : (
-                      <>
-                        Logged in as{" "}
-                        <strong className="text-teal-900">{currentUser.name}</strong>
-                        . Signing in above will switch the HttpOnly session cookie to the selected account.
-                      </>
-                    )}
-                  </>
-                ) : (
-                  t.login.guestNotice
-                )}
-              </p>
-            </div>
-          </div>
+            <p className="mt-4 rounded-lg bg-teal-50 p-3 text-sm text-teal-900">{t.login.dataProtection}</p>
+            {currentUser && <p className="mt-4 text-sm text-slate-600">{t.login.loggedInAs(currentUser.name)}</p>}
+          </aside>
         </div>
       </div>
     </main>

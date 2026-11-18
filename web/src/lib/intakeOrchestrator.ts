@@ -164,7 +164,7 @@ export async function startSubmissionPipeline(
       .select()
       .from(uploadedDocuments)
       .where(and(eq(uploadedDocuments.submissionId, submissionId), eq(uploadedDocuments.storageProvider, "local")))
-      .orderBy(uploadedDocuments.createdAt);
+      .orderBy(uploadedDocuments.position, uploadedDocuments.createdAt);
     if (!documents.length) return await finish("none");
     const images: IntakeImage[] = [];
     for (const document of documents) {

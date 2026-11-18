@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { getSubmissionStatus } from "@/data/crfData";
 import { caseForIntake } from "@/lib/crfEvidence";
 import type { SubmissionItemDTO } from "@/lib/submissionsService";
 
@@ -35,8 +36,12 @@ async function saveFile(exportId: string, name: string) {
 }
 
 /** Approved submissions with a backend CRF, each downloadable as a REDCap import. */
-export function RedcapExportPanel({ items, isVi }: { items: SubmissionItemDTO[]; isVi: boolean }) {
-  const ready = items.filter((item) => item.record.submissionStatus === "approved" && item.pipelineIntakeId);
+export function RedcapExportPanel({ items, isVi, onExported }: {
+  items: SubmissionItemDTO[];
+  isVi: boolean;
+  onExported: (submissionId: string) => void;
+}) {
+  const ready = items.filter((item) => getSubmissionStatus(item.record) === "approved" && item.pipelineIntakeId);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
@@ -48,6 +53,7 @@ export function RedcapExportPanel({ items, isVi }: { items: SubmissionItemDTO[];
       if (!caseId) throw new Error(isVi ? "Chưa có phiếu CRF ở backend cho hồ sơ này." : "No backend CRF for this submission yet.");
       const preview = await pipeline<{ preview_id: string }>("/api/exports/preview", { case_id: caseId });
       const created = await pipeline<Created>("/api/exports/create", { preview_id: preview.preview_id, format: "redcap" });
+      if (created.files.length > 0) onExported(item.dbSubmissionId);
       for (const file of created.files) await saveFile(created.export_id, file.name);
       setMessage({ tone: "ok", text: isVi ? `Đã tải ${created.files.length} tệp REDCap.` : `Downloaded ${created.files.length} REDCap file(s).` });
     } catch (error) {

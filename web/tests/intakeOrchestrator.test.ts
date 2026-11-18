@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { seedDatabase } from "@/db/seed";
-import { crfSubmissions, users } from "@/db/schema";
+import { crfSubmissions, uploadedDocuments, users } from "@/db/schema";
 import type { AuthenticatedUserDTO } from "@/lib/auth";
 import {
   automaticPlans,
@@ -183,5 +183,54 @@ describe("patient submission to backend (database)", () => {
     const status = toPatientStatus({ ...created, pipelineStatus: "failed", pipelineError: "backend down" });
     expect(status.record.processingStage).toBe("awaiting_doctor");
     expect(JSON.stringify(status)).not.toContain("backend down");
+  });
+
+  it("documents keep submitted order", async () => {
+    const names = ["c.jpg", "a.jpg", "b.jpg"];
+    const created = await createPatientSubmission({
+      user: patient,
+      db: testDb.db,
+      input: {
+        utcOffsetMinutes: 420,
+        files: names.map((name) => ({ name, mimeType: "image/png", sizeBytes: PNG.length, isImage: true })),
+      },
+    });
+    const submissionId = created.dbSubmissionId;
+
+    // All three rows are inserted in one transaction, so created_at is identical;
+    // only the explicit position column can preserve the submitted order.
+    const stored = await testDb.db
+      .select({ fileName: uploadedDocuments.fileName, position: uploadedDocuments.position })
+      .from(uploadedDocuments)
+      .where(eq(uploadedDocuments.submissionId, submissionId))
+      .orderBy(uploadedDocuments.position);
+    expect(stored.map((d) => d.fileName)).toEqual(names);
+    expect(stored.map((d) => d.position)).toEqual([0, 1, 2]);
+
+    // Read path 1: the submissions listing returns documents in list order.
+    const listing = await querySubmissions({
+      user: patient,
+      db: testDb.db,
+      filters: submissionQuerySchema.parse({ utcOffsetMinutes: 420 }),
+    });
+    const mine = listing.items.find((item) => item.dbSubmissionId === submissionId);
+    expect(mine?.record.uploadedFiles?.map((f) => f.name)).toEqual(names);
+
+    // Read path 2: the intake hand-off uploads images in list order.
+    const docs = created.record.uploadedFiles!;
+    for (const doc of docs) {
+      await storeSubmissionImage({
+        user: patient,
+        submissionId,
+        documentId: doc.id,
+        bytes: Buffer.concat([PNG, Buffer.from(doc.name)]),
+        db: testDb.db,
+      });
+    }
+    const backend = fakeBackend();
+    expect(await startSubmissionPipeline(submissionId, { db: testDb.db, call: backend.call, ...noSleep })).toBe("processing");
+    const idToName = new Map(docs.map((d) => [d.id, d.name]));
+    const uploads = backend.calls.filter((c) => c.path === "/api/intakes/image");
+    expect(uploads.map((u) => idToName.get(u.query.file_id))).toEqual(names);
   });
 });

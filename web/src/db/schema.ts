@@ -328,6 +328,7 @@ export const uploadedDocuments = pgTable(
       .$type<"pending" | "completed" | "failed">()
       .notNull()
       .default("completed"),
+    position: integer("position").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index("uploaded_documents_submission_idx").on(table.submissionId)]

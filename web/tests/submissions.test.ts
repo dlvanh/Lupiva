@@ -41,6 +41,8 @@ import { POST as loginPost } from "@/app/api/auth/login/route";
 import { GET as submissionsGet, POST as submissionsPost } from "@/app/api/submissions/route";
 import { PATCH as submissionPatch } from "@/app/api/submissions/[id]/route";
 import { requireAuth } from "@/lib/auth";
+import type { CrfView } from "@/lib/crfApproval";
+import { eq } from "drizzle-orm";
 import {
   formatDateInOffset,
   formatTimestampInOffset,
@@ -48,7 +50,7 @@ import {
 } from "@/lib/submissionFilters";
 import { querySubmissions } from "@/lib/submissionsService";
 import { markSubmissionOpened } from "@/lib/submissionOpened";
-import { crfSubmissions } from "@/db/schema";
+import { auditLogs, crfSubmissions } from "@/db/schema";
 import {
   createTestDatabase,
   type TestDatabaseHandle,
@@ -120,6 +122,67 @@ interface SubmissionsResponseBody {
 
 describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
   let testDb: TestDatabaseHandle;
+
+  it("signs off a linked dossier only after the backend review is complete and audits the web status", async () => {
+    await signInAs("specialist");
+    const listed = await submissionsGet(buildRequest("/api/submissions", "GET"));
+    const { items } = (await listed.json()) as SubmissionsResponseBody;
+    const item = items.find(({ record }) => record.submissionStatus === "pending_doctor_review")!;
+    const id = item.dbSubmissionId;
+    await testDb.db.update(crfSubmissions)
+      .set({ pipelineStatus: "completed", pipelineIntakeId: "intake-for-test" })
+      .where(eq(crfSubmissions.id, id));
+    const [original] = await testDb.db.select().from(crfSubmissions).where(eq(crfSubmissions.id, id));
+
+    const crf: CrfView = {
+      source_snapshot: "snapshot",
+      draft_sha256: "draft",
+      fields: [{
+        slot: "ADM02/result", section: "Administrative", label: "Age", component: "result",
+        options: [{ id: "source", value: "20 years" }], choices: [],
+      }],
+      review: { reviewed_at: "2026-11-18", values: {} },
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const path = new URL(String(url));
+      if (path.pathname === "/api/intakes") {
+        return Response.json({ jobs: [
+          { job_id: "another-intake", case_id: "another-case" },
+          { job_id: "intake-for-test", case_id: "linked-case" },
+        ] });
+      }
+      expect(path.searchParams.get("case_id")).toBe("linked-case");
+      return Response.json(crf);
+    });
+    const approve = () => submissionPatch(
+      buildRequest(`/api/submissions/${id}`, "PATCH", {
+        record: { ...item.record, submissionStatus: "approved", signedOffBy: "Client-supplied signer", ocrFields: [] },
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    try {
+      expect((await approve()).status).toBe(400);
+      expect(await testDb.db.select().from(auditLogs).where(eq(auditLogs.targetId, id))).toEqual([]);
+      crf.review!.values["ADM02/result"] = { id: "source", value: "20 years", origin: "source" };
+      const approved = await approve();
+      expect(approved.status).toBe(200);
+      expect(await approved.json()).toMatchObject({
+        record: { submissionStatus: "approved", signedOffBy: (await requireAuth()).name },
+      });
+      const [row] = await testDb.db.select().from(crfSubmissions).where(eq(crfSubmissions.id, id));
+      expect(row.ocrFieldsJson).toEqual(original.ocrFieldsJson);
+      expect(await testDb.db.select().from(auditLogs).where(eq(auditLogs.targetId, id))).toMatchObject([
+        { action: "submission.updated", targetId: id, metadataJson: { status: "approved" } },
+      ]);
+      const approvedList = await submissionsGet(buildRequest("/api/submissions?status=approved&pageSize=50", "GET"));
+      const result = (await approvedList.json()) as SubmissionsResponseBody;
+      expect(result.items.map(({ dbSubmissionId }) => dbSubmissionId)).toContain(id);
+      expect(result.stats.approved).toBe(6);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 
   beforeAll(async () => {
     testDb = await createTestDatabase();
@@ -280,14 +343,15 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
       now: fixedNow,
       db: testDb.db,
     });
-    // Covers 2026-11-10 .. 2026-11-16 inclusive (6 dossiers)
+    // Covers 2026-11-10 .. 2026-11-16 inclusive (6 dossiers).
+    // Default specialist order: new/unreviewed first (newest within group), approved last.
     expect(last7Result.items.map((i) => i.record.studyId)).toEqual([
       "VN-0084-F2-26",
       "VN-0105-26",
       "VN-0108-26",
       "VN-0111-26",
-      "VN-0114-26",
       "VN-0084-26",
+      "VN-0114-26",
     ]);
   });
 

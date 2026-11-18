@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
@@ -10,13 +10,13 @@ import {
   calculateSledai2kSummary,
   getSubmissionStatus,
 } from "@/data/crfData";
+import { TRANSLATIONS } from "@/data/translations";
 import { getUploadPageCopy, type UploadPageCopy } from "@/data/uploadTranslations";
 import {
   CLINICAL_RISK_FILTERS,
   DEFAULT_SUBMISSION_FILTERS,
   GENDER_FILTERS,
   PAGE_SIZE_OPTIONS,
-  SUBMISSION_REVIEW_FILTERS,
   SUBMISSION_SORT_OPTIONS,
   UPLOADED_DATE_PRESETS,
   buildSubmissionFilterSearchParams,
@@ -25,20 +25,17 @@ import {
   type SubmissionQueryFilters,
   type UploadedDatePreset,
 } from "@/lib/submissionFilters";
+import {
+  reviewProgress,
+  stageLabel,
+  submissionStage,
+  type SubmissionStage,
+} from "@/lib/crfEvidence";
 import type { SubmissionItemDTO as ApiSubmissionItem } from "@/lib/submissionsService";
-import { CrfAdminFacts } from "./CrfAdminFacts";
+import { CrfAdminFacts, useCrfCase } from "./CrfAdminFacts";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { RedcapExportPanel } from "./RedcapExportPanel";
 import { TruncatedFilename } from "./TruncatedFilename";
-
-const PIPELINE_BADGES = {
-  none: { label: "Chưa gửi", tone: "bg-slate-100 text-slate-700" },
-  privacy_check: { label: "Đang kiểm tra che", tone: "bg-sky-100 text-sky-900" },
-  privacy_review: { label: "Chờ duyệt che", tone: "bg-amber-100 text-amber-950" },
-  processing: { label: "Đang xử lý", tone: "bg-sky-100 text-sky-900" },
-  completed: { label: "Đã đọc xong", tone: "bg-teal-100 text-teal-900" },
-  failed: { label: "Lỗi", tone: "bg-rose-100 text-rose-950" },
-} satisfies Record<NonNullable<ApiSubmissionItem["pipelineStatus"]>, { label: string; tone: string }>;
 
 interface ApiSubmissionsResponse {
   items: ApiSubmissionItem[];
@@ -53,36 +50,17 @@ interface ApiSubmissionsResponse {
   pagination: PaginationMeta;
 }
 
-type DossierLayoutMode = "grid" | "list";
-const LAYOUT_STORAGE_KEY = "lupiva-upload-layout";
-const LAYOUT_CHANGE_EVENT = "lupiva-upload-layout-change";
+const STAGE_TONES: Record<SubmissionStage, string> = {
+  processing: "bg-sky-100 text-sky-900",
+  failed: "bg-rose-100 text-rose-950",
+  awaiting: "bg-amber-100 text-amber-950",
+  reviewing: "bg-indigo-100 text-indigo-950",
+  approved: "bg-teal-100 text-teal-900",
+  exported: "bg-teal-100 text-teal-900",
+};
 
-function subscribeLayoutMode(callback: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === LAYOUT_STORAGE_KEY) callback();
-  };
-  window.addEventListener("storage", onStorage);
-  window.addEventListener(LAYOUT_CHANGE_EVENT, callback);
-  return () => {
-    window.removeEventListener("storage", onStorage);
-    window.removeEventListener(LAYOUT_CHANGE_EVENT, callback);
-  };
-}
-
-function getClientLayoutMode(): DossierLayoutMode {
-  try {
-    const stored = localStorage.getItem(LAYOUT_STORAGE_KEY);
-    if (stored === "list" || stored === "grid") return stored;
-  } catch {
-    // ignore storage access errors
-  }
-  return "grid";
-}
-
-function getServerLayoutMode(): DossierLayoutMode {
-  return "grid";
-}
+const STATUS_COUNTERS = ["new", "pending_doctor_review", "approved"] as const;
+type StatusCounter = (typeof STATUS_COUNTERS)[number];
 
 function DocumentsAndTreatmentsGrid({
   patient,
@@ -177,35 +155,47 @@ function DocumentsAndTreatmentsGrid({
   );
 }
 
-function PatientDossierCard({
+/** One compact row per case; administrative facts only when expanded. */
+export function SubmissionRow({
   item,
   copy,
+  isVi,
+  expanded,
+  redcapExported,
+  onToggle,
   onOpenRegistry,
   onOpenDocument,
   onRetried,
 }: {
   item: ApiSubmissionItem;
   copy: UploadPageCopy["doctor"];
+  isVi: boolean;
+  expanded: boolean;
+  redcapExported: boolean;
+  onToggle: () => void;
   onOpenRegistry: (intakeId: string) => void;
   onOpenDocument: (patient: SleCrfPatientRecord, fileId: string) => void;
   onRetried: () => void;
 }) {
+  const dc = TRANSLATIONS[isVi ? "vi" : "en"].doctor;
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   const p = item.record;
   const pipelineStatus = item.pipelineStatus ?? "none";
-  const pipelineBadge = PIPELINE_BADGES[pipelineStatus];
-  const approved = getSubmissionStatus(p) === "approved";
-  // Once the backend has read the images, age/BMI/Physician/Nurse… come from its CRF
-  // (and are corrected on "Duyệt hồ sơ"), not from this submission's own profile.
   const fromCrf = pipelineStatus === "completed" && !!item.pipelineIntakeId;
-  const h = parseFloat(p.heightCm);
-  const w = parseFloat(p.weightKg);
-  const bmi = h > 0 && w > 0 ? (w / Math.pow(h / 100, 2)).toFixed(1) : "—";
-  const eular = calculateEularAcrSummary(
-    p.eularAcrCriteria,
-    p.anaEntryCriterionMet
-  );
+  // Lazy backend read, shared with the expanded facts and cached across rows.
+  const crf = useCrfCase(fromCrf ? item.pipelineIntakeId : null);
+  const view = crf && "view" in crf ? crf.view : null;
+  const progress = view ? reviewProgress(view) : null;
+  const webApproved = getSubmissionStatus(p) === "approved";
+  const stage = submissionStage({
+    pipelineStatus,
+    webApproved,
+    reviewStarted: !!view?.review,
+    redcapExported,
+  });
+  const imageCount = p.uploadedFiles?.filter((f) => f.isImage).length ?? 0;
+  const eular = calculateEularAcrSummary(p.eularAcrCriteria, p.anaEntryCriterionMet);
   const sledai = calculateSledai2kSummary(p.sledai2kCriteria);
 
   const handleRetry = async () => {
@@ -219,254 +209,165 @@ function PatientDossierCard({
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Không gửi lại được hồ sơ.");
+        throw new Error(payload.error || (isVi ? "Không gửi lại được hồ sơ." : "Unable to retry submission."));
       }
       onRetried();
     } catch (error) {
-      setRetryError(error instanceof Error ? error.message : "Không gửi lại được hồ sơ.");
+      setRetryError(error instanceof Error ? error.message : (isVi ? "Không gửi lại được hồ sơ." : "Unable to retry submission."));
     } finally {
       setRetrying(false);
     }
   };
 
+  const progressText = !fromCrf
+    ? "—"
+    : progress
+      ? dc.cellsProgress(progress.approved, progress.total)
+      : crf && "error" in crf
+        ? dc.progressUnavailable
+        : dc.progressLoading;
+
   return (
-    <article className="@container flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-      {/* Card Header: PID Identifier, Personal Information, Uploaded Date & Status-Specific Actions */}
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/70 px-5 py-3.5 @lg:px-6">
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-xs font-bold text-white">
-              {copy.pidPrefix} {p.studyId}
-            </span>
-            <h2 className="text-base font-bold text-slate-900">
-              {p.patientName}
-            </h2>
-            <span
-              className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${
-                approved
-                  ? "bg-teal-100 text-teal-900"
-                  : "bg-amber-100 text-amber-950"
-              }`}
-            >
-              {approved ? copy.approvedBadge : copy.pendingBadge}
-            </span>
-            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pipelineBadge.tone}`}>
-              {pipelineBadge.label}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600">
-            {!fromCrf && (
-            <span>
-              {p.age || "—"} {copy.ageUnit} •{" "}
-              {p.gender === "Female" ? copy.female : p.gender === "Male" ? copy.male : "—"} • {p.heightCm || "—"}{" "}
-              cm / {p.weightKg || "—"} kg (BMI{" "}
-              <span className="font-mono font-semibold text-slate-800">
-                {bmi}
-              </span>
-              ) • ICF: <span className="font-mono">{p.icfSignedDate || "—"}</span>
-            </span>
-            )}
-            {p.submittedAt ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-[11px] text-slate-700">
-                <span>{copy.submittedAtPrefix}</span>
-                <strong className="font-semibold text-slate-900">
-                  {p.submittedAt}
-                </strong>
-              </span>
-            ) : null}
-          </div>
+    <li className="@container overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
+      <div
+        className="grid cursor-pointer grid-cols-2 items-center gap-x-3 gap-y-1 px-4 py-2.5 hover:bg-slate-50/80 md:grid-cols-[minmax(0,2fr)_auto_auto_minmax(0,1fr)_auto_auto]"
+        onClick={onToggle}
+      >
+        <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 md:col-span-1">
+          <span className="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[11px] font-bold text-white">
+            {p.studyId}
+          </span>
+          <span className="truncate text-sm font-semibold text-slate-900">{p.patientName}</span>
         </div>
-
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {pipelineStatus === "failed" && (
-            <button
-              type="button"
-              disabled={retrying}
-              onClick={() => void handleRetry()}
-              className="min-h-9 cursor-pointer rounded-lg border border-rose-300 bg-white px-3.5 py-2 text-xs font-semibold text-rose-900 transition hover:bg-rose-50 disabled:cursor-wait disabled:opacity-50"
+        <span className="font-mono text-[11px] text-slate-600">{p.submittedAt || "—"}</span>
+        <span className="text-[11px] text-slate-600">{dc.imagesCount(imageCount)}</span>
+        <span className="font-mono text-[11px] text-slate-700">{progressText}</span>
+        <span className={`justify-self-start rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${STAGE_TONES[stage]}`}>
+          {stageLabel(stage, progress?.percent ?? 0, isVi)}
+        </span>
+        <span className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            disabled={!fromCrf}
+            title={fromCrf ? undefined : isVi ? "Có thể duyệt sau khi xử lý ảnh." : "Review is available after image processing."}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (fromCrf) onOpenRegistry(item.pipelineIntakeId!);
+            }}
+            className={
+              fromCrf
+                ? "min-h-8 cursor-pointer rounded-lg bg-teal-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-800"
+                : "min-h-8 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-400"
+            }
+          >
+            {dc.reviewBtn}
+          </button>
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-label={expanded ? dc.collapseBtn : dc.detailsBtn}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle();
+            }}
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100"
+          >
+            <svg
+              aria-hidden="true"
+              className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              {retrying ? "Đang gửi lại…" : "Gửi lại"}
-            </button>
-          )}
-          {(() => {
-            // Review opens only once the backend has finished reading the images.
-            const ready = pipelineStatus === "completed" && !!item.pipelineIntakeId;
-            const waiting =
-              pipelineStatus === "failed"
-                ? "Xử lý lỗi"
-                : pipelineStatus === "privacy_review"
-                  ? "Chờ duyệt vùng che"
-                  : "Đang xử lý…";
-            return (
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        </span>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-slate-200 bg-slate-50/40">
+          {pipelineStatus === "failed" && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-rose-200 bg-rose-50 px-4 py-2">
+              {item.pipelineError && (
+                <p className="min-w-0 flex-1 break-words text-xs text-rose-950">{item.pipelineError}</p>
+              )}
               <button
                 type="button"
-                disabled={!ready}
-                title={ready ? undefined : "Hồ sơ chưa xử lý xong; nút sẽ bật khi đọc ảnh xong"}
-                onClick={() => ready && onOpenRegistry(item.pipelineIntakeId!)}
-                className={
-                  ready
-                    ? "min-h-9 cursor-pointer rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition hover:bg-teal-800"
-                    : "min-h-9 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-400"
-                }
+                disabled={retrying}
+                onClick={() => void handleRetry()}
+                className="min-h-8 cursor-pointer rounded-lg border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-900 transition hover:bg-rose-50 disabled:cursor-wait disabled:opacity-50"
               >
-                {ready ? copy.reviewCrfBtn : waiting}
+                {retrying ? (isVi ? "Đang gửi lại…" : "Retrying…") : (isVi ? "Gửi lại" : "Retry")}
               </button>
-            );
-          })()}
-        </div>
-      </header>
-
-      {pipelineStatus === "failed" && item.pipelineError && (
-        <p className="break-words border-b border-rose-200 bg-rose-50 px-5 py-3 text-xs text-rose-950 @lg:px-6">
-          {item.pipelineError}
-        </p>
-      )}
-      {pipelineStatus === "privacy_review" && (
-        <p className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-xs text-amber-950 @lg:px-6">
-          Cần duyệt vùng che trên giao diện duyệt nguồn (backend) trước khi gửi
-        </p>
-      )}
-      {retryError && (
-        <p role="alert" className="px-5 py-3 text-xs text-rose-900 @lg:px-6">
-          {retryError}
-        </p>
-      )}
-      {fromCrf && <CrfAdminFacts intakeId={item.pipelineIntakeId!} />}
-
-      {approved ? (
-        /* Approved Dossiers: Attached Documents & Current Treatments + SLE Score Preview */
-        <div className="grid flex-1 grid-cols-1 gap-4 px-5 py-3.5 @lg:px-6 @2xl:grid-cols-12 @2xl:items-start">
-          <div className="@2xl:col-span-7">
-            <DocumentsAndTreatmentsGrid
-              patient={p}
-              copy={copy}
-              onOpenDocument={onOpenDocument}
-            />
-          </div>
-
-          <div className="border-t border-slate-200 pt-3 @2xl:col-span-5 @2xl:border-t-0 @2xl:border-l @2xl:pl-5 @2xl:pt-0">
-            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
-              {copy.scorePreviewHeading}
-            </h3>
-
-            <div className="mt-2 grid grid-cols-1 gap-2 @sm:grid-cols-2">
-              <div
-                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5 text-xs ${
-                  eular.isClassifiedSle
-                    ? "border-teal-200 bg-teal-50/60"
-                    : "border-slate-200 bg-slate-50"
-                }`}
-              >
-                <span className="font-semibold text-slate-700">
-                  EULAR/ACR 2019
-                </span>
-                <span className="font-mono font-bold text-slate-900">
-                  {eular.totalScore} pts
-                </span>
-              </div>
-
-              <div
-                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5 text-xs ${
-                  sledai.badgeTone === "rose"
-                    ? "border-rose-200 bg-rose-50/60"
-                    : sledai.badgeTone === "amber"
-                    ? "border-amber-200 bg-amber-50/60"
-                    : "border-slate-200 bg-slate-50"
-                }`}
-              >
-                <span className="font-semibold text-slate-700">SLEDAI-2K</span>
-                <span className="font-mono font-bold text-slate-900">
-                  {sledai.totalScore} pts
-                </span>
-              </div>
             </div>
-          </div>
-        </div>
-      ) : (
-        /* Pending Review Dossiers: Concise 1-Line OCR Triage + Expandable Documents & Treatments */
-        <>
-          {item.pipelineIntakeId ? (
-            <p className="px-5 py-3 text-xs text-slate-600 @lg:px-6">
-              Dữ liệu đọc từ ảnh nằm ở phiếu CRF backend; bấm &quot;{copy.reviewCrfBtn}&quot; để xem nguồn và duyệt.
-            </p>
-          ) : (
-          <div className="flex flex-wrap items-center gap-2.5 px-5 py-3 @lg:px-6">
-            <h3 className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
-              {copy.triageHeading}
-            </h3>
-
-            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 font-mono text-xs @xs:grid-cols-3">
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 whitespace-nowrap text-rose-950">
-                <span className="text-[11px] font-semibold text-rose-800">
-                  {copy.manualTierLabel}
-                </span>
-                <span className="text-sm font-bold">
-                  {item.ocrSummary.manualCount}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 whitespace-nowrap text-amber-950">
-                <span className="text-[11px] font-semibold text-amber-900">
-                  {copy.verifyTierLabel}
-                </span>
-                <span className="text-sm font-bold">
-                  {item.ocrSummary.verifyCount}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 whitespace-nowrap text-teal-950">
-                <span className="text-[11px] font-semibold text-teal-800">
-                  {copy.approvedTierLabel}
-                </span>
-                <span className="text-sm font-bold">
-                  {item.ocrSummary.approvedCount}
-                </span>
-              </div>
-            </div>
-          </div>
           )}
-
-          <details className="group mt-auto border-t border-slate-200 bg-slate-50/40">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100/80 @lg:px-6">
-              <span>
-                {copy.clinicalDetailsSummary(
-                  p.uploadedFiles?.length ?? 0,
-                  p.treatments.length
-                )}
+          {pipelineStatus === "privacy_review" && (
+            <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-950">
+              {isVi ? "Cần duyệt vùng che trước khi gửi." : "Review the redactions before sending."}
+            </p>
+          )}
+          {retryError && (
+            <p role="alert" className="px-4 py-2 text-xs text-rose-900">{retryError}</p>
+          )}
+          {fromCrf && <CrfAdminFacts state={crf} isVi={isVi} />}
+          {!fromCrf && (
+            <div className="flex flex-wrap items-center gap-2.5 border-b border-slate-200 px-4 py-2.5">
+              <h3 className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                {copy.triageHeading}
+              </h3>
+              <span className="rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 font-mono text-[11px] text-rose-950">
+                {copy.manualTierLabel}: <strong>{item.ocrSummary.manualCount}</strong>
               </span>
-              <svg
-                aria-hidden="true"
-                className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </summary>
-
-            <DocumentsAndTreatmentsGrid
-              patient={p}
-              copy={copy}
-              onOpenDocument={onOpenDocument}
-              showCareTeam={!fromCrf}
-              className="border-t border-slate-200 bg-white px-5 py-3.5 @lg:px-6"
-            />
-          </details>
-        </>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 font-mono text-[11px] text-amber-950">
+                {copy.verifyTierLabel}: <strong>{item.ocrSummary.verifyCount}</strong>
+              </span>
+              <span className="rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 font-mono text-[11px] text-teal-950">
+                {copy.approvedTierLabel}: <strong>{item.ocrSummary.approvedCount}</strong>
+              </span>
+            </div>
+          )}
+          <DocumentsAndTreatmentsGrid
+            patient={p}
+            copy={copy}
+            onOpenDocument={onOpenDocument}
+            showCareTeam={!fromCrf}
+            className="px-4 py-3"
+          />
+          {webApproved && !fromCrf && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-4 py-2 text-xs">
+              <span className="font-mono font-bold uppercase tracking-wide text-slate-600">
+                {copy.scorePreviewHeading}:
+              </span>
+              <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-slate-800">
+                EULAR/ACR 2019: <strong>{eular.totalScore} pts</strong>
+              </span>
+              <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-slate-800">
+                SLEDAI-2K: <strong>{sledai.totalScore} pts</strong>
+              </span>
+            </div>
+          )}
+        </div>
       )}
-    </article>
+    </li>
   );
 }
 
-export function DoctorSubmissionsView() {
+export function DoctorSubmissionsView({
+  headerAction,
+  uploadPanel,
+}: {
+  headerAction?: ReactNode;
+  uploadPanel?: ReactNode;
+} = {}) {
   const router = useRouter();
-  const { language, mergeCrfPatientsFromApi } =
-    useLupiva();
+  const { language, mergeCrfPatientsFromApi } = useLupiva();
   const isVi = language === "vi";
   const copy = getUploadPageCopy(language).doctor;
+  const dc = TRANSLATIONS[language].doctor;
 
   const [filters, setFilters] = useState<SubmissionQueryFilters>(
     DEFAULT_SUBMISSION_FILTERS
@@ -479,18 +380,15 @@ export function DoctorSubmissionsView() {
     patient: SleCrfPatientRecord;
     fileId: string;
   } | null>(null);
-  const layoutMode = useSyncExternalStore(
-    subscribeLayoutMode,
-    getClientLayoutMode,
-    getServerLayoutMode
-  );
-  const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [showRedcap, setShowRedcap] = useState(false);
+  const [exportedIds, setExportedIds] = useState<Set<string>>(new Set());
+  const [moreFilters, setMoreFilters] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // The new-submission notice links here with ?status=new.
   useEffect(() => {
     const wanted = new URLSearchParams(window.location.search).get("status");
-    if (wanted && (SUBMISSION_REVIEW_FILTERS as readonly string[]).includes(wanted)) {
+    if (wanted && ["new", "pending_doctor_review", "approved", "all"].includes(wanted)) {
       setFilters((prev) => ({ ...prev, page: 1, status: wanted as SubmissionQueryFilters["status"] }));
     }
   }, []);
@@ -509,75 +407,6 @@ export function DoctorSubmissionsView() {
         }
       })
       .catch(() => undefined);
-  };
-
-  useEffect(() => {
-    const bar = toolbarRef.current;
-    if (!bar || "focusGroup" in HTMLElement.prototype) return;
-    const buttons = Array.from(
-      bar.querySelectorAll<HTMLButtonElement>("button")
-    );
-    buttons.forEach((btn) => {
-      btn.tabIndex = btn.getAttribute("aria-pressed") === "true" ? 0 : -1;
-    });
-  }, [layoutMode]);
-
-  const handleLayoutModeChange = (mode: DossierLayoutMode) => {
-    try {
-      localStorage.setItem(LAYOUT_STORAGE_KEY, mode);
-    } catch {
-      // ignore storage access errors
-    }
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event(LAYOUT_CHANGE_EVENT));
-    }
-  };
-
-  const handleToolbarFocusCapture = (
-    e: React.FocusEvent<HTMLDivElement>
-  ) => {
-    if ("focusGroup" in HTMLElement.prototype) return;
-    const bar = toolbarRef.current;
-    if (!bar) return;
-    const target = e.target;
-    if (!(target instanceof HTMLButtonElement)) return;
-    const buttons = Array.from(
-      bar.querySelectorAll<HTMLButtonElement>("button")
-    );
-    if (!buttons.includes(target)) return;
-    buttons.forEach((btn) => {
-      btn.tabIndex = btn === target ? 0 : -1;
-    });
-  };
-
-  const handleToolbarKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if ("focusGroup" in HTMLElement.prototype) return;
-    const bar = toolbarRef.current;
-    if (!bar) return;
-    const buttons = Array.from(
-      bar.querySelectorAll<HTMLButtonElement>("button")
-    );
-    const currentIdx = buttons.indexOf(
-      document.activeElement as HTMLButtonElement
-    );
-    if (currentIdx === -1 || buttons.length === 0) return;
-
-    const rtl = getComputedStyle(bar).direction === "rtl";
-    let nextIdx: number | null = null;
-    if (e.key === "ArrowRight") {
-      nextIdx = (currentIdx + (rtl ? -1 : 1) + buttons.length) % buttons.length;
-    } else if (e.key === "ArrowLeft") {
-      nextIdx = (currentIdx + (rtl ? 1 : -1) + buttons.length) % buttons.length;
-    } else if (e.key === "Home") {
-      nextIdx = 0;
-    } else if (e.key === "End") {
-      nextIdx = buttons.length - 1;
-    }
-
-    if (nextIdx !== null) {
-      e.preventDefault();
-      buttons[nextIdx]?.focus();
-    }
   };
 
   const [apiState, setApiState] = useState<{
@@ -676,11 +505,21 @@ export function DoctorSubmissionsView() {
     ...filters,
     q: searchInput,
   });
+  const advancedFilterCount =
+    (filters.datePreset !== "all" || filters.fromDate || filters.toDate ? 1 : 0) +
+    (filters.clinicalRisk !== "all" ? 1 : 0) +
+    (filters.gender !== "all" ? 1 : 0) +
+    (filters.sort !== "newest" ? 1 : 0);
 
   const handleResetFilters = () => {
     setFilters(DEFAULT_SUBMISSION_FILTERS);
     setSearchInput("");
     setDebouncedSearch("");
+  };
+
+  const setStatusFilter = (status: SubmissionQueryFilters["status"]) => {
+    setShowRedcap(false);
+    setFilters((prev) => ({ ...prev, page: 1, status }));
   };
 
   const handleDatePresetChange = (preset: UploadedDatePreset) => {
@@ -723,9 +562,9 @@ export function DoctorSubmissionsView() {
     }
   };
 
+  const items = apiState.data?.items ?? [];
+
   const openRegistry = (intakeId: string) => {
-    const opened = items.find((item) => item.pipelineIntakeId === intakeId);
-    if (opened) markOpened(opened.dbSubmissionId);
     router.push(`/registry?intake=${encodeURIComponent(intakeId)}`);
   };
 
@@ -737,6 +576,10 @@ export function DoctorSubmissionsView() {
     manualRequiredDossiers: 0,
     filteredTotal: 0,
   };
+  const counterValue = (key: StatusCounter) =>
+    key === "new" ? stats.new : key === "pending_doctor_review" ? stats.pending : stats.approved;
+  const counterLabel = (key: StatusCounter) =>
+    key === "new" ? dc.counterNew : key === "pending_doctor_review" ? dc.counterPending : dc.counterApproved;
   const pagination: PaginationMeta = apiState.data?.pagination ?? {
     page: filters.page,
     pageSize: filters.pageSize,
@@ -745,7 +588,6 @@ export function DoctorSubmissionsView() {
     hasPreviousPage: false,
     hasNextPage: false,
   };
-  const items = apiState.data?.items ?? [];
   const rangeStart =
     pagination.totalItems === 0
       ? 0
@@ -762,48 +604,28 @@ export function DoctorSubmissionsView() {
       className="flex-1 bg-slate-100/80 py-8 focus:outline-none"
     >
       <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-        {/* Header, Cohort KPIs & Server-Backed Filter Toolbar */}
+        {/* Header, clickable counters & compact filter toolbar */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
               <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
                 {copy.eyebrow}
               </span>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900">
-                {copy.heading}
-              </h1>
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold text-slate-900">
+                  {copy.heading}
+                </h1>
+                {headerAction}
+              </div>
             </div>
 
-            <nav aria-label={isVi ? "Bảng điều khiển hồ sơ" : "Submission dashboard"} className="grid w-full grid-cols-2 gap-2.5 text-center sm:grid-cols-5 lg:w-auto">
-              {([
-                ["new", isVi ? "Hồ sơ mới" : "New", stats.new, "border-sky-300 bg-sky-50 text-sky-950"],
-                ["pending_doctor_review", isVi ? "Chưa phê duyệt" : "Not yet approved", stats.pending, "border-amber-200 bg-amber-50/70 text-amber-950"],
-                ["approved", isVi ? "Đã phê duyệt" : "Approved", stats.approved, "border-teal-200 bg-teal-50/70 text-teal-950"],
-              ] as const).map(([key, label, value, tone]) => (
-                <button
-                  key={key}
-                  type="button"
-                  id={`doctor-dashboard-${key}`}
-                  aria-pressed={filters.status === key && !showRedcap}
-                  onClick={() => {
-                    setShowRedcap(false);
-                    setFilters((prev) => ({ ...prev, page: 1, status: key }));
-                  }}
-                  className={`rounded-xl border px-3.5 py-2.5 transition cursor-pointer hover:shadow-sm ${tone} ${
-                    filters.status === key && !showRedcap ? "ring-2 ring-teal-600" : ""
-                  }`}
-                >
-                  <span className="block text-[11px] font-semibold">{label}</span>
-                  <span className="mt-0.5 block font-mono text-xl font-bold">{value}</span>
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-2">
               <Link
                 href="/crf-form"
                 id="doctor-dashboard-crf"
-                className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-slate-900 transition hover:shadow-sm"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-100"
               >
-                <span className="text-[11px] font-semibold">{isVi ? "Phiếu CRF" : "CRF form"}</span>
-                <span className="mt-0.5 text-lg font-bold" aria-hidden="true">→</span>
+                {dc.crfFormBtn} <span aria-hidden="true">→</span>
               </Link>
               <button
                 type="button"
@@ -812,120 +634,259 @@ export function DoctorSubmissionsView() {
                 aria-controls="doctor-redcap-panel"
                 onClick={() => {
                   setShowRedcap((open) => !open);
-                  setFilters((prev) => ({ ...prev, page: 1, status: "approved" }));
+                  if (!showRedcap) setFilters((prev) => ({ ...prev, page: 1, status: "approved" }));
                 }}
-                className={`flex flex-col items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50/70 px-3.5 py-2.5 text-indigo-950 transition cursor-pointer hover:shadow-sm ${
+                className={`inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-indigo-300 bg-indigo-50 px-3.5 py-1.5 text-xs font-semibold text-indigo-900 transition hover:bg-indigo-100 ${
                   showRedcap ? "ring-2 ring-indigo-600" : ""
                 }`}
               >
-                <span className="text-[11px] font-semibold">REDCap</span>
-                <span className="mt-0.5 text-lg font-bold" aria-hidden="true">⇩</span>
+                {dc.redcapBtn} <span aria-hidden="true">⇩</span>
               </button>
-            </nav>
+            </div>
           </div>
 
-          {showRedcap && <RedcapExportPanel items={items} isVi={isVi} />}
+          <nav
+            aria-label={isVi ? "Bộ đếm hồ sơ" : "Dossier counters"}
+            className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
+            {STATUS_COUNTERS.map((key) => {
+              const tone =
+                key === "new"
+                  ? "border-sky-300 bg-sky-50 text-sky-950"
+                  : key === "pending_doctor_review"
+                    ? "border-amber-200 bg-amber-50/70 text-amber-950"
+                    : "border-teal-200 bg-teal-50/70 text-teal-950";
+              const isActive = filters.status === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  id={`doctor-dashboard-${key}`}
+                  aria-pressed={isActive}
+                  onClick={() => setStatusFilter(isActive ? "all" : key)}
+                  className={`cursor-pointer rounded-xl border px-4 py-3 text-left transition hover:shadow-sm ${tone} ${
+                    isActive ? "ring-2 ring-teal-600" : ""
+                  }`}
+                >
+                  <span className="block text-xs font-semibold">{counterLabel(key)}</span>
+                  <span className="mt-1 block font-mono text-3xl font-bold">{counterValue(key)}</span>
+                </button>
+              );
+            })}
+          </nav>
 
-          {/* Semantic <search><form> Filter Controls */}
+          {showRedcap && (
+            <RedcapExportPanel
+              items={items}
+              isVi={isVi}
+              onExported={(id) => setExportedIds((previous) => new Set(previous).add(id))}
+            />
+          )}
+
+          {/* Default filters: search + three status buttons; the rest under "Lọc thêm" */}
           <search className="mt-5 border-t border-slate-200 pt-4">
             <form
               aria-labelledby="doctor-filter-heading"
               onSubmit={(e) => e.preventDefault()}
-              className="space-y-4"
+              className="space-y-3"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2
-                  id="doctor-filter-heading"
-                  className="text-xs font-bold uppercase tracking-wider text-slate-700"
+              <h2 id="doctor-filter-heading" className="sr-only">
+                {copy.filterHeading}
+              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  id="doctor-submissions-search"
+                  name="q"
+                  type="search"
+                  aria-label={copy.searchLabel}
+                  value={searchInput}
+                  onChange={(e) => {
+                    setSearchInput(e.target.value);
+                    setFilters((prev) =>
+                      prev.page === 1 ? prev : { ...prev, page: 1 }
+                    );
+                  }}
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder={copy.searchPlaceholder}
+                  className="min-h-9 min-w-56 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:border-teal-700"
+                />
+                {STATUS_COUNTERS.map((key) => {
+                  const isActive = filters.status === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      id={`doctor-filter-status-${key}`}
+                      aria-pressed={isActive}
+                      onClick={() => setStatusFilter(isActive ? "all" : key)}
+                      className={`min-h-9 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                        isActive
+                          ? "bg-teal-700 text-white"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200/80"
+                      }`}
+                    >
+                      {counterLabel(key)} ({counterValue(key)})
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  id="doctor-filter-more"
+                  aria-expanded={moreFilters}
+                  onClick={() => setMoreFilters((open) => !open)}
+                  className={`min-h-9 cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    moreFilters || advancedFilterCount > 0
+                      ? "border-teal-700 bg-teal-50 text-teal-900"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                  }`}
                 >
-                  {copy.filterHeading}
-                </h2>
+                  {moreFilters ? dc.hideFilters : dc.moreFilters}
+                  {advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
+                </button>
                 {activeFilterCount > 0 && (
                   <button
                     type="button"
                     id="doctor-filter-reset"
                     onClick={handleResetFilters}
-                    className="min-h-8 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 transition hover:bg-slate-100 cursor-pointer"
+                    className="min-h-9 cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-100"
                   >
                     {copy.resetFilters} ({copy.activeFiltersBadge(activeFilterCount)})
                   </button>
                 )}
               </div>
 
-              {/* Row 1: Submission Status + Search + Sort */}
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <fieldset className="space-y-1">
-                  <legend className="text-[11px] font-semibold text-slate-600">
-                    {copy.statusLegend}
-                  </legend>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {SUBMISSION_REVIEW_FILTERS.map((key) => {
-                      const count =
-                        key === "all"
-                          ? stats.total
-                          : key === "new"
-                          ? stats.new
-                          : key === "pending_doctor_review"
-                          ? stats.pending
-                          : stats.approved;
-                      const isActive = filters.status === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          id={`doctor-filter-status-${key}`}
-                          aria-pressed={isActive}
-                          onClick={() =>
-                            setFilters((prev) => ({
-                              ...prev,
-                              page: 1,
-                              status: key,
-                            }))
-                          }
-                          className={`min-h-9 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
-                            isActive
-                              ? "bg-teal-700 text-white"
-                              : "bg-slate-100 text-slate-700 hover:bg-slate-200/80"
-                          }`}
-                        >
-                          {copy.statusOptions[key]} ({count})
-                        </button>
-                      );
-                    })}
-                  </div>
-                </fieldset>
-
-                <div className="grid w-full grid-cols-1 gap-3 sm:w-auto sm:grid-cols-2">
-                  <div className="flex flex-col gap-1 sm:w-72">
+              {moreFilters && (
+                <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 sm:grid-cols-2 lg:grid-cols-6">
+                  <div className="flex flex-col gap-1">
                     <label
-                      htmlFor="doctor-submissions-search"
-                      className="text-[11px] font-semibold text-slate-600"
+                      htmlFor="doctor-filter-date-preset"
+                      className="text-[11px] font-semibold text-slate-700"
                     >
-                      {copy.searchLabel}
+                      {copy.datePresetLabel}
+                    </label>
+                    <select
+                      id="doctor-filter-date-preset"
+                      name="datePreset"
+                      value={filters.datePreset}
+                      onChange={(e) =>
+                        handleDatePresetChange(
+                          e.target.value as UploadedDatePreset
+                        )
+                      }
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
+                    >
+                      {UPLOADED_DATE_PRESETS.map((preset) => (
+                        <option key={preset} value={preset}>
+                          {copy.datePresetOptions[preset]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor="doctor-filter-from-date"
+                      className="text-[11px] font-semibold text-slate-700"
+                    >
+                      {copy.fromDateLabel}
                     </label>
                     <input
-                      id="doctor-submissions-search"
-                      name="q"
-                      type="search"
-                      value={searchInput}
-                      onChange={(e) => {
-                        setSearchInput(e.target.value);
-                        setFilters((prev) =>
-                          prev.page === 1 ? prev : { ...prev, page: 1 }
-                        );
-                      }}
-                      autoCorrect="off"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      placeholder={copy.searchPlaceholder}
-                      className="min-h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:border-teal-700"
+                      id="doctor-filter-from-date"
+                      name="fromDate"
+                      type="date"
+                      value={filters.fromDate ?? ""}
+                      max={filters.toDate || undefined}
+                      onChange={(e) =>
+                        handleCustomDateChange("fromDate", e.target.value)
+                      }
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
                     />
                   </div>
 
-                  <div className="flex flex-col gap-1 sm:w-56">
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor="doctor-filter-to-date"
+                      className="text-[11px] font-semibold text-slate-700"
+                    >
+                      {copy.toDateLabel}
+                    </label>
+                    <input
+                      id="doctor-filter-to-date"
+                      name="toDate"
+                      type="date"
+                      value={filters.toDate ?? ""}
+                      min={filters.fromDate || undefined}
+                      onChange={(e) =>
+                        handleCustomDateChange("toDate", e.target.value)
+                      }
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor="doctor-filter-risk"
+                      className="text-[11px] font-semibold text-slate-700"
+                    >
+                      {copy.clinicalRiskLabel}
+                    </label>
+                    <select
+                      id="doctor-filter-risk"
+                      name="clinicalRisk"
+                      value={filters.clinicalRisk}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          page: 1,
+                          clinicalRisk: e.target
+                            .value as SubmissionQueryFilters["clinicalRisk"],
+                        }))
+                      }
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
+                    >
+                      {CLINICAL_RISK_FILTERS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {copy.clinicalRiskOptions[opt]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor="doctor-filter-gender"
+                      className="text-[11px] font-semibold text-slate-700"
+                    >
+                      {copy.genderLabel}
+                    </label>
+                    <select
+                      id="doctor-filter-gender"
+                      name="gender"
+                      value={filters.gender}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          page: 1,
+                          gender: e.target
+                            .value as SubmissionQueryFilters["gender"],
+                        }))
+                      }
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
+                    >
+                      {GENDER_FILTERS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {copy.genderOptions[opt]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
                     <label
                       htmlFor="doctor-filter-sort"
-                      className="text-[11px] font-semibold text-slate-600"
+                      className="text-[11px] font-semibold text-slate-700"
                     >
                       {copy.sortLabel}
                     </label>
@@ -941,7 +902,7 @@ export function DoctorSubmissionsView() {
                             .value as SubmissionQueryFilters["sort"],
                         }))
                       }
-                      className="min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 focus:border-teal-700"
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
                     >
                       {SUBMISSION_SORT_OPTIONS.map((opt) => (
                         <option key={opt} value={opt}>
@@ -951,138 +912,11 @@ export function DoctorSubmissionsView() {
                     </select>
                   </div>
                 </div>
-              </div>
-
-              {/* Row 2: Uploaded Date, Custom Range, SLE Risk, Sex */}
-              <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="doctor-filter-date-preset"
-                    className="text-[11px] font-semibold text-slate-700"
-                  >
-                    {copy.datePresetLabel}
-                  </label>
-                  <select
-                    id="doctor-filter-date-preset"
-                    name="datePreset"
-                    value={filters.datePreset}
-                    onChange={(e) =>
-                      handleDatePresetChange(
-                        e.target.value as UploadedDatePreset
-                      )
-                    }
-                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
-                  >
-                    {UPLOADED_DATE_PRESETS.map((preset) => (
-                      <option key={preset} value={preset}>
-                        {copy.datePresetOptions[preset]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="doctor-filter-from-date"
-                    className="text-[11px] font-semibold text-slate-700"
-                  >
-                    {copy.fromDateLabel}
-                  </label>
-                  <input
-                    id="doctor-filter-from-date"
-                    name="fromDate"
-                    type="date"
-                    value={filters.fromDate ?? ""}
-                    max={filters.toDate || undefined}
-                    onChange={(e) =>
-                      handleCustomDateChange("fromDate", e.target.value)
-                    }
-                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="doctor-filter-to-date"
-                    className="text-[11px] font-semibold text-slate-700"
-                  >
-                    {copy.toDateLabel}
-                  </label>
-                  <input
-                    id="doctor-filter-to-date"
-                    name="toDate"
-                    type="date"
-                    value={filters.toDate ?? ""}
-                    min={filters.fromDate || undefined}
-                    onChange={(e) =>
-                      handleCustomDateChange("toDate", e.target.value)
-                    }
-                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="doctor-filter-risk"
-                    className="text-[11px] font-semibold text-slate-700"
-                  >
-                    {copy.clinicalRiskLabel}
-                  </label>
-                  <select
-                    id="doctor-filter-risk"
-                    name="clinicalRisk"
-                    value={filters.clinicalRisk}
-                    onChange={(e) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        page: 1,
-                        clinicalRisk: e.target
-                          .value as SubmissionQueryFilters["clinicalRisk"],
-                      }))
-                    }
-                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
-                  >
-                    {CLINICAL_RISK_FILTERS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {copy.clinicalRiskOptions[opt]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="doctor-filter-gender"
-                    className="text-[11px] font-semibold text-slate-700"
-                  >
-                    {copy.genderLabel}
-                  </label>
-                  <select
-                    id="doctor-filter-gender"
-                    name="gender"
-                    value={filters.gender}
-                    onChange={(e) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        page: 1,
-                        gender: e.target
-                          .value as SubmissionQueryFilters["gender"],
-                      }))
-                    }
-                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-teal-700"
-                  >
-                    {GENDER_FILTERS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {copy.genderOptions[opt]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
             </form>
           </search>
 
-          {/* Results Summary, Display Mode Switcher & Inline Pagination */}
+          {/* Results Summary & Inline Pagination */}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3.5">
             <div className="flex flex-wrap items-center gap-2.5">
               <p
@@ -1109,162 +943,91 @@ export function DoctorSubmissionsView() {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Grid / List View Mode Toolbar */}
-              <div
-                ref={toolbarRef}
-                role="toolbar"
-                aria-label={copy.viewToolbarLabel}
-                aria-controls="doctor-dossiers-container"
-                {...({ focusgroup: "toolbar wrap" } as Record<string, string>)}
-                onFocusCapture={handleToolbarFocusCapture}
-                onKeyDown={handleToolbarKeyDown}
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-100/90 p-0.5"
-              >
-                <div
-                  role="group"
-                  aria-label={copy.viewModeLabel}
-                  className="inline-flex items-center gap-0.5"
+            {pagination.totalItems > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-slate-700">
+                  <label
+                    htmlFor="doctor-pagination-pagesize"
+                    className="text-slate-600"
+                  >
+                    {copy.perPageLabel}
+                  </label>
+                  <select
+                    id="doctor-pagination-pagesize"
+                    name="pageSize"
+                    value={filters.pageSize}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        page: 1,
+                        pageSize: Number(e.target.value),
+                      }))
+                    }
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-xs text-slate-900 focus:border-teal-700"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <nav
+                  aria-label={copy.paginationLabel}
+                  className="flex flex-wrap items-center gap-1"
                 >
                   <button
                     type="button"
-                    id="doctor-layout-grid"
-                    aria-pressed={layoutMode === "grid"}
-                    onClick={() => handleLayoutModeChange("grid")}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-slate-700 transition cursor-pointer hover:text-slate-900 aria-[pressed=true]:bg-teal-700 aria-[pressed=true]:text-white aria-[pressed=true]:shadow-2xs forced-colors:aria-[pressed=true]:border forced-colors:aria-[pressed=true]:border-[Highlight]"
+                    id="doctor-pagination-prev"
+                    disabled={!pagination.hasPreviousPage || apiState.loading}
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    className="min-h-9 cursor-pointer rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
                   >
-                    <svg
-                      aria-hidden="true"
-                      className="h-3.5 w-3.5 shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <rect x="3" y="3" width="7" height="7" rx="1" />
-                      <rect x="14" y="3" width="7" height="7" rx="1" />
-                      <rect x="3" y="14" width="7" height="7" rx="1" />
-                      <rect x="14" y="14" width="7" height="7" rx="1" />
-                    </svg>
-                    <span>{copy.viewGridLabel}</span>
+                    ← {copy.prevPage}
                   </button>
+
+                  {Array.from(
+                    { length: pagination.totalPages },
+                    (_, i) => i + 1
+                  ).map((pageNum) => {
+                    const isCurrent = pageNum === pagination.page;
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        id={`doctor-pagination-page-${pageNum}`}
+                        aria-label={copy.pageLabel(pageNum)}
+                        aria-current={isCurrent ? "page" : undefined}
+                        disabled={apiState.loading}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`min-h-9 min-w-9 cursor-pointer rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold transition ${
+                          isCurrent
+                            ? "bg-teal-700 text-white shadow-2xs"
+                            : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
 
                   <button
                     type="button"
-                    id="doctor-layout-list"
-                    aria-pressed={layoutMode === "list"}
-                    onClick={() => handleLayoutModeChange("list")}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-slate-700 transition cursor-pointer hover:text-slate-900 aria-[pressed=true]:bg-teal-700 aria-[pressed=true]:text-white aria-[pressed=true]:shadow-2xs forced-colors:aria-[pressed=true]:border forced-colors:aria-[pressed=true]:border-[Highlight]"
+                    id="doctor-pagination-next"
+                    disabled={!pagination.hasNextPage || apiState.loading}
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    className="min-h-9 cursor-pointer rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
                   >
-                    <svg
-                      aria-hidden="true"
-                      className="h-3.5 w-3.5 shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="8" y1="6" x2="21" y2="6" />
-                      <line x1="8" y1="12" x2="21" y2="12" />
-                      <line x1="8" y1="18" x2="21" y2="18" />
-                      <circle cx="4" cy="6" r="1" fill="currentColor" stroke="none" />
-                      <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" />
-                      <circle cx="4" cy="18" r="1" fill="currentColor" stroke="none" />
-                    </svg>
-                    <span>{copy.viewListLabel}</span>
+                    {copy.nextPage} →
                   </button>
-                </div>
+                </nav>
               </div>
-
-              {/* Inline Server-Backed Pagination */}
-              {pagination.totalItems > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-700">
-                    <label
-                      htmlFor="doctor-pagination-pagesize"
-                      className="text-slate-600"
-                    >
-                      {copy.perPageLabel}
-                    </label>
-                    <select
-                      id="doctor-pagination-pagesize"
-                      name="pageSize"
-                      value={filters.pageSize}
-                      onChange={(e) =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          page: 1,
-                          pageSize: Number(e.target.value),
-                        }))
-                      }
-                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-xs text-slate-900 focus:border-teal-700"
-                    >
-                      {PAGE_SIZE_OPTIONS.map((size) => (
-                        <option key={size} value={size}>
-                          {size}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <nav
-                    aria-label={copy.paginationLabel}
-                    className="flex flex-wrap items-center gap-1"
-                  >
-                    <button
-                      type="button"
-                      id="doctor-pagination-prev"
-                      disabled={!pagination.hasPreviousPage || apiState.loading}
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
-                    >
-                      ← {copy.prevPage}
-                    </button>
-
-                    {Array.from(
-                      { length: pagination.totalPages },
-                      (_, i) => i + 1
-                    ).map((pageNum) => {
-                      const isCurrent = pageNum === pagination.page;
-                      return (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          id={`doctor-pagination-page-${pageNum}`}
-                          aria-label={copy.pageLabel(pageNum)}
-                          aria-current={isCurrent ? "page" : undefined}
-                          disabled={apiState.loading}
-                          onClick={() => handlePageChange(pageNum)}
-                          className={`min-h-9 min-w-9 rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold transition cursor-pointer ${
-                            isCurrent
-                              ? "bg-teal-700 text-white shadow-2xs"
-                              : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-
-                    <button
-                      type="button"
-                      id="doctor-pagination-next"
-                      disabled={!pagination.hasNextPage || apiState.loading}
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
-                    >
-                      {copy.nextPage} →
-                    </button>
-                  </nav>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </section>
+
+        {uploadPanel}
 
         {/* API Error Alert */}
         {apiState.error && (
@@ -1279,32 +1042,30 @@ export function DoctorSubmissionsView() {
             <button
               type="button"
               onClick={() => setReloadTick((n) => n + 1)}
-              className="min-h-9 rounded-lg border border-rose-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-rose-900 hover:bg-rose-100 cursor-pointer"
+              className="min-h-9 cursor-pointer rounded-lg border border-rose-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-rose-900 hover:bg-rose-100"
             >
               {copy.retryBtn}
             </button>
           </div>
         )}
 
-        {/* Patient Dossier Cards (Grid Default / List Toggle) */}
-        <div
+        {/* Compact dossier list: one row per case */}
+        <ul
           id="doctor-dossiers-container"
           aria-busy={apiState.loading}
-          className={`grid grid-cols-1 gap-4 transition-opacity ${
-            layoutMode === "grid" ? "md:grid-cols-2" : ""
-          } ${apiState.loading && items.length > 0 ? "opacity-70" : "opacity-100"}`}
+          className={`space-y-2 transition-opacity ${apiState.loading && items.length > 0 ? "opacity-70" : "opacity-100"}`}
         >
           {apiState.loading && items.length === 0 ? (
             <>
               {[0, 1, 2, 3].map((idx) => (
-                <div
+                <li
                   key={idx}
-                  className="h-44 animate-pulse rounded-2xl border border-slate-200 bg-white p-6"
+                  className="h-14 animate-pulse rounded-xl border border-slate-200 bg-white"
                 />
               ))}
             </>
           ) : items.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center md:col-span-full">
+            <li className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
               <p className="text-sm font-semibold text-slate-800">
                 {copy.emptyTitle}
               </p>
@@ -1313,18 +1074,26 @@ export function DoctorSubmissionsView() {
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="mt-4 min-h-9 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800 cursor-pointer"
+                  className="mt-4 min-h-9 cursor-pointer rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
                 >
                   {copy.resetFilters}
                 </button>
               )}
-            </div>
+            </li>
           ) : (
             items.map((item) => (
-              <PatientDossierCard
+              <SubmissionRow
                 key={item.dbSubmissionId}
                 item={item}
                 copy={copy}
+                isVi={isVi}
+                expanded={expandedId === item.dbSubmissionId}
+                redcapExported={exportedIds.has(item.dbSubmissionId)}
+                onToggle={() =>
+                  setExpandedId((prev) =>
+                    prev === item.dbSubmissionId ? null : item.dbSubmissionId
+                  )
+                }
                 onOpenRegistry={openRegistry}
                 onOpenDocument={(patient, fileId) => {
                   markOpened(item.dbSubmissionId);
@@ -1334,7 +1103,7 @@ export function DoctorSubmissionsView() {
               />
             ))
           )}
-        </div>
+        </ul>
       </div>
 
       {/* On-Screen Attached Document Viewer Modal */}

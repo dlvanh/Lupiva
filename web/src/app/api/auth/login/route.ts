@@ -167,37 +167,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Server-authoritative RBAC check: never trust client-supplied role tab override
-    if (parsed.data.selectedRole && parsed.data.selectedRole !== user.role) {
-      await writeAuditLog(
-        {
-          actorUserId: user.id,
-          actorRole: user.role,
-          action: "auth.role_mismatch",
-          targetType: "user",
-          targetId: user.id,
-          ipAddress,
-          userAgent,
-          metadata: {
-            expectedRole: user.role,
-            selectedRole: parsed.data.selectedRole,
-          },
-        },
-        db
-      );
-
-      const expectedRoleLabel =
-        user.role === "specialist" ? "Clinical Specialist" : "SLE Patient Portal";
-
-      return NextResponse.json(
-        {
-          error: `This account is registered under ${expectedRoleLabel}. Please select the matching role tab to sign in.`,
-          expectedRole: user.role,
-        },
-        { status: 403, headers: NO_STORE_HEADERS }
-      );
-    }
-
+    // The account's own role decides; a role tab chosen on the login page is ignored.
     if (
       user.role === "patient" &&
       (parsed.data.consentChecked === false ||
@@ -207,6 +177,7 @@ export async function POST(request: Request) {
         {
           error:
             "Informed consent acknowledgment is required for SLE Patient Portal access.",
+          consentRequired: true,
         },
         { status: 400, headers: NO_STORE_HEADERS }
       );

@@ -9,6 +9,10 @@
  * forwards allowlisted endpoints for an authenticated user.
  */
 import type { UserRole } from "@/data/mockData";
+import { z } from "zod";
+import { completeReviewPayload } from "@/lib/crfApproval";
+import { withoutHidden, type CrfViewWithSources } from "@/lib/crfEvidence";
+import { approvedCriteria } from "@/lib/crfForm";
 
 export const PIPELINE_URL = (process.env.PIPELINE_URL ?? "http://127.0.0.1:8881").replace(/\/+$/, "");
 
@@ -95,6 +99,32 @@ export interface PipelineResponse {
   contentType: string;
 }
 
+const approvalChanges = z.object({
+  case_id: z.string().min(1),
+  source_snapshot: z.string(),
+  draft_sha256: z.string(),
+  expected_review_sha256: z.string().nullable(),
+  selections: z.record(z.string(), z.string()),
+  manual_values: z.record(z.string(), z.string()),
+  score_assessment: z.object({
+    ana: z.enum(["", "yes", "no"]),
+    date: z.string(),
+    criteria: z.record(z.string(), z.enum(["yes", "no"])),
+  }).optional(),
+});
+
+function approvalError(status: number, error: string): PipelineResponse {
+  return { status, body: new TextEncoder().encode(JSON.stringify({ error })).buffer, contentType: "application/json" };
+}
+
+async function pipelineResponse(response: Response): Promise<PipelineResponse> {
+  return {
+    status: response.status,
+    body: await response.arrayBuffer(),
+    contentType: response.headers.get("content-type") ?? "application/octet-stream",
+  };
+}
+
 /** Forward one allowlisted call. JSON writes get the signed-in actor and role. */
 export async function callPipeline(
   method: "GET" | "POST",
@@ -104,6 +134,35 @@ export async function callPipeline(
   user: { name: string; role: UserRole },
 ): Promise<PipelineResponse> {
   const url = PIPELINE_URL + path + (query.size ? "?" + query.toString() : "");
+  let jsonBody = body?.json;
+  if (method === "POST" && path === "/api/crf/approve" && jsonBody && Object.hasOwn(jsonBody, "expected_review_sha256")) {
+    const parsed = approvalChanges.safeParse(jsonBody);
+    if (!parsed.success) return approvalError(400, "Invalid CRF approval changes.");
+    const changes = parsed.data;
+    const params = new URLSearchParams({ case_id: changes.case_id });
+    const response = await fetch(`${PIPELINE_URL}/api/crf?${params}`, { cache: "no-store", redirect: "error" });
+    if (!response.ok) return pipelineResponse(response);
+    const view = (await response.json()) as CrfViewWithSources & { score_form?: Record<string, { field_id: string }[]> };
+    if (
+      view.source_snapshot !== changes.source_snapshot || view.draft_sha256 !== changes.draft_sha256 ||
+      (view.review_sha256 ?? null) !== changes.expected_review_sha256
+    ) {
+      return approvalError(409, "The CRF has changed. Reload it before approving.");
+    }
+    try {
+      jsonBody = completeReviewPayload(changes.case_id, withoutHidden(view), changes.selections, changes.manual_values);
+    } catch (error) {
+      return approvalError(400, (error as Error).message);
+    }
+    const assessment = changes.score_assessment;
+    if (assessment) {
+      jsonBody.score_assessment = {
+        ...assessment,
+        criteria: { ...approvedCriteria(view.score_form, view.review?.values), ...assessment.criteria },
+      };
+    }
+  }
+
   const send = async (token: string | null) => {
     const headers: Record<string, string> = {};
     let payload: BodyInit | undefined;
@@ -114,7 +173,7 @@ export async function callPipeline(
         payload = body.raw;
       } else {
         headers["Content-Type"] = "application/json";
-        const json = { ...(body?.json ?? {}) };
+        const json = { ...jsonBody };
         if ("actor" in json || "role" in json || path === "/api/crf/approve" || path === "/api/intakes") {
           Object.assign(json, declaredActor(user));
         }
@@ -128,9 +187,5 @@ export async function callPipeline(
     // The backend issues a new token when it restarts.
     response = await send(await reviewToken(true));
   }
-  return {
-    status: response.status,
-    body: await response.arrayBuffer(),
-    contentType: response.headers.get("content-type") ?? "application/octet-stream",
-  };
+  return pipelineResponse(response);
 }

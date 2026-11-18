@@ -1,83 +1,94 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import { UiIcon } from "@/components/UiIcon";
 import { useLupiva } from "@/context/LupivaContext";
 
-const actionClass = "mt-4 inline-flex min-h-10 items-center rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800";
+const headingClass = "text-xl font-bold text-slate-900 sm:text-2xl";
 
-export function PatientInfoSections({ showAbout = true }: { showAbout?: boolean } = {}) {
+export function PatientInfoSections() {
   const { currentUser, t } = useLupiva();
   const copy = t.patientPortal;
   const hasConsent = currentUser?.role === "patient" && currentUser.consentSigned;
-  const consentHref = currentUser ? "/login?consent=1" : "/login?mode=register&consent=1";
   const benefits = [
     { title: copy.benefitImprovedTitle, body: copy.benefitImprovedBody },
-    { title: copy.benefitAnonTitle, body: copy.benefitAnonBody },
+    { title: copy.benefitPrivacyTitle, body: copy.benefitPrivacyBody },
+  ];
+  const steps = [
+    { title: copy.registerTitle, body: copy.registerBody },
+    { title: copy.step1Title, body: copy.step1Body, done: hasConsent ? copy.step1Done : undefined },
+    { title: copy.step2Title, body: copy.step2Body },
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-10 px-4 py-12 sm:px-6 lg:px-8">
-      {showAbout && (
-      <section aria-labelledby="patient-about-heading">
-        <h2 id="patient-about-heading" className="text-xl font-bold text-slate-900 sm:text-2xl">
-          {copy.aboutTitle}
-        </h2>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">{copy.aboutBody}</p>
-      </section>
-      )}
-
+    <>
       <section aria-labelledby="patient-benefits-heading">
-        <h2 id="patient-benefits-heading" className="text-xl font-bold text-slate-900 sm:text-2xl">
-          {copy.benefitsTitle}
-        </h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <h2 id="patient-benefits-heading" className={headingClass}>{copy.benefitsTitle}</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {benefits.map(({ title, body }) => (
-            <article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
-              <h3 className="font-semibold text-teal-800">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{body}</p>
+            <article key={title} className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+              <h3 className="text-lg font-semibold text-teal-900">{title}</h3>
+              <p className="mt-1 text-base leading-relaxed text-slate-800">{body}</p>
             </article>
           ))}
         </div>
       </section>
 
       <section aria-labelledby="patient-join-heading">
-        <h2 id="patient-join-heading" className="text-xl font-bold text-slate-900 sm:text-2xl">
-          {copy.howTitle}
-        </h2>
-        <ol className="mt-4 grid gap-4 sm:grid-cols-2" role="list">
-          <li className="rounded-2xl border border-teal-200 bg-teal-50 p-6">
-            <h3 className="font-semibold text-slate-900">1. {copy.step1Title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">{copy.step1Body}</p>
-            {hasConsent ? (
-              <p className="mt-4 flex items-center gap-2 text-sm font-semibold text-teal-900">
-                <span aria-hidden="true">✓</span> {copy.step1Done}
-              </p>
-            ) : (
-              <Link href={consentHref} className={actionClass}>{copy.step1Btn}</Link>
-            )}
-          </li>
-          <li className="rounded-2xl border border-teal-200 bg-teal-50 p-6">
-            <h3 className="font-semibold text-slate-900">2. {copy.step2Title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">{copy.step2Body}</p>
-            <Link href={currentUser ? "/upload" : "/login?next=/upload"} className={actionClass}>
-              {copy.step2Btn}
-            </Link>
-          </li>
+        <h2 id="patient-join-heading" className={headingClass}>{copy.howTitle}</h2>
+        <ol className="mt-4 grid gap-3 md:grid-cols-3" role="list">
+          {steps.map(({ title, body, done }, index) => (
+            <li key={title} className="flex gap-3 rounded-xl border border-teal-200 bg-teal-50 p-4 sm:p-5">
+              <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-teal-800 font-bold text-white">
+                {index + 1}
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900">{title}</h3>
+                <p className="mt-1 text-base leading-relaxed text-slate-800">{body}</p>
+                {done && (
+                  <p className="mt-2 flex items-center gap-1 font-semibold text-teal-900">
+                    <UiIcon name="approved" />{done}
+                  </p>
+                )}
+              </div>
+            </li>
+          ))}
         </ol>
+        <p className="mt-4 rounded-lg border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-base leading-relaxed text-slate-900">
+          {copy.appointmentNotice}
+        </p>
       </section>
 
-      <section aria-labelledby="patient-contact-heading" className="border-t border-slate-200 pt-6">
-        <h2 id="patient-contact-heading" className="text-xl font-bold text-slate-900 sm:text-2xl">
-          {copy.contactTitle}
-        </h2>
-        <dl className="mt-3 grid w-fit grid-cols-[auto_auto] gap-x-3 gap-y-1 text-sm text-slate-600">
-          <dt>{copy.contactLeadLabel}</dt>
-          <dd>{copy.contactLead}</dd>
-          <dt>{t.login.emailLabel}</dt>
-          <dd>{copy.contactEmail}</dd>
+      <section aria-labelledby="patient-faq-heading">
+        <h2 id="patient-faq-heading" className={headingClass}>{copy.faqTitle}</h2>
+        <dl className="mt-3 grid gap-x-8 gap-y-4 text-base leading-relaxed sm:grid-cols-2">
+          {copy.faq.map(({ question, answer }) => (
+            <div key={question}>
+              <dt className="font-bold text-slate-900">{question}</dt>
+              <dd className="mt-1 text-slate-800">{answer}</dd>
+            </div>
+          ))}
         </dl>
       </section>
-    </div>
+    </>
+  );
+}
+
+export function PatientContactSection() {
+  const { t } = useLupiva();
+  const copy = t.patientPortal;
+
+  return (
+    <section aria-labelledby="patient-contact-heading" className="border-t border-slate-200 pt-5">
+      <h2 id="patient-contact-heading" className={headingClass}>{copy.contactTitle}</h2>
+      <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-base leading-relaxed text-slate-800">
+        <dt className="font-semibold">{copy.contactLeadLabel}</dt>
+        <dd className="wrap-anywhere">{copy.contactLead}</dd>
+        <dt className="font-semibold">{t.login.emailLabel}</dt>
+        <dd className="wrap-anywhere">{copy.contactEmail}</dd>
+        <dt className="font-semibold">{copy.contactPhoneLabel}</dt>
+        <dd className="wrap-anywhere">{copy.contactPhone}</dd>
+      </dl>
+    </section>
   );
 }
