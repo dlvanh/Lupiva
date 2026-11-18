@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { LupivaProvider } from "@/context/LupivaContext";
 import { Navbar } from "@/components/Navbar";
+import { NewSubmissionWatcher } from "@/components/NewSubmissionWatcher";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
         <LupivaProvider>
           <Navbar />
+          <NewSubmissionWatcher />
           <div className="flex-1 flex flex-col">{children}</div>
         </LupivaProvider>
       </body>
