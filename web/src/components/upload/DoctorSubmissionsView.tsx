@@ -42,6 +42,7 @@ interface ApiSubmissionsResponse {
   items: ApiSubmissionItem[];
   stats: {
     total: number;
+    new: number;
     pending: number;
     approved: number;
     manualRequiredDossiers: number;
@@ -701,6 +702,7 @@ export function DoctorSubmissionsView() {
 
   const stats = apiState.data?.stats ?? {
     total: 0,
+    new: 0,
     pending: 0,
     approved: 0,
     manualRequiredDossiers: 0,
@@ -817,7 +819,7 @@ export function DoctorSubmissionsView() {
                         key === "all"
                           ? stats.total
                           : key === "new"
-                          ? stats.new ?? 0
+                          ? stats.new
                           : key === "pending_doctor_review"
                           ? stats.pending
                           : stats.approved;
