@@ -199,6 +199,8 @@ function FieldRow({
   approved,
   onActivate,
   onSelect,
+  typed,
+  onType,
 }: {
   field: CrfField;
   sources: Sources;
@@ -208,6 +210,8 @@ function FieldRow({
   approved?: string;
   onActivate: () => void;
   onSelect: (id: string) => void;
+  typed: string;
+  onType: (text: string) => void;
 }) {
   const component = COMPONENT[field.component] ?? field.component;
   const choices = fieldChoices(field);
@@ -318,6 +322,20 @@ function FieldRow({
             )}
           </div>
         )}
+        {canApprove && field.choices.length === 0 && (
+          // Free-text fields (name, number, BMI, Physician, Nurse…): the doctor can type the
+          // value instead of ticking a source or proposal; it is approved as "Nhập tay".
+          <input
+            aria-label={`Nhập tay ${field.label}`}
+            placeholder="Sửa"
+            className={`mt-1 w-full rounded border px-2 py-1 font-mono text-sm ${
+              typed.trim() ? "border-emerald-500 bg-emerald-50" : "border-slate-300"
+            }`}
+            value={typed}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => onType(event.target.value)}
+          />
+        )}
         {approved && (
           <p className="mt-1 text-xs text-emerald-700">
             Đã duyệt: <span className="font-mono">{label(field, approved)}</span>
@@ -345,6 +363,8 @@ export default function RegistryCrfPage() {
   const [ana, setAna] = useState<"" | Answer>("");
   const [scoreDate, setScoreDate] = useState("");
   const [selections, setSelections] = useState<Record<string, string>>({});
+  // Values the doctor typed for free-text fields; they replace any ticked source/proposal.
+  const [typed, setTyped] = useState<Record<string, string>>({});
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const [showEmpty, setShowEmpty] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -357,6 +377,7 @@ export default function RegistryCrfPage() {
     setCaseId(id);
     setView(null);
     setSelections({});
+    setTyped({});
     setActiveSlot(null);
     setError(null);
     setNotice(null);
@@ -418,6 +439,8 @@ export default function RegistryCrfPage() {
           // Opened from the CRF form: show that field and its source.
           const slot = params.get("slot");
           if (slot && !cancelled) {
+            // An empty field is hidden by default; show it so the doctor can type its value.
+            setShowEmpty(true);
             setActiveSlot(slot);
             setTimeout(() => document.getElementById(`slot-${slot}`)?.scrollIntoView({ block: "center" }), 50);
           }
@@ -438,16 +461,24 @@ export default function RegistryCrfPage() {
     setSaving(true);
     try {
       const scored = Object.keys(criteria).length > 0 || ana !== "";
-      const anyField = Object.values(selections).some(Boolean);
+      const manual: Record<string, string> = {};
+      for (const [slot, text] of Object.entries(typed)) {
+        if (text.trim()) manual[slot] = text.trim();
+      }
+      // A typed value replaces the ticked source/proposal of the same field.
+      const picked = Object.fromEntries(Object.entries(selections).filter(([slot]) => !(slot in manual)));
+      const anyField = Object.values(picked).some(Boolean);
       const payload =
-        anyField || !scored
-          ? approvalPayload(caseId, view, selections)
+        anyField || (!scored && !Object.keys(manual).length)
+          ? approvalPayload(caseId, view, picked)
           : { case_id: caseId, source_snapshot: view.source_snapshot, draft_sha256: view.draft_sha256, selections: {} };
       await backend("/api/crf/approve", undefined, {
         ...payload,
+        manual_values: manual,
         ...(scored ? { score_assessment: { ana, date: scoreDate, criteria } } : {}),
       });
-      const count = Object.keys(payload.selections).length + Object.keys(criteria).length;
+      const count =
+        Object.keys(payload.selections).length + Object.keys(manual).length + Object.keys(criteria).length;
       await load(caseId);
       setNotice(`Đã duyệt ${count} ô.`);
     } catch (reason) {
@@ -455,7 +486,7 @@ export default function RegistryCrfPage() {
     } finally {
       setSaving(false);
     }
-  }, [caseId, view, selections, criteria, ana, scoreDate, load]);
+  }, [caseId, view, selections, typed, criteria, ana, scoreDate, load]);
 
   // Ask the backend LLM to answer the clinical questions from labs, report notes and
   // printed diagnoses; proposals arrive as "LLM đề xuất · chưa duyệt".
@@ -529,9 +560,12 @@ export default function RegistryCrfPage() {
       source: groups.source.reduce((sum, [, list]) => sum + list.length, 0),
       unknown: groups.unknown.length,
       approved: Object.keys(view?.review?.values ?? {}).length,
-      selected: Object.values(selections).filter(Boolean).length + Object.keys(criteria).length,
+      selected:
+        Object.entries(selections).filter(([slot, id]) => id && !typed[slot]?.trim()).length +
+        Object.values(typed).filter((text) => text.trim()).length +
+        Object.keys(criteria).length,
     }),
-    [view, groups, selections, criteria],
+    [view, groups, selections, typed, criteria],
   );
 
   const activeField = useMemo(
@@ -560,6 +594,8 @@ export default function RegistryCrfPage() {
         approved={view?.review?.values[field.slot]?.value}
         onActivate={() => setActiveSlot(field.slot)}
         onSelect={(id) => select(field.slot, id)}
+        typed={typed[field.slot] ?? ""}
+        onType={(text) => setTyped((previous) => ({ ...previous, [field.slot]: text }))}
       />
     ));
 

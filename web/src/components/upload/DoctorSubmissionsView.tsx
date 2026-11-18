@@ -25,6 +25,7 @@ import {
   type UploadedDatePreset,
 } from "@/lib/submissionFilters";
 import type { SubmissionItemDTO as ApiSubmissionItem } from "@/lib/submissionsService";
+import { CrfAdminFacts } from "./CrfAdminFacts";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { TruncatedFilename } from "./TruncatedFilename";
 
@@ -192,6 +193,9 @@ function PatientDossierCard({
   const pipelineStatus = item.pipelineStatus ?? "none";
   const pipelineBadge = PIPELINE_BADGES[pipelineStatus];
   const approved = getSubmissionStatus(p) === "approved";
+  // Once the backend has read the images, age/BMI/Physician/Nurse… come from its CRF
+  // (and are corrected on "Duyệt hồ sơ"), not from this submission's own profile.
+  const fromCrf = pipelineStatus === "completed" && !!item.pipelineIntakeId;
   const h = parseFloat(p.heightCm);
   const w = parseFloat(p.weightKg);
   const bmi = h > 0 && w > 0 ? (w / Math.pow(h / 100, 2)).toFixed(1) : "—";
@@ -249,6 +253,7 @@ function PatientDossierCard({
           </div>
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600">
+            {!fromCrf && (
             <span>
               {p.age || "—"} {copy.ageUnit} •{" "}
               {p.gender === "Female" ? copy.female : p.gender === "Male" ? copy.male : "—"} • {p.heightCm || "—"}{" "}
@@ -258,6 +263,7 @@ function PatientDossierCard({
               </span>
               ) • ICF: <span className="font-mono">{p.icfSignedDate || "—"}</span>
             </span>
+            )}
             {p.submittedAt ? (
               <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-[11px] text-slate-700">
                 <span>{copy.submittedAtPrefix}</span>
@@ -323,6 +329,7 @@ function PatientDossierCard({
           {retryError}
         </p>
       )}
+      {fromCrf && <CrfAdminFacts intakeId={item.pipelineIntakeId!} />}
 
       {approved ? (
         /* Approved Dossiers: Attached Documents & Current Treatments + SLE Score Preview */
@@ -441,7 +448,7 @@ function PatientDossierCard({
               patient={p}
               copy={copy}
               onOpenDocument={onOpenDocument}
-              showCareTeam
+              showCareTeam={!fromCrf}
               className="border-t border-slate-200 bg-white px-5 py-3.5 @lg:px-6"
             />
           </details>
