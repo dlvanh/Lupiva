@@ -152,6 +152,8 @@ export default function CrfFormPage() {
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Cells with a source value or proposal not yet decided on "Duyệt hồ sơ".
+  const [waiting, setWaiting] = useState(0);
 
   const load = useCallback(async (id: string) => {
     setCaseId(id);
@@ -162,7 +164,17 @@ export default function CrfFormPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const next = withoutHidden(await backend<FormView>("/api/crf", { case_id: id }));
+      const raw = withoutHidden(await backend<FormView>("/api/crf", { case_id: id }));
+      // The form is filled from approved values only: source values and proposals are
+      // reviewed on "Duyệt hồ sơ" first. Cells still waiting there are counted, not shown.
+      const reviewed = raw.review?.values ?? {};
+      setWaiting(
+        raw.fields.filter((field) => (field.options.length > 0 || field.proposal) && !reviewed[field.slot]).length,
+      );
+      const next: FormView = {
+        ...raw,
+        fields: raw.fields.map((field) => ({ ...field, options: [], proposal: undefined })),
+      };
       const initial: Record<string, string> = {};
       for (const field of next.fields) {
         const shown = shownValue(field, next.review?.values);
@@ -488,8 +500,8 @@ export default function CrfFormPage() {
         </div>
       </div>
       <p className="mt-1 text-sm text-slate-500 print:hidden">
-        Phiếu điền sẵn giá trị đã duyệt, giá trị đọc từ ảnh hoặc đề xuất (ghi chú nguồn bên cạnh). Sửa trực tiếp: bấm
-        ô ☐ để tích, chọn hoặc gõ giá trị vào ô. &quot;Lưu / Duyệt&quot; duyệt mọi ô đang có giá trị trên phiếu.
+        Phiếu chỉ điền các giá trị đã duyệt ở Duyệt hồ sơ. Vẫn sửa trực tiếp được: bấm ô ☐ để tích, chọn hoặc gõ giá
+        trị vào ô, rồi &quot;Lưu / Duyệt&quot;.
       </p>
       {error && <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700 print:hidden">{error}</p>}
       {notice && <p className="mt-4 rounded bg-emerald-50 p-3 text-sm text-emerald-700 print:hidden">{notice}</p>}
@@ -497,12 +509,20 @@ export default function CrfFormPage() {
       {view && (
         <p
           className={`mt-3 rounded px-3 py-2 text-sm print:hidden ${
-            counts.pending ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-800"
+            waiting ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-800"
           }`}
         >
-          {counts.pending
-            ? `BẢN NHÁP – CHƯA DUYỆT ĐỦ · ${counts.approved} ô đã duyệt, ${counts.pending} ô còn là giá trị nguồn hoặc đề xuất`
-            : `Đã duyệt ${counts.approved} ô`}
+          {waiting ? (
+            <>
+              CHƯA DUYỆT XONG · {counts.approved} ô đã điền vào phiếu, còn {waiting} ô có giá trị đọc từ ảnh hoặc đề
+              xuất chờ duyệt.{" "}
+              <Link href={`/registry?case=${encodeURIComponent(caseId)}`} className="font-semibold underline">
+                Duyệt tiếp ở Duyệt hồ sơ
+              </Link>
+            </>
+          ) : (
+            `Đã duyệt xong · ${counts.approved} ô đã điền vào phiếu`
+          )}
         </p>
       )}
 
