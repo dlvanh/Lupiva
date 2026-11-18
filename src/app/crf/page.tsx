@@ -436,7 +436,7 @@ export default function SleCrfManagerPage() {
               <span className="font-mono text-[10px] font-bold text-slate-500">
                 {field.code}
               </span>
-              <span className="rounded bg-slate-100 px-1.5 py-0.2 font-mono text-[9px] text-slate-600">
+              <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-semibold text-slate-600">
                 {isNotReturned
                   ? "N/A"
                   : isVi
@@ -458,14 +458,14 @@ export default function SleCrfManagerPage() {
           {/* 3-Tier Confidence Badge */}
           <div className="text-right">
             {isNotReturned ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                 <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                 <span>
                   N/A • {isVi ? "Không có dữ liệu OCR" : "Not returned by OCR"}
                 </span>
               </span>
             ) : isManualRequired ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-rose-100 px-2 py-0.5 font-mono text-[10px] font-bold text-rose-950">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-rose-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-rose-950">
                 <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-rose-600" />
                 <span>
                   &lt;80% ({field.confidence}%) •{" "}
@@ -473,7 +473,7 @@ export default function SleCrfManagerPage() {
                 </span>
               </span>
             ) : isNeedsVerify ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-950">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-950">
                 <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                 <span>
                   80–90% ({field.confidence}%) •{" "}
@@ -481,7 +481,7 @@ export default function SleCrfManagerPage() {
                 </span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-teal-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-teal-800">
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-teal-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-teal-800">
                 <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-teal-600" />
                 <span>
                   {field.status === "auto_approved"
@@ -563,7 +563,7 @@ export default function SleCrfManagerPage() {
                     flag: e.target.value as ClinicalFlag,
                   })
                 }
-                className={`rounded-md border px-2 py-1 font-mono text-[10px] font-bold disabled:opacity-90 ${
+                className={`rounded-md border px-2 py-1 text-[11px] font-bold disabled:opacity-90 ${
                   field.flag === "Normal"
                     ? "border-slate-200 bg-slate-100 text-slate-700"
                     : "border-rose-200 bg-rose-100 text-rose-900"
@@ -1567,7 +1567,7 @@ export default function SleCrfManagerPage() {
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                   <div>
-                    <span className="font-mono text-[11px] font-bold uppercase text-teal-800">
+                    <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
                       SECTION 01 • CASE REPORT FORM HEADER
                     </span>
                     <h2 className="text-base font-bold text-slate-900">
@@ -1789,7 +1789,7 @@ export default function SleCrfManagerPage() {
             {showSection("medical_history") && (
               <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <div className="border-b border-slate-200 pb-3">
-                  <span className="font-mono text-[11px] font-bold uppercase text-teal-800">
+                  <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
                     SECTION 02 • MEDICAL HISTORY
                   </span>
                   <h2 className="text-base font-bold text-slate-900">
@@ -2452,7 +2452,7 @@ export default function SleCrfManagerPage() {
             {showSection("organs_damage") && (
               <section className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <div className="border-b border-slate-200 pb-3">
-                  <span className="font-mono text-[11px] font-bold uppercase text-teal-800">
+                  <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
                     SECTION 03 • ORGANS DAMAGE ASSESSMENT
                   </span>
                   <h2 className="text-base font-bold text-slate-900">
@@ -3186,7 +3186,7 @@ export default function SleCrfManagerPage() {
             {showSection("immunology") && (
               <section className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <div className="border-b border-slate-200 pb-3">
-                  <span className="font-mono text-[11px] font-bold uppercase text-teal-800">
+                  <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
                     SECTION 04 • IMMUNOLOGY TESTS
                   </span>
                   <h2 className="text-base font-bold text-slate-900">
@@ -3389,7 +3389,7 @@ export default function SleCrfManagerPage() {
                                             status: "user_verified",
                                           })
                                         }
-                                        className="inline-flex items-center gap-1.5 rounded bg-rose-600 px-2.5 py-1 font-mono text-[10px] font-bold text-white hover:bg-rose-700 cursor-pointer"
+                                        className="inline-flex items-center gap-1.5 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-bold tabular-nums text-white hover:bg-rose-700 cursor-pointer"
                                       >
                                         <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-white" />
                                         <span>
@@ -3407,7 +3407,7 @@ export default function SleCrfManagerPage() {
                                             status: "user_verified",
                                           })
                                         }
-                                        className="inline-flex items-center gap-1.5 rounded bg-amber-600 px-2.5 py-1 font-mono text-[10px] font-bold text-white hover:bg-amber-700 cursor-pointer"
+                                        className="inline-flex items-center gap-1.5 rounded bg-amber-600 px-2.5 py-1 text-[11px] font-bold tabular-nums text-white hover:bg-amber-700 cursor-pointer"
                                       >
                                         <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-white" />
                                         <span>
@@ -3445,7 +3445,7 @@ export default function SleCrfManagerPage() {
               <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
                   <div>
-                    <span className="font-mono text-[11px] font-bold uppercase text-teal-800">
+                    <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
                       SECTION 05 • DIAGNOSIS
                     </span>
                     <h2 className="text-base font-bold text-slate-900">
@@ -3527,7 +3527,7 @@ export default function SleCrfManagerPage() {
                         key={cat}
                         className="rounded-xl border border-slate-200 p-3.5"
                       >
-                        <h3 className="mb-2.5 font-mono text-xs font-bold uppercase text-slate-800">
+                        <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-800">
                           {cat === "clinical"
                             ? isVi
                               ? `Miền Lâm sàng (Điểm: ${eularSummary.clinicalScore})`
@@ -3558,7 +3558,7 @@ export default function SleCrfManagerPage() {
                                 }`}
                               >
                                 <div className="pr-2">
-                                  <span className="font-mono text-[10px] font-bold uppercase text-slate-500">
+                                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                     {isVi
                                       ? item.domainLabelVi
                                       : item.domainLabelEn}
@@ -3608,7 +3608,7 @@ export default function SleCrfManagerPage() {
               <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
                   <div>
-                    <span className="font-mono text-[11px] font-bold uppercase text-teal-800">
+                    <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
                       SECTION 06 • DISEASE ACTIVITY ASSESSMENT
                     </span>
                     <h2 className="text-base font-bold text-slate-900">
@@ -3618,13 +3618,13 @@ export default function SleCrfManagerPage() {
                     </h2>
                   </div>
 
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-right font-mono">
-                    <p className="text-[10px] font-bold uppercase text-rose-700">
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-right">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-rose-700">
                       {isVi
                         ? sledaiSummary.activityTierVi
                         : sledaiSummary.activityTierEn}
                     </p>
-                    <p className="text-sm font-bold text-rose-950">
+                    <p className="font-mono text-sm font-bold text-rose-950">
                       SLEDAI-2K Total = {sledaiSummary.totalScore}
                     </p>
                   </div>

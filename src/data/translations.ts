@@ -12,6 +12,7 @@ export type Language = "en" | "vi";
 
 export interface Translations {
   common: {
+    brandName: string;
     brandSubtitle: string;
     allMockDataNotice: string;
     gotIt: string;
@@ -46,47 +47,36 @@ export interface Translations {
     modalThOutcome: string;
   };
   landing: {
-    challengeTag: string;
-    specialtyTag: string;
+    programTag: string;
     heroTitle: string;
     heroDescription: string;
-    launchOcrBtn: string;
-    switchRoleBtn: (role: "specialist" | "patient") => string;
-    loginBtn: string;
-    viewButtonMapBtn: (count: number) => string;
-    metricPanelsTitle: string;
-    metricPanelsVal: string;
-    metricPanelsSub: string;
-    metricConfidenceTitle: string;
-    metricConfidenceVal: string;
-    metricConfidenceSub: string;
-    metricCommitsTitle: string;
-    metricCommitsVal: (count: number) => string;
-    metricCommitsSub: string;
-    previewBadge: string;
-    previewNeedsReview: (count: number) => string;
-    previewOpenOcrBtn: string;
-    workflowSectionTitle: string;
-    workflowSectionSub: string;
-    workflowJumpLink: string;
-    step1Tag: string;
-    step1Category: string;
-    step1Title: string;
-    step1Desc: string;
-    step2Tag: string;
-    step2Category: string;
-    step2Title: string;
-    step2Desc: string;
-    step3Tag: string;
-    step3Category: string;
-    step3Title: string;
-    step3Desc: string;
-    mockSectionTitle: string;
-    mockSectionSub: string;
-    sampleBadge: (index: number) => string;
-    abnormalBadge: (count: number) => string;
-    needsReviewBadge: (count: number) => string;
-    inspectCardBtn: string;
+    patientCta: string;
+    doctorCta: string;
+    navBackground: string;
+    navHowItWorks: string;
+    navBenefits: string;
+    navRegistration: string;
+    backgroundKicker: string;
+    backgroundTitle: string;
+    backgroundLead: string;
+    backgroundCards: Array<{ title: string; body: string }>;
+    howItWorksKicker: string;
+    howItWorksTitle: string;
+    howItWorksSubtitle: string;
+    howItWorksSteps: Array<{ stepLabel: string; title: string; desc: string }>;
+    benefitsKicker: string;
+    benefitsTitle: string;
+    benefitsSubtitle: string;
+    benefitsItems: Array<{ title: string; desc: string }>;
+    registrationKicker: string;
+    registrationTitle: string;
+    registrationSubtitle: string;
+    regStep1Title: string;
+    regStep1Rule: string;
+    regStep1Desc: string;
+    regStep2Title: string;
+    regStep2Desc: string;
+    regStepAction: string;
   };
   login: {
     roleAccessTag: string;
@@ -226,7 +216,9 @@ export interface Translations {
 export const TRANSLATIONS: Record<Language, Translations> = {
   en: {
     common: {
-      brandSubtitle: "Vinmec SLE Registry & HITL Lab OCR",
+      brandName:
+        "Center of Clinical Immunology & Allergy — Vinmec Times City International Hospital",
+      brandSubtitle: "Vinmec SLE Clinical Registry",
       allMockDataNotice: "All mock data is defined in",
       gotIt: "Got It",
       close: "Close",
@@ -261,77 +253,107 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       modalThOutcome: "Expected UI Outcome",
     },
     landing: {
-      challengeTag: "VINMEC INNOVATION CHALLENGE 2026",
-      specialtyTag: "Clinical Immunology & Allergy",
+      programTag: "Systemic Lupus Erythematosus (SLE) Clinical Registry",
       heroTitle:
-        "Standardized Lupus Lab OCR & Physician-Verified e-CRF Registry",
+        "Center of Clinical Immunology & Allergy — Vinmec Times City International Hospital",
       heroDescription:
-        "Lupiva transforms paper and PDF immunology lab reports into structured Systemic Lupus Erythematosus (SLE) registry records. Powered by side-by-side optical character recognition, bounding-box grounding, and mandatory Physician-in-the-Loop (HITL) verification.",
-      launchOcrBtn: "Launch Document OCR Workspace",
-      switchRoleBtn: (role) =>
-        `Switch Role (${role === "specialist" ? "Specialist" : "Patient"})`,
-      loginBtn: "Specialist / Patient Login",
-      viewButtonMapBtn: (count) => `View Interactive Button Map (${count})`,
-      metricPanelsTitle: "SLE Lab Panels Mapped",
-      metricPanelsVal: "3 Core e-CRFs",
-      metricPanelsSub: "Serology, Renal, Hematology",
-      metricConfidenceTitle: "3-Tier HITL Confidence",
-      metricConfidenceVal: ">90% Auto",
-      metricConfidenceSub: "80–90% Verify • <80% Manual",
-      metricCommitsTitle: "Session e-CRF Commits",
-      metricCommitsVal: (count) => `${count} Saved`,
-      metricCommitsSub: "Ready for FHIR / JSON export",
-      previewBadge: "PREVIEW: SLE SEROLOGY e-CRF EXTRACTION",
-      previewNeedsReview: (count) => `${count} Fields Need Review`,
-      previewOpenOcrBtn: "Open Full Split-Screen Review & Verify C3/C4",
-      workflowSectionTitle:
-        "How the Physician-in-the-Loop (HITL) OCR Workflow Operates",
-      workflowSectionSub:
-        "Designed around medical Document AI safety standards: source grounding, confidence triage, and explicit specialist sign-off.",
-      workflowJumpLink: "Jump straight to OCR Workspace →",
-      step1Tag: "STEP 01",
-      step1Category: "Document Capture",
-      step1Title: "Select or Upload SLE Lab Report",
-      step1Desc:
-        "Patients or clinical coordinators upload a hospital lab sheet (Serology, 24h Urinalysis, or CBC) or choose from 3 pre-loaded Vinmec SLE sample panels.",
-      step2Tag: "STEP 02",
-      step2Category: "Side-by-Side Grounding",
-      step2Title: "Inspect Bounding Boxes & Flagged Reads",
-      step2Desc:
-        "Clicking any biomarker row highlights its exact bounding box on the original lab report. Values below 85% confidence are flagged in amber for human verification.",
-      step3Tag: "STEP 03",
-      step3Category: "Standardized e-CRF",
-      step3Title: "Approve & Commit to SLE Registry",
-      step3Desc:
-        "Once verified, the structured panel is saved to the patient's longitudinal e-CRF profile with automated SLEDAI-2K biomarker scoring and JSON export.",
-      mockSectionTitle: "Interactive Mock Lab Reports Ready for Testing",
-      mockSectionSub:
-        "Click any report card below to load its scanned document and mock biomarker dataset directly into the OCR Workspace.",
-      sampleBadge: (index) => `SAMPLE #${index}`,
-      abnormalBadge: (count) => `${count} Abnormal Flags`,
-      needsReviewBadge: (count) => `${count} Low-Confidence OCR Reads`,
-      inspectCardBtn: "Inspect in OCR Workspace",
+        "The official Systemic Lupus Erythematosus (SLE) Clinical Registry portal. Our platform enables patients to maintain centralized laboratory records, supports longitudinal disease monitoring, and connects patients directly with Vinmec Clinical Immunology & Allergy specialists.",
+      patientCta: "For Patients",
+      doctorCta: "For Physicians",
+      navBackground: "Background",
+      navHowItWorks: "How the Registry Works",
+      navBenefits: "Patient Benefits",
+      navRegistration: "How to Register",
+      backgroundKicker: "Overview & Purpose",
+      backgroundTitle: "Background",
+      backgroundLead:
+        "Systemic Lupus Erythematosus (SLE) is a complex, chronic autoimmune disease affecting multiple organs that requires ongoing monitoring through immunological, hematological, and renal biomarkers.",
+      backgroundCards: [
+        {
+          title: "Challenges with Fragmented Medical Records",
+          body: "During long-term management, patients frequently visit multiple clinics and hold scattered paper laboratory reports, making longitudinal comparison across treatment milestones difficult for both patients and doctors.",
+        },
+        {
+          title: "Standardized Registry at Vinmec Times City",
+          body: "The Center of Clinical Immunology & Allergy — Vinmec Times City International Hospital established this registry to structure clinical histories according to international medical standards, enhancing care continuity and clinical research.",
+        },
+      ],
+      howItWorksKicker: "Clinical Workflow",
+      howItWorksTitle: "How the Registry Works",
+      howItWorksSubtitle:
+        "A clear, collaborative 3-step process connecting patients and Clinical Immunology & Allergy specialists.",
+      howItWorksSteps: [
+        {
+          stepLabel: "Step 1",
+          title: "Patient Enrollment & Document Submission",
+          desc: "After signing the electronic informed consent (E-consent) and registering an account, patients upload photos or PDF files of lab reports and clinical records.",
+        },
+        {
+          stepLabel: "Step 2",
+          title: "Specialist Review & Verification",
+          desc: "Extracted test parameters are checked side-by-side against the original uploaded documents and directly verified by Vinmec Clinical Immunology & Allergy specialists.",
+        },
+        {
+          stepLabel: "Step 3",
+          title: "Secure Longitudinal Follow-Up",
+          desc: "Verified clinical records are securely stored in the standardized registry, supporting longitudinal tracking of disease activity and treatment response.",
+        },
+      ],
+      benefitsKicker: "For Patients",
+      benefitsTitle: "Patient Benefits",
+      benefitsSubtitle:
+        "Joining the registry provides patients with organized long-term health tracking while safeguarding personal privacy.",
+      benefitsItems: [
+        {
+          title: "Centralized Lifelong Medical Archive",
+          desc: "All immunological, hematological, and renal test results across visits are neatly organized chronologically so important records are never lost before follow-up appointments.",
+        },
+        {
+          title: "Reviewed by Vinmec Immunology Specialists",
+          desc: "Every uploaded dossier is evaluated by our Clinical Immunology & Allergy physicians to ensure clinical biomarkers are accurately recorded.",
+        },
+        {
+          title: "Strict Data Privacy & Encryption",
+          desc: "Personal identity fields are encrypted separately from clinical datasets, complying with strict medical confidentiality and research ethics standards.",
+        },
+        {
+          title: "Continuous Care & Scientific Contribution",
+          desc: "Structured records assist physicians in tailoring individualized care while contributing real-world evidence to advance Lupus treatment in Vietnam.",
+        },
+      ],
+      registrationKicker: "Participation Guide",
+      registrationTitle: "How to Register",
+      registrationSubtitle:
+        "To join the SLE Clinical Registry at the Center of Clinical Immunology & Allergy — Vinmec Times City International Hospital, patients complete two clear steps:",
+      regStep1Title: "1. E-consent form",
+      regStep1Rule:
+        "Patients must sign the consent form before registering an account",
+      regStep1Desc:
+        "Before creating an account, patients review the registry objectives, participation benefits, and data privacy protections, and confirm agreement on the electronic E-consent form.",
+      regStep2Title: "2. Submit Medical Records",
+      regStep2Desc:
+        "After registering and signing in, patients upload photos or PDFs of their laboratory test reports and clinical summaries for specialist review.",
+      regStepAction: "Continue to sign in / register",
     },
     login: {
       roleAccessTag: "Role-Based Clinical Access",
-      title: "Sign in to Lupiva Platform",
-      registerTitle: "Create a Lupiva Account",
+      title: "Sign In",
+      registerTitle: "Create Account",
       autofillBtn: "Autofill Demo Credentials",
-      subtitle:
-        "Sign in with a seeded demo account or registered institutional credentials backed by PostgreSQL + AES-256-GCM PII encryption.",
+      subtitle: "Enter your email and password to access the system.",
       registerSubtitle:
-        "Create an encrypted patient portal account or an invite-gated Vinmec Clinical Specialist account.",
+        "Create a patient account to upload and track your laboratory records.",
       modeSignInTab: "Sign In",
       modeRegisterTab: "Create Account",
       specialistTabTitle: "Clinical Specialist",
-      specialistTabBadge: "HITL Doctor",
-      specialistTabDesc: "Verify OCR labs & commit e-CRF",
+      specialistTabBadge: "Physician",
+      specialistTabDesc: "Verify labs & manage e-CRF records",
       patientTabTitle: "SLE Patient Portal",
-      patientTabBadge: "Companion",
-      patientTabDesc: "Upload lab scans & earn vouchers",
+      patientTabBadge: "Patient",
+      patientTabDesc: "Sign E-consent & upload records",
       fullNameLabel: "Full Name",
       fullNamePlaceholder: "e.g., Tran Thi Mai",
-      emailLabel: "Institutional or Patient Email",
+      emailLabel: "Email",
       passwordLabel: "Password",
       passwordHint: "Seeded demo passkey pre-filled",
       passwordHintProduction: "Enter your account password",
@@ -343,17 +365,17 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       specialistConsent:
         "I confirm Physician-in-the-Loop (HITL) supervision responsibility: all flagged OCR biomarkers (<85% confidence) will be reviewed against the source scan before e-CRF commit.",
       patientConsent:
-        "I consent to contribute de-identified SLE lab values to the Vinmec Clinical Immunology Registry in exchange for specialist consultation voucher incentives.",
+        "E-consent form: I have read and agree to participate in the SLE Clinical Registry at the Center of Clinical Immunology & Allergy — Vinmec Times City International Hospital, and consent to encrypted storage and de-identified clinical use of my submitted records.",
       submitBtn: (name) => `Sign In as ${name} →`,
       submitRegisterBtn: (roleLabel) => `Create ${roleLabel} Account →`,
       signingInBtn: "Verifying Session...",
-      creatingAccountBtn: "Creating Encrypted Account...",
+      creatingAccountBtn: "Creating account...",
       skipBtn: "Continue Without Signing In",
       selectedProfileTitle: "Selected Account Profile",
       registerProfileTitle: "Encrypted Account Preview",
       roleAffiliation: "Role & Affiliation",
       deptCohort: "Department / Cohort ID",
-      whatUnlocks: "What This Role Unlocks in Lupiva",
+      whatUnlocks: "Role Capabilities",
       activeSessionTitle: "Currently Active Session",
       loggedInAs: (name) =>
         `Logged in as ${name}. Signing in above will switch the active session cookie to the new account.`,
@@ -429,16 +451,15 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       accountCreatedTitle: (name) => `Account created for ${name}`,
       activeMode: (title) => `Active mode: ${title}`,
       authFailedTitle: "Authentication Error",
-      signedOutTitle: "Signed out of Lupiva session",
-      signedOutDesc: "You are now browsing in public evaluator mode.",
+      signedOutTitle: "Signed out of registry session",
+      signedOutDesc: "You are now browsing as a guest visitor.",
       savedRegistryTitle: (id) => `Saved ${id} to SLE e-CRF Registry`,
       savedRegistryDesc: (count, sledai) =>
         `${count} biomarkers committed (${sledai}).`,
       autofillTitle: "Demo Credentials Autofilled",
       autofillDesc: (name) => `Loaded mock profile for ${name}.`,
       emailRequiredTitle: "Email Required",
-      emailRequiredDesc:
-        "Please enter an email or click Autofill Demo Credentials.",
+      emailRequiredDesc: "Please enter your email address.",
       consentRequiredTitle: "Informed Consent Required",
       consentRequiredDesc:
         "Patients must acknowledge e-CRF registry data de-identification consent.",
@@ -473,7 +494,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
   },
   vi: {
     common: {
-      brandSubtitle: "Hệ thống Đăng ký SLE Vinmec & OCR Xét nghiệm HITL",
+      brandName:
+        "Trung tâm Miễn dịch - Dị ứng Bệnh viện Đa khoa Quốc tế Vinmec Times City",
+      brandSubtitle: "Hệ thống Đăng ký Lâm sàng SLE Vinmec",
       allMockDataNotice: "Toàn bộ dữ liệu mẫu được định nghĩa tại",
       gotIt: "Đã hiểu",
       close: "Đóng",
@@ -487,10 +510,10 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       positive: "Dương tính",
       languageToggleTitle: "Chuyển Đổi Ngôn Ngữ / Switch Language",
       activeModeSpecialist: "Chế độ Bác sĩ Chuyên khoa",
-      activeModePatient: "Chế độ Bệnh nhân Đồng hành",
+      activeModePatient: "Chế độ Bệnh nhân",
       signOut: "Đăng xuất",
       signIn: "Đăng nhập",
-      guestMode: "Chế độ Đánh giá Khách",
+      guestMode: "Chế độ Khách",
     },
     navbar: {
       overviewWorkflow: "Tổng quan & Quy trình",
@@ -508,77 +531,107 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       modalThOutcome: "Kết quả Giao diện Dự kiến",
     },
     landing: {
-      challengeTag: "VINMEC INNOVATION CHALLENGE 2026",
-      specialtyTag: "Miễn dịch & Dị ứng Lâm sàng",
+      programTag: "Hệ thống Đăng ký Lâm sàng Lupus Ban Đỏ Hệ Thống (SLE Registry)",
       heroTitle:
-        "Số hóa Xét nghiệm Lupus bằng OCR & Hệ thống Đăng ký e-CRF Xác thực bởi Bác sĩ",
+        "Trung tâm Miễn dịch - Dị ứng Bệnh viện Đa khoa Quốc tế Vinmec Times City",
       heroDescription:
-        "Lupiva chuẩn hóa các phiếu xét nghiệm miễn dịch dạng giấy hoặc PDF thành hồ sơ đăng ký Lupus ban đỏ hệ thống (SLE) có cấu trúc. Vận hành bởi công nghệ nhận dạng ký tự quang học đối chiếu song song, định vị khung vùng nhận diện và cơ chế bắt buộc Bác sĩ xác nhận (HITL).",
-      launchOcrBtn: "Mở Không gian OCR Xét nghiệm",
-      switchRoleBtn: (role) =>
-        `Đổi Vai trò (${role === "specialist" ? "Bác sĩ" : "Bệnh nhân"})`,
-      loginBtn: "Đăng nhập Bác sĩ / Bệnh nhân",
-      viewButtonMapBtn: (count) => `Xem Sơ đồ Nút Bấm (${count})`,
-      metricPanelsTitle: "Bộ Xét nghiệm SLE Chuẩn hóa",
-      metricPanelsVal: "3 Mẫu e-CRF Cốt lõi",
-      metricPanelsSub: "Huyết thanh, Thận, Huyết học",
-      metricConfidenceTitle: "Phân tầng Tin cậy 3 Mức",
-      metricConfidenceVal: ">90% Tự động",
-      metricConfidenceSub: "80–90% Xác nhận • <80% Nhập tay",
-      metricCommitsTitle: "Hồ sơ e-CRF Đã lưu Phiên này",
-      metricCommitsVal: (count) => `${count} Hồ sơ`,
-      metricCommitsSub: "Sẵn sàng trích xuất chuẩn FHIR / JSON",
-      previewBadge: "XEM TRƯỚC: TRÍCH XUẤT e-CRF HUYẾT THANH SLE",
-      previewNeedsReview: (count) => `${count} Chỉ số Cần Kiểm tra`,
-      previewOpenOcrBtn: "Mở Không gian So sánh Song song & Xác thực C3/C4",
-      workflowSectionTitle:
-        "Quy trình OCR Xét nghiệm có Bác sĩ Tham gia (HITL) Hoạt động Như thế nào?",
-      workflowSectionSub:
-        "Thiết kế theo chuẩn an toàn Trí tuệ Nhân tạo Tài liệu Y tế: đối chiếu văn bản gốc, phân loại độ tin cậy và ký duyệt chuyên khoa rõ ràng.",
-      workflowJumpLink: "Chuyển ngay tới Không gian OCR →",
-      step1Tag: "BƯỚC 01",
-      step1Category: "Thu thập Tài liệu",
-      step1Title: "Chọn hoặc Tải lên Phiếu Xét nghiệm SLE",
-      step1Desc:
-        "Bệnh nhân hoặc điều phối viên lâm sàng tải lên ảnh chụp phiếu xét nghiệm viện (Huyết thanh, Nước tiểu 24h, hoặc Công thức máu) hoặc chọn từ 3 bộ mẫu SLE Vinmec có sẵn.",
-      step2Tag: "BƯỚC 02",
-      step2Category: "Đối chiếu Vùng Song song",
-      step2Title: "Kiểm tra Khung Nhận diện & Cảnh báo Độ tin cậy",
-      step2Desc:
-        "Nhấp vào bất kỳ hàng chỉ số nào sẽ làm nổi bật vị trí vùng chữ nhật tương ứng trên bản quét gốc. Giá trị có độ tin cậy < 85% được đánh dấu màu hổ phách để người kiểm tra xác nhận.",
-      step3Tag: "BƯỚC 03",
-      step3Category: "e-CRF Chuẩn hóa",
-      step3Title: "Phê duyệt & Lưu vào Cơ sở Dữ liệu SLE",
-      step3Desc:
-        "Sau khi xác thực, bảng chỉ số cấu trúc sẽ được lưu vào hồ sơ e-CRF theo dõi dọc của bệnh nhân, đồng thời tự động tính điểm chỉ số SLEDAI-2K và xuất file JSON.",
-      mockSectionTitle: "Các Phiếu Xét nghiệm Mẫu Sẵn sàng Trải nghiệm",
-      mockSectionSub:
-        "Nhấp vào bất kỳ thẻ bệnh án dưới đây để tải tài liệu quét và bộ chỉ số sinh học mô phỏng trực tiếp vào Không gian OCR.",
-      sampleBadge: (index) => `MẪU BỆNH ÁN #${index}`,
-      abnormalBadge: (count) => `${count} Chỉ số Bất thường`,
-      needsReviewBadge: (count) => `${count} Kết quả OCR Cần Kiểm tra`,
-      inspectCardBtn: "Xem chi tiết trong Không gian OCR",
+        "Cổng thông tin Hệ thống Đăng ký Lâm sàng Bệnh nhân Lupus Ban Đỏ Hệ Thống (SLE). Nền tảng giúp người bệnh lưu trữ hồ sơ xét nghiệm tập trung, theo dõi diễn tiến sức khỏe xuyên suốt và kết nối trực tiếp với đội ngũ Bác sĩ Chuyên khoa tại Vinmec Times City.",
+      patientCta: "Dành cho bệnh nhân",
+      doctorCta: "Dành cho bác sĩ",
+      navBackground: "Bối cảnh",
+      navHowItWorks: "Registry hoạt động như nào",
+      navBenefits: "Quyền lợi của bệnh nhân",
+      navRegistration: "Cách thức đăng ký",
+      backgroundKicker: "Thông tin chung",
+      backgroundTitle: "Bối cảnh",
+      backgroundLead:
+        "Lupus ban đỏ hệ thống (SLE) là bệnh lý tự miễn mạn tính có biểu hiện đa cơ quan, đòi hỏi theo dõi lâu dài và liên tục thông qua các xét nghiệm miễn dịch, huyết học và chức năng thận.",
+      backgroundCards: [
+        {
+          title: "Thách thức từ hồ sơ y tế phân tán",
+          body: "Trong quá trình điều trị kéo dài, người bệnh thường lưu giữ nhiều phiếu xét nghiệm giấy qua các đợt tái khám khác nhau, dễ thất lạc và gây khó khăn khi bác sĩ cần đối chiếu diễn tiến bệnh theo thời gian.",
+        },
+        {
+          title: "Sáng kiến tại Vinmec Times City",
+          body: "Trung tâm Miễn dịch - Dị ứng Bệnh viện Đa khoa Quốc tế Vinmec Times City xây dựng Hệ thống Đăng ký Lâm sàng SLE nhằm chuẩn hóa dữ liệu y khoa, giúp nâng cao chất lượng theo dõi điều trị cá thể hóa và phục vụ nghiên cứu chuyên sâu.",
+        },
+      ],
+      howItWorksKicker: "Quy trình vận hành",
+      howItWorksTitle: "Registry hoạt động như nào",
+      howItWorksSubtitle:
+        "Quy trình 3 bước minh bạch, khép kín giữa người bệnh và đội ngũ Bác sĩ Chuyên khoa Miễn dịch - Dị ứng.",
+      howItWorksSteps: [
+        {
+          stepLabel: "Bước 1",
+          title: "Bệnh nhân đăng ký & gửi hồ sơ",
+          desc: "Sau khi ký E-consent form và tạo tài khoản, người bệnh tải lên ảnh chụp hoặc tệp PDF các kết quả xét nghiệm, phiếu khám bệnh hoặc giấy ra viện.",
+        },
+        {
+          stepLabel: "Bước 2",
+          title: "Bác sĩ chuyên khoa đối chiếu & thẩm định",
+          desc: "Thông tin từ hồ sơ được số hóa và luôn được Bác sĩ Chuyên khoa Miễn dịch - Dị ứng Vinmec trực tiếp kiểm tra, đối chiếu với bản gốc nhằm bảo đảm độ chính xác lâm sàng.",
+        },
+        {
+          stepLabel: "Bước 3",
+          title: "Lưu trữ chuẩn hóa & theo dõi dọc",
+          desc: "Dữ liệu sau xác thực được lưu trữ an toàn vào hệ thống Registry, hỗ trợ bác sĩ tổng hợp chỉ số bệnh và đồng hành theo dõi điều trị lâu dài cho người bệnh.",
+        },
+      ],
+      benefitsKicker: "Giá trị dành cho người bệnh",
+      benefitsTitle: "Quyền lợi của bệnh nhân",
+      benefitsSubtitle:
+        "Tham gia Hệ thống Đăng ký giúp người bệnh quản lý hồ sơ sức khỏe khoa học và được bảo vệ quyền riêng tư ở mức cao nhất.",
+      benefitsItems: [
+        {
+          title: "Quản lý hồ sơ xét nghiệm tập trung",
+          desc: "Toàn bộ lịch sử xét nghiệm miễn dịch, huyết học và chức năng thận được lưu trữ có hệ thống theo thời gian, tránh thất lạc giấy tờ khi đi tái khám.",
+        },
+        {
+          title: "Được Bác sĩ Chuyên khoa Vinmec thẩm định",
+          desc: "Mỗi hồ sơ nộp lên đều được đội ngũ Bác sĩ Chuyên khoa Miễn dịch - Dị ứng rà soát và đánh giá các chỉ số lâm sàng quan trọng.",
+        },
+        {
+          title: "Bảo mật & mã hóa thông tin cá nhân",
+          desc: "Thông tin định danh cá nhân được mã hóa tách biệt với dữ liệu chuyên môn, tuân thủ nghiêm ngặt quy định bảo mật dữ liệu y tế và đạo đức nghiên cứu.",
+        },
+        {
+          title: "Đồng hành điều trị & đóng góp nghiên cứu",
+          desc: "Hỗ trợ bác sĩ tối ưu phác đồ điều trị phù hợp với từng cá nhân, đồng thời đóng góp dữ liệu y khoa giúp nâng cao hiệu quả chăm sóc bệnh nhân Lupus tại Việt Nam.",
+        },
+      ],
+      registrationKicker: "Hướng dẫn tham gia",
+      registrationTitle: "Cách thức đăng ký",
+      registrationSubtitle:
+        "Để tham gia Hệ thống Đăng ký tại Trung tâm Miễn dịch - Dị ứng Bệnh viện Đa khoa Quốc tế Vinmec Times City, bệnh nhân thực hiện đầy đủ 2 bước sau:",
+      regStep1Title: "1. E-consent form",
+      regStep1Rule:
+        "Bệnh nhân phải ký consent form trước khi đăng ký tài khoản",
+      regStep1Desc:
+        "Trước khi khởi tạo tài khoản, người bệnh đọc kỹ thông tin về mục đích chương trình, quyền lợi và cam kết bảo mật dữ liệu, sau đó xác nhận đồng ý trên biểu mẫu điện tử (E-consent form).",
+      regStep2Title: "2. Nộp hồ sơ",
+      regStep2Desc:
+        "Sau khi hoàn tất ký E-consent form, tạo tài khoản và đăng nhập, bệnh nhân tiến hành tải lên ảnh chụp hoặc tệp PDF phiếu xét nghiệm, hồ sơ khám bệnh để bác sĩ chuyên khoa tiếp nhận thẩm định.",
+      regStepAction: "Đi tới trang đăng nhập",
     },
     login: {
       roleAccessTag: "Truy cập Lâm sàng Phân quyền",
-      title: "Đăng nhập Nền tảng Lupiva",
-      registerTitle: "Tạo Tài khoản Lupiva",
+      title: "Đăng nhập",
+      registerTitle: "Đăng ký tài khoản",
       autofillBtn: "Tự động Điền Tài khoản Mẫu",
-      subtitle:
-        "Đăng nhập bằng tài khoản mẫu có sẵn hoặc tài khoản đã đăng ký, bảo vệ bởi PostgreSQL + mã hóa PII AES-256-GCM.",
+      subtitle: "Nhập email và mật khẩu để truy cập hệ thống.",
       registerSubtitle:
-        "Tạo tài khoản Cổng Bệnh nhân được mã hóa hoặc tài khoản Bác sĩ Chuyên khoa Vinmec (yêu cầu mã mời).",
+        "Tạo tài khoản bệnh nhân để tải lên và theo dõi hồ sơ xét nghiệm.",
       modeSignInTab: "Đăng nhập",
       modeRegisterTab: "Tạo Tài khoản",
       specialistTabTitle: "Bác sĩ Chuyên khoa",
-      specialistTabBadge: "Bác sĩ Duyệt HITL",
-      specialistTabDesc: "Xác thực OCR xét nghiệm & lưu e-CRF",
+      specialistTabBadge: "Bác sĩ",
+      specialistTabDesc: "Thẩm định hồ sơ & lưu e-CRF",
       patientTabTitle: "Cổng Thông tin Bệnh nhân",
-      patientTabBadge: "Đồng hành",
-      patientTabDesc: "Tải phiếu xét nghiệm & nhận voucher",
+      patientTabBadge: "Bệnh nhân",
+      patientTabDesc: "Ký E-consent & nộp hồ sơ xét nghiệm",
       fullNameLabel: "Họ và Tên",
       fullNamePlaceholder: "VD: Trần Thị Mai",
-      emailLabel: "Email Bệnh viện hoặc Email Bệnh nhân",
+      emailLabel: "Email",
       passwordLabel: "Mật khẩu",
       passwordHint: "Đã điền sẵn mật khẩu tài khoản mẫu",
       passwordHintProduction: "Nhập mật khẩu tài khoản của bạn",
@@ -590,17 +643,17 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       specialistConsent:
         "Tôi xác nhận trách nhiệm giám sát Bác sĩ Tham gia (HITL): toàn bộ chỉ số OCR bị cảnh báo (<85% độ tin cậy) sẽ được đối chiếu kỹ lưỡng với bản chụp gốc trước khi lưu vào e-CRF.",
       patientConsent:
-        "Tôi đồng ý đóng góp các chỉ số xét nghiệm SLE đã ẩn danh vào Cơ sở Dữ liệu Miễn dịch Lâm sàng Vinmec để đổi lấy phiếu ưu đãi khám chuyên khoa.",
+        "E-consent form: Tôi đã đọc, hiểu rõ và đồng ý tham gia Hệ thống Đăng ký SLE tại Trung tâm Miễn dịch - Dị ứng Bệnh viện Đa khoa Quốc tế Vinmec Times City, đồng ý lưu trữ bảo mật và sử dụng dữ liệu y tế đã ẩn danh cho mục đích chăm sóc lâm sàng và nghiên cứu.",
       submitBtn: (name) => `Đăng nhập với tên ${name} →`,
       submitRegisterBtn: (roleLabel) => `Tạo Tài khoản ${roleLabel} →`,
       signingInBtn: "Đang xác thực phiên...",
-      creatingAccountBtn: "Đang khởi tạo tài khoản mã hóa...",
+      creatingAccountBtn: "Đang tạo tài khoản...",
       skipBtn: "Tiếp tục mà không đăng nhập",
       selectedProfileTitle: "Hồ sơ Tài khoản Được Chọn",
       registerProfileTitle: "Xem trước Tài khoản Mã hóa",
       roleAffiliation: "Vai trò & Đơn vị",
       deptCohort: "Khoa / Mã Đoàn hệ Đăng ký",
-      whatUnlocks: "Quyền hạn của Vai trò trên Lupiva",
+      whatUnlocks: "Quyền hạn của Vai trò trên Hệ thống",
       activeSessionTitle: "Phiên Làm việc Hiện tại",
       loggedInAs: (name) =>
         `Đang đăng nhập với tên ${name}. Đăng nhập ở trên sẽ cập nhật phiên HttpOnly sang tài khoản mới.`,
@@ -676,16 +729,15 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       accountCreatedTitle: (name) => `Đã tạo tài khoản cho ${name}`,
       activeMode: (title) => `Chế độ hoạt động: ${title}`,
       authFailedTitle: "Lỗi Xác thực",
-      signedOutTitle: "Đã đăng xuất khỏi phiên Lupiva",
-      signedOutDesc: "Bạn hiện đang duyệt ở chế độ Người Đánh giá Khách.",
+      signedOutTitle: "Đã đăng xuất khỏi phiên làm việc",
+      signedOutDesc: "Bạn hiện đang duyệt ở chế độ Khách.",
       savedRegistryTitle: (id) => `Đã lưu hồ sơ ${id} vào CSDL e-CRF SLE`,
       savedRegistryDesc: (count, sledai) =>
         `Đã ghi nhận ${count} chỉ số sinh học (${sledai}).`,
       autofillTitle: "Đã Tự động Điền Tài khoản Mẫu",
       autofillDesc: (name) => `Đã nạp hồ sơ mẫu của ${name}.`,
       emailRequiredTitle: "Yêu cầu Nhập Email",
-      emailRequiredDesc:
-        "Vui lòng nhập địa chỉ email hoặc bấm 'Tự động Điền Tài khoản Mẫu'.",
+      emailRequiredDesc: "Vui lòng nhập địa chỉ email của bạn.",
       consentRequiredTitle: "Yêu cầu Chấp thuận Tham gia",
       consentRequiredDesc:
         "Bệnh nhân cần xác nhận đồng ý đóng góp dữ liệu e-CRF đã ẩn danh.",

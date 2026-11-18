@@ -119,7 +119,7 @@ export function SleScoreTables({
               <div className="flex items-center justify-between">
                 <span>{domainLabel}</span>
                 {domainMax > 0 && (
-                  <span className="rounded bg-teal-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-teal-900">
+                  <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-teal-900">
                     +{domainMax} {isVi ? "điểm miền" : "domain max"}
                   </span>
                 )}
@@ -218,12 +218,12 @@ export function SleScoreTables({
               : "border-slate-200 bg-white"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-teal-800">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
               {isVi ? "Phân loại EULAR/ACR 2019" : "2019 EULAR/ACR Classification"}
             </span>
             <span
-              className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold ${
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                 eularSummary.isClassifiedSle
                   ? "bg-teal-700 text-white"
                   : "bg-slate-200 text-slate-700"
@@ -281,12 +281,12 @@ export function SleScoreTables({
               : "border-slate-200 bg-white"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-slate-700">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
               {isVi ? "Hoạt tính bệnh SLEDAI-2K" : "SLEDAI-2K Disease Activity"}
             </span>
             <span
-              className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold ${
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                 sledaiSummary.badgeTone === "rose"
                   ? "bg-rose-700 text-white"
                   : sledaiSummary.badgeTone === "amber"
@@ -316,12 +316,12 @@ export function SleScoreTables({
 
         {/* OCR Verification & Approval Status Card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-slate-700">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
               {isVi ? "Trạng thái Xác minh OCR" : "OCR Review & Sign-Off"}
             </span>
             <span
-              className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold ${
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                 isApproved
                   ? "bg-teal-700 text-white"
                   : "bg-amber-100 text-amber-900"
@@ -394,11 +394,11 @@ export function SleScoreTables({
                   : "Within each domain, only the highest-weighted criterion is counted toward the total score."}
               </p>
             </div>
-            <div className="rounded-xl bg-slate-900 px-3.5 py-2 text-right font-mono text-white">
-              <p className="text-[10px] uppercase text-slate-300">
+            <div className="rounded-xl bg-slate-900 px-3.5 py-2 text-right text-white">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">
                 {isVi ? "Tổng điểm EULAR/ACR" : "EULAR/ACR Total"}
               </p>
-              <p className="text-base font-bold">
+              <p className="font-mono text-base font-bold">
                 {eularSummary.totalScore}{" "}
                 <span className="text-xs font-normal text-slate-300">
                   / ≥10
@@ -564,11 +564,11 @@ export function SleScoreTables({
                 : "24 weighted clinical & laboratory descriptors for SLE disease activity (8, 4, 2, 1 pts)."}
             </p>
           </div>
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-right font-mono">
-            <p className="text-[10px] font-bold uppercase text-rose-700">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-right">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-rose-700">
               {isVi ? sledaiSummary.activityTierVi : sledaiSummary.activityTierEn}
             </p>
-            <p className="text-base font-bold text-rose-950">
+            <p className="font-mono text-base font-bold text-rose-950">
               SLEDAI-2K = {sledaiSummary.totalScore}
             </p>
           </div>

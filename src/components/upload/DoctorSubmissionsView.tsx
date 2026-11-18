@@ -95,7 +95,7 @@ function DocumentsAndTreatmentsGrid({
   return (
     <div className={`grid grid-cols-1 gap-4 @md:grid-cols-2 ${className}`}>
       <div>
-        <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
           {copy.attachedDocsHeading}
         </h3>
         {patient.uploadedFiles && patient.uploadedFiles.length > 0 ? (
@@ -150,7 +150,7 @@ function DocumentsAndTreatmentsGrid({
       </div>
 
       <div>
-        <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
           {copy.treatmentsHeading}
         </h3>
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -205,7 +205,7 @@ function PatientDossierCard({
               {p.patientName}
             </h2>
             <span
-              className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${
+              className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
                 approved
                   ? "bg-teal-100 text-teal-900"
                   : "bg-amber-100 text-amber-950"
@@ -226,9 +226,9 @@ function PatientDossierCard({
               ) • ICF: <span className="font-mono">{p.icfSignedDate}</span>
             </span>
             {p.submittedAt ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-[11px] text-slate-700">
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-700">
                 <span>{copy.submittedAtPrefix}</span>
-                <strong className="font-semibold text-slate-900">
+                <strong className="font-semibold tabular-nums text-slate-900">
                   {p.submittedAt}
                 </strong>
               </span>
@@ -268,7 +268,7 @@ function PatientDossierCard({
           </div>
 
           <div className="border-t border-slate-200 pt-3 @2xl:col-span-5 @2xl:border-t-0 @2xl:border-l @2xl:pl-5 @2xl:pt-0">
-            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
               {copy.scorePreviewHeading}
             </h3>
 
@@ -309,32 +309,32 @@ function PatientDossierCard({
         /* Pending Review Dossiers: Concise 1-Line OCR Triage + Expandable Documents & Treatments */
         <>
           <div className="flex flex-wrap items-center gap-2.5 px-5 py-3 @lg:px-6">
-            <h3 className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+            <h3 className="shrink-0 text-xs font-bold uppercase tracking-wider text-slate-600">
               {copy.triageHeading}
             </h3>
 
-            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 font-mono text-xs @xs:grid-cols-3">
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 text-xs @xs:grid-cols-3">
               <div className="flex items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 whitespace-nowrap text-rose-950">
-                <span className="text-[11px] font-semibold text-rose-800">
+                <span className="text-xs font-semibold text-rose-800">
                   {copy.manualTierLabel}
                 </span>
-                <span className="text-sm font-bold">
+                <span className="text-sm font-bold tabular-nums">
                   {item.ocrSummary.manualCount}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 whitespace-nowrap text-amber-950">
-                <span className="text-[11px] font-semibold text-amber-900">
+                <span className="text-xs font-semibold text-amber-900">
                   {copy.verifyTierLabel}
                 </span>
-                <span className="text-sm font-bold">
+                <span className="text-sm font-bold tabular-nums">
                   {item.ocrSummary.verifyCount}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 whitespace-nowrap text-teal-950">
-                <span className="text-[11px] font-semibold text-teal-800">
+                <span className="text-xs font-semibold text-teal-800">
                   {copy.approvedTierLabel}
                 </span>
-                <span className="text-sm font-bold">
+                <span className="text-sm font-bold tabular-nums">
                   {item.ocrSummary.approvedCount}
                 </span>
               </div>
@@ -839,7 +839,7 @@ export function DoctorSubmissionsView() {
                     onChange={(e) =>
                       handleCustomDateChange("fromDate", e.target.value)
                     }
-                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs tabular-nums text-slate-900 focus:border-teal-700"
                   />
                 </div>
 
@@ -859,7 +859,7 @@ export function DoctorSubmissionsView() {
                     onChange={(e) =>
                       handleCustomDateChange("toDate", e.target.value)
                     }
-                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs tabular-nums text-slate-900 focus:border-teal-700"
                   />
                 </div>
 
@@ -945,7 +945,7 @@ export function DoctorSubmissionsView() {
                   : ""}
               </p>
               {apiState.loading && (
-                <span className="font-mono text-xs text-teal-800">
+                <span className="text-xs font-medium text-teal-800">
                   {copy.loadingText}
                 </span>
               )}

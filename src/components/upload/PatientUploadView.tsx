@@ -503,7 +503,7 @@ export function PatientUploadView() {
                   {copy.trackerSortNote}
                 </p>
               </div>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-slate-700">
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-slate-700">
                 {copy.trackerCount(trackerState.pagination.totalItems)}
               </span>
             </div>
@@ -599,7 +599,7 @@ export function PatientUploadView() {
                 aria-label={copy.paginationLabel}
                 className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200 pt-3 text-xs"
               >
-                <span className="font-mono font-semibold text-slate-700">
+                <span className="font-semibold tabular-nums text-slate-700">
                   {copy.pageOfTotal(
                     trackerState.pagination.page,
                     trackerState.pagination.totalPages

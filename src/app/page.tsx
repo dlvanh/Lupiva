@@ -2,452 +2,430 @@
 
 import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BUTTON_ACTION_MAP } from "@/data/mockData";
 import { useLupiva } from "@/context/LupivaContext";
-import { getLocalizedLabReports } from "@/data/translations";
+
+function ArrowRightIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </svg>
+  );
+}
+
+const BENEFIT_ICONS = [
+  // Folder / centralized archive
+  <svg
+    key="archive"
+    aria-hidden="true"
+    className="h-5 w-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+  </svg>,
+  // Specialist medical check
+  <svg
+    key="specialist"
+    aria-hidden="true"
+    className="h-5 w-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <polyline points="16 11 18 13 22 9" />
+  </svg>,
+  // Security shield
+  <svg
+    key="shield"
+    aria-hidden="true"
+    className="h-5 w-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="m9 12 2 2 4-4" />
+  </svg>,
+  // Heart / care continuity
+  <svg
+    key="heart"
+    aria-hidden="true"
+    className="h-5 w-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+  </svg>,
+];
 
 export default function LandingPage() {
-  const router = useRouter();
-  const {
-    language,
-    t,
-    setSelectedReportId,
-    setIsActionGuideOpen,
-    savedRecords,
-    currentUser,
-  } = useLupiva();
+  const { t } = useLupiva();
+  const l = t.landing;
 
-  const localizedReports = getLocalizedLabReports(language);
-  const isSpecialist = currentUser?.role === "specialist";
-
-  const handleOpenSampleReport = (reportId: string) => {
-    setSelectedReportId(reportId);
-    router.push(isSpecialist ? "/ocr" : "/login");
-  };
+  const sectionAnchors = [
+    { href: "#boi-canh", label: l.navBackground },
+    { href: "#hoat-dong", label: l.navHowItWorks },
+    { href: "#quyen-loi", label: l.navBenefits },
+    { href: "#dang-ky", label: l.navRegistration },
+  ];
 
   return (
     <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
       {/* Hero Section */}
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12">
-            {/* Left Column: Clinical Copy & Primary Actions */}
-            <div className="lg:col-span-7">
-              <div className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-                <span className="font-mono font-semibold text-teal-800">
-                  {t.landing.challengeTag}
-                </span>
-                <span aria-hidden="true" className="text-slate-300">•</span>
-                <span>{t.landing.specialtyTag}</span>
-              </div>
-
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-[40px] lg:leading-[1.15]">
-                {t.landing.heroTitle}
-              </h1>
-
-              <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-600">
-                {t.landing.heroDescription}
-              </p>
-
-              {/* Hero Action Buttons */}
-              <div className="mt-7 flex flex-wrap items-center gap-3">
-                <Link
-                  href="/upload"
-                  id="hero-btn-launch-crf"
-                  className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-2xs transition hover:bg-teal-800"
-                >
-                  <span>
-                    {language === "vi"
-                      ? "1. Bệnh nhân: Tải tài liệu lên"
-                      : "1. Patient: Upload your document"}
-                  </span>
-                  <svg
-                    aria-hidden="true"
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
-                </Link>
-
-                {isSpecialist && (
-                  <Link
-                    href="/ocr"
-                    id="hero-btn-launch-ocr"
-                    className="inline-flex items-center gap-2 rounded-lg border border-teal-700/35 bg-teal-50 px-5 py-2.5 text-sm font-semibold text-teal-900 transition hover:bg-teal-100"
-                  >
-                    <span>{t.landing.launchOcrBtn}</span>
-                    <svg
-                      aria-hidden="true"
-                      className="h-4 w-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M5 12h14" />
-                      <path d="m12 5 7 7-7 7" />
-                    </svg>
-                  </Link>
-                )}
-
-                <Link
-                  href="/login"
-                  id="hero-btn-login"
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-                >
-                  <span>
-                    {currentUser
-                      ? t.landing.switchRoleBtn(currentUser.role)
-                      : t.landing.loginBtn}
-                  </span>
-                </Link>
-
-                <button
-                  type="button"
-                  id="hero-btn-button-map"
-                  onClick={() => setIsActionGuideOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200/70 cursor-pointer"
-                >
-                  <span>
-                    {t.landing.viewButtonMapBtn(BUTTON_ACTION_MAP.length)}
-                  </span>
-                </button>
-              </div>
-
-              {/* Clinical Key Metrics Bar */}
-              <dl className="mt-9 grid grid-cols-3 gap-4 border-t border-slate-200 pt-6">
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">
-                    {t.landing.metricPanelsTitle}
-                  </dt>
-                  <dd className="mt-1 font-mono text-xl font-bold text-slate-900">
-                    {t.landing.metricPanelsVal}
-                  </dd>
-                  <p className="text-[11px] text-slate-500">
-                    {t.landing.metricPanelsSub}
-                  </p>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">
-                    {t.landing.metricConfidenceTitle}
-                  </dt>
-                  <dd className="mt-1 font-mono text-xl font-bold text-teal-800">
-                    {t.landing.metricConfidenceVal}
-                  </dd>
-                  <p className="text-[11px] text-slate-500">
-                    {t.landing.metricConfidenceSub}
-                  </p>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">
-                    {t.landing.metricCommitsTitle}
-                  </dt>
-                  <dd className="mt-1 font-mono text-xl font-bold text-slate-900">
-                    {t.landing.metricCommitsVal(savedRecords.length)}
-                  </dd>
-                  <p className="text-[11px] text-slate-500">
-                    {t.landing.metricCommitsSub}
-                  </p>
-                </div>
-              </dl>
+      <section className="border-b border-teal-950 bg-teal-900 text-white">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-1.5 text-xs font-semibold text-teal-950 shadow-xs sm:text-sm">
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 rounded-full bg-teal-700"
+              />
+              <span>{l.programTag}</span>
             </div>
 
-            {/* Right Column: Live Interactive Preview Card of the Split OCR UI */}
-            <div className="lg:col-span-5">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
-                <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-teal-600" />
-                    <span className="font-mono text-xs font-semibold text-slate-800">
-                      {t.landing.previewBadge}
-                    </span>
-                  </div>
-                  <span className="rounded bg-amber-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-900">
-                    {t.landing.previewNeedsReview(2)}
-                  </span>
-                </div>
+            <h1 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[42px] lg:leading-[1.2]">
+              {l.heroTitle}
+            </h1>
 
-                <div className="space-y-3 p-4">
-                  {localizedReports[0].fields.slice(0, 4).map((field) => {
-                    const isManual = !field.verified && field.confidence < 80;
-                    const isVerify =
-                      !field.verified &&
-                      field.confidence >= 80 &&
-                      field.confidence <= 90;
-                    const flagLabel =
-                      field.flag === "Normal"
-                        ? t.common.normal
-                        : field.flag === "High"
-                        ? t.common.high
-                        : field.flag === "Low"
-                        ? t.common.low
-                        : t.common.positive;
-
-                    return (
-                      <div
-                        key={field.id}
-                        className={`flex items-center justify-between rounded-xl border p-3 text-xs ${
-                          isManual
-                            ? "border-rose-300 bg-rose-50/70"
-                            : isVerify
-                            ? "border-amber-300 bg-amber-50/70"
-                            : "border-slate-200 bg-white"
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-[11px] font-bold text-slate-500">
-                              {field.code}
-                            </span>
-                            <span className="font-semibold text-slate-900">
-                              {field.name}
-                            </span>
-                          </div>
-                          <p className="mt-0.5 text-[11px] text-slate-500">
-                            Ref: {field.referenceRange}
-                          </p>
-                        </div>
-
-                        <div className="text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {isManual ? (
-                              <span className="font-mono text-xs font-bold text-rose-700">
-                                {language === "vi"
-                                  ? "[Trống — Xem bản gốc]"
-                                  : "[Blank — Check Scan]"}
-                              </span>
-                            ) : (
-                              <>
-                                <span className="font-mono text-sm font-bold text-slate-900">
-                                  {field.value}
-                                </span>
-                                <span className="font-mono text-[11px] text-slate-500">
-                                  {field.unit}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                          <div className="mt-1 flex items-center justify-end gap-1.5">
-                            <span
-                              className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
-                                field.flag === "Normal"
-                                  ? "bg-slate-100 text-slate-700"
-                                  : "bg-rose-100 text-rose-800"
-                              }`}
-                            >
-                              {flagLabel}
-                            </span>
-                            <span
-                              className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
-                                isManual
-                                  ? "bg-rose-200 text-rose-950"
-                                  : isVerify
-                                  ? "bg-amber-200/80 text-amber-950"
-                                  : "bg-teal-100 text-teal-900"
-                              }`}
-                            >
-                              {isManual
-                                ? `<80% (${field.confidence}%) Manual`
-                                : isVerify
-                                ? `80–90% (${field.confidence}%) Verify`
-                                : `>90% (${field.confidence}%) Auto`}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {isSpecialist && (
-                    <button
-                      type="button"
-                      id="preview-card-btn-open-ocr"
-                      onClick={() => handleOpenSampleReport(localizedReports[0].id)}
-                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 cursor-pointer"
-                    >
-                      <span>{t.landing.previewOpenOcrBtn}</span>
-                      <span aria-hidden="true">→</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3-Step Clinical OCR Workflow Section */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
-              {t.landing.workflowSectionTitle}
-            </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              {t.landing.workflowSectionSub}
+            <p className="mt-5 text-base leading-relaxed text-teal-50/95 sm:text-lg sm:leading-8">
+              {l.heroDescription}
             </p>
+
+            {/* Primary Dual-Audience Buttons (Both Navigate to /login) */}
+            <div className="mt-8 flex flex-wrap items-center gap-3.5">
+              <Link
+                href="/login?role=patient"
+                id="hero-btn-patient"
+                className="inline-flex min-h-12 items-center gap-2.5 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-teal-900 shadow-sm transition hover:bg-teal-50 sm:text-base"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="h-4.5 w-4.5 text-teal-800"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>{l.patientCta}</span>
+                <ArrowRightIcon />
+              </Link>
+
+              <Link
+                href="/login?role=specialist"
+                id="hero-btn-doctor"
+                className="inline-flex min-h-12 items-center gap-2.5 rounded-lg border border-teal-400/50 bg-teal-800/80 px-6 py-3 text-sm font-semibold text-white shadow-2xs transition hover:border-teal-200 hover:bg-teal-800 sm:text-base"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="h-4.5 w-4.5 text-teal-200"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3" />
+                  <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4" />
+                  <circle cx="20" cy="10" r="2" />
+                </svg>
+                <span>{l.doctorCta}</span>
+                <ArrowRightIcon />
+              </Link>
+            </div>
           </div>
-          <Link
-            href={isSpecialist ? "/ocr" : "/upload"}
-            className="text-xs font-semibold text-teal-800 hover:underline"
+
+          {/* Quick Section Anchors */}
+          <nav
+            aria-label={l.programTag}
+            className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-teal-800 pt-5"
           >
-            {isSpecialist
-              ? t.landing.workflowJumpLink
-              : language === "vi"
-              ? "Tới cổng tải tài liệu →"
-              : "Go to Patient Upload →"}
-          </Link>
+            {sectionAnchors.map((item, idx) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-teal-100 transition hover:text-white"
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-teal-700 bg-teal-800 text-xs font-bold text-teal-100">
+                  {idx + 1}
+                </span>
+                <span>{item.label}</span>
+              </a>
+            ))}
+          </nav>
         </div>
+      </section>
 
-        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-bold text-slate-800">
-                {t.landing.step1Tag}
-              </span>
-              <span className="text-xs font-medium text-slate-500">
-                {t.landing.step1Category}
-              </span>
-            </div>
-            <h3 className="mt-4 text-base font-bold text-slate-900">
-              {t.landing.step1Title}
-            </h3>
-            <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              {t.landing.step1Desc}
+      {/* Section 1: Bối cảnh */}
+      <section
+        id="boi-canh"
+        aria-labelledby="heading-background"
+        className="scroll-mt-16 border-b border-slate-200 bg-slate-50/70 py-14 sm:py-16"
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
+              {l.backgroundKicker}
+            </p>
+            <h2
+              id="heading-background"
+              className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl"
+            >
+              {l.backgroundTitle}
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-slate-700">
+              {l.backgroundLead}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <span className="rounded-lg bg-amber-100 px-2.5 py-1 font-mono text-xs font-bold text-amber-900">
-                {t.landing.step2Tag}
-              </span>
-              <span className="text-xs font-medium text-amber-800">
-                {t.landing.step2Category}
-              </span>
-            </div>
-            <h3 className="mt-4 text-base font-bold text-slate-900">
-              {t.landing.step2Title}
-            </h3>
-            <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              {t.landing.step2Desc}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <span className="rounded-lg bg-teal-100 px-2.5 py-1 font-mono text-xs font-bold text-teal-900">
-                {t.landing.step3Tag}
-              </span>
-              <span className="text-xs font-medium text-teal-800">
-                {t.landing.step3Category}
-              </span>
-            </div>
-            <h3 className="mt-4 text-base font-bold text-slate-900">
-              {t.landing.step3Title}
-            </h3>
-            <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              {t.landing.step3Desc}
-            </p>
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {l.backgroundCards.map((card) => (
+              <div
+                key={card.title}
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs sm:p-7"
+              >
+                <h3 className="text-lg font-bold text-slate-900">
+                  {card.title}
+                </h3>
+                <p className="mt-2.5 text-sm leading-7 text-slate-600 sm:text-[15px]">
+                  {card.body}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Pre-Loaded Mock SLE Lab Reports Section */}
-      <section className="border-t border-slate-200 bg-white py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
-                {t.landing.mockSectionTitle}
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                {t.landing.mockSectionSub}
-              </p>
-            </div>
+      {/* Section 2: Registry hoạt động như nào */}
+      <section
+        id="hoat-dong"
+        aria-labelledby="heading-how-it-works"
+        className="scroll-mt-16 border-b border-slate-200 bg-white py-14 sm:py-16"
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
+              {l.howItWorksKicker}
+            </p>
+            <h2
+              id="heading-how-it-works"
+              className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl"
+            >
+              {l.howItWorksTitle}
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-slate-600">
+              {l.howItWorksSubtitle}
+            </p>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {localizedReports.map((report, index) => {
-              const needsReviewCount = report.fields.filter(
-                (f) => !f.verified || f.confidence < 85
-              ).length;
-              const abnormalCount = report.fields.filter(
-                (f) => f.flag !== "Normal"
-              ).length;
-
-              return (
-                <div
-                  key={report.id}
-                  className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50/60 p-6 transition hover:border-teal-700/40 hover:bg-white hover:shadow-sm"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="rounded-md bg-slate-200/80 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-800">
-                        {t.landing.sampleBadge(index + 1)}
-                      </span>
-                      <span className="font-mono text-[11px] text-slate-500">
-                        {report.collectionDate}
-                      </span>
-                    </div>
-
-                    <h3 className="mt-3 text-base font-bold text-slate-900">
-                      {report.title}
-                    </h3>
-                    <p className="mt-1 text-xs font-medium text-teal-800">
-                      {report.subtitle}
-                    </p>
-                    <p className="mt-2.5 text-xs leading-relaxed text-slate-600">
-                      {report.clinicalSummary}
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap gap-1.5">
-                      {report.fields.map((f) => (
-                        <span
-                          key={f.id}
-                          className="rounded border border-slate-200 bg-white px-2 py-0.5 font-mono text-[10px] font-medium text-slate-700"
-                        >
-                          {f.code}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 border-t border-slate-200/80 pt-4">
-                    <div className="mb-3 flex items-center justify-between text-xs">
-                      <span className="font-medium text-rose-700">
-                        {t.landing.abnormalBadge(abnormalCount)}
-                      </span>
-                      <span className="font-medium text-amber-800">
-                        {t.landing.needsReviewBadge(needsReviewCount)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      id={`sample-card-btn-${report.id}`}
-                      onClick={() => handleOpenSampleReport(report.id)}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-teal-800 cursor-pointer"
-                    >
-                      <span>{t.landing.inspectCardBtn}</span>
-                      <span aria-hidden="true">→</span>
-                    </button>
-                  </div>
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+            {l.howItWorksSteps.map((step, index) => (
+              <div
+                key={step.title}
+                className="flex flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-6 sm:p-7"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-700 text-sm font-bold text-white">
+                    {index + 1}
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
+                    {step.stepLabel}
+                  </span>
                 </div>
-              );
-            })}
+                <h3 className="mt-4 text-lg font-bold text-slate-900">
+                  {step.title}
+                </h3>
+                <p className="mt-2.5 text-sm leading-7 text-slate-600 sm:text-[15px]">
+                  {step.desc}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
+
+      {/* Section 3: Quyền lợi của bệnh nhân */}
+      <section
+        id="quyen-loi"
+        aria-labelledby="heading-benefits"
+        className="scroll-mt-16 border-b border-slate-200 bg-slate-50/70 py-14 sm:py-16"
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
+              {l.benefitsKicker}
+            </p>
+            <h2
+              id="heading-benefits"
+              className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl"
+            >
+              {l.benefitsTitle}
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-slate-600">
+              {l.benefitsSubtitle}
+            </p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
+            {l.benefitsItems.map((item, idx) => (
+              <div
+                key={item.title}
+                className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs sm:p-7"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-800">
+                  {BENEFIT_ICONS[idx % BENEFIT_ICONS.length]}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 sm:text-lg">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-600 sm:text-[15px]">
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section 4: Cách thức đăng ký */}
+      <section
+        id="dang-ky"
+        aria-labelledby="heading-registration"
+        className="scroll-mt-16 bg-white py-14 sm:py-16"
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
+              {l.registrationKicker}
+            </p>
+            <h2
+              id="heading-registration"
+              className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl"
+            >
+              {l.registrationTitle}
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-slate-600">
+              {l.registrationSubtitle}
+            </p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Step 1: E-consent form (Button -> /login) */}
+            <Link
+              href="/login?role=patient&mode=register"
+              id="reg-btn-econsent"
+              className="group flex flex-col justify-between rounded-2xl border-2 border-teal-300 bg-teal-50/50 p-6 text-left shadow-2xs transition hover:-translate-y-0.5 hover:border-teal-600 hover:bg-teal-50 hover:shadow-md sm:p-7"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-700 text-sm font-bold text-white transition group-hover:bg-teal-800">
+                      1
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-teal-900">
+                      {l.regStep1Title}
+                    </h3>
+                  </div>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-teal-800 shadow-2xs transition group-hover:bg-teal-700 group-hover:text-white">
+                    <ArrowRightIcon />
+                  </span>
+                </div>
+                <p className="mt-4 rounded-xl border border-teal-200/80 bg-white px-4 py-3 text-sm font-semibold text-teal-950">
+                  {l.regStep1Rule}
+                </p>
+                <p className="mt-3 text-sm leading-7 text-slate-700 sm:text-[15px]">
+                  {l.regStep1Desc}
+                </p>
+              </div>
+              <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-800 group-hover:text-teal-950">
+                <span>{l.regStepAction}</span>
+                <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </Link>
+
+            {/* Step 2: Submit records (Button -> /login) */}
+            <Link
+              href="/login?role=patient"
+              id="reg-btn-submit-records"
+              className="group flex flex-col justify-between rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-6 text-left shadow-2xs transition hover:-translate-y-0.5 hover:border-teal-600 hover:bg-white hover:shadow-md sm:p-7"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-white transition group-hover:bg-teal-700">
+                      2
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-teal-900">
+                      {l.regStep2Title}
+                    </h3>
+                  </div>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-2xs transition group-hover:bg-teal-700 group-hover:text-white">
+                    <ArrowRightIcon />
+                  </span>
+                </div>
+                <p className="mt-4 text-sm leading-7 text-slate-700 sm:text-[15px]">
+                  {l.regStep2Desc}
+                </p>
+              </div>
+              <div className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-800 group-hover:text-teal-950">
+                <span>{l.regStepAction}</span>
+                <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Institutional Footer */}
+      <footer className="border-t border-slate-200 bg-slate-50 py-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:px-6 lg:px-8">
+          <p className="font-semibold text-slate-800">{t.common.brandName}</p>
+          <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-600">
+            <Link href="/login?role=patient" className="hover:text-teal-800">
+              {l.patientCta}
+            </Link>
+            <Link href="/login?role=specialist" className="hover:text-teal-800">
+              {l.doctorCta}
+            </Link>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

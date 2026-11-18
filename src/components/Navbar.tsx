@@ -63,11 +63,6 @@ export function Navbar() {
     currentUser?.role === "specialist"
       ? [
           {
-            href: "/",
-            label: isVi ? "Tổng quan" : "Overview",
-            id: "nav-link-home",
-          },
-          {
             href: "/upload",
             label: isVi ? "Hồ sơ Bệnh nhân" : "Patient Submissions",
             id: "nav-link-upload",
@@ -83,25 +78,15 @@ export function Navbar() {
             id: "nav-link-scores",
           },
         ]
-      : [
-          {
-            href: "/",
-            label: isVi ? "Tổng quan" : "Overview",
-            id: "nav-link-home",
-          },
-          {
-            href: "/upload",
-            label:
-              currentUser?.role === "patient"
-                ? isVi
-                  ? "Tải tài liệu"
-                  : "Upload Document"
-                : isVi
-                  ? "Bệnh nhân Tải lên"
-                  : "Patient Upload",
-            id: "nav-link-upload",
-          },
-        ];
+      : currentUser?.role === "patient"
+        ? [
+            {
+              href: "/upload",
+              label: isVi ? "Tải tài liệu" : "Upload Document",
+              id: "nav-link-upload",
+            },
+          ]
+        : [];
 
   const localizedButtonMap = getLocalizedButtonActionMap(language);
 
@@ -114,15 +99,15 @@ export function Navbar() {
         {isVi ? "Chuyển tới nội dung chính" : "Skip to main content"}
       </a>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-2.5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           {/* Left: Inline Brand Logo + Menu Bar */}
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex min-w-0 flex-wrap items-center gap-4 sm:gap-6">
             <Link
               href="/"
               id="nav-brand-logo"
-              className="group flex shrink-0 items-center gap-2 rounded-lg"
+              className="group flex min-w-0 items-center gap-2.5 rounded-lg"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-teal-800/20 bg-teal-700 text-white shadow-2xs transition group-hover:bg-teal-800">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-800/20 bg-teal-700 text-white shadow-2xs transition group-hover:bg-teal-800">
                 <svg
                   aria-hidden="true"
                   className="h-4 w-4"
@@ -136,43 +121,51 @@ export function Navbar() {
                   <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3z" />
                 </svg>
               </span>
-              <span className="text-lg font-bold tracking-tight text-slate-900">
-                Lupiva
+              <span
+                className={`text-xs font-bold leading-snug tracking-tight text-slate-900 sm:text-sm ${
+                  currentUser?.role === "specialist"
+                    ? "max-w-[230px] sm:max-w-[320px] xl:max-w-[360px]"
+                    : "max-w-[240px] sm:max-w-[380px] lg:max-w-none"
+                }`}
+              >
+                {t.common.brandName}
               </span>
             </Link>
 
             {/* Clean Horizontal Menu Bar */}
-            <nav
-              aria-label="Primary"
-              className="flex items-center gap-1 overflow-x-auto"
-            >
-              {navLinks.map((item) => {
-                const isActive =
-                  item.href === "/ocr"
-                    ? pathname === "/ocr" || pathname === "/crf"
-                    : pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    id={item.id}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
-                      isActive
-                        ? "bg-teal-50 text-teal-900"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
-                  >
-                    {item.label}
-                    {item.href === "/ocr" && crfPatients.length > 0 && (
-                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-teal-100 px-1.5 py-0.2 font-mono text-[10px] font-bold text-teal-800">
-                        {crfPatients.length}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
+            {navLinks.length > 0 && (
+              <nav
+                aria-label="Primary"
+                className="flex items-center gap-1 overflow-x-auto"
+              >
+                {navLinks.map((item) => {
+                  const isActive =
+                    item.href === "/ocr"
+                      ? pathname === "/ocr" || pathname === "/crf"
+                      : pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      id={item.id}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
+                        isActive
+                          ? "bg-teal-50 text-teal-900"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      {item.label}
+                      {item.href === "/ocr" && crfPatients.length > 0 && (
+                        <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-teal-100 px-1.5 py-0.2 text-[11px] font-bold tabular-nums text-teal-800">
+                          {crfPatients.length}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
           </div>
 
           {/* Right Controls: Session (only if logged in) or Sign In, and Compact Language Switcher on far right */}
@@ -236,7 +229,7 @@ export function Navbar() {
                   <line x1="2" y1="12" x2="22" y2="12" />
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                 </svg>
-                <span className="flex items-center gap-0.5 font-mono text-[10px]">
+                <span className="flex items-center gap-0.5 text-[11px] font-semibold">
                   <span
                     onClick={(e) => {
                       e.stopPropagation();
@@ -397,7 +390,7 @@ export function Navbar() {
                           {item.page}
                         </td>
                         <td className="px-3.5 py-2.5">
-                          <span className="inline-block rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-teal-900">
+                          <span className="inline-block rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-teal-900">
                             {item.buttonLabel}
                           </span>
                         </td>

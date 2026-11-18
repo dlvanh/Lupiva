@@ -188,7 +188,7 @@ function DocumentPreviewDialogBody({
         >
           {/* Attachment Switcher Pills */}
           <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-            <span className="font-mono text-[11px] font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-slate-600">
               {vc.filesLabel}
             </span>
             {uploadedFiles.map((f) => {
@@ -216,7 +216,7 @@ function DocumentPreviewDialogBody({
           {/* PDF / DOCX / Image Controls: Page X of Y, Zoom In/Out, Rotate, Download */}
           <div className="flex flex-wrap items-center gap-1.5">
             {/* Page Navigation & Count */}
-            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 font-mono text-[11px]">
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs tabular-nums">
               <button
                 type="button"
                 id="doc-viewer-prev-page"
@@ -245,7 +245,7 @@ function DocumentPreviewDialogBody({
             </div>
 
             {/* Zoom Controls */}
-            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 font-mono text-[11px]">
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs tabular-nums">
               <button
                 type="button"
                 id="doc-viewer-zoom-out"
