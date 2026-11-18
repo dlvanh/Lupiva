@@ -282,12 +282,19 @@ export const crfSubmissions = pgTable(
       .default("none"),
     /** Specialist-only diagnostic; never returned to patient accounts. */
     pipelineError: text("pipeline_error"),
+    /** First time any specialist opened this submission; NULL = "Hồ sơ mới". */
+    firstOpenedAt: timestamp("first_opened_at", { withTimezone: true }),
+    firstOpenedByUserId: uuid("first_opened_by_user_id").references(
+      () => users.id,
+      { onDelete: "set null" }
+    ),
   },
   (table) => [
     index("crf_submissions_pipeline_status_idx").on(table.pipelineStatus),
     index("crf_submissions_ocr_fields_gin_idx").using("gin", table.ocrFieldsJson),
     index("crf_submissions_status_idx").on(table.status),
     index("crf_submissions_patient_idx").on(table.patientProfileId),
+    index("crf_submissions_first_opened_idx").on(table.firstOpenedAt),
   ]
 );
 
