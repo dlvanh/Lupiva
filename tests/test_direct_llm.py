@@ -16,7 +16,6 @@ from ocr_pool.llm import extract_image, prepare_image, privacy_plan, response_sc
 from ocr_pool.llm_workflow import run
 from registry_pool.exchange import read, verify_bundle
 from registry_review.privacy import PrivacyProposals, test_auto_send
-from registry_review.crf import CRFReview
 from registry_review.exports import ExportManager
 from registry_review.server import ReviewApplication
 from registry_review.store import ReviewStore
@@ -32,9 +31,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def api_result():
     record = result()
-    record['extraction']['tables'] = [dict(table_index=0, box=[20, 50, 900, 700])]
-    for index, row in enumerate(record['extraction']['rows']):
-        row['table_index'] = 0 if index == 0 else None
     record['extraction']['header_facts'] = [
         dict(key=key, label_raw=label, value_raw=value, box=None) for key, label, value in (
             ('sample_date', 'Ngày lấy mẫu', '19/03/2025 07:35'),
@@ -186,29 +182,19 @@ class DirectLlmTests(unittest.TestCase):
             self.assertEqual(store.effective_pool(job['case_id'])['observations'], [])
             app = ReviewApplication.__new__(ReviewApplication)
             app.database, app.bundles = self.db, self.app.bundles
-            app.exports = ExportManager(app)
             self.manager.application = app
             key = (done['package_id'], done['revision'])
             self.assertEqual(self.manager.source(job['job_id'], 'image-0')[0], body)
             self.assertEqual(self.manager.source(job['job_id'], 'image-0', for_review=True),
                              app.asset(*key, 'artifacts/crops/G0000.png'))
             package_view = app.package_view(store, *key)
-            patient_view = app.exports.patient(job['case_id'])
+            patient_view = ExportManager(app).patient(job['case_id'])
+            sources = (package_view['documents'] + patient_view['documents'] +
+                       patient_view['workspace']['candidates'])
             self.assertTrue(package_view['documents'] and patient_view['documents'])
-            for entry in package_view['documents'] + patient_view['documents']:
+            for entry in sources:
                 params = parse_qs(urlsplit(entry['source_url']).query)
                 self.assertEqual(params['key'], ['artifacts/crops/G0000.png'])
-            c3 = next(c for c in patient_view['workspace']['candidates'] if c['field_id'] == 'IMM11')
-            observation = next(o for o in package_view['observations'] if o['field_id'] == 'IMM11')
-            crf_source = CRFReview(app).view(store, job['case_id'])['sources'][c3['selection_id']]
-            table_key = 'artifacts/crops/G0000T0.png'
-            for url in (c3['source_url'], c3['evidence'][0]['crop_url'],
-                        observation['evidence'][0]['crop_url'], crf_source['url']):
-                self.assertEqual(parse_qs(urlsplit(url).query)['key'], [table_key])
-            for evidence in (c3['evidence'][0], observation['evidence'][0]):
-                self.assertEqual(parse_qs(urlsplit(evidence['raw_url']).query)['key'], ['artifacts/raw/G0000.txt'])
-            self.assertEqual(crf_source['row_location'],
-                             observation['evidence'][0]['source_data']['region']['llm_row_location'])
         finally:
             store.close()
 
@@ -268,8 +254,6 @@ class DirectLlmTests(unittest.TestCase):
                     if not direct:
                         del raw['header_facts']
                         del raw['pii_boxes']
-                        del raw['tables']
-                        del raw['rows'][0]['table_index']
                     response = (dict(candidates=[dict(finishReason='STOP', content=dict(parts=[dict(text=json.dumps(raw))]))])
                         if native else dict(choices=[dict(finish_reason='stop', message=dict(content=json.dumps(raw)))], model='synthetic'))
                     opener = Mock(open=Mock(return_value=io.BytesIO(json.dumps(response).encode())))
@@ -278,14 +262,10 @@ class DirectLlmTests(unittest.TestCase):
                     record = extract_image(body, DICTIONARY, ROOT, config=config, opener=opener)
                     self.assertEqual('header_facts' in record['request_contract']['schema']['properties'], direct)
                     self.assertEqual('pii_boxes' in record['request_contract']['schema']['properties'], direct)
-                    self.assertEqual('tables' in record['request_contract']['schema']['properties'], direct)
                     self.assertEqual('SYNTHETIC FULL-IMAGE PROTOTYPE' in record['request_contract']['prompt'], direct)
-                    self.assertEqual('table_index' in record['request_contract']['prompt'], direct)
                     if direct:
                         self.assertEqual(record['extraction']['header_facts'], raw['header_facts'])
                         self.assertEqual(record['extraction']['pii_boxes'], raw['pii_boxes'])
-                        self.assertEqual(record['extraction']['tables'], raw['tables'])
-                        self.assertEqual(record['extraction']['rows'][0]['table_index'], 0)
         self.assertNotIn('header_facts', response_schema(DICTIONARY)['properties'])
 
     def test_compact_schema_also_accepts_header_facts_without_changing_normal_schema(self):
@@ -296,42 +276,6 @@ class DirectLlmTests(unittest.TestCase):
         self.assertIn('header_facts', schema['required'])
         self.assertIn('pii_boxes', schema['required'])
         self.assertNotIn('header_facts', response_schema(DICTIONARY, compact_rows=True)['properties'])
-
-    def test_compact_direct_transport_retains_table_index(self):
-        raw = deepcopy(api_result()['raw_extraction'])
-        schema = response_schema(DICTIONARY, compact_rows=True, direct_llm=True)
-        raw['rows'] = [{key: row[key] for key in schema['properties']['rows']['items']['required'] if key != 'extra'}
-                       | dict(extra=[]) for row in raw['rows']]
-        response = dict(choices=[dict(finish_reason='stop', message=dict(content=json.dumps(raw)))], model='synthetic')
-        opener = Mock(open=Mock(return_value=io.BytesIO(json.dumps(response).encode())))
-        config = dict(native=False, engine='tokenharbor', model='synthetic', key='synthetic',
-                      endpoint='https://example.invalid', direct_llm=True, compact_rows=True)
-        record = extract_image(fixture.image_bytes('transport'), DICTIONARY, ROOT, config=config, opener=opener)
-        self.assertEqual([row['table_index'] for row in record['extraction']['rows']], [0, None])
-
-    def test_table_schema_validates_geometry_and_row_membership_types(self):
-        schema = response_schema(DICTIONARY, direct_llm=True)
-        raw = api_result()['raw_extraction']
-        coordinates = schema['properties']['tables']['items']['properties']['box']['items']
-        self.assertEqual((coordinates['minimum'], coordinates['maximum']), (0, 1000))
-        validate_response(dict(raw, tables=raw['tables'] + [dict(table_index=1, box=None)]), schema)
-        for invalid in (dict(table_index=None, box=None), dict(table_index=True, box=None),
-                        dict(table_index=1), dict(box=None), dict(table_index=1, box=[0, 10, 100]),
-                        dict(table_index=1, box=[0, 10, 100, '200']),
-                        dict(table_index=1, box=[0, 10, 100, 200], label='unexpected')):
-            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
-                validate_response(dict(raw, tables=[invalid]), schema)
-        for invalid in ('0', True):
-            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
-                validate_response(dict(raw, rows=[dict(raw['rows'][0], table_index=invalid)]), schema)
-        missing = dict(raw['rows'][0])
-        del missing['table_index']
-        with self.assertRaises(ValueError):
-            validate_response(dict(raw, rows=[missing]), schema)
-        for compact in (False, True):
-            normal = response_schema(DICTIONARY, compact_rows=compact)
-            self.assertNotIn('tables', normal['properties'])
-            self.assertNotIn('table_index', normal['properties']['rows']['items']['properties'])
 
     def test_direct_schema_requires_strict_box_objects(self):
         schema = response_schema(DICTIONARY, direct_llm=True)
@@ -349,7 +293,7 @@ class DirectLlmTests(unittest.TestCase):
         ):
             with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                 validate_response(dict(raw, pii_boxes=[invalid]), schema)
-        for key in ('header_facts', 'pii_boxes', 'tables'):
+        for key in ('header_facts', 'pii_boxes'):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 validate_response({k: value for k, value in raw.items() if k != key}, schema)
         del raw['header_facts'][0]['box']

@@ -15,7 +15,7 @@ from ocr_pool.llm import prepare_image
 from ocr_pool.llm_workflow import run
 from registry_pool.exchange import read
 from registry_review.server import ReviewApplication
-from test_llm_intake import DICTIONARY, result, row
+from test_llm_intake import DICTIONARY, result
 
 
 class DirectLlmMaskingTests(unittest.TestCase):
@@ -125,94 +125,28 @@ class DirectLlmMaskingTests(unittest.TestCase):
                 self.assertEqual(audit['invalid_pii_boxes'], len(boxes or []))
                 self.assertTrue(audit['header_band_masked'])
 
-    def test_table_crop_masks_pixels_and_remaps_row_boxes(self):
-        doc, _ = self.document()
-        record = result()
-        record['extraction'].update(
-            pii_boxes=[dict(kind='patient_name', box=[200, 300, 400, 500])],
-            tables=[dict(table_index=0, box=[100, 250, 800, 850])],
-            rows=[row(table_index=0, row_box=[150, 300, 750, 500]),
-                  row(table_index=0, row_box=[150, 900, 750, 950])],
-        )
-        self.run_pages([doc], lambda *_: record)
-        crop = self.output_image('G0000T0')
-        self.assertEqual(crop.size, (146, 64))
-        page = self.output_image('G0000')
-        self.assertEqual(crop.tobytes(), page.crop((17, 23, 163, 87)).tobytes())
-        self.assertEqual(crop.getpixel((35, 15)), (0, 0, 0))
-        candidate = read(self.root / 'run/candidate-pool.json')
-        first, outside = [e for e in candidate['evidence'] if e['evidence_kind'] == 'gemini_result']
-        for entry in (first, outside):
-            self.assertEqual(entry['region_granularity'], 'llm_table_box')
-        self.assertEqual(first['region']['llm_row_location'], dict(
-            box=[89, 109, 911, 422], image_size=[146, 64], coordinate_space='outgoing_image_1000'))
-        self.assertNotIn('llm_row_location', outside['region'])
-        audit = read(self.root / 'run/provenance.json')['documents'][0]['display_masking']
-        self.assertEqual((audit['tables_cropped_by_box'], audit['tables_cropped_by_rows_union'],
-                          audit['rows_on_full_page']), (1, 0, 0))
-
-    def test_table_falls_back_to_rows_union_or_masked_page(self):
-        doc, _ = self.document()
-        record = result()
-        record['extraction'].update(
-            tables=[dict(table_index=2, box=[100, 250, 900, 1001]), dict(table_index=3, box=None)],
-            rows=[row(table_index=2, row_box=[200, 400, 600, 500]),
-                  row(table_index=2, row_box=[150, 550, 750, 610]),
-                  row(table_index=2, row_box=[0, 0, 0, 1000]),
-                  row(table_index=3, row_box=None),
-                  row(table_index=4, row_box=[30, 100, 890, 185]),
-                  row(table_index=None, row_box=[30, 200, 890, 285])],
-        )
-        self.run_pages([doc], lambda *_: record)
-        crop = self.output_image('G0000T2')
-        page = self.output_image('G0000')
-        self.assertEqual(crop.size, (126, 28))
-        self.assertEqual(crop.tobytes(), page.crop((27, 35, 153, 63)).tobytes())
-        self.assertEqual(page.getpixel((50, 15)), (0, 0, 0))
-        self.assertEqual(sorted(p.stem for p in (self.root / 'run/crops').glob('G0000T*.png')), ['G0000T2'])
-        candidate = read(self.root / 'run/candidate-pool.json')
-        rows = [e for e in candidate['evidence'] if e['evidence_kind'] == 'gemini_result']
-        self.assertEqual([e['region_granularity'] for e in rows], ['llm_rows_union'] * 3 + ['masked_full_page'] * 3)
-        locations = [e['region'].get('llm_row_location') for e in rows]
-        self.assertEqual(locations[0]['box'], [103, 179, 738, 536])
-        self.assertEqual(locations[1]['box'], [24, 714, 976, 929])
-        self.assertEqual(locations[1]['image_size'], [126, 28])
-        self.assertEqual(locations[2:4], [None, None])
-        self.assertEqual(locations[4]['box'], [30, 100, 890, 185])
-        self.assertEqual(locations[4]['image_size'], [200, 100])
-        self.assertEqual(locations[5]['box'], [30, 200, 890, 285])
-        audit = read(self.root / 'run/provenance.json')['documents'][0]['display_masking']
-        self.assertEqual((audit['tables_cropped_by_box'], audit['tables_cropped_by_rows_union'],
-                          audit['rows_on_full_page']), (0, 1, 3))
-
     def test_review_asset_redirects_direct_sources_and_withholds_legacy_assets(self):
         direct, original = self.document()
         normal, normal_original = self.document('NORMAL', direct=False)
-        record = result()
-        record['extraction']['tables'] = [dict(table_index=0, box=[100, 100, 900, 900])]
-        record['extraction']['rows'][0]['table_index'] = 0
-        bundle = self.run_pages([direct, normal], lambda *_: deepcopy(record))
+        bundle = self.run_pages([direct, normal], lambda *_: result())
         package = read(bundle / 'package.json')
         app = ReviewApplication.__new__(ReviewApplication)
         key = (package['package_id'], package['revision'])
         app.bundles = {key: (bundle, package)}
         direct_key, normal_key = (document['source_key'] for document in package['documents'])
         masked_key = 'artifacts/crops/G0000.png'
-        table_key = 'artifacts/crops/G0000T0.png'
         self.assertEqual((bundle / direct_key).read_bytes(), original)
         masked_url = app.asset_url(key, direct_key)
         self.assertEqual(parse_qs(urlsplit(masked_url).query)['key'], [masked_key])
         self.assertEqual(app.asset(*key, direct_key), app.asset(*key, masked_key))
-        self.assertEqual(app.asset(*key, table_key), ((bundle / table_key).read_bytes(), 'image/png'))
         self.assertEqual(app.asset(*key, normal_key)[0], normal_original)
-        self.assertFalse((self.root / 'run/crops/G0001T0.png').exists())
         with Image.open(io.BytesIO(prepare_image(normal_original, normal['privacy']))) as outgoing:
             self.assertEqual(self.output_image('G0001').tobytes(), outgoing.tobytes())
 
         legacy = deepcopy(package)
         del legacy['source_run']['provenance']['documents'][0]['display_masking']
         app.bundles[key] = (bundle, legacy)
-        for asset in (direct_key, masked_key, 'artifacts/crops/G0000S.png', table_key):
+        for asset in (direct_key, masked_key, 'artifacts/crops/G0000S.png'):
             with self.subTest(asset=asset):
                 self.assertIsNone(app.asset_url(key, asset))
                 with self.assertRaises(KeyError):

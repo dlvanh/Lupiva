@@ -22,8 +22,8 @@ from .ocr_crosscheck import number_disagreements
 from .lab_reference_cells import attach_complement_ranges
 from .llm_extraction import VERSION as LLM_CONTRACT_VERSION, valid_row_box
 from .local_dates import local_date_evidence, local_metadata_evidence, observation_date, scan_source_dates, unmasked_crop_lines
-from .direct_llm import (DATE_KEYS as DIRECT_DATE_KEYS, header_facts, mask_count_in_crop, masked_display_page,
-                         padded_pixel_box, remap_row_box, source_date as direct_source_date, table_crop_bounds)
+from .direct_llm import (DATE_KEYS as DIRECT_DATE_KEYS, header_facts, masked_display_page,
+                         padded_pixel_box, source_date as direct_source_date)
 from .mixed_lab import extract_split_lab, fluorescence_split
 from .pft_api import extract_pft_image, pft_crop_evidence
 from .result_rules import load_result_rules
@@ -320,7 +320,6 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
         add_administrative_observations(doc, background_facts, date_facts)
         if result is None: continue
         direct = doc['privacy'].get('direct_llm')
-        rows = result['extraction']['rows']
         raw_source = result['raw_extraction']
         if result.get('verification', {}).get('attempted'):
             raw_source = dict(initial_extraction=result['raw_extraction'],
@@ -340,17 +339,8 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 pii_boxes = result['extraction'].get('pii_boxes', [])
                 display_page, masks = masked_display_page(crop, pii_boxes)
                 display_page.save(run/'crops'/(tid+'.png'))
-                table_bounds = table_crop_bounds(result['extraction'], image_size)
-                table_crops = {}
-                for table_index, (bounds, granularity) in table_bounds.items():
-                    crop_id = f'{tid}T{table_index}'
-                    display_page.crop(bounds).save(run/'crops'/(crop_id+'.png'))
-                    table_crops[table_index] = crop_id, bounds, granularity, mask_count_in_crop(masks, bounds)
                 result['display_masking'] = dict(pii_boxes_applied=len(masks),
-                    invalid_pii_boxes=len(pii_boxes)-len(masks), invalid_header_boxes=0, header_band_masked=not masks,
-                    tables_cropped_by_box=sum(kind == 'llm_table_box' for _, kind in table_bounds.values()),
-                    tables_cropped_by_rows_union=sum(kind == 'llm_rows_union' for _, kind in table_bounds.values()),
-                    rows_on_full_page=0)
+                    invalid_pii_boxes=len(pii_boxes)-len(masks), invalid_header_boxes=0, header_band_masked=not masks)
             else:
                 crop.save(run/'crops'/(tid+'.png'))
         literal_rules = {change['row_index']: change['rule'] for change in result.get('normalization_audit', [])
@@ -366,21 +356,8 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 region_granularity='reviewed_result_region', generation_status='ok', truncated=False,
                 extraction_method=extraction_method, model_requested=result.get('model_requested'),
                 model_returned=result.get('model_returned'), outgoing_sha256=result['outgoing_sha256']))
-            row_box, shown_size = row.get('row_box'), image_size
             if direct:
                 evidence[-1].update(region_granularity='masked_full_page', pii_boxes_applied=len(masks))
-                if 0 <= number < len(rows):
-                    table_crop = table_crops.get(row.get('table_index'))
-                    if table_crop is None:
-                        result['display_masking']['rows_on_full_page'] += 1
-                    else:
-                        crop_id, bounds, granularity, applied = table_crop
-                        evidence[-1].update(region_granularity=granularity, pii_boxes_applied=applied)
-                        evidence[-1]['region']['display_crop_id'] = crop_id
-                        left, top, right, bottom = bounds
-                        shown_size = [right - left, bottom - top]
-                        if valid_row_box(row_box):
-                            row_box = remap_row_box(row_box, image_size, bounds)
             if number in literal_rules:
                 evidence[-1]['result_literal_rule'] = literal_rules[number]
             profile = result.get('request_contract', {}).get('profile')
@@ -388,9 +365,9 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 evidence[-1]['api_profile'] = profile
             if doc['privacy'].get('transform_manifest'):
                 evidence[-1]['region']['transform_manifest'] = doc['privacy']['transform_manifest']
-            if valid_row_box(row_box):
+            if valid_row_box(row.get('row_box')):
                 evidence[-1]['region']['llm_row_location'] = {
-                    'box': row_box, 'image_size': shown_size, 'coordinate_space': 'outgoing_image_1000',
+                    'box': row['row_box'], 'image_size': image_size, 'coordinate_space': 'outgoing_image_1000',
                 }
             return eid
         if direct:
@@ -407,7 +384,9 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                     bounds = padded_pixel_box(box, image_size, 20)
                     image = display_page.crop(bounds)
                     granularity = 'llm_header_box'
-                    applied = mask_count_in_crop(masks, bounds)
+                    left, top, right, bottom = bounds
+                    applied = sum(left < x1 and x0 < right and top < y1 and y0 < bottom
+                                  for x0, y0, x1, y1 in masks)
                 elif box is not None:
                     result['display_masking']['invalid_header_boxes'] += 1
                 image.save(run/'crops'/(rid+'.png'))
@@ -425,6 +404,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 (direct_dates if fact['key'] in DIRECT_DATE_KEYS else direct_headers).append(fact)
             date_facts = direct_dates
             add_administrative_observations(doc, direct_headers, date_facts, direct=True)
+        rows = result['extraction']['rows']
         class_outliers = _intensity_class_outliers(rows)
         ocr_disagreements = set(result.get('ocr_number_disagreements', []))
         for n, row in enumerate(rows + local_findings):

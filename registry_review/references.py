@@ -4,7 +4,7 @@ import json
 import re
 
 from registry_pool.dictionary import digest
-from registry_pool.specimens import evidence_crop_id
+from registry_pool.specimens import evidence_region_id
 from .store import HUMAN_ROLES, actor_info, now, text
 from .workspace import StalePatient
 
@@ -86,7 +86,7 @@ def candidate_rows(application, workspace):
         if not bundle or not source['evidence_ids']:
             continue
         evidence = next(e for e in bundle[1]['evidence'] if e['evidence_id'] == source['evidence_ids'][0])
-        crop = evidence_crop_id(evidence['source_data'])
+        crop = evidence_region_id(evidence['source_data'])
         key = key_for(source)
         rows[key, raw.strip()].append(dict(document_id=source['document_id'], evidence_id=evidence['evidence_id'],
             url=application.asset_url(package_key, f'artifacts/crops/{crop}.png')))

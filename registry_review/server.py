@@ -15,7 +15,7 @@ from urllib.parse import parse_qs,urlsplit,urlencode
 
 from registry_pool.dictionary import digest
 from registry_pool.exchange import read,safe_key,verify_bundle
-from registry_pool.specimens import evidence_crop_id, evidence_region_id
+from registry_pool.specimens import evidence_region_id
 from ocr_pool.llm import API_ENGINES
 from .store import ReviewStore,EDITABLE
 from .source import GROUPS
@@ -33,7 +33,7 @@ def _review_asset_key(package, key):
     if not key.startswith(('sources/', 'artifacts/crops/')):
         return key
     source_id = next((d['source_document_id'] for d in package['documents'] if d['source_key'] == key), None)
-    crop = re.fullmatch(r'artifacts/crops/(G[0-9]{4,})(?:S|HEADER[0-9]+|T-?[0-9]+)?\.png', key)
+    crop = re.fullmatch(r'artifacts/crops/(G[0-9]{4,})(?:S|HEADER[0-9]+)?\.png', key)
     documents = package['source_run'].get('provenance', {}).get('documents', [])
     for index, document in enumerate(documents):
         if not document.get('privacy', {}).get('direct_llm'):
@@ -119,7 +119,7 @@ class ReviewApplication:
                 ev=evidence[eid]
                 data=ev['source_data']
                 tid=evidence_region_id(data)
-                entries.append(dict(**ev,crop_url=self.asset_url(key,'artifacts/crops/'+evidence_crop_id(data)+'.png') if has_bundle else None,
+                entries.append(dict(**ev,crop_url=self.asset_url(key,'artifacts/crops/'+tid+'.png') if has_bundle else None,
                     raw_url=self.asset_url(key,'artifacts/raw/'+tid+'.txt') if has_bundle else None))
             replacement_options=[]
             identity=store.assignment(observation['document_id'])
@@ -140,9 +140,8 @@ class ReviewApplication:
             entries=[]
             for eid in sample['evidence_ids']:
                 ev=evidence[eid]
-                data=ev['source_data']
-                tid=evidence_region_id(data)
-                entries.append(dict(**ev,crop_url=self.asset_url(key,'artifacts/crops/'+evidence_crop_id(data)+'.png') if has_bundle else None,
+                tid=evidence_region_id(ev['source_data'])
+                entries.append(dict(**ev,crop_url=self.asset_url(key,'artifacts/crops/'+tid+'.png') if has_bundle else None,
                     raw_url=self.asset_url(key,'artifacts/raw/'+tid+'.txt') if has_bundle else None))
             specimens.append(dict(**sample,evidence=entries,**source_status('specimen',sample,'sample_id')))
         metadata=[]
@@ -150,9 +149,8 @@ class ReviewApplication:
             entries=[]
             for eid in item['evidence_ids']:
                 ev=evidence[eid]
-                data=ev['source_data']
-                tid=evidence_region_id(data)
-                entries.append(dict(**ev,crop_url=self.asset_url(key,'artifacts/crops/'+evidence_crop_id(data)+'.png') if has_bundle else None,
+                tid=evidence_region_id(ev['source_data'])
+                entries.append(dict(**ev,crop_url=self.asset_url(key,'artifacts/crops/'+tid+'.png') if has_bundle else None,
                     raw_url=self.asset_url(key,'artifacts/raw/'+tid+'.txt') if has_bundle else None))
             metadata.append(dict(**item,evidence=entries,**source_status('metadata',item,'candidate_id')))
         return dict(package_id=key[0],revision=key[1],documents=documents,observations=observations,

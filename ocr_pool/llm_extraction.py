@@ -121,8 +121,6 @@ def expand_compact_extraction(raw):
     rows = []
     for index, compact in enumerate(expanded['rows']):
         row = {key: compact.get(key) for key in (*CORE_ROW_KEYS, 'grade_annotation')}
-        if 'table_index' in compact:
-            row['table_index'] = compact['table_index']
         row.update(dict.fromkeys(EXTRA_ROW_KEYS))
         seen = set()
         for item in compact.get('extra', []):

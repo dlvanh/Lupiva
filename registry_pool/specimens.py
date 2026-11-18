@@ -69,7 +69,3 @@ def evidence_region_id(data):
     if data.get('evidence_kind') in {'metadata','sample_form_row','sample_form_cell'}:
         return data['table_id']
     return data['table_id'].rsplit('.',1)[0]
-
-
-def evidence_crop_id(data):
-    return (data.get('region') or {}).get('display_crop_id') or evidence_region_id(data)

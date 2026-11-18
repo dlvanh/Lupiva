@@ -7,7 +7,7 @@ import shutil
 
 from .dictionary import digest
 from .schema import validate_package
-from .specimens import evidence_crop_id, evidence_region_id
+from .specimens import evidence_region_id
 
 
 def read(path):
@@ -154,7 +154,7 @@ def verify_bundle(bundle,dictionary):
         data=ev['source_data']
         tid=evidence_region_id(data)
         raw_key='artifacts/raw/'+tid+'.txt'
-        crop_key='artifacts/crops/'+evidence_crop_id(data)+'.png'
+        crop_key='artifacts/crops/'+tid+'.png'
         if raw_key not in listed or crop_key not in listed:
             raise ValueError('Evidence raw/crop asset missing or changed')
         # Evidence hashes describe decoded OCR text with universal newlines.
