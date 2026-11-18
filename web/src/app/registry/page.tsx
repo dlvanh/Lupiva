@@ -37,6 +37,7 @@ import {
   optionDate,
   reviewGroup,
   reviewProgress,
+  sectionReviewTarget,
   singleSourceSelections,
   viAdminValue,
   viFieldLabel,
@@ -449,8 +450,9 @@ export default function RegistryCrfPage() {
   const [finalizing, setFinalizing] = useState(false);
   const loadVersion = useRef(0);
   const [openingIntake, setOpeningIntake] = useState<string | null>(null);
+  const [requestedAnchor, setRequestedAnchor] = useState<string | null>(null);
 
-  const load = useCallback(async (id: string, requestedSlot?: string) => {
+  const load = useCallback(async (id: string, requestedSlot?: string, requestedSection?: string) => {
     const version = ++loadVersion.current;
     setCaseId(id);
     setView(null);
@@ -459,10 +461,11 @@ export default function RegistryCrfPage() {
     setCriteria({});
     setScoreSettingsChanged(false);
     setActiveSlot(null);
+    setRequestedAnchor(null);
     setEditing(new Set());
     setError(null);
     setNotice(null);
-    setShowEmpty(!!requestedSlot);
+    setShowEmpty(false);
     setLoading(!!id);
     if (!id) return;
     try {
@@ -481,15 +484,30 @@ export default function RegistryCrfPage() {
         ...bySection(candidates.filter((field) => reviewGroup(field) === "source")).flatMap(([, fields]) => fields),
         ...candidates.filter((field) => reviewGroup(field) === "unknown"),
       ];
-      const first = next.fields.find((field) => field.slot === requestedSlot) ?? firstReviewField(ordered, next.sources);
+      const anchor = requestedSlot ? `slot-${requestedSlot}` : requestedSection
+        ? sectionReviewTarget(next.fields, requestedSection, !!next.score_form) : undefined;
+      const targetField = next.fields.find((field) => `slot-${field.slot}` === anchor);
+      const first = targetField ?? firstReviewField(ordered, next.sources);
       setActiveSlot(first?.slot ?? null);
-      if (requestedSlot && first?.slot === requestedSlot) scrollToField(requestedSlot);
+      setShowEmpty(!!requestedSlot || (!!targetField && reviewGroup(targetField) === "empty"));
+      if (anchor) setRequestedAnchor(anchor);
     } catch (reason) {
       if (version === loadVersion.current) setError((reason as Error).message);
     } finally {
       if (version === loadVersion.current) setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!view || !requestedAnchor) return;
+    const frame = requestAnimationFrame(() => {
+      const target = document.getElementById(requestedAnchor);
+      const disclosure = target?.closest("details");
+      if (disclosure) disclosure.open = true;
+      target?.scrollIntoView({ block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [view, requestedAnchor]);
 
   useEffect(() => {
     if (!canApprove) return;
@@ -515,7 +533,7 @@ export default function RegistryCrfPage() {
           }
         }
         if (initial && !cancelled && summary.cases.some((item) => item.case_id === initial)) {
-          await load(initial, params.get("slot") ?? undefined);
+          await load(initial, params.get("slot") ?? undefined, params.get("section") ?? undefined);
         }
       } catch (reason) {
         if (!cancelled) setError((reason as Error).message);
@@ -1011,7 +1029,7 @@ export default function RegistryCrfPage() {
               </section>
             ))}
             {view.score_form && (
-              <section id="crf-section-score" className="mt-5 rounded border border-indigo-200 bg-white p-4">
+              <section id="crf-section-score" className="mt-5 scroll-mt-[calc(35vh+4rem)] rounded border border-indigo-200 bg-white p-4 lg:scroll-mt-20">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-medium text-slate-800">{dc.scoreShort} · EULAR/ACR 2019 &amp; SLEDAI-2K</h2>
                   {canApprove && (

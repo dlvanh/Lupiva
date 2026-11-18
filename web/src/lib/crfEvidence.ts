@@ -245,6 +245,31 @@ export function viSection(section: string): string {
   return section;
 }
 
+export const CRF_SECTION_GROUPS = ["admin", "blood", "renal", "immune", "clinical", "score"] as const;
+export type CrfSectionGroup = (typeof CRF_SECTION_GROUPS)[number];
+
+/** Collapse the registry's section labels into the six dashboard destinations. */
+export function crfSectionGroup(field: CrfField): CrfSectionGroup {
+  const { fieldId } = parseSlot(field.slot);
+  const localized = viSection(field.section);
+  const section = stripDiacritics(localized).toLowerCase();
+  if (/^(eac|sda)\d/i.test(fieldId) || /cham diem|sledai|eular/.test(section)) return "score";
+  if (/^adm\d/i.test(fieldId) || /hanh chinh|nhan khau/.test(section)) return "admin";
+  if (/huyet hoc|coombs/.test(section)) return "blood";
+  if (/thận/i.test(localized) || /hoa sinh|sinh hoa|nuoc tieu/.test(section)) return "renal";
+  if (/mien dich|huyet thanh|bo the|tu khang the/.test(section)) return "immune";
+  return "clinical";
+}
+
+export function sectionReviewTarget(
+  fields: readonly CrfField[], group: string, hasScoreForm: boolean,
+): string | undefined {
+  if (group === "score" && hasScoreForm) return "crf-section-score";
+  const matching = fields.filter((field) => crfSectionGroup(field) === group);
+  const field = matching.find((entry) => reviewGroup(entry) !== "empty") ?? matching[0];
+  return field ? `slot-${field.slot}` : undefined;
+}
+
 const FIELD_ID_VI: Record<string, string> = {
   ADM01: "Họ tên",
   ADM02: "Tuổi",

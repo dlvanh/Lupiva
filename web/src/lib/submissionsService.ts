@@ -70,15 +70,15 @@ export interface PatientStatusRecord {
 }
 
 /**
- * The only processing detail a patient sees. Held-for-privacy and backend
- * errors both read as waiting for the doctor: the patient cannot act on them.
+ * Coarse processing detail for the patient, without backend errors.
  */
-export type PatientStage = "received" | "processing" | "awaiting_doctor" | "extracted" | "approved";
+export type PatientStage = "received" | "processing" | "awaiting_doctor" | "extracted" | "approved" | "failed";
 
 export function patientStage(
   pipelineStatus: PipelineStatus | undefined,
   submissionStatus: "pending_doctor_review" | "approved",
 ): PatientStage {
+  if (pipelineStatus === "failed") return "failed";
   if (submissionStatus === "approved") return "approved";
   if (pipelineStatus === "privacy_check" || pipelineStatus === "processing") return "processing";
   if (pipelineStatus === "none" || pipelineStatus === undefined) return "received";
@@ -270,9 +270,9 @@ export async function querySubmissions(params: {
     effectiveFilters.sort === "oldest"
       ? [asc(crfSubmissions.submittedAt), asc(crfSubmissions.id)]
       : roleScope === "specialist"
-      ? // Doctors see new dossiers first, then opened-but-unapproved, approved last.
+      ? // Put failures before new dossiers. Review detail is grouped after the lazy CRF reads.
         [
-          asc(sql`case when ${crfSubmissions.status} = 'approved' then 2 when ${crfSubmissions.firstOpenedAt} is null then 0 else 1 end`),
+          asc(sql`case when ${crfSubmissions.pipelineStatus} = 'failed' then 0 when ${crfSubmissions.status} = 'approved' then 3 when ${crfSubmissions.firstOpenedAt} is null then 1 else 2 end`),
           desc(crfSubmissions.submittedAt),
           asc(crfSubmissions.id),
         ]
@@ -458,7 +458,7 @@ export async function querySubmissions(params: {
       },
       submittedAtMs: row.submittedAt.getTime(),
       sledaiScore: row.sledaiTotalScore,
-      reviewRank: row.status === "approved" ? 2 : row.firstOpenedAt ? 1 : 0,
+      reviewRank: row.pipelineStatus === "failed" ? 0 : row.status === "approved" ? 3 : row.firstOpenedAt ? 2 : 1,
     });
   }
 

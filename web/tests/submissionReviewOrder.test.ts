@@ -65,6 +65,17 @@ async function submissionAt(ageDays: number) {
 }
 
 describe("specialist default sort: new first, unreviewed next, approved last", () => {
+  it.each(["", "VN-"])("puts older failed dossiers on the first page with search %j", async (q) => {
+    await submissionAt(0);
+    await submissionAt(1);
+    const failed = await submissionAt(3);
+    await handle.db.update(crfSubmissions).set({ pipelineStatus: "failed" })
+      .where(eq(crfSubmissions.id, failed.dbSubmissionId));
+
+    const result = await querySubmissions({ user: doctor, filters: { ...DEFAULT_SUBMISSION_FILTERS, pageSize: 1, q } });
+    expect(result.items[0]?.dbSubmissionId).toBe(failed.dbSubmissionId);
+  });
+
   it("groups by review state before upload date, newest within each group", async () => {
     const approvedNewest = await submissionAt(0);
     const openedMiddle = await submissionAt(1);

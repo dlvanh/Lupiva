@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveSafeRedirect } from "@/lib/loginRedirect";
 import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { UserRole } from "@/data/mockData";
@@ -7,30 +8,6 @@ import { useLupiva } from "@/context/LupivaContext";
 import { getLocalizedDemoUsers } from "@/data/translations";
 
 type AuthMode = "login" | "register";
-
-function resolveSafeRedirect(nextParam: string | null, role: UserRole): string {
-  const defaultRoute = "/upload";
-  if (!nextParam) return defaultRoute;
-
-  const isSafeRelative =
-    nextParam.startsWith("/") &&
-    !nextParam.startsWith("//") &&
-    !nextParam.startsWith("/\\");
-
-  if (!isSafeRelative) return defaultRoute;
-
-  const isSpecialistRoute =
-    nextParam.startsWith("/ocr") ||
-    nextParam.startsWith("/crf") ||
-    nextParam.startsWith("/scores") ||
-    nextParam.startsWith("/registry");
-
-  if (role === "patient" && isSpecialistRoute) {
-    return "/upload";
-  }
-
-  return nextParam;
-}
 
 function LoginFormContent() {
   const router = useRouter();
@@ -188,7 +165,8 @@ function LoginFormContent() {
 
       const destination = resolveSafeRedirect(
         searchParams.get("next"),
-        result.user.role
+        result.user.role,
+        mode
       );
       router.push(destination);
     } finally {

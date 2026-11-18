@@ -91,6 +91,11 @@ export const DEFAULT_SUBMISSION_FILTERS: SubmissionQueryFilters = {
   utcOffsetMinutes: 420,
 };
 
+export const DEFAULT_DOCTOR_SUBMISSION_FILTERS: SubmissionQueryFilters = {
+  ...DEFAULT_SUBMISSION_FILTERS,
+  pageSize: 20,
+};
+
 export interface PaginationMeta {
   page: number;
   pageSize: number;

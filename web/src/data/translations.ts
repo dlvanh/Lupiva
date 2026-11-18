@@ -232,7 +232,6 @@ export interface Translations {
     closeUpload: string;
     reviewBtn: string;
     imagesCount: (count: number) => string;
-    cellsProgress: (approved: number, total: number) => string;
     progressLoading: string;
     progressUnavailable: string;
     detailsBtn: string;
@@ -256,6 +255,23 @@ export interface Translations {
     decideShort: string;
     scoreShort: string;
     unknownShort: string;
+    dashboard: {
+      columns: { studyId: string; patient: string; date: string; images: string; progress: string; status: string; actions: string };
+      groups: { failed: string; new: string; reviewing: string; awaiting: string; approved: string };
+      sections: { admin: string; blood: string; renal: string; immune: string; clinical: string; score: string };
+      legend: { empty: string; unverified: string; complete: string };
+      sectionProgress: (label: string, approved: number, total: number) => string;
+      remaining: (count: number) => string;
+      noName: string;
+      reviewer: (name: string, dateTime: string) => string;
+      errors: { duplicate: string; noResults: string; timeout: string; network: string; api: string; unknown: string };
+      errorDetails: string;
+      retry: string;
+      retrying: string;
+      retryFailed: string;
+      reviewUnavailable: string;
+      readyForSignOff: string;
+    };
   };
   toasts: {
     signedIn: (name: string) => string;
@@ -548,7 +564,6 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       closeUpload: "Close upload panel",
       reviewBtn: "Review",
       imagesCount: (count) => `${count} image(s)`,
-      cellsProgress: (approved, total) => `${approved}/${total} cells approved`,
       progressLoading: "reading progress…",
       progressUnavailable: "progress unavailable",
       detailsBtn: "Details",
@@ -573,6 +588,30 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       decideShort: "To decide",
       scoreShort: "Scores",
       unknownShort: "Unknown",
+      dashboard: {
+        columns: { studyId: "Study ID", patient: "Patient", date: "Submitted", images: "Images", progress: "CRF progress", status: "Status", actions: "Actions" },
+        groups: { failed: "Needs attention", new: "New dossiers", reviewing: "In review", awaiting: "Awaiting review", approved: "Reviewed" },
+        sections: { admin: "Administration", blood: "Haematology", renal: "Biochemistry / Renal", immune: "Immunology", clinical: "Respiratory / Cardiac / Imaging", score: "SLEDAI / EULAR scores" },
+        legend: { empty: "No data", unverified: "Unverified", complete: "Complete" },
+        sectionProgress: (label, approved, total) => `${label}: ${approved}/${total} approved`,
+        remaining: (count) => `${count} ${count === 1 ? "cell needs" : "cells need"} a decision`,
+        noName: "name not entered",
+        reviewer: (name, dateTime) => `Dr ${name} · ${dateTime}`,
+        errors: {
+          duplicate: "This image duplicates one already in another dossier.",
+          noResults: "None of the images contain results to extract.",
+          timeout: "Image processing timed out.",
+          network: "The connection was interrupted while processing the images.",
+          api: "The image processing service encountered an error.",
+          unknown: "There was a problem processing the images.",
+        },
+        errorDetails: "Technical details",
+        retry: "Retry",
+        retrying: "Retrying…",
+        retryFailed: "Unable to retry submission.",
+        reviewUnavailable: "Review is available after image processing.",
+        readyForSignOff: "Awaiting sign-off",
+      },
     },
     toasts: {
       signedIn: (name) => `Signed in as ${name}`,
@@ -868,7 +907,6 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       closeUpload: "Đóng khung tải ảnh",
       reviewBtn: "Duyệt",
       imagesCount: (count) => `${count} ảnh`,
-      cellsProgress: (approved, total) => `đã duyệt ${approved}/${total} ô`,
       progressLoading: "đang đọc tiến độ…",
       progressUnavailable: "không đọc được tiến độ",
       detailsBtn: "Chi tiết",
@@ -893,6 +931,30 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       decideShort: "Cần quyết định",
       scoreShort: "Chấm điểm",
       unknownShort: "Chưa rõ",
+      dashboard: {
+        columns: { studyId: "Study ID", patient: "Bệnh nhân", date: "Ngày nộp", images: "Ảnh", progress: "Tiến độ CRF", status: "Trạng thái", actions: "Thao tác" },
+        groups: { failed: "Cần xử lý", new: "Hồ sơ mới", reviewing: "Đang duyệt", awaiting: "Chờ duyệt", approved: "Đã duyệt" },
+        sections: { admin: "Hành chính", blood: "Huyết học", renal: "Sinh hóa/Thận", immune: "Miễn dịch", clinical: "Hô hấp/Tim/Hình ảnh", score: "Điểm SLEDAI/EULAR" },
+        legend: { empty: "Không có dữ liệu", unverified: "Chưa xác minh", complete: "Đã duyệt" },
+        sectionProgress: (label, approved, total) => `${label}: ${approved}/${total} đã duyệt`,
+        remaining: (count) => `còn ${count} ô cần quyết định`,
+        noName: "chưa nhập tên",
+        reviewer: (name, dateTime) => `BS. ${name} · ${dateTime}`,
+        errors: {
+          duplicate: "Ảnh trùng với hồ sơ khác đã có trong hệ thống",
+          noResults: "Không có ảnh nào chứa kết quả để trích xuất.",
+          timeout: "Quá thời gian xử lý ảnh.",
+          network: "Mất kết nối khi xử lý ảnh.",
+          api: "Dịch vụ xử lý ảnh gặp lỗi.",
+          unknown: "Có lỗi khi xử lý ảnh.",
+        },
+        errorDetails: "Chi tiết kỹ thuật",
+        retry: "Gửi lại",
+        retrying: "Đang gửi lại…",
+        retryFailed: "Không gửi lại được hồ sơ.",
+        reviewUnavailable: "Có thể duyệt sau khi xử lý ảnh.",
+        readyForSignOff: "Chờ ký duyệt",
+      },
     },
     toasts: {
       signedIn: (name) => `Đã đăng nhập vai trò ${name}`,

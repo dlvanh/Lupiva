@@ -76,7 +76,7 @@ describe("backend hand-off rules", () => {
     expect(intakeStatus("completed")).toBe("completed");
     expect(intakeStatus("needs_attention")).toBe("failed");
     expect(patientStage("privacy_review", "pending_doctor_review")).toBe("awaiting_doctor");
-    expect(patientStage("failed", "pending_doctor_review")).toBe("awaiting_doctor");
+    expect(patientStage("failed", "pending_doctor_review")).toBe("failed");
     expect(patientStage("completed", "pending_doctor_review")).toBe("extracted");
     expect(patientStage("processing", "approved")).toBe("approved");
   });
@@ -181,7 +181,7 @@ describe("patient submission to backend (database)", () => {
     const [row] = await testDb.db.select().from(crfSubmissions).where(eq(crfSubmissions.id, created.dbSubmissionId));
     expect(row.pipelineError).toBe("backend down");
     const status = toPatientStatus({ ...created, pipelineStatus: "failed", pipelineError: "backend down" });
-    expect(status.record.processingStage).toBe("awaiting_doctor");
+    expect(status.record.processingStage).toBe("failed");
     expect(JSON.stringify(status)).not.toContain("backend down");
   });
 

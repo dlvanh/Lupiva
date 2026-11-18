@@ -49,4 +49,12 @@ describe("patient submission progress", () => {
     expect(markup).toMatch(/aria-current="step"[^>]*>.*Approved by doctor/);
     expect(markup).not.toContain("a few working days");
   });
+
+  it("shows a contact notice in place of the progress steps for failed submissions", () => {
+    const markup = renderProgress("failed");
+    expect(markup).toContain("Có vấn đề với ảnh đã gửi. Nhóm dự án sẽ liên hệ với bạn.");
+    expect(markup).not.toContain("aria-current");
+    expect(markup).not.toContain("vài ngày làm việc");
+    expect(renderProgress("failed", "pending_doctor_review", "en")).toContain("The project team will contact you.");
+  });
 });

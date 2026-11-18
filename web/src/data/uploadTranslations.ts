@@ -9,7 +9,6 @@ import type {
 
 export interface UploadPageCopy {
   doctor: {
-    eyebrow: string;
     heading: string;
     kpiTotal: string;
     kpiPending: string;
@@ -55,10 +54,6 @@ export interface UploadPageCopy {
     viewScoresBtn: string;
     reopenCrfBtn: string;
     reviewCrfBtn: string;
-    triageHeading: string;
-    manualTierLabel: string;
-    verifyTierLabel: string;
-    approvedTierLabel: string;
     scorePreviewHeading: string;
     eularClassified: string;
     eularBelow: string;
@@ -144,6 +139,7 @@ export interface UploadPageCopy {
     stepDoctorReview: string;
     stepApproved: string;
     waitingNote: string;
+    processingFailed: string;
     previewDialogTitle: string;
     previewDialogClose: string;
     paginationLabel: string;
@@ -156,8 +152,7 @@ export interface UploadPageCopy {
 const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
   en: {
     doctor: {
-      eyebrow: "Doctor Workspace • Patient Submissions",
-      heading: "Submitted Patient Dossiers & Clinical Summary",
+      heading: "Patient dossiers",
       kpiTotal: "Total Cohort",
       kpiPending: "Pending Review",
       kpiManual: "Needs <80% OCR",
@@ -222,10 +217,6 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       viewScoresBtn: "View SLE Scores",
       reopenCrfBtn: "View Details",
       reviewCrfBtn: "Verify & Approve",
-      triageHeading: "OCR Triage",
-      manualTierLabel: "<80%",
-      verifyTierLabel: "80–90%",
-      approvedTierLabel: ">90%",
       scorePreviewHeading: "SLE Score Preview",
       eularClassified: "Classified SLE (≥10)",
       eularBelow: "Below threshold (<10)",
@@ -237,7 +228,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       physicianPrefix: "Physician:",
       nursePrefix: "Nurse:",
       treatmentsHeading: "Current Treatments",
-      noTreatments: "None listed",
+      noTreatments: "Not recorded",
       docViewer: {
         dialogTitle: "Attached Clinical Document Viewer",
         closeBtn: "Close",
@@ -322,6 +313,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       stepDoctorReview: "Doctor reviewing",
       stepApproved: "Approved by doctor",
       waitingNote: "This usually takes a few working days. You don’t need to do anything else.",
+      processingFailed: "There was a problem with the images you sent. The project team will contact you.",
       previewDialogTitle: "Photo preview",
       previewDialogClose: "Close",
       paginationLabel: "Your submissions pagination",
@@ -332,8 +324,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
   },
   vi: {
     doctor: {
-      eyebrow: "Cổng Bác sĩ • Tiếp nhận Hồ sơ Bệnh nhân",
-      heading: "Hồ sơ Xét nghiệm Bệnh nhân Đã gửi",
+      heading: "Hồ sơ bệnh nhân",
       kpiTotal: "Tổng hồ sơ",
       kpiPending: "Chờ bác sĩ duyệt",
       kpiManual: "Cần nhập tay <80%",
@@ -398,10 +389,6 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       viewScoresBtn: "Xem Bảng điểm SLE",
       reopenCrfBtn: "Xem Chi tiết",
       reviewCrfBtn: "Xác minh & Duyệt",
-      triageHeading: "Phân tầng OCR",
-      manualTierLabel: "<80%",
-      verifyTierLabel: "80–90%",
-      approvedTierLabel: ">90%",
       scorePreviewHeading: "Điểm Phân loại & Hoạt tính",
       eularClassified: "Đạt tiêu chuẩn SLE (≥10)",
       eularBelow: "Chưa đạt ngưỡng (<10)",
@@ -413,7 +400,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       physicianPrefix: "Bác sĩ:",
       nursePrefix: "Điều dưỡng:",
       treatmentsHeading: "Thuốc điều trị hiện tại",
-      noTreatments: "Không có",
+      noTreatments: "Chưa ghi nhận",
       docViewer: {
         dialogTitle: "Trình Xem Tài liệu Lâm sàng Đính kèm",
         closeBtn: "Đóng",
@@ -498,6 +485,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       stepDoctorReview: "Bác sĩ đang xem",
       stepApproved: "Bác sĩ đã duyệt",
       waitingNote: "Thường trong vài ngày làm việc. Bạn không cần làm gì thêm.",
+      processingFailed: "Có vấn đề với ảnh đã gửi. Nhóm dự án sẽ liên hệ với bạn.",
       previewDialogTitle: "Xem trước ảnh",
       previewDialogClose: "Đóng",
       paginationLabel: "Phân trang lịch sử gửi tài liệu",

@@ -9,13 +9,16 @@ const stepByStage = {
   extracted: 2,
   awaiting_doctor: 2,
   approved: 3,
-} satisfies Record<PatientStatusRecord["processingStage"], number>;
+} satisfies Record<Exclude<PatientStatusRecord["processingStage"], "failed">, number>;
 
 type PatientSubmissionProgressProps = Pick<PatientStatusRecord, "processingStage" | "submissionStatus"> & {
   copy: UploadPageCopy["patient"];
 };
 
 export function PatientSubmissionProgress({ processingStage, submissionStatus, copy }: PatientSubmissionProgressProps) {
+  if (processingStage === "failed") {
+    return <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-base text-amber-950">{copy.processingFailed}</p>;
+  }
   const steps = [copy.stepReceived, copy.stepProcessing, copy.stepDoctorReview, copy.stepApproved];
   const currentStep = submissionStatus === "approved" ? steps.length - 1 : stepByStage[processingStage] ?? 0;
 

@@ -14,7 +14,7 @@ import { TRANSLATIONS } from "@/data/translations";
 import { getUploadPageCopy, type UploadPageCopy } from "@/data/uploadTranslations";
 import {
   CLINICAL_RISK_FILTERS,
-  DEFAULT_SUBMISSION_FILTERS,
+  DEFAULT_DOCTOR_SUBMISSION_FILTERS,
   GENDER_FILTERS,
   PAGE_SIZE_OPTIONS,
   SUBMISSION_SORT_OPTIONS,
@@ -32,7 +32,8 @@ import {
   type SubmissionStage,
 } from "@/lib/crfEvidence";
 import type { SubmissionItemDTO as ApiSubmissionItem } from "@/lib/submissionsService";
-import { CrfAdminFacts, useCrfCase } from "./CrfAdminFacts";
+import { classifyPipelineError, dashboardPatient, dashboardReviewer, groupDashboardRows, sectionProgress, type SectionTone } from "@/lib/doctorDashboard";
+import { CrfAdminFacts, useCrfCases, type CrfCaseState } from "./CrfAdminFacts";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { RedcapExportPanel } from "./RedcapExportPanel";
 import { TruncatedFilename } from "./TruncatedFilename";
@@ -62,6 +63,13 @@ const STAGE_TONES: Record<SubmissionStage, string> = {
 const STATUS_COUNTERS = ["new", "pending_doctor_review", "approved"] as const;
 type StatusCounter = (typeof STATUS_COUNTERS)[number];
 
+const DOT_TONES: Record<SectionTone, string> = {
+  empty: "bg-slate-400",
+  unverified: "bg-amber-400",
+  complete: "bg-emerald-600",
+};
+const COLUMN_WIDTHS = { studyId: "12%", patient: "17%", date: "11%", images: "7%", progress: "24%", status: "17%", actions: "12%" };
+
 function DocumentsAndTreatmentsGrid({
   patient,
   copy,
@@ -75,6 +83,10 @@ function DocumentsAndTreatmentsGrid({
   showCareTeam?: boolean;
   className?: string;
 }) {
+  const careTeam = [
+    { label: copy.physicianPrefix, name: patient.physician.trim() },
+    { label: copy.nursePrefix, name: patient.nurse.trim() },
+  ].filter(({ name }) => name);
   return (
     <div className={`grid grid-cols-1 gap-4 @md:grid-cols-2 ${className}`}>
       <div>
@@ -122,12 +134,9 @@ function DocumentsAndTreatmentsGrid({
         ) : (
           <p className="mt-2 text-xs text-slate-600">{copy.noAttachedDocs}</p>
         )}
-        {showCareTeam && (
-          <p className="mt-2 text-xs text-slate-600">
-            {copy.physicianPrefix}{" "}
-            <strong className="text-slate-900">{patient.physician}</strong> •{" "}
-            {copy.nursePrefix}{" "}
-            <span className="text-slate-700">{patient.nurse}</span>
+        {showCareTeam && careTeam.length > 0 && (
+          <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-slate-700">
+            {careTeam.map(({ label, name }) => <span key={label}>{label} <strong>{name}</strong></span>)}
           </p>
         )}
       </div>
@@ -155,11 +164,21 @@ function DocumentsAndTreatmentsGrid({
   );
 }
 
+function SubmissionCell({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <td role="cell" className="block min-w-0 [overflow-wrap:anywhere] lg:table-cell lg:px-3 lg:py-3">
+      <span aria-hidden="true" className="mb-0.5 block text-sm font-medium text-slate-600 lg:hidden">{label}</span>
+      {children}
+    </td>
+  );
+}
+
 /** One compact row per case; administrative facts only when expanded. */
 export function SubmissionRow({
   item,
   copy,
   isVi,
+  crf = null,
   expanded,
   redcapExported,
   onToggle,
@@ -170,6 +189,7 @@ export function SubmissionRow({
   item: ApiSubmissionItem;
   copy: UploadPageCopy["doctor"];
   isVi: boolean;
+  crf?: CrfCaseState | null;
   expanded: boolean;
   redcapExported: boolean;
   onToggle: () => void;
@@ -178,181 +198,271 @@ export function SubmissionRow({
   onRetried: () => void;
 }) {
   const dc = TRANSLATIONS[isVi ? "vi" : "en"].doctor;
+  const dashboard = dc.dashboard;
+  const { columns } = dashboard;
   const [retrying, setRetrying] = useState(false);
-  const [retryError, setRetryError] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState(false);
   const p = item.record;
   const pipelineStatus = item.pipelineStatus ?? "none";
-  const fromCrf = pipelineStatus === "completed" && !!item.pipelineIntakeId;
-  // Lazy backend read, shared with the expanded facts and cached across rows.
-  const crf = useCrfCase(fromCrf ? item.pipelineIntakeId : null);
-  const view = crf && "view" in crf ? crf.view : null;
-  const progress = view ? reviewProgress(view) : null;
+  const intakeId = pipelineStatus === "completed" ? item.pipelineIntakeId : null;
+  const loadedCrf = crf && "view" in crf ? crf : null;
+  const progress = loadedCrf ? reviewProgress(loadedCrf.view) : null;
   const webApproved = getSubmissionStatus(p) === "approved";
-  const stage = submissionStage({
+  const failed = pipelineStatus === "failed" ? classifyPipelineError(item.pipelineError) : null;
+  const unread = !item.firstOpenedAt && !webApproved;
+  const patient = dashboardPatient(p.patientName, loadedCrf?.view ?? null, isVi);
+  const reviewer = loadedCrf ? dashboardReviewer(loadedCrf.view.review) : null;
+  const stage = failed ? "failed" : submissionStage({
     pipelineStatus,
     webApproved,
-    reviewStarted: !!view?.review,
+    reviewStarted: !!loadedCrf?.view.review,
     redcapExported,
   });
+  const readyForSignOff = stage === "reviewing" && progress?.pending === 0;
   const imageCount = p.uploadedFiles?.filter((f) => f.isImage).length ?? 0;
   const eular = calculateEularAcrSummary(p.eularAcrCriteria, p.anaEntryCriterionMet);
   const sledai = calculateSledai2kSummary(p.sledai2kCriteria);
 
   const handleRetry = async () => {
     setRetrying(true);
-    setRetryError(null);
+    setRetryError(false);
     try {
       const response = await fetch(`/api/submissions/${item.dbSubmissionId}/retry`, {
         method: "POST",
         credentials: "same-origin",
         cache: "no-store",
       });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || (isVi ? "Không gửi lại được hồ sơ." : "Unable to retry submission."));
-      }
-      onRetried();
-    } catch (error) {
-      setRetryError(error instanceof Error ? error.message : (isVi ? "Không gửi lại được hồ sơ." : "Unable to retry submission."));
+      if (response.ok) onRetried();
+      else setRetryError(true);
+    } catch {
+      setRetryError(true);
     } finally {
       setRetrying(false);
     }
   };
 
-  const progressText = !fromCrf
-    ? "—"
-    : progress
-      ? dc.cellsProgress(progress.approved, progress.total)
-      : crf && "error" in crf
-        ? dc.progressUnavailable
-        : dc.progressLoading;
-
   return (
-    <li className="@container overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
-      <div
-        className="grid cursor-pointer grid-cols-2 items-center gap-x-3 gap-y-1 px-4 py-2.5 hover:bg-slate-50/80 md:grid-cols-[minmax(0,2fr)_auto_auto_minmax(0,1fr)_auto_auto]"
+    <>
+      <tr
+        role="row"
+        className={`grid cursor-pointer grid-cols-1 gap-x-4 gap-y-3 border-t border-slate-200 bg-white px-4 py-3 align-top text-sm text-slate-900 hover:bg-slate-50 sm:grid-cols-2 lg:table-row ${unread ? "font-bold" : "font-normal"}`}
         onClick={onToggle}
       >
-        <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 md:col-span-1">
-          <span className="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[11px] font-bold text-white">
-            {p.studyId}
+        <SubmissionCell label={columns.studyId}>{p.studyId}</SubmissionCell>
+        <SubmissionCell label={columns.patient}>
+          {patient.name || <>
+            {patient.demographics && <span className="block">{patient.demographics}</span>}
+            <span className="text-xs font-normal text-slate-600">{dashboard.noName}</span>
+          </>}
+        </SubmissionCell>
+        <SubmissionCell label={columns.date}>{p.submittedAt || "—"}</SubmissionCell>
+        <SubmissionCell label={columns.images}>{dc.imagesCount(imageCount)}</SubmissionCell>
+        <SubmissionCell label={columns.progress}>
+          {loadedCrf && progress ? <>
+            <div className="flex flex-wrap items-center gap-0.5">
+              {sectionProgress(loadedCrf.view).map(({ group, approved, total, tone }) => {
+                const label = dashboard.sectionProgress(dashboard.sections[group], approved, total);
+                const params = new URLSearchParams({ case: loadedCrf.caseId, intake: loadedCrf.intakeId, section: group });
+                return (
+                  <Link
+                    key={group}
+                    href={`/registry?${params}`}
+                    prefetch={false}
+                    aria-label={label}
+                    title={label}
+                    onClick={(event) => event.stopPropagation()}
+                    className="grid size-7 shrink-0 place-items-center rounded-full hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-teal-700"
+                  >
+                    <span aria-hidden="true" className={`size-3.5 rounded-full ${DOT_TONES[tone]}`} />
+                  </Link>
+                );
+              })}
+            </div>
+            <p>{dashboard.remaining(progress.pending)}</p>
+            {reviewer && <p className="mt-1 text-sm text-slate-700">{dashboard.reviewer(reviewer.name, reviewer.dateTime)}</p>}
+          </> : !intakeId ? "—" : crf ? dc.progressUnavailable : dc.progressLoading}
+        </SubmissionCell>
+        <SubmissionCell label={columns.status}>
+          <span className={`inline-block rounded-md px-2 py-0.5 ${STAGE_TONES[stage]}`}>
+            {readyForSignOff ? dashboard.readyForSignOff : stageLabel(stage, progress?.percent ?? 0, isVi)}
           </span>
-          <span className="truncate text-sm font-semibold text-slate-900">{p.patientName}</span>
-        </div>
-        <span className="font-mono text-[11px] text-slate-600">{p.submittedAt || "—"}</span>
-        <span className="text-[11px] text-slate-600">{dc.imagesCount(imageCount)}</span>
-        <span className="font-mono text-[11px] text-slate-700">{progressText}</span>
-        <span className={`justify-self-start rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${STAGE_TONES[stage]}`}>
-          {stageLabel(stage, progress?.percent ?? 0, isVi)}
-        </span>
-        <span className="flex items-center justify-end gap-1.5">
-          <button
-            type="button"
-            disabled={!fromCrf}
-            title={fromCrf ? undefined : isVi ? "Có thể duyệt sau khi xử lý ảnh." : "Review is available after image processing."}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (fromCrf) onOpenRegistry(item.pipelineIntakeId!);
-            }}
-            className={
-              fromCrf
-                ? "min-h-8 cursor-pointer rounded-lg bg-teal-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-800"
-                : "min-h-8 cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-400"
-            }
-          >
-            {dc.reviewBtn}
-          </button>
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-label={expanded ? dc.collapseBtn : dc.detailsBtn}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle();
-            }}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100"
-          >
-            <svg
-              aria-hidden="true"
-              className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-        </span>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-slate-200 bg-slate-50/40">
-          {pipelineStatus === "failed" && (
-            <div className="flex flex-wrap items-center gap-2 border-b border-rose-200 bg-rose-50 px-4 py-2">
-              {item.pipelineError && (
-                <p className="min-w-0 flex-1 break-words text-xs text-rose-950">{item.pipelineError}</p>
+          {failed && (
+            <div className="mt-1 text-rose-950">
+              <p>{dashboard.errors[failed.kind]}</p>
+              {failed.kind === "unknown" && item.pipelineError && (
+                <details onClick={(event) => event.stopPropagation()} className="mt-1">
+                  <summary className="cursor-pointer underline">{dashboard.errorDetails}</summary>
+                  <p className="mt-1 font-normal">{item.pipelineError}</p>
+                </details>
               )}
+            </div>
+          )}
+        </SubmissionCell>
+        <SubmissionCell label={columns.actions}>
+          <div className="flex flex-wrap items-center gap-1">
+            <button
+              type="button"
+              disabled={!intakeId}
+              title={intakeId ? undefined : dashboard.reviewUnavailable}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (intakeId) onOpenRegistry(intakeId);
+              }}
+              className="min-h-8 cursor-pointer rounded-lg bg-teal-700 px-2 py-1 text-sm text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+            >
+              {dc.reviewBtn}
+            </button>
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-label={expanded ? dc.collapseBtn : dc.detailsBtn}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+              }}
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100"
+            >
+              <svg
+                aria-hidden="true"
+                className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {failed?.retryable && (
               <button
                 type="button"
                 disabled={retrying}
-                onClick={() => void handleRetry()}
-                className="min-h-8 cursor-pointer rounded-lg border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-900 transition hover:bg-rose-50 disabled:cursor-wait disabled:opacity-50"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handleRetry();
+                }}
+                className="min-h-8 cursor-pointer rounded-lg border border-rose-300 px-2 py-1 text-sm text-rose-900 hover:bg-rose-50 disabled:cursor-wait disabled:opacity-50"
               >
-                {retrying ? (isVi ? "Đang gửi lại…" : "Retrying…") : (isVi ? "Gửi lại" : "Retry")}
+                {retrying ? dashboard.retrying : dashboard.retry}
               </button>
-            </div>
-          )}
-          {pipelineStatus === "privacy_review" && (
-            <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-950">
-              {isVi ? "Cần duyệt vùng che trước khi gửi." : "Review the redactions before sending."}
-            </p>
-          )}
-          {retryError && (
-            <p role="alert" className="px-4 py-2 text-xs text-rose-900">{retryError}</p>
-          )}
-          {fromCrf && <CrfAdminFacts state={crf} isVi={isVi} />}
-          {!fromCrf && (
-            <div className="flex flex-wrap items-center gap-2.5 border-b border-slate-200 px-4 py-2.5">
-              <h3 className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                {copy.triageHeading}
-              </h3>
-              <span className="rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 font-mono text-[11px] text-rose-950">
-                {copy.manualTierLabel}: <strong>{item.ocrSummary.manualCount}</strong>
-              </span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 font-mono text-[11px] text-amber-950">
-                {copy.verifyTierLabel}: <strong>{item.ocrSummary.verifyCount}</strong>
-              </span>
-              <span className="rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 font-mono text-[11px] text-teal-950">
-                {copy.approvedTierLabel}: <strong>{item.ocrSummary.approvedCount}</strong>
-              </span>
-            </div>
-          )}
-          <DocumentsAndTreatmentsGrid
-            patient={p}
-            copy={copy}
-            onOpenDocument={onOpenDocument}
-            showCareTeam={!fromCrf}
-            className="px-4 py-3"
-          />
-          {webApproved && !fromCrf && (
-            <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-4 py-2 text-xs">
-              <span className="font-mono font-bold uppercase tracking-wide text-slate-600">
-                {copy.scorePreviewHeading}:
-              </span>
-              <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-slate-800">
-                EULAR/ACR 2019: <strong>{eular.totalScore} pts</strong>
-              </span>
-              <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-slate-800">
-                SLEDAI-2K: <strong>{sledai.totalScore} pts</strong>
-              </span>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+          {retryError && <p role="alert" className="mt-1 text-sm text-rose-900">{dashboard.retryFailed}</p>}
+        </SubmissionCell>
+      </tr>
+
+      {expanded && (
+        <tr role="row" className="block border-t border-slate-200 bg-slate-50/40 lg:table-row">
+          <td role="cell" colSpan={7} className="@container block min-w-0 lg:table-cell">
+            {pipelineStatus === "privacy_review" && (
+              <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-950">
+                {isVi ? "Cần duyệt vùng che trước khi gửi." : "Review the redactions before sending."}
+              </p>
+            )}
+            {intakeId && <CrfAdminFacts state={crf} isVi={isVi} />}
+            <DocumentsAndTreatmentsGrid
+              patient={p}
+              copy={copy}
+              onOpenDocument={onOpenDocument}
+              showCareTeam={!intakeId}
+              className="px-4 py-3"
+            />
+            {webApproved && !intakeId && (
+              <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-4 py-2 text-xs">
+                <span className="font-mono font-bold uppercase tracking-wide text-slate-600">
+                  {copy.scorePreviewHeading}:
+                </span>
+                <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-slate-800">
+                  EULAR/ACR 2019: <strong>{eular.totalScore} pts</strong>
+                </span>
+                <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-slate-800">
+                  SLEDAI-2K: <strong>{sledai.totalScore} pts</strong>
+                </span>
+              </div>
+            )}
+          </td>
+        </tr>
       )}
-    </li>
+    </>
+  );
+}
+
+export function SubmissionTable({
+  items, crfCases, copy, isVi, expandedId, exportedIds, onToggle, onOpenRegistry, onOpenDocument, onRetried,
+}: {
+  items: readonly ApiSubmissionItem[];
+  crfCases: Record<string, CrfCaseState>;
+  copy: UploadPageCopy["doctor"];
+  isVi: boolean;
+  expandedId: string | null;
+  exportedIds: ReadonlySet<string>;
+  onToggle: (item: ApiSubmissionItem) => void;
+  onOpenRegistry: (intakeId: string) => void;
+  onOpenDocument: (item: ApiSubmissionItem, patient: SleCrfPatientRecord, fileId: string) => void;
+  onRetried: () => void;
+}) {
+  const dashboard = TRANSLATIONS[isVi ? "vi" : "en"].doctor.dashboard;
+  const groups = groupDashboardRows(items.map((item) => {
+    const crf = item.pipelineStatus === "completed" && item.pipelineIntakeId ? crfCases[item.pipelineIntakeId] : null;
+    const view = crf && "view" in crf ? crf.view : null;
+    return {
+      item,
+      crf,
+      failed: item.pipelineStatus === "failed",
+      approved: getSubmissionStatus(item.record) === "approved",
+      opened: !!item.firstOpenedAt,
+      reviewPending: view?.review ? reviewProgress(view).pending : undefined,
+    };
+  }));
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white">
+      <ul className="flex flex-wrap gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-3 text-sm text-slate-800">
+        {(Object.keys(DOT_TONES) as SectionTone[]).map((tone) => (
+          <li key={tone} className="flex items-center gap-2">
+            <span aria-hidden="true" className={`size-3.5 rounded-full ${DOT_TONES[tone]}`} />
+            {dashboard.legend[tone]}
+          </li>
+        ))}
+      </ul>
+      <table role="table" className="block w-full table-fixed border-collapse lg:table">
+        <thead role="rowgroup" className="sr-only lg:not-sr-only lg:table-header-group">
+          <tr role="row" className="text-left text-sm text-slate-800">
+            {(Object.keys(COLUMN_WIDTHS) as (keyof typeof COLUMN_WIDTHS)[]).map((column) => (
+              <th key={column} role="columnheader" scope="col" style={{ width: COLUMN_WIDTHS[column] }} className="px-3 py-3">
+                {dashboard.columns[column]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        {groups.map(({ group, rows }) => (
+          <tbody key={group} role="rowgroup" className="block lg:table-row-group">
+            <tr role="row" className="block border-t border-slate-200 bg-slate-100 lg:table-row">
+              <th role="rowheader" scope="rowgroup" colSpan={7} className="block px-4 py-2 text-left text-sm font-bold text-slate-900 lg:table-cell">
+                {dashboard.groups[group]} <span className="ml-1 rounded-full bg-white px-2 py-0.5 tabular-nums">{rows.length}</span>
+              </th>
+            </tr>
+            {rows.map(({ item, crf }) => (
+              <SubmissionRow
+                key={item.dbSubmissionId}
+                item={item}
+                crf={crf}
+                copy={copy}
+                isVi={isVi}
+                expanded={expandedId === item.dbSubmissionId}
+                redcapExported={exportedIds.has(item.dbSubmissionId)}
+                onToggle={() => onToggle(item)}
+                onOpenRegistry={onOpenRegistry}
+                onOpenDocument={(patient, fileId) => onOpenDocument(item, patient, fileId)}
+                onRetried={onRetried}
+              />
+            ))}
+          </tbody>
+        ))}
+      </table>
+    </div>
   );
 }
 
@@ -370,7 +480,7 @@ export function DoctorSubmissionsView({
   const dc = TRANSLATIONS[language].doctor;
 
   const [filters, setFilters] = useState<SubmissionQueryFilters>(
-    DEFAULT_SUBMISSION_FILTERS
+    DEFAULT_DOCTOR_SUBMISSION_FILTERS
   );
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -512,7 +622,7 @@ export function DoctorSubmissionsView({
     (filters.sort !== "newest" ? 1 : 0);
 
   const handleResetFilters = () => {
-    setFilters(DEFAULT_SUBMISSION_FILTERS);
+    setFilters(DEFAULT_DOCTOR_SUBMISSION_FILTERS);
     setSearchInput("");
     setDebouncedSearch("");
   };
@@ -563,6 +673,9 @@ export function DoctorSubmissionsView({
   };
 
   const items = apiState.data?.items ?? [];
+  const crfCases = useCrfCases(items.flatMap((item) =>
+    item.pipelineStatus === "completed" && item.pipelineIntakeId ? [item.pipelineIntakeId] : [],
+  ));
 
   const openRegistry = (intakeId: string) => {
     router.push(`/registry?intake=${encodeURIComponent(intakeId)}`);
@@ -608,10 +721,7 @@ export function DoctorSubmissionsView({
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
-              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
-                {copy.eyebrow}
-              </span>
-              <div className="mt-1 flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">
                   {copy.heading}
                 </h1>
@@ -710,7 +820,7 @@ export function DoctorSubmissionsView({
                   autoCapitalize="none"
                   spellCheck={false}
                   placeholder={copy.searchPlaceholder}
-                  className="min-h-9 min-w-56 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:border-teal-700"
+                  className="min-h-9 min-w-0 basis-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:border-teal-700 sm:min-w-56 sm:flex-1"
                 />
                 {STATUS_COUNTERS.map((key) => {
                   const isActive = filters.status === key;
@@ -1049,8 +1159,7 @@ export function DoctorSubmissionsView({
           </div>
         )}
 
-        {/* Compact dossier list: one row per case */}
-        <ul
+        <div
           id="doctor-dossiers-container"
           aria-busy={apiState.loading}
           className={`space-y-2 transition-opacity ${apiState.loading && items.length > 0 ? "opacity-70" : "opacity-100"}`}
@@ -1058,14 +1167,14 @@ export function DoctorSubmissionsView({
           {apiState.loading && items.length === 0 ? (
             <>
               {[0, 1, 2, 3].map((idx) => (
-                <li
+                <div
                   key={idx}
                   className="h-14 animate-pulse rounded-xl border border-slate-200 bg-white"
                 />
               ))}
             </>
           ) : items.length === 0 ? (
-            <li className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
               <p className="text-sm font-semibold text-slate-800">
                 {copy.emptyTitle}
               </p>
@@ -1079,31 +1188,27 @@ export function DoctorSubmissionsView({
                   {copy.resetFilters}
                 </button>
               )}
-            </li>
+            </div>
           ) : (
-            items.map((item) => (
-              <SubmissionRow
-                key={item.dbSubmissionId}
-                item={item}
-                copy={copy}
-                isVi={isVi}
-                expanded={expandedId === item.dbSubmissionId}
-                redcapExported={exportedIds.has(item.dbSubmissionId)}
-                onToggle={() =>
-                  setExpandedId((prev) =>
-                    prev === item.dbSubmissionId ? null : item.dbSubmissionId
-                  )
-                }
-                onOpenRegistry={openRegistry}
-                onOpenDocument={(patient, fileId) => {
-                  markOpened(item.dbSubmissionId);
-                  setViewerTarget({ patient, fileId });
-                }}
-                onRetried={() => setReloadTick((n) => n + 1)}
-              />
-            ))
+            <SubmissionTable
+              items={items}
+              crfCases={crfCases}
+              copy={copy}
+              isVi={isVi}
+              expandedId={expandedId}
+              exportedIds={exportedIds}
+              onToggle={(item) => {
+                setExpandedId((current) => current === item.dbSubmissionId ? null : item.dbSubmissionId);
+              }}
+              onOpenRegistry={openRegistry}
+              onOpenDocument={(item, patient, fileId) => {
+                if (!item.firstOpenedAt) markOpened(item.dbSubmissionId);
+                setViewerTarget({ patient, fileId });
+              }}
+              onRetried={() => setReloadTick((n) => n + 1)}
+            />
           )}
-        </ul>
+        </div>
       </div>
 
       {/* On-Screen Attached Document Viewer Modal */}

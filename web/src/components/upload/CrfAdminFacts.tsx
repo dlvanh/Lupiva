@@ -10,12 +10,12 @@
  * cached 30 s) so every visible dashboard row can show its review progress cheaply.
  */
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UiIcon } from "@/components/UiIcon";
-import type { CrfField, CrfView } from "@/lib/crfApproval";
+import type { CrfView } from "@/lib/crfApproval";
 import { caseForIntake, viAdminValue, withoutHidden } from "@/lib/crfEvidence";
 import { shownValue, type Shown } from "@/lib/crfForm";
-import { parseSlot } from "@/lib/crfSlot";
+import { adminField } from "@/lib/doctorDashboard";
 
 const FACTS = [
   ["ADM02", "Tuổi", "Age"],
@@ -30,7 +30,7 @@ const FACTS = [
 
 type Jobs = { jobs?: { job_id?: string; case_id?: string | null }[] };
 export type Fact = { id: string; label: string; slot: string; shown: Shown | null };
-type CrfCaseState = { caseId: string; intakeId: string; view: CrfView } | { error: true } | null;
+export type CrfCaseState = { caseId: string; intakeId: string; view: CrfView } | { error: true };
 
 async function pipeline<T>(path: string): Promise<T> {
   const response = await fetch("/api/pipeline" + path, { cache: "no-store", credentials: "same-origin" });
@@ -80,38 +80,49 @@ export function clearCrfViewCache(): void {
   jobsCache = null;
 }
 
-/** Lazy per-case backend read: intake → case → CRF view, shared across rows. */
-export function useCrfCase(intakeId: string | null | undefined): CrfCaseState {
-  const [loaded, setLoaded] = useState<{ intakeId: string; state: CrfCaseState } | null>(null);
+async function loadCrfCase(intakeId: string): Promise<CrfCaseState> {
+  try {
+    const caseId = caseForIntake((await intakeJobs()).jobs, intakeId);
+    if (caseId) return { caseId, intakeId, view: await crfViewForCase(caseId) };
+  } catch {
+    return { error: true };
+  }
+  return { error: true };
+}
+
+/** Fetch CRFs only for dossiers shown in the dashboard, sharing results with the expanded rows. */
+export function useCrfCases(intakeIds: readonly string[]) {
+  const key = JSON.stringify([...new Set(intakeIds)].sort());
+  const requests = useRef(new Map<string, Promise<CrfCaseState>>());
+  const [loaded, setLoaded] = useState<Record<string, CrfCaseState>>({});
   useEffect(() => {
-    if (!intakeId) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const caseId = caseForIntake((await intakeJobs()).jobs, intakeId);
-        if (!caseId) throw new Error("No linked CRF");
-        const view = await crfViewForCase(caseId);
-        if (!cancelled) setLoaded({ intakeId, state: { caseId, intakeId, view } });
-      } catch {
-        if (!cancelled) setLoaded({ intakeId, state: { error: true } });
+    for (const intakeId of JSON.parse(key) as string[]) {
+      let request = requests.current.get(intakeId);
+      if (!request) {
+        request = loadCrfCase(intakeId);
+        requests.current.set(intakeId, request);
       }
-    })();
+      void request.then((state) => {
+        if (!cancelled) {
+          setLoaded((current) => current[intakeId] === state ? current : { ...current, [intakeId]: state });
+        }
+      });
+    }
     return () => {
       cancelled = true;
     };
-  }, [intakeId]);
-  return loaded && loaded.intakeId === intakeId ? loaded.state : null;
+  }, [key]);
+  return loaded;
 }
 
 function factsFrom(view: CrfView, isVi: boolean): Fact[] {
   const approved = view.review?.values;
-  return FACTS.map(([id, vi, en]) => {
-    const fields = view.fields.filter((field: CrfField) => {
-      const slot = parseSlot(field.slot);
-      return slot.fieldId === id && slot.instance === 1;
-    });
-    const field = fields.find((item) => item.component === "result") ?? fields[0];
-    return { id, label: isVi ? vi : en, slot: field?.slot ?? `${id}/result`, shown: field ? shownValue(field, approved) : null };
+  return FACTS.flatMap(([id, vi, en]) => {
+    const field = adminField(view, id);
+    const shown = field ? shownValue(field, approved) : null;
+    if ((id === "ADM08" || id === "ADM09") && !shown?.text.trim()) return [];
+    return [{ id, label: isVi ? vi : en, slot: field?.slot ?? `${id}/result`, shown }];
   });
 }
 
@@ -155,7 +166,7 @@ export function AdminFactsList({ facts, caseId, intakeId, isVi = true }: {
   );
 }
 
-export function CrfAdminFacts({ state, isVi = true }: { state: CrfCaseState; isVi?: boolean }) {
+export function CrfAdminFacts({ state, isVi = true }: { state: CrfCaseState | null; isVi?: boolean }) {
   if (!state || "error" in state) {
     const text = state
       ? (isVi ? "Không đọc được thông tin hành chính." : "Administrative details are unavailable.")

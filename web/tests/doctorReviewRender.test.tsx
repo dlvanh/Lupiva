@@ -18,7 +18,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import { AdminFactsList, type Fact } from "@/components/upload/CrfAdminFacts";
 import { EvidencePanel, FieldRow } from "@/app/registry/page";
-import { DoctorSubmissionsView, SubmissionRow } from "@/components/upload/DoctorSubmissionsView";
+import { DoctorSubmissionsView, SubmissionRow, SubmissionTable } from "@/components/upload/DoctorSubmissionsView";
 import PatientUploadPage from "@/app/upload/page";
 
 const field = (over: Partial<CrfField>): CrfField => ({
@@ -276,7 +276,97 @@ describe("upload page doctor header", () => {
     const markup = renderToStaticMarkup(<PatientUploadPage />);
     expect(markup).toContain("+ Tải ảnh lên cho bệnh nhân");
     expect(markup).toContain('id="doctor-upload-for-patient"');
+    expect(markup).toContain(">Hồ sơ bệnh nhân</h1>");
+    expect(markup).not.toContain("Tiếp nhận Hồ sơ Bệnh nhân");
     expect(markup).not.toContain("<details");
     expect(markup).not.toContain('id="doctor-upload-for-patient-panel"');
+  });
+});
+
+describe("grouped dossier table", () => {
+  const item = (id: string, overrides: Partial<React.ComponentProps<typeof SubmissionRow>["item"]> = {}) => {
+    const record = buildBlankCrfRecord({ id, studyId: `VN-${id}`, patientName: "Chưa nhập tên" });
+    return { dbSubmissionId: id, record, submittedAtIso: "2026-11-19T00:00:00Z", ocrSummary: getOcrTierCounts(record), ...overrides };
+  };
+  const crf = {
+    caseId: "case-id",
+    intakeId: "intake-id",
+    view: {
+      fields: [
+        field({ options: [{ id: "a", value: "64 years" }] }),
+        field({ slot: "ADM03/result", options: [{ id: "f", value: "Female" }] }),
+        field({ slot: "CBC01/result", section: "Haematology", options: [{ id: "b", value: "8" }] }),
+      ],
+      review: { reviewer: { name: "Nguyễn An" }, reviewed_at: "2026-11-19T14:05:00", values: {} },
+      source_snapshot: "snapshot",
+      draft_sha256: "draft",
+    },
+  };
+  const copy = getUploadPageCopy("vi").doctor;
+  const table = (isVi = true) => renderToStaticMarkup(<SubmissionTable
+    items={[
+      item("awaiting", { firstOpenedAt: "opened" }),
+      item("fresh"),
+      item("working", { pipelineStatus: "completed", pipelineIntakeId: "intake-id", firstOpenedAt: "opened" }),
+      item("failed", { pipelineStatus: "failed", pipelineError: "This exact source image is already linked to another patient." }),
+    ]}
+    crfCases={{ "intake-id": crf }}
+    copy={getUploadPageCopy(isVi ? "vi" : "en").doctor}
+    isVi={isVi}
+    expandedId="working"
+    exportedIds={new Set()}
+    onToggle={() => {}}
+    onOpenRegistry={() => {}}
+    onOpenDocument={() => {}}
+    onRetried={() => {}}
+  />);
+
+  it("renders aligned column headers, ordered nonempty groups, readable progress links and details", () => {
+    const markup = table();
+    for (const label of ["Study ID", "Bệnh nhân", "Ngày nộp", "Ảnh", "Tiến độ CRF", "Trạng thái", "Thao tác"]) {
+      expect(markup).toContain(`>${label}</th>`);
+    }
+    expect(markup).toMatch(/Cần xử lý.*VN-failed.*Hồ sơ mới.*VN-fresh.*Đang duyệt.*VN-working.*Chờ duyệt.*VN-awaiting/);
+    expect(markup.match(/scope="rowgroup"/g)).toHaveLength(4);
+    expect(markup).toMatch(/<tr[^>]*font-bold[^>]*>.*?VN-fresh/);
+    expect(markup).toContain("Nữ, 64 tuổi");
+    expect(markup).toContain("chưa nhập tên");
+    expect(markup).toContain('aria-label="Huyết học: 0/1 đã duyệt"');
+    expect(markup).toContain("/registry?case=case-id&amp;intake=intake-id&amp;section=blood");
+    expect(markup).toContain("còn 3 ô cần quyết định");
+    expect(markup).toContain("BS. Nguyễn An · 14:05 19/11");
+    expect(markup).toContain("Ảnh trùng với hồ sơ khác đã có trong hệ thống");
+    expect(markup).not.toContain("Gửi lại");
+    expect(markup).not.toContain("Điều dưỡng:");
+    expect(markup).not.toContain("Bác sĩ:");
+  });
+
+  it("localizes the same dashboard data in English", () => {
+    const markup = table(false);
+    expect(markup).toContain(">CRF progress</th>");
+    expect(markup).toContain("Female, 64 years");
+    expect(markup).toContain('aria-label="Haematology: 0/1 approved"');
+    expect(markup).toContain("3 cells need a decision");
+    expect(markup).toContain("Dr Nguyễn An · 14:05 19/11");
+  });
+
+  it("offers a retry on transient failures and shows unknown details only on demand", () => {
+    const row = (pipelineError: string) => renderToStaticMarkup(<SubmissionRow
+      item={item("failed", { pipelineStatus: "failed", pipelineError })}
+      copy={copy}
+      isVi
+      expanded
+      redcapExported={false}
+      onToggle={() => {}}
+      onOpenRegistry={() => {}}
+      onOpenDocument={() => {}}
+      onRetried={() => {}}
+    />);
+    expect(row("fetch failed")).toContain(">Gửi lại</button>");
+    const unknown = row("Unexpected failure code ABC");
+    expect(unknown).toContain("Có lỗi khi xử lý ảnh.");
+    expect(unknown).toMatch(/<details[^>]*><summary[^>]*>Chi tiết kỹ thuật<\/summary>.*Unexpected failure code ABC.*<\/details>/);
+    expect(unknown).toContain("Chưa ghi nhận");
+    expect(unknown).not.toMatch(/Gửi lại|Phân tầng OCR|Điều dưỡng:|Bác sĩ:/);
   });
 });
