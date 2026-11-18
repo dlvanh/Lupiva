@@ -69,7 +69,7 @@ export function Navbar() {
           { href: "/crf-form", label: isVi ? "Phiếu CRF" : "CRF form", id: "nav-link-crf-form" },
         ]
       : [
-          { href: "/", label: isVi ? "Registry bệnh lupus" : "Lupus Registry", id: "nav-link-home" },
+          { href: "/", label: isVi ? "Tổng quan" : "Overview", id: "nav-link-home" },
           {
             href: "/upload",
             label:

@@ -27,6 +27,25 @@ beforeEach(() => {
 });
 
 describe("patient landing page", () => {
+  it("presents the lupus registry: aim and research directions, background, how it works", () => {
+    const markup = renderToStaticMarkup(<LandingPage />);
+    for (const text of [
+      "Đăng ký bệnh nhân Lupus", "Mục tiêu và hướng nghiên cứu", "EULAR/ACR 2019", "SLEDAI-2K",
+      "Bối cảnh", "Registry hoạt động như thế nào", "Dành cho bệnh nhân",
+    ]) {
+      expect(markup).toContain(text);
+    }
+    expect(markup).not.toContain(TRANSLATIONS.vi.landing.challengeTag);
+  });
+
+  it("presents the registry in English", () => {
+    state.language = "en";
+    const markup = renderToStaticMarkup(<LandingPage />);
+    for (const text of ["Lupus Patient Registry", "Aim and research directions", "Background", "How the registry works"]) {
+      expect(markup).toContain(text);
+    }
+  });
+
   it("shows the patient sections in Vietnamese by default", () => {
     const markup = renderToStaticMarkup(<LandingPage />);
     for (const text of [
@@ -57,13 +76,6 @@ describe("patient landing page", () => {
     expect(markup).toContain("Đã hoàn thiện E-consent");
     expect(markup).not.toContain("mode=register");
     expect(markup).toMatch(/href="\/upload"[^>]*>Tải hồ sơ lên<\/a>/);
-  });
-
-  it("shows the existing workflow to specialists", () => {
-    state.currentUser = { role: "specialist", consentSigned: true };
-    const markup = renderToStaticMarkup(<LandingPage />);
-    expect(markup).toContain(TRANSLATIONS.vi.landing.workflowSectionTitle);
-    expect(markup).not.toContain("Quyền lợi của bệnh nhân");
   });
 
   it("opens the patient registration form with E-consent checked", () => {

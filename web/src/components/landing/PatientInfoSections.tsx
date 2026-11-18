@@ -6,7 +6,7 @@ import { useLupiva } from "@/context/LupivaContext";
 
 const actionClass = "mt-4 inline-flex min-h-10 items-center rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800";
 
-export function PatientInfoSections() {
+export function PatientInfoSections({ showAbout = true }: { showAbout?: boolean } = {}) {
   const { currentUser, t } = useLupiva();
   const copy = t.patientPortal;
   const hasConsent = currentUser?.role === "patient" && currentUser.consentSigned;
@@ -18,12 +18,14 @@ export function PatientInfoSections() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-10 px-4 py-12 sm:px-6 lg:px-8">
+      {showAbout && (
       <section aria-labelledby="patient-about-heading">
         <h2 id="patient-about-heading" className="text-xl font-bold text-slate-900 sm:text-2xl">
           {copy.aboutTitle}
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">{copy.aboutBody}</p>
       </section>
+      )}
 
       <section aria-labelledby="patient-benefits-heading">
         <h2 id="patient-benefits-heading" className="text-xl font-bold text-slate-900 sm:text-2xl">
