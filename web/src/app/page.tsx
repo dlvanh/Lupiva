@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PatientInfoSections } from "@/components/landing/PatientInfoSections";
 import { useLupiva } from "@/context/LupivaContext";
 
@@ -13,6 +14,12 @@ export default function LandingPage() {
   } = useLupiva();
 
   const isSpecialist = currentUser?.role === "specialist";
+  const router = useRouter();
+
+  // Doctors have no overview page: their home is the dashboard.
+  useEffect(() => {
+    if (isSpecialist) router.replace("/upload");
+  }, [isSpecialist, router]);
 
 
   return (
@@ -89,17 +96,15 @@ export default function LandingPage() {
                   </Link>
                 )}
 
+                {!currentUser && (
                 <Link
                   href="/login"
                   id="hero-btn-login"
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
                 >
-                  <span>
-                    {currentUser
-                      ? t.landing.switchRoleBtn(currentUser.role)
-                      : t.landing.loginBtn}
-                  </span>
+                  <span>{t.landing.loginBtn}</span>
                 </Link>
+                )}
 
               </div>
 

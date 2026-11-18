@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CenterNotice } from "@/components/CenterNotice";
+import { CornerNotice } from "@/components/CornerNotice";
 import { useLupiva } from "@/context/LupivaContext";
 import { announcedCount, setNewSubmissionCount, unnotifiedIds, type NewSubmissionEntry } from "@/lib/newSubmissionStore";
 
@@ -74,29 +74,20 @@ export function NewSubmissionWatcher() {
   if (!isSpecialist || announce === 0) return null;
 
   return (
-    <CenterNotice
-      open
-      tone="info"
+    <CornerNotice
       id="doctor-new-submission-notice"
       title={isVi ? `Có ${announce} hồ sơ mới` : `${announce} new submission${announce > 1 ? "s" : ""}`}
+      actionLabel={isVi ? "Mở hồ sơ" : "Open submissions"}
+      closeLabel={isVi ? "Đóng" : "Close"}
+      onAction={() => {
+        close();
+        router.push("/upload?status=new");
+      }}
       onClose={close}
-      actions={[
-        {
-          label: isVi ? "Mở hồ sơ" : "Open submissions",
-          id: "doctor-new-submission-open",
-          onClick: () => {
-            close();
-            router.push("/upload?status=new");
-          },
-        },
-        { label: isVi ? "Để sau" : "Later", variant: "secondary", onClick: close },
-      ]}
     >
-      <p>
-        {isVi
-          ? "Bệnh nhân vừa nộp hồ sơ. Hồ sơ nằm ở mục “Hồ sơ mới” cho đến khi có bác sĩ mở."
-          : "A patient just submitted. It stays under “New” until a doctor opens it."}
-      </p>
-    </CenterNotice>
+      {isVi
+        ? "Bệnh nhân vừa nộp hồ sơ. Hồ sơ nằm ở mục “Hồ sơ mới” cho đến khi có bác sĩ mở."
+        : "A patient just submitted. It stays under “New” until a doctor opens it."}
+    </CornerNotice>
   );
 }
