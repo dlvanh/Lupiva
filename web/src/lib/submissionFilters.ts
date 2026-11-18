@@ -3,6 +3,7 @@ import type { CrfAntibodyBlotRow, CrfOcrField } from "@/data/crfData";
 
 export const SUBMISSION_REVIEW_FILTERS = [
   "all",
+  "new",
   "pending_doctor_review",
   "approved",
 ] as const;

@@ -163,7 +163,8 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       statusLegend: "Submission review status",
       statusOptions: {
         all: "All",
-        pending_doctor_review: "Pending Review",
+        new: "New",
+        pending_doctor_review: "Not yet approved",
         approved: "Approved",
       },
       datePresetLabel: "Uploaded Date",
@@ -331,8 +332,9 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       statusLegend: "Trạng thái duyệt hồ sơ",
       statusOptions: {
         all: "Tất cả",
-        pending_doctor_review: "Chờ bác sĩ duyệt",
-        approved: "Đã duyệt & ký",
+        new: "Hồ sơ mới",
+        pending_doctor_review: "Chưa phê duyệt",
+        approved: "Đã phê duyệt",
       },
       datePresetLabel: "Ngày tải lên",
       datePresetOptions: {

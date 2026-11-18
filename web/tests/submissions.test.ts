@@ -47,6 +47,8 @@ import {
   submissionQuerySchema,
 } from "@/lib/submissionFilters";
 import { querySubmissions } from "@/lib/submissionsService";
+import { markSubmissionOpened } from "@/lib/submissionOpened";
+import { crfSubmissions } from "@/db/schema";
 import {
   createTestDatabase,
   type TestDatabaseHandle,
@@ -89,6 +91,7 @@ interface SubmissionsResponseBody {
     record: (typeof INITIAL_CRF_PATIENTS)[number];
     dbSubmissionId: string;
     submittedAtIso: string;
+    firstOpenedAt?: string | null;
     ocrSummary: {
       manualCount: number;
       verifyCount: number;
@@ -98,6 +101,7 @@ interface SubmissionsResponseBody {
   }>;
   stats: {
     total: number;
+    new: number;
     pending: number;
     approved: number;
     manualRequiredDossiers: number;
@@ -287,8 +291,33 @@ describe("Lupiva Server-Side Submissions Filter & Upload API", () => {
     ]);
   });
 
+  it("splits new (never opened) submissions from opened-but-unapproved ones", async () => {
+    await signInAs("specialist");
+    const specialist = await requireAuth();
+    const all = (await (await submissionsGet(buildRequest("/api/submissions?pageSize=20", "GET"))).json()) as SubmissionsResponseBody;
+    expect(all.stats.new).toBe(7);
+    expect(all.stats.pending).toBe(0);
+    const pendingIds = all.items
+      .filter((item) => item.record.submissionStatus !== "approved")
+      .slice(0, 2)
+      .map((item) => item.dbSubmissionId);
+    for (const id of pendingIds) {
+      await markSubmissionOpened({ user: specialist, submissionId: id, db: testDb.db });
+    }
+    const after = (await (await submissionsGet(buildRequest("/api/submissions?pageSize=20", "GET"))).json()) as SubmissionsResponseBody;
+    expect(after.stats).toMatchObject({ new: 5, pending: 2, approved: 5, total: 12 });
+    const fresh = (await (await submissionsGet(buildRequest("/api/submissions?status=new&pageSize=20", "GET"))).json()) as SubmissionsResponseBody;
+    expect(fresh.items).toHaveLength(5);
+    expect(fresh.items.map((item) => item.dbSubmissionId)).not.toEqual(expect.arrayContaining([pendingIds[0]]));
+    const opened = (await (await submissionsGet(buildRequest("/api/submissions?status=pending_doctor_review&pageSize=20", "GET"))).json()) as SubmissionsResponseBody;
+    expect(opened.items.map((item) => item.dbSubmissionId).sort()).toEqual([...pendingIds].sort());
+    expect(opened.items[0].firstOpenedAt).toEqual(expect.any(String));
+  });
+
   it("filters by submission status, clinical risk, sex, encrypted search, and paginates computed sorts", async () => {
     await signInAs("specialist");
+    // "Chưa phê duyệt" now means opened but not approved; open every seeded dossier first.
+    await testDb.db.update(crfSubmissions).set({ firstOpenedAt: new Date() });
 
     // 1. Filtered backend pagination on status=pending_doctor_review (7 pending -> 4 + 3 with pageSize=4)
     const pendingP1 = (await (

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import {
   buildBlankCrfRecord,
@@ -47,6 +47,8 @@ export interface SubmissionItemDTO {
   pipelineError?: string | null;
   /** Backend intake job id; the doctor review opens /registry for it. */
   pipelineIntakeId?: string | null;
+  /** First time a specialist opened it; null = "Hồ sơ mới". */
+  firstOpenedAt?: string | null;
 }
 
 /**
@@ -111,6 +113,9 @@ export function toPatientStatus(item: SubmissionItemDTO): PatientSubmissionStatu
 
 export interface SubmissionStatsDTO {
   total: number;
+  /** Never opened by a specialist and not approved ("Hồ sơ mới"). */
+  new: number;
+  /** Opened but not yet approved ("Chưa phê duyệt"). */
   pending: number;
   approved: number;
   manualRequiredDossiers: number;
@@ -178,6 +183,7 @@ export async function querySubmissions(params: {
     .select({
       submissionId: crfSubmissions.id,
       status: crfSubmissions.status,
+      firstOpenedAt: crfSubmissions.firstOpenedAt,
       hivStatusEncrypted: crfSubmissions.hivStatusEncrypted,
       ocrFieldsJson: crfSubmissions.ocrFieldsJson,
       antibodyBlotsJson: crfSubmissions.antibodyBlotsJson,
@@ -189,12 +195,14 @@ export async function querySubmissions(params: {
     )
     .where(baseScopeConditions.length > 0 ? and(...baseScopeConditions) : undefined);
 
+  let fresh = 0;
   let pending = 0;
   let approved = 0;
   let manualRequiredDossiers = 0;
   for (const row of cohortSummaryRows) {
     if (row.status === "approved") approved += 1;
-    else pending += 1;
+    else if (row.firstOpenedAt) pending += 1;
+    else fresh += 1;
 
     const fullFields = decryptSubmissionHivFields(
       row.ocrFieldsJson,
@@ -213,7 +221,11 @@ export async function querySubmissions(params: {
   // 2. Build SQL WHERE predicates
   const filterConditions: SQL[] = [...baseScopeConditions];
 
-  if (effectiveFilters.status !== "all") {
+  if (effectiveFilters.status === "new") {
+    filterConditions.push(eq(crfSubmissions.status, "pending_doctor_review"), isNull(crfSubmissions.firstOpenedAt));
+  } else if (effectiveFilters.status === "pending_doctor_review") {
+    filterConditions.push(eq(crfSubmissions.status, "pending_doctor_review"), isNotNull(crfSubmissions.firstOpenedAt));
+  } else if (effectiveFilters.status !== "all") {
     filterConditions.push(eq(crfSubmissions.status, effectiveFilters.status));
   }
 
@@ -298,6 +310,7 @@ export async function querySubmissions(params: {
         pipelineStatus: crfSubmissions.pipelineStatus,
         pipelineError: crfSubmissions.pipelineError,
         pipelineIntakeId: crfSubmissions.pipelineIntakeId,
+        firstOpenedAt: crfSubmissions.firstOpenedAt,
         profileId: patientProfiles.id,
         studyIdEncrypted: patientProfiles.studyIdEncrypted,
         patientNameEncrypted: patientProfiles.patientNameEncrypted,
@@ -337,6 +350,7 @@ export async function querySubmissions(params: {
         pipelineStatus: crfSubmissions.pipelineStatus,
         pipelineError: crfSubmissions.pipelineError,
         pipelineIntakeId: crfSubmissions.pipelineIntakeId,
+        firstOpenedAt: crfSubmissions.firstOpenedAt,
         profileId: patientProfiles.id,
         studyIdEncrypted: patientProfiles.studyIdEncrypted,
         patientNameEncrypted: patientProfiles.patientNameEncrypted,
@@ -429,6 +443,7 @@ export async function querySubmissions(params: {
         pipelineStatus: row.pipelineStatus,
         pipelineError: row.pipelineError,
         pipelineIntakeId: row.pipelineIntakeId,
+        firstOpenedAt: row.firstOpenedAt ? row.firstOpenedAt.toISOString() : null,
       },
       submittedAtMs: row.submittedAt.getTime(),
       sledaiScore: row.sledaiTotalScore,
@@ -461,6 +476,7 @@ export async function querySubmissions(params: {
     items: pagedItems,
     stats: {
       total: cohortSummaryRows.length,
+      new: fresh,
       pending,
       approved,
       manualRequiredDossiers,

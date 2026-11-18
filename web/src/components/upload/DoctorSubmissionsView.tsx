@@ -816,6 +816,8 @@ export function DoctorSubmissionsView() {
                       const count =
                         key === "all"
                           ? stats.total
+                          : key === "new"
+                          ? stats.new ?? 0
                           : key === "pending_doctor_review"
                           ? stats.pending
                           : stats.approved;
