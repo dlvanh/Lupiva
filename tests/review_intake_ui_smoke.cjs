@@ -1,17 +1,18 @@
 // Production upload controller with synthetic files/HTTP, no browser/layout claim.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),crypto=require('node:crypto');
 const html=fs.readFileSync(path.join(__dirname,'../registry_review/review.html'),'utf8');
+assert.ok(html.includes('Chế độ prototype – gửi ảnh gốc cho LLM, chỉ dùng dữ liệu giả lập'));
 assert.ok(html.indexOf('id="patientIntake"')<html.indexOf('id="registryExports"'),'Image intake must appear above the patient table');
 assert.doesNotMatch(html,/<details id="patientIntake"[^>]*\bopen\b/,'Image intake stays collapsed while reviewing existing records');
 class Element{constructor(tag){this.tag=tag;this.children=[];this.options=[];this.value='';this.files=[];this.checked=false;this.disabled=false;this.style={};}append(...x){this.children.push(...x)}replaceChildren(...x){this.children=x;this.options=[];this.value=''}add(o){this.options.push(o);if(this.options.length===1)this.value=o.value}setAttribute(k,v){this[k]=v}}
 const elements=Object.fromEntries([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>[m[1],new Element('static')]));
-const requests=[],jobs=[],cases=[];let failUpload=true,holdProposal=false,pendingProposal=null,automatic=false;
+const requests=[],jobs=[],cases=[];let prototypeDirect=false,failUpload=true,holdProposal=false,pendingProposal=null,automatic=false;
 const proposalJob=sha=>{const crop=[0,40,200,250],masks=[[5,50,20,80]],mask_polygons=[[[100,90],[120,95],[125,180],[105,175]]];return {job_id:'privacy-synthetic',status:'completed',proposal:{sha256:sha,size:[200,250],crop,masks,mask_polygons,crop_reason:'detected_panel_table_header',review_count:automatic?0:1,reviewed:false,outbound_allowed:false},automatic_plan:automatic?{sha256:sha,crop,masks,mask_polygons,proposal_id:'privacy-synthetic',automatic:true,reviewed:true}:null}};
 const ctx=vm.createContext({document:{getElementById:id=>elements[id],createElement:tag=>new Element(tag)},Option:class{constructor(label,value){this.label=label;this.value=value}},URLSearchParams,crypto,console,
  fetch:async(url,options)=>{const payload=typeof options?.body==='string'?JSON.parse(options.body):null;requests.push({url,payload,body:options?.body,headers:options?.headers});let data;
   if(url.startsWith('/api/privacy-proposals?')){const sha=new URLSearchParams(url.split('?')[1]).get('sha256');data=holdProposal?await new Promise(resolve=>{pendingProposal=()=>resolve(proposalJob(sha))}):proposalJob(sha)}
   else if(url==='/api/intakes'&&payload){const id='case-'+(jobs.length+1);cases.push({case_id:id,registry_code:'SYNTHETIC-'+id});jobs.push({job_id:'job-'+id,case_id:id,registry_code:'SYNTHETIC-'+id,expected_files:payload.file_count,engine:payload.engine||'local',privacy:payload.privacy,uploaded_files:0,files:[],status:'uploading'});data={job:jobs.at(-1)}}
-  else if(url==='/api/intakes')data={jobs};
+  else if(url==='/api/intakes')data={jobs,prototype_direct_llm:prototypeDirect};
   else if(url.startsWith('/api/intakes/image?')){const q=new URLSearchParams(url.split('?')[1]),job=jobs.find(j=>j.job_id===q.get('job_id'));if(!job.files.some(f=>f.file_id===q.get('file_id')))job.files.push({file_id:q.get('file_id'),name:q.get('name')});job.uploaded_files=job.files.length;data={job};if(failUpload){failUpload=false;throw Error('Synthetic network interruption after upload')}}
   else if(url==='/api/intakes/start'){const job=jobs.find(j=>j.job_id===payload.job_id);assert.equal(job.files.length,job.expected_files);job.status='queued';data={job}}
   else if(url==='/api/summary')data={cases,encounters:[],packages:[]};
@@ -25,7 +26,7 @@ vm.runInContext(script,ctx);const call=code=>vm.runInContext(code,ctx);const flu
 const file=(name,contents=name,size=1200)=>({name,size,lastModified:1,arrayBuffer:async()=>Uint8Array.from(Buffer.from(contents)).buffer});
 const choose=async files=>{elements.intakeFiles.files=files;await elements.intakeFiles.onchange()};
 (async()=>{
- await flush();await choose([file('A.png')]);await choose([file('B.png'),file('C.png')]);
+ await flush();assert.equal(elements.prototypeDirectLlm.hidden,true);prototypeDirect=true;await call('refreshIntakes()');assert.equal(elements.prototypeDirectLlm.hidden,false);prototypeDirect=false;await call('refreshIntakes()');assert.equal(elements.prototypeDirectLlm.hidden,true);await choose([file('A.png')]);await choose([file('B.png'),file('C.png')]);
  assert.equal(call('intakeSelection.length'),3,'Picking more files preserves earlier selections');
  await choose([file('A.png'),file('Renamed duplicate.png','A.png')]);
  assert.equal(call('intakeSelection.length'),3,'Repeated content is not submitted twice, even with another name');

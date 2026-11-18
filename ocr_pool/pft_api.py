@@ -5,7 +5,7 @@ from hashlib import sha256
 import json
 import re
 
-from .gemini import InvalidAPIResponse, request_json
+from .llm import InvalidAPIResponse, request_json
 from .llm_extraction import normalize_extraction
 from .local_dates import unmasked_crop_lines
 from .pipeline import result_value

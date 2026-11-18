@@ -7,7 +7,7 @@ import unittest
 
 from PIL import Image
 from ocr_pool.catalog_alias import CatalogAliases
-from ocr_pool.gemini_workflow import build_candidate
+from ocr_pool.llm_workflow import build_candidate
 from test_source_review import DICTIONARY
 
 
@@ -21,7 +21,7 @@ class CatalogAliasTests(unittest.TestCase):
         self.aliases = CatalogAliases(DICTIONARY)
 
     def test_comparator_literal_recovers_number_only_from_plain_cells(self):
-        from ocr_pool.gemini_workflow import _comparator_literal
+        from ocr_pool.llm_workflow import _comparator_literal
         self.assertEqual(_comparator_literal(dict(raw_result='<10', numeric_value=None, comparator='<')),
                          dict(numeric_value='10', comparator='<'))
         self.assertEqual(_comparator_literal(dict(raw_result='≥ 2,5', numeric_value=None, comparator=None)),
@@ -31,7 +31,7 @@ class CatalogAliasTests(unittest.TestCase):
         self.assertIsNone(_comparator_literal(dict(raw_result='<10', numeric_value='10', comparator='<')))
 
     def test_intensity_contradicting_page_class_order_is_flagged_not_changed(self):
-        from ocr_pool.gemini_workflow import _intensity_class_outliers
+        from ocr_pool.llm_workflow import _intensity_class_outliers
         cell = lambda number, grade: dict(numeric_value=number, qualitative_value=grade, component='result')
         page = [cell('2', 'Negative'), cell('3', 'Negative'), cell('0', 'Borderline'), cell('4', 'Negative'),
                 cell('2', 'Negative'), cell('1', 'Negative')]

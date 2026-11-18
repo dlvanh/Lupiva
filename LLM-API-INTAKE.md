@@ -2,6 +2,18 @@
 
 Trong **Thêm hồ sơ từ ảnh → Cách đọc ảnh**, chọn **OCR tại máy**, **AI qua API** hoặc **Token Harbor · DeepSeek V4.1 Flash**. OCR tại máy là mặc định. Mỗi lượt gửi giữ cố định phương thức đã chọn.
 
+## Prototype gửi ảnh gốc (chỉ dữ liệu giả lập)
+
+`LUPIVA_PROTOTYPE_DIRECT_LLM=1` bật chế độ demo cho ảnh giả lập khi chọn một phương thức API.
+Biến môi trường được ưu tiên; nếu không có, đọc từ `.env` trong thư mục dự án. Chỉ giá trị `1` bật chế độ; mặc định tắt.
+UI hiển thị banner đỏ. Toàn bộ ảnh sau khi chỉnh hướng EXIF được gửi, không cắt bỏ nội dung, không che vùng và không chạy OCR tại máy.
+Ảnh vẫn qua bước xuất JPEG hiện có để bỏ EXIF. Không dùng ảnh bệnh nhân thật.
+
+LLM đọc kết quả, ngày lấy mẫu/ngày trả kết quả/ngày đo và các trường đầu trang: giới tính, tuổi, chiều cao, cân nặng, Physician/người chỉ định, Nurse/người lấy mẫu.
+Các giá trị và bằng chứng được giữ dưới dạng ứng viên chờ duyệt, gồm các trường ADM02/03/05/06/08/09; không tự duyệt.
+Ngày lấy mẫu (hoặc ngày đo cho PFT) được ưu tiên; ngày trả kết quả chỉ thay thế khi không có ngày ưu tiên, không thay thế ngày mơ hồ hoặc mâu thuẫn.
+Payload `GET /api/intakes` cung cấp `prototype_direct_llm` chỉ để hiển thị. Khi tắt, prompt/schema và luồng OCR thông thường giữ nguyên.
+
 ## Token Harbor · DeepSeek V4.1 Flash
 
 Điền API key trong `.env` ở thư mục dự án. Có thể sửa URL và model ID theo tài khoản.
@@ -15,7 +27,7 @@ TOKENHARBOR_FALLBACK_API_KEYS=
 
 `TOKENHARBOR_FALLBACK_API_KEYS` là danh sách key dự phòng cách nhau bằng dấu phẩy. Với model `:free`, khi API báo rõ đã hết hạn mức miễn phí, Lupiva thử lại cùng yêu cầu với key kế tiếp và bỏ qua key đã hết hạn mức trong lượt xử lý đó. Lỗi giới hạn tốc độ có `Retry-After` được trả về như bình thường.
 
-Model mặc định hỗ trợ ảnh. Luồng Token Harbor dùng Chat Completions với JSON mode và kiểm tra đầu ra theo cùng schema trích xuất. Chọn **Token Harbor · DeepSeek V4.1 Flash** để xử lý hồ sơ mới. Với manifest vùng gửi đã xác minh, CLI dùng `scripts/run_gemini_pool.py --engine tokenharbor --manifest MANIFEST --output OUTPUT`. [Thông tin model](https://tokenharbor.ai/models/deepseek-v4.1-flash:free)
+Model mặc định hỗ trợ ảnh. Luồng Token Harbor dùng Chat Completions với JSON mode và kiểm tra đầu ra theo cùng schema trích xuất. Chọn **Token Harbor · DeepSeek V4.1 Flash** để xử lý hồ sơ mới. Với manifest vùng gửi đã xác minh, CLI dùng `scripts/run_llm_pool.py --engine tokenharbor --manifest MANIFEST --output OUTPUT`. [Thông tin model](https://tokenharbor.ai/models/deepseek-v4.1-flash:free)
 
 ### Thử đọc nhanh phiếu hô hấp ký
 
@@ -98,13 +110,13 @@ Vùng cắt tự động cần có cấu trúc kết quả nhận diện đượ
 Lệnh dưới đây đọc ảnh gốc để lấy ngày tại máy, dựng lại JPEG cắt/che theo manifest và ghi bundle vào một thư mục mới. Dùng `expected_outgoing_sha256` trong manifest để kiểm khớp ảnh gửi đã duyệt trước mỗi lượt. Tham số `--model` chọn model cho lượt chạy đó.
 
 ```powershell
-.\.venv-senocr\Scripts\python.exe -X utf8 scripts/run_gemini_pool.py --manifest research/llm-crf-local-date-validation-20261111-01/lupus-000001-reviewed-replay.json --output research/lupus-000001-replay-new --model gpt-5.6-terra
+.\.venv-senocr\Scripts\python.exe -X utf8 scripts/run_llm_pool.py --manifest research/llm-crf-local-date-validation-20261111-01/lupus-000001-reviewed-replay.json --output research/lupus-000001-replay-new --model gpt-5.6-terra
 ```
 
 Kiểm tra `candidate-pool.json`, ảnh ở `crops/` và phản hồi trong `api-responses/`. Bundle của lệnh này dùng để đối chiếu riêng trước khi đưa kết quả vào hồ sơ đang sử dụng. Với hồ sơ mới, dùng luồng thêm ảnh trên UI để kiểm cả bước đề xuất cắt/che.
 
 ```powershell
-python -X utf8 -m unittest discover -s tests -p test_gemini_intake.py -v
+python -X utf8 -m unittest discover -s tests -p test_llm_intake.py -v
 python -X utf8 -m unittest discover -s tests -p test_patient_intake.py -v
 python -X utf8 -m unittest discover -s tests -p test_intake_server.py -v
 node tests/review_intake_ui_smoke.cjs

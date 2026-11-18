@@ -16,7 +16,8 @@ from PIL import Image,UnidentifiedImageError
 from registry_pool.dictionary import digest
 from registry_pool.exchange import read,verify_bundle
 from registry_pool.store import encode
-from ocr_pool.gemini import API_ENGINES, configuration, prepare_image, privacy_plan, public_configuration
+from ocr_pool.llm import API_ENGINES, configuration, prepare_image, privacy_plan, public_configuration
+from ocr_pool.flags import prototype_direct_llm
 from ocr_pool.workflow import process_token,venv_python,write
 from .store import ReviewStore,actor_info,text,now,HUMAN_ROLES
 
@@ -119,6 +120,7 @@ class IntakeManager:
         try:
             jobs=[json.loads(r[0]) for r in store.db.execute('SELECT payload FROM patient_intakes ORDER BY rowid DESC')]
             return dict(jobs=[self.public(store,job) for job in jobs],api_health=self.api_health(jobs),
+                prototype_direct_llm=prototype_direct_llm(self.workspace),
                 limits=dict(max_files=MAX_FILES,max_image_bytes=MAX_IMAGE,max_batch_bytes=MAX_BATCH),
                 engines=dict(local=dict(available=True),**{engine:public_configuration(self.workspace,engine=engine)
                                                            for engine in API_ENGINES}))
@@ -134,6 +136,9 @@ class IntakeManager:
         if engine in API_ENGINES:
             configuration(self.workspace,engine=engine)
             privacy_plan(privacy,file_count)
+            # A full unmasked image is sent only while the server itself runs the synthetic prototype.
+            if any(isinstance(p,dict) and p.get('direct_llm') for p in privacy) and not prototype_direct_llm(self.workspace):
+                raise ValueError('Direct LLM images are allowed only in prototype mode')
             request.update(engine=engine,privacy=privacy)
         elif privacy:raise ValueError('Privacy selections apply only to API submissions')
         store=ReviewStore(self.application.database)
@@ -379,7 +384,7 @@ class IntakeManager:
                     return
                 uses_api=job.get('engine') in API_ENGINES
                 python=Path(sys.executable) if uses_api else venv_python(self.workspace/'.venv-senocr')
-                runner='scripts/run_gemini_pool.py' if uses_api else 'scripts/run_automatic_pool.py'
+                runner='scripts/run_llm_pool.py' if uses_api else 'scripts/run_automatic_pool.py'
                 engine_args=['--engine',job['engine']] if uses_api else []
                 # The child stops sending images before the hard limit and keeps
                 # what finished; the margin leaves time to build the bundle.

@@ -11,7 +11,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from ocr_pool.gemini_workflow import run
+from ocr_pool.llm_workflow import run
 
 
 def main(argv=None):

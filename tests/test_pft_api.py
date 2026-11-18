@@ -2,7 +2,7 @@
 from copy import deepcopy
 import unittest
 
-from ocr_pool.gemini import InvalidAPIResponse
+from ocr_pool.llm import InvalidAPIResponse
 from ocr_pool.pft_api import _expand, pft_crop_evidence
 from test_source_review import DICTIONARY
 

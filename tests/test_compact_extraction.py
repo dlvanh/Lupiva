@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 from PIL import Image
 
-from ocr_pool.gemini import (InvalidAPIResponse, configuration, extract_image, response_schema,
+from ocr_pool.llm import (InvalidAPIResponse, configuration, extract_image, response_schema,
                              validate_response)
 from ocr_pool.llm_extraction import (COMPACT_PROMPT_ADDENDUM, CORE_ROW_KEYS, EXTRA_ROW_KEYS,
                                      PROMPT_ADDENDUM, compact_extraction_schema,
@@ -220,7 +220,7 @@ def check_default_contract_prompt_schema_and_payload_are_unchanged(native, engin
     assert COMPACT_PROMPT_ADDENDUM not in record['request_contract']['prompt']
     # Pin the original prompt text and the original 23-key full schema.
     assert hashlib.sha256(PROMPT_ADDENDUM.encode()).hexdigest() == '06252b574cab3795345d803e65a60f9dc875a48ac7eaa81e8e74c00021edb140'
-    prompt_file = (ROOT / 'schemas/gemini-extraction-prompt.txt').read_text(encoding='utf-8')
+    prompt_file = (ROOT / 'schemas/llm-extraction-prompt.txt').read_text(encoding='utf-8')
     assert hashlib.sha256(prompt_file.encode()).hexdigest() == 'ae95ec10118bb69389d4f3a1db24556f02492d1d8152e2df7b6ed783757f16cd'
     catalog = [dict(field_id='TEST_A', label='Glucose', section='Synthetic laboratory',
                     components=[dict(component_id='result', value_type='numeric', allowed_units=['mmol/L'])])]

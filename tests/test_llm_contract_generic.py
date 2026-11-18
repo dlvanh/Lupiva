@@ -10,11 +10,11 @@ from ocr_pool.llm_extraction import normalize_extraction
 from ocr_pool.llm_row_anchors import anchor_row_boxes
 from ocr_pool.result_rules import load_result_rules
 from ocr_pool.llm_verification import verify_extraction
-from ocr_pool.gemini_workflow import build_candidate
+from ocr_pool.llm_workflow import build_candidate
 from registry_pool.exchange import convert_candidate
 from registry_pool.store import Registry
 from registry_review.confidence import assess
-from test_gemini_intake import row, result, image_bytes, DICTIONARY
+from test_llm_intake import row, result, image_bytes, DICTIONARY
 from test_registry import candidate
 
 

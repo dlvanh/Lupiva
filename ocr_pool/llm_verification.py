@@ -1,7 +1,7 @@
 """One bounded visual verification of flagged, uniquely labelled source rows."""
 from collections import Counter
 from copy import deepcopy
-from .gemini import extract_image
+from .llm import extract_image
 from .llm_extraction import normalize_extraction
 
 REVIEW_FIELDS = {

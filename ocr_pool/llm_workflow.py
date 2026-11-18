@@ -14,7 +14,7 @@ from PIL import Image
 from form_pool.sample_collection import extract_sample_collections, HEADERS
 from registry_pool.exchange import build_bundle
 from .catalog_alias import CatalogAliases
-from .gemini import DeadlineReached, InvalidAPIResponse, TransportError, configuration, privacy_plan, prepare_image, extract_image
+from .llm import DeadlineReached, InvalidAPIResponse, TransportError, configuration, privacy_plan, prepare_image, extract_image
 from .lab_api import extract_lab_image, lab_crop_evidence
 from .outgoing_gate import check_outgoing, enough_result_content, result_table_header
 from .ocr_hint import ocr_hint_lines
@@ -22,6 +22,7 @@ from .ocr_crosscheck import number_disagreements
 from .lab_reference_cells import attach_complement_ranges
 from .llm_extraction import VERSION as LLM_CONTRACT_VERSION, valid_row_box
 from .local_dates import local_date_evidence, local_metadata_evidence, observation_date, scan_source_dates, unmasked_crop_lines
+from .direct_llm import DATE_KEYS as DIRECT_DATE_KEYS, header_facts, source_date as direct_source_date
 from .mixed_lab import extract_split_lab, fluorescence_split
 from .pft_api import extract_pft_image, pft_crop_evidence
 from .result_rules import load_result_rules
@@ -260,11 +261,12 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
 
     administrative_done = set()
 
-    def add_administrative_observations(doc, facts, date_facts):
-        # Printed age/sex/height/weight read locally from a page header. Laboratory
+    def add_administrative_observations(doc, facts, date_facts, *, direct=False):
+        # Printed age/sex/height/weight from local OCR, or the direct prototype API. Laboratory
         # headers repeat the sex label on every page, so each field is mapped once
         # per submission (first clean fact); further pages remain source metadata.
-        source_date = observation_date(date_facts, 'pft')
+        source_date = direct_source_date(date_facts, 'pft') if direct else observation_date(date_facts, 'pft')
+        method = extraction_method if direct else 'local_ocr'
         for key, (field_id, unit) in ADM_FIELDS.items():
             fact = select_fact(facts, key)
             if not fact or field_id in administrative_done:
@@ -280,18 +282,20 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 evidence_ids=list(dict.fromkeys(fact['evidence_ids'] + (source_date['evidence_ids'] if source_date else []))),
                 date_evidence_ids=source_date['evidence_ids'] if source_date else [],
                 metadata_candidate_id=fact['candidate_id'], extraction_status='found',
-                validation_status='needs_review' if fact['flags'] else 'structure_checks_passed',
-                extraction_method='local_ocr', flags=list(fact['flags']), **pending, **values))
+                validation_status='needs_review' if direct or fact['flags'] else 'structure_checks_passed',
+                extraction_method=method, flags=list(fact['flags']), **pending, **values))
         # Physician / Nurse of the CRF header: the ordering provider and the specimen
-        # collector printed on the lab sheet header, read locally (never sent to the API).
-        # OCR text of names stays flagged for review.
+        # collector printed on the lab sheet header. Normal mode reads these locally;
+        # the direct prototype reads them through the API. Names stay flagged for review.
         for key, (field_id, role) in STAFF_FIELDS.items():
-            fact = next((f for f in facts if f['key'] == key and isinstance(f.get('value'), str)
-                         and _staff_name(f['value'])), None)
+            fact = (select_fact(facts, key) if direct else next((f for f in facts
+                    if f['key'] == key and isinstance(f.get('value'), str) and _staff_name(f['value'])), None))
             if not fact or field_id in administrative_done:
                 continue
-            administrative_done.add(field_id)
             name = _staff_name(fact['value'])
+            if not name:
+                continue
+            administrative_done.add(field_id)
             observations.append(dict(observation_id='GOBS'+str(len(observations)).zfill(6),
                 field_id=field_id, component='result', document_id=doc['document_id'],
                 name_raw=fact['label_raw'], result_raw=fact['value_raw'], unit_raw=None,
@@ -301,7 +305,7 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 evidence_ids=list(dict.fromkeys(fact['evidence_ids'] + (source_date['evidence_ids'] if source_date else []))),
                 date_evidence_ids=source_date['evidence_ids'] if source_date else [],
                 metadata_candidate_id=fact['candidate_id'], extraction_status='found',
-                validation_status='needs_review', extraction_method='local_ocr', source_role=key,
+                validation_status='needs_review', extraction_method=method, source_role=key,
                 flags=list(dict.fromkeys([*fact['flags'], role+'_role_requires_review'])), **pending))
 
     for index, (doc, result) in enumerate(zip(documents, results)):
@@ -355,6 +359,30 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                     'box': row['row_box'], 'image_size': image_size, 'coordinate_space': 'outgoing_image_1000',
                 }
             return eid
+        if doc['privacy'].get('direct_llm'):
+            direct_dates, direct_headers = [], []
+            for fact_index, fact in enumerate(header_facts(result['extraction'])):
+                eid = ev(-2-fact_index, dict(source_label=fact['label_raw'], raw_result=fact['value_raw']))
+                rid = tid+'HEADER'+str(fact_index).zfill(3)
+                prefix = fact['label_raw'] + ': '
+                fact_raw = prefix + fact['value_raw']
+                (run/'raw'/(rid+'.txt')).write_text(fact_raw, encoding='utf-8')
+                with Image.open(io.BytesIO(result['outgoing_bytes'])) as image:
+                    image.save(run/'crops'/(rid+'.png'))
+                evidence[-1].update(evidence_kind='metadata', mapping_method='api_explicit_header_label',
+                                    label_raw=fact['label_raw'], value_raw=fact['value_raw'], table_id=rid,
+                                    table_sha256=hashlib.sha256(fact_raw.encode('utf-8')).hexdigest(),
+                                    raw_span_0based=[len(prefix), len(fact_raw)], row_index_0based=0,
+                                    region_granularity='full_outgoing_image')
+                if fact['key'] in DIRECT_DATE_KEYS:
+                    evidence[-1]['date_type'] = fact['key']
+                fact.update(candidate_id='GMD'+str(len(metadata)).zfill(6), document_id=did,
+                            evidence_ids=[eid], extraction_method=extraction_method,
+                            validation_status='needs_review', **pending)
+                metadata.append(fact)
+                (direct_dates if fact['key'] in DIRECT_DATE_KEYS else direct_headers).append(fact)
+            date_facts = direct_dates
+            add_administrative_observations(doc, direct_headers, date_facts, direct=True)
         rows = result['extraction']['rows']
         class_outliers = _intensity_class_outliers(rows)
         ocr_disagreements = set(result.get('ocr_number_disagreements', []))
@@ -400,7 +428,8 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                 evidence[-1].update(extraction_method=method, model_requested=None, model_returned=None)
             if value['result_type']=='unparsed': flags.append('unparsed_result')
             if row.get('warning'): flags.append('api_source_warning')
-            date = observation_date(date_facts, row.get('table_kind'))
+            date = (direct_source_date(date_facts, row.get('table_kind')) if doc['privacy'].get('direct_llm')
+                    else observation_date(date_facts, row.get('table_kind')))
             date_links = date['evidence_ids'] if date else []
             common = dict(document_id=did, flags=flags, source_date=date['value'] if date else None,
                           date_type=date['key'] if date else None,
@@ -587,6 +616,10 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
                     if prepared[index] is None:
                         date_status[did] = 'image_skipped'
                         continue
+                    if doc['privacy'].get('direct_llm'):
+                        date_status[did] = 'direct_llm'
+                        futures[executor.submit(extract_first, index, doc, prepared[index])] = index
+                        continue
                     status, scan = scan_source_dates(workspace, source, doc, output/'local-ocr'/f'image-{index+1:03}')
                     date_status[did] = status
                     if scan:
@@ -684,6 +717,10 @@ def run(manifest, output, workspace, *, extractor=None, model=None, engine='gemi
 
 def _extract_one(index, doc, body, output, workspace, dictionary, config, extractor, profiles, local_scans, failed_documents):
     start=time.monotonic()
+    direct = bool(doc['privacy'].get('direct_llm'))
+    if direct:
+        config = {**(config or {}), 'direct_llm': True}
+        profiles = []
     scan=local_scans.get(doc['document_id'])
     result, fast_error = None, None
     routing = {}
@@ -739,9 +776,9 @@ def _extract_one(index, doc, body, output, workspace, dictionary, config, extrac
         if fast_error:
             result['fast_profile_fallback'] = fast_error
     if extractor is None:
-        needs_verification = (config.get('always_verify') or result['validation_issues'] or scan is None
+        needs_verification = (config.get('always_verify') or result['validation_issues'] or (scan is None and not direct)
                               or not result['extraction']['rows'] or fast_error
-                              or number_disagreements(result['extraction']['rows'], scan, doc['privacy']))
+                              or (not direct and number_disagreements(result['extraction']['rows'], scan, doc['privacy'])))
         if needs_verification:
             from .llm_verification import verify_extraction
             try:
@@ -751,7 +788,8 @@ def _extract_one(index, doc, body, output, workspace, dictionary, config, extrac
             except InvalidAPIResponse as error:
                 result['verification'] = dict(attempted=True, status='failed_kept_initial', error=str(error))
         else:
-            result['verification'] = dict(attempted=False, status='skipped_consistent_with_local_ocr')
+            result['verification'] = dict(attempted=False, status=(
+                'skipped_direct_llm' if direct else 'skipped_consistent_with_local_ocr'))
         from .llm_row_anchors import anchor_row_boxes
         if scan:
             anchor_row_boxes(result,scan,doc['privacy'])
@@ -787,6 +825,8 @@ def _finish(output, workspace, dictionary, documents, results, candidate, failed
         documents=[dict(source_document_id=d['document_id'], original_sha256=d['input_sha256'],
                         privacy=d['privacy'], outgoing_sha256=r['outgoing_sha256'] if r else None,
                         local_source_date_status=date_status[d['document_id']]) for d,r in zip(documents,results)])
+    if any(d['privacy'].get('direct_llm') for d in documents):
+        provenance['privacy'] = 'Synthetic prototype: direct_llm documents send the full oriented image without masks or local OCR'
     if config is not None and 'result_rules' in config:
         provenance['result_literal_rule_versions']=sorted(set(config['result_rules'].values()))
     write(output/'provenance.json',provenance)

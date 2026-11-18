@@ -11,7 +11,7 @@ import unittest
 from urllib.parse import urlencode
 
 from PIL import Image
-from ocr_pool.gemini import prepare_image, privacy_plan
+from ocr_pool.llm import prepare_image, privacy_plan
 from registry_review.privacy import PrivacyProposals
 from registry_review.server import create_server
 from test_review_server import synthetic_bundle

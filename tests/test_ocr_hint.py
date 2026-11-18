@@ -8,7 +8,7 @@ import unittest
 
 from PIL import Image
 
-from ocr_pool.gemini import configuration, extract_image, prepare_image
+from ocr_pool.llm import configuration, extract_image, prepare_image
 from ocr_pool.ocr_hint import ocr_hint_lines
 
 CROP = [100, 100, 600, 600]
@@ -114,7 +114,7 @@ class ExtractImageHintTests(unittest.TestCase):
             'GEMINI_API_KEY=synthetic-secret\nGEMINI_MODEL=synthetic-model\n'
             'GEMINI_BASE_URL=http://localhost:8317\n', encoding='utf-8')
         (self.root / 'schemas').mkdir()
-        (self.root / 'schemas/gemini-extraction-prompt.txt').write_text(
+        (self.root / 'schemas/llm-extraction-prompt.txt').write_text(
             'Extract only patient results; no identifiers.', encoding='utf-8')
         buffer = io.BytesIO()
         Image.new('RGB', (60, 40), 'white').save(buffer, format='JPEG')

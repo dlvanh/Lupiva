@@ -5,7 +5,7 @@ import json
 import re
 from threading import Lock, Thread
 
-from ocr_pool.gemini import configuration, request_json
+from ocr_pool.llm import configuration, request_json
 from registry_export.mapping import context_blocks, review_layout
 from registry_export.word import display, reviewed_word
 from registry_pool.dictionary import digest

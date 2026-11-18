@@ -13,7 +13,8 @@ from uuid import uuid4
 import warnings
 
 from PIL import Image, ImageOps
-from ocr_pool.gemini import configuration
+from ocr_pool.llm import configuration
+from ocr_pool.flags import prototype_direct_llm, workspace_flag
 from ocr_pool.lab_api import lab_crop_evidence
 from ocr_pool.local_dates import _read_scan
 from ocr_pool.mixed_lab import fluorescence_split
@@ -42,18 +43,7 @@ def test_auto_send(workspace):
     Every image is sent with its proposed crop and masks even when the proposal asks
     for a person to review it, and the final outgoing OCR gate records instead of blocks.
     """
-    if os.environ.get('LUPIVA_TEST_AUTO_SEND') is not None:
-        return os.environ['LUPIVA_TEST_AUTO_SEND'].strip() == '1'
-    path = Path(workspace) / '.env'
-    try:
-        lines = path.read_text(encoding='utf-8-sig').splitlines()
-    except OSError:
-        return False
-    for line in lines:
-        name, _, value = line.strip().partition('=')
-        if name.strip() == 'LUPIVA_TEST_AUTO_SEND':
-            return value.strip().strip('"').strip("'") == '1'
-    return False
+    return workspace_flag(workspace, 'LUPIVA_TEST_AUTO_SEND')
 
 
 def automatic_plan(result, proposal_id, *, force=False):
@@ -179,7 +169,13 @@ class PrivacyProposals:
             with self.lock:
                 self.jobs[job_id]['status'] = 'processing'
             try:
-                if self.runner:
+                direct = prototype_direct_llm(self.workspace)
+                if direct:
+                    job = self.get(job_id)
+                    plan = dict(sha256=job['sha256'], size=job['size'],
+                                crop=[0, 0, *job['size']], masks=[], review_items=[],
+                                crop_reason='prototype_direct_llm')
+                elif self.runner:
                     plan = self.runner(folder / 'source')
                 else:
                     python = venv_python(self.workspace / '.venv-privacy-trial')
@@ -208,8 +204,12 @@ class PrivacyProposals:
                 if plan.get('sha256') != job['sha256'] or plan.get('size') != job['size']:
                     raise ValueError('Proposal does not match the source image')
                 result = proposal_summary(plan, job['sha256'], job['size'])
-                result['tokenharbor_route'] = self.route_preview(folder, result)
-                automatic = automatic_plan(result, job_id, force=test_auto_send(self.workspace))
+                result['tokenharbor_route'] = None if direct else self.route_preview(folder, result)
+                if direct:
+                    automatic = {key: result[key] for key in ('sha256', 'crop', 'masks', 'mask_polygons')}
+                    automatic.update(proposal_id=job_id, automatic=True, reviewed=True, direct_llm=True)
+                else:
+                    automatic = automatic_plan(result, job_id, force=test_auto_send(self.workspace))
                 with self.lock:
                     self.jobs[job_id].update(status='completed', proposal=result, automatic_plan=automatic)
             except Exception:

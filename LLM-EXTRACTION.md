@@ -1,6 +1,6 @@
 # Hợp đồng đầu ra khi đọc ảnh bằng API
 
-`ocr_pool/llm_extraction.py` cung cấp schema, hướng dẫn trích xuất và chuẩn hóa có kiểm tra nguồn cho đầu ra LLM. Module này không gọi mạng, không đọc đáp án, không duyệt và không ghi database. Luồng import đã có lựa chọn Gemini API qua `ocr_pool/gemini.py` và `ocr_pool/gemini_workflow.py`; OCR tại máy là lựa chọn mặc định. Xem `GEMINI-API-INTAKE.md` để sử dụng trên UI.
+`ocr_pool/llm_extraction.py` cung cấp schema, hướng dẫn trích xuất và chuẩn hóa có kiểm tra nguồn cho đầu ra LLM. Module này không gọi mạng, không đọc đáp án, không duyệt và không ghi database. Luồng import đã có lựa chọn Gemini API qua `ocr_pool/llm.py` và `ocr_pool/llm_workflow.py`; OCR tại máy là lựa chọn mặc định. Xem `LLM-API-INTAKE.md` để sử dụng trên UI.
 
 Cập nhật 11/11, hợp đồng `llm-extraction-0.2`: mỗi dòng giữ tiêu đề nguồn `source_header`, `class_header`; chuẩn hóa vai trò chỉ từ tiêu đề nhận diện được, không từ tên assay hoặc giá trị. Có Class nhưng thiếu tiêu đề Class bị yêu cầu duyệt. Đây vẫn là bằng chứng model tự đọc, chưa phải bộ kiểm tiêu đề ảnh độc lập. Dữ liệu cũ thiếu hai thuộc tính này vẫn đọc được.
 

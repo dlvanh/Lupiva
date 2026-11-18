@@ -15,7 +15,7 @@ from urllib.parse import parse_qs,urlsplit,urlencode
 from registry_pool.dictionary import digest
 from registry_pool.exchange import read,safe_key,verify_bundle
 from registry_pool.specimens import evidence_region_id
-from ocr_pool.gemini import API_ENGINES
+from ocr_pool.llm import API_ENGINES
 from .store import ReviewStore,EDITABLE
 from .source import GROUPS
 from .corrections import editable_source

@@ -5,7 +5,7 @@ from hashlib import sha256
 
 from PIL import Image, ImageDraw
 
-from .gemini import InvalidAPIResponse, extract_image
+from .llm import InvalidAPIResponse, extract_image
 from .lab_api import FLUORESCENCE, extract_lab_image, lab_crop_evidence
 from .llm_extraction import valid_row_box
 from .llm_verification import verify_extraction

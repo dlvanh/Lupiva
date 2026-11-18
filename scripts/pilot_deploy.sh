@@ -47,7 +47,7 @@ ls -1d "$(dirname "$PWD")"/backup-* 2>/dev/null | grep -E '/backup-[0-9]{8}-[0-9
 # Re-check right before replacing code: a submission may have arrived during backup.
 if busy; then echo "an intake started during backup; rerun the deploy" >&2; exit 4; fi
 tar xf "$ARCHIVE"
-"${IMPORT_PY:-$PY}" -c "import ocr_pool.gemini_workflow, registry_review.intake, registry_review.server"
+"${IMPORT_PY:-$PY}" -c "import ocr_pool.llm_workflow, registry_review.intake, registry_review.server"
 for unit in "$@"; do systemctl --user restart "$unit"; done
 sleep 6
 systemctl --user is-active "$@"

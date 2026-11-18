@@ -6,8 +6,8 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from ocr_pool.gemini_workflow import run
-from ocr_pool.gemini import API_ENGINES, API_NAMES
+from ocr_pool.llm_workflow import run
+from ocr_pool.llm import API_ENGINES, API_NAMES
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

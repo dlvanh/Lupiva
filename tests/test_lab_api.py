@@ -2,7 +2,7 @@
 import unittest
 from unittest.mock import patch
 
-from ocr_pool.gemini import InvalidAPIResponse
+from ocr_pool.llm import InvalidAPIResponse
 from ocr_pool.lab_api import _expand, extract_lab_image, lab_crop_evidence
 from ocr_pool.mixed_lab import fluorescence_split
 from ocr_pool.lab_reference_cells import attach_complement_ranges

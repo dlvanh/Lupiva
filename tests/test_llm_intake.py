@@ -11,9 +11,9 @@ from unittest.mock import Mock, patch
 import unittest
 
 from PIL import Image
-from ocr_pool.gemini import (InvalidAPIResponse, configuration, public_configuration, privacy_plan,
+from ocr_pool.llm import (InvalidAPIResponse, configuration, public_configuration, privacy_plan,
                              prepare_image, extract_image, response_schema, request_json)
-from ocr_pool.gemini_workflow import (build_candidate, ct_ild_finding, echo_pericardial_finding,
+from ocr_pool.llm_workflow import (build_candidate, ct_ild_finding, echo_pericardial_finding,
                                      pleural_effusion_finding, run, _extract_one)
 from ocr_pool.local_dates import date_facts, observation_date
 from registry_pool.exchange import verify_bundle, read
@@ -82,7 +82,7 @@ class GeminiIntakeTests(unittest.TestCase):
         self.assertEqual(titres[0]['evidence_ids'], result['evidence_ids'])
 
     def test_printed_sex_on_lab_headers_maps_once_per_submission(self):
-        from ocr_pool.gemini_workflow import build_candidate
+        from ocr_pool.llm_workflow import build_candidate
         def fact(doc, n, key='sex', value='female'):
             return dict(candidate_id=f'LOCALMETA-{doc}-{n}', key=key, value=value, value_raw='Nữ',
                         label_raw='Giới tính', flags=[], evidence_ids=[f'LOCALMETA-{doc}-{n}'])
@@ -157,7 +157,7 @@ class GeminiIntakeTests(unittest.TestCase):
         doc = dict(document_id='SYNTHETIC',input_path='synthetic.png',
                    input_sha256=privacy['sha256'],privacy=privacy)
         scan = self.report_scan('Không thấy tràn dịch, tràn khí khoang màng phổi hai bên')
-        with patch('ocr_pool.gemini_workflow.scan_source_dates',return_value=('preview_ocr',scan)):
+        with patch('ocr_pool.llm_workflow.scan_source_dates',return_value=('preview_ocr',scan)):
             bundle = run(dict(documents=[doc]),self.root/'ct-output',self.root,extractor=lambda *_:result())
         package = verify_bundle(bundle,DICTIONARY)
         findings = [o for o in package['observations'] if o['field_id'] in ('LUNG02','LUNG04')]
@@ -250,7 +250,7 @@ class GeminiIntakeTests(unittest.TestCase):
         for text in ('12. Màng ngoài tim: Không loại trừ tràn dịch màng ngoài tim','12. Màng ngoài tim: Có djch'):
             self.assertIsNone(echo_pericardial_finding({**scan,'lines':[{**line,'text':text}]},plan))
         def runner(job,files,folder):
-            with patch('ocr_pool.gemini_workflow.scan_source_dates',return_value=('preview_ocr',scan)):
+            with patch('ocr_pool.llm_workflow.scan_source_dates',return_value=('preview_ocr',scan)):
                 return run(read(folder/'manifest.json'),folder/job['output'],self.root,
                            extractor=lambda *_:result())
         self.manager.runner=runner
@@ -296,7 +296,7 @@ class GeminiIntakeTests(unittest.TestCase):
         self.assertTrue(all(r.data == requests[0].data for r in requests))
         # A rate limit with Retry-After is a pause, not an exhausted allowance:
         # the same key is retried (no key switch) and the request fails after the retries.
-        import ocr_pool.gemini as gemini
+        import ocr_pool.llm as gemini
         waits = []
         with patch.object(gemini, 'SLEEP', waits.append):
             opener.reset_mock()
@@ -328,7 +328,7 @@ class GeminiIntakeTests(unittest.TestCase):
         (self.root/'.env').write_text('GEMINI_API_KEY=synthetic-secret\nGEMINI_MODEL=synthetic-model\nGEMINI_BASE_URL=http://localhost:8317\n')
         (self.root/'schemas').mkdir(exist_ok=True)
         (self.root/'schemas/pool-dictionary.json').write_text(json.dumps(DICTIONARY),encoding='utf-8')
-        (self.root/'schemas/gemini-extraction-prompt.txt').write_text('Extract only patient results; no identifiers.')
+        (self.root/'schemas/llm-extraction-prompt.txt').write_text('Extract only patient results; no identifiers.')
 
     def create_gemini(self,body=None,**changes):
         body=body or image_bytes('gemini-source')
@@ -358,11 +358,11 @@ class GeminiIntakeTests(unittest.TestCase):
         plan = dict(sha256=checksum, crop=[0,90,800,300], reviewed=True)
         doc = dict(document_id='PFT-FALLBACK', input_path=source.name, input_sha256=checksum, privacy=plan)
         output = self.root/'fast-fallback'
-        with (patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed',None)),
-              patch('ocr_pool.gemini_workflow.pft_crop_evidence', return_value={'minimum_rows':3}),
-              patch('ocr_pool.gemini_workflow.extract_pft_image',
+        with (patch('ocr_pool.llm_workflow.scan_source_dates', return_value=('not_needed',None)),
+              patch('ocr_pool.llm_workflow.pft_crop_evidence', return_value={'minimum_rows':3}),
+              patch('ocr_pool.llm_workflow.extract_pft_image',
                     side_effect=InvalidAPIResponse('Fast PFT returned fewer rows')) as fast,
-              patch('ocr_pool.gemini_workflow.extract_image', return_value=result()) as standard,
+              patch('ocr_pool.llm_workflow.extract_image', return_value=result()) as standard,
               patch('ocr_pool.llm_verification.verify_extraction', side_effect=lambda _, response, *a, **k: response)):
             bundle = run(dict(documents=[doc]), output, self.root, engine='tokenharbor', fast_pft=True)
         fast.assert_called_once()
@@ -386,7 +386,7 @@ class GeminiIntakeTests(unittest.TestCase):
         response = result()
         note = 'Synthetic source note'
         response['extraction']['notes'] = [note, note, 'Another note']
-        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)):
+        with patch('ocr_pool.llm_workflow.scan_source_dates', return_value=('not_needed', None)):
             bundle = run(dict(documents=[doc]), self.root/'notes-out', self.root, extractor=lambda *_: response)
         package = verify_bundle(bundle, DICTIONARY)
         notes = [item for item in package['metadata_candidates'] if item['key']=='gemini_source_note']
@@ -396,7 +396,7 @@ class GeminiIntakeTests(unittest.TestCase):
 
     def test_time_limit_keeps_finished_images(self):
         self.setup_config()
-        from ocr_pool.gemini import DeadlineReached
+        from ocr_pool.llm import DeadlineReached
         docs = []
         for name in ('FIRST', 'SECOND'):
             source = self.root/(name+'.png'); body = image_bytes('time-limit-'+name); source.write_bytes(body)
@@ -408,7 +408,7 @@ class GeminiIntakeTests(unittest.TestCase):
             calls.append(1)
             if len(calls) > 1: raise DeadlineReached('API time budget for this submission is spent')
             return result()
-        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)):
+        with patch('ocr_pool.llm_workflow.scan_source_dates', return_value=('not_needed', None)):
             bundle = run(dict(documents=docs), self.root/'deadline-out', self.root, extractor=extractor)
         self.assertEqual(len(verify_bundle(bundle, DICTIONARY)['observations']), 1)
         issues = read(self.root/'deadline-out/candidate-pool.json')['issues']
@@ -416,7 +416,7 @@ class GeminiIntakeTests(unittest.TestCase):
                       [dict(document_id=i['document_id'], reason=i['reason']) for i in issues])
         self.assertEqual(read(self.root/'deadline-out/api-health.json')['not_sent_time_limit'], 1)
         # A spent budget before anything finished still fails, with its own reason.
-        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),                 self.assertRaisesRegex(ValueError, 'time limit reached before any image'):
+        with patch('ocr_pool.llm_workflow.scan_source_dates', return_value=('not_needed', None)),                 self.assertRaisesRegex(ValueError, 'time limit reached before any image'):
             run(dict(documents=docs), self.root/'deadline-none', self.root, extractor=extractor)
 
     def test_verification_only_runs_when_needed_and_crosschecks_final_rows(self):
@@ -453,7 +453,7 @@ class GeminiIntakeTests(unittest.TestCase):
                 scans = {} if reason == 'no_scan' else {doc['document_id']: scan}
                 output = self.root/reason
                 (output/'api-responses').mkdir(parents=True)
-                with (patch('ocr_pool.gemini_workflow.extract_image', return_value=initial),
+                with (patch('ocr_pool.llm_workflow.extract_image', return_value=initial),
                       patch('ocr_pool.llm_verification.verify_extraction', return_value=verified) as verify):
                     record = _extract_one(0, doc, image_bytes('verification'), output, self.root, DICTIONARY,
                                           config, None, profiles, scans, {})
@@ -514,11 +514,11 @@ class GeminiIntakeTests(unittest.TestCase):
             return build_candidate(*args, **kwargs)
 
         output = self.root/'concurrent-out'
-        with (patch('ocr_pool.gemini_workflow.configuration', return_value=dict(concurrency=2, model='synthetic')),
-              patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),
-              patch('ocr_pool.gemini_workflow.extract_image', side_effect=slow_extract),
+        with (patch('ocr_pool.llm_workflow.configuration', return_value=dict(concurrency=2, model='synthetic')),
+              patch('ocr_pool.llm_workflow.scan_source_dates', return_value=('not_needed', None)),
+              patch('ocr_pool.llm_workflow.extract_image', side_effect=slow_extract),
               patch('ocr_pool.llm_verification.verify_extraction', side_effect=lambda _, record, *a, **k: record),
-              patch('ocr_pool.gemini_workflow.build_candidate', side_effect=build_after_extraction) as build):
+              patch('ocr_pool.llm_workflow.build_candidate', side_effect=build_after_extraction) as build):
             bundle = run(dict(documents=docs), output, self.root)
         self.assertLess(extraction_elapsed[0], .7)
         self.assertEqual(finished[0], 1)  # Complete out of order deliberately.
@@ -533,7 +533,7 @@ class GeminiIntakeTests(unittest.TestCase):
 
     def test_unreachable_image_is_retried_without_failing_the_patient(self):
         self.setup_config()
-        from ocr_pool.gemini import TransportError
+        from ocr_pool.llm import TransportError
         docs = []
         for name in ('ONE', 'TWO'):
             source = self.root/(name+'.png'); body = image_bytes('unreachable-'+name); source.write_bytes(body)
@@ -545,7 +545,7 @@ class GeminiIntakeTests(unittest.TestCase):
             calls.append(1)
             if len(calls) == 1: raise TransportError('Cannot complete Gemini API request')
             return result()
-        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)):
+        with patch('ocr_pool.llm_workflow.scan_source_dates', return_value=('not_needed', None)):
             bundle = run(dict(documents=docs), self.root/'flaky-out', self.root, extractor=flaky)
         self.assertEqual(len(calls), 3)               # ONE failed, TWO read, ONE retried
         self.assertEqual(len(verify_bundle(bundle, DICTIONARY)['observations']), 2)
@@ -555,7 +555,7 @@ class GeminiIntakeTests(unittest.TestCase):
             calls.append(args)
             if len(calls) in (4, 6): raise TransportError('Cannot complete Gemini API request')
             return result()
-        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)):
+        with patch('ocr_pool.llm_workflow.scan_source_dates', return_value=('not_needed', None)):
             run(dict(documents=docs), self.root/'down-out', self.root, extractor=down_once_each)
         issues = read(self.root/'down-out/candidate-pool.json')['issues']
         self.assertEqual([i['document_id'] for i in issues if i['reason']=='api_extraction_failed'], ['ONE'])
@@ -574,14 +574,14 @@ class GeminiIntakeTests(unittest.TestCase):
                         [dict(text=t) for t in ('Creatinin', '72.1', 'Ure', '5.2', 'AST', '31')])
             return 'outgoing_ocr', []
         sent = []
-        with patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),                 patch('ocr_pool.gemini_workflow.check_outgoing', gate):
+        with patch('ocr_pool.llm_workflow.scan_source_dates', return_value=('not_needed', None)),                 patch('ocr_pool.llm_workflow.check_outgoing', gate):
             run(dict(documents=docs), self.root/'content-out', self.root, extractor=lambda *a: sent.append(a) or result())
         self.assertEqual(len(sent), 1)
         issues = read(self.root/'content-out/candidate-pool.json')['issues']
         self.assertIn(('PERSONAL', 'not_sent_no_result_content'), [(i['document_id'], i['reason']) for i in issues])
 
     def test_concurrent_failures_and_retry_timeouts_stay_in_document_order(self):
-        from ocr_pool.gemini import DeadlineReached, TransportError
+        from ocr_pool.llm import DeadlineReached, TransportError
         self.setup_config()
         docs, indexes = [], {}
         for index in range(5):
@@ -612,9 +612,9 @@ class GeminiIntakeTests(unittest.TestCase):
             return result()
 
         output = self.root/'concurrent-failures'
-        with (patch('ocr_pool.gemini_workflow.configuration', return_value=dict(model='synthetic')),
-              patch('ocr_pool.gemini_workflow.scan_source_dates', return_value=('not_needed', None)),
-              patch('ocr_pool.gemini_workflow.extract_image', side_effect=extract_outcome),
+        with (patch('ocr_pool.llm_workflow.configuration', return_value=dict(model='synthetic')),
+              patch('ocr_pool.llm_workflow.scan_source_dates', return_value=('not_needed', None)),
+              patch('ocr_pool.llm_workflow.extract_image', side_effect=extract_outcome),
               patch('ocr_pool.llm_verification.verify_extraction', side_effect=lambda _, record, *a, **k: record)):
             bundle = run(dict(documents=docs), output, self.root)
         self.assertEqual(calls[-2:], [0, 3])  # Retries run sequentially, after the first pass.
@@ -643,15 +643,15 @@ class GeminiIntakeTests(unittest.TestCase):
         def extractor(*_):
             events.append('api')
             return result()
-        with patch('ocr_pool.gemini_workflow.scan_source_dates', slow_scan):
+        with patch('ocr_pool.llm_workflow.scan_source_dates', slow_scan):
             bundle = run(dict(documents=docs), self.root/'pipeline-out', self.root, extractor=extractor)
         self.assertLess(events.index('api'), events.index('scan-end-THIRD'))
         self.assertEqual(events.count('api'), 3)
         self.assertEqual(len(verify_bundle(bundle, DICTIONARY)['observations']), 3)
 
     def test_request_respects_deadline_and_retries_a_timeout_once(self):
-        import ocr_pool.gemini as gemini
-        from ocr_pool.gemini import DeadlineReached
+        import ocr_pool.llm as gemini
+        from ocr_pool.llm import DeadlineReached
         config = dict(engine='gemini', endpoint='http://localhost:8317/v1', native=False, key='k')
         opener = Mock()
         with patch.object(gemini, 'SLEEP', lambda _: None), patch.object(gemini, 'CLOCK', lambda: 1000.0):
@@ -781,7 +781,7 @@ class GeminiIntakeTests(unittest.TestCase):
         self.assertIsNone(observation_date(facts(english),'general_lab'))
 
     def test_staff_names_for_physician_and_nurse(self):
-        from ocr_pool.gemini_workflow import STAFF_FIELDS, _staff_name
+        from ocr_pool.llm_workflow import STAFF_FIELDS, _staff_name
         self.assertEqual(STAFF_FIELDS['ordering_provider'][0], 'ADM08')
         self.assertEqual(STAFF_FIELDS['specimen_collector'][0], 'ADM09')
         self.assertEqual(_staff_name('Nguyễn Văn Đĩnh'), 'Nguyễn Văn Đĩnh')
@@ -791,7 +791,7 @@ class GeminiIntakeTests(unittest.TestCase):
         self.assertIsNone(_staff_name('Điện thoại 0911'))
 
     def test_method_identical_to_the_result_is_not_kept(self):
-        from ocr_pool.gemini_workflow import _method_is_result
+        from ocr_pool.llm_workflow import _method_is_result
         self.assertTrue(_method_is_result(dict(method_raw='Speckled 1+', raw_result='Speckled  1+')))
         self.assertFalse(_method_is_result(dict(method_raw='Huỳnh quang gián tiếp', raw_result='Speckled 1+')))
 
@@ -895,7 +895,7 @@ class GeminiIntakeTests(unittest.TestCase):
         finally:store.close()
 
     def test_unknown_specimen_keeps_its_source_name_and_amount_for_review(self):
-        from ocr_pool.gemini_workflow import build_candidate
+        from ocr_pool.llm_workflow import build_candidate
         self.setup_config();body=image_bytes('sample')
         outgoing=prepare_image(body,dict(sha256=hashlib.sha256(body).hexdigest(),crop=[0,90,800,300],masks=[],reviewed=True))
         record=result();record['extraction']['specimens']=[dict(sample_type='saliva',source_label='Saliva sample',
@@ -910,7 +910,7 @@ class GeminiIntakeTests(unittest.TestCase):
         self.assertEqual(sample['review_status'],'pending')
 
     def test_non_crf_pft_percent_is_available_to_both_display_and_typed_pool(self):
-        from ocr_pool.gemini_workflow import build_candidate
+        from ocr_pool.llm_workflow import build_candidate
         self.setup_config();body=image_bytes('pft')
         outgoing=prepare_image(body,dict(sha256=hashlib.sha256(body).hexdigest(),crop=[0,90,800,300],masks=[],reviewed=True))
         record=result();record['extraction']['rows']=[row(field_id=None,source_label='New respiratory measure',
