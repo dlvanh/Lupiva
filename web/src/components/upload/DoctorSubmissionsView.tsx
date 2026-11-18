@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
 import {
@@ -27,6 +28,7 @@ import {
 import type { SubmissionItemDTO as ApiSubmissionItem } from "@/lib/submissionsService";
 import { CrfAdminFacts } from "./CrfAdminFacts";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { RedcapExportPanel } from "./RedcapExportPanel";
 import { TruncatedFilename } from "./TruncatedFilename";
 
 const PIPELINE_BADGES = {
@@ -483,6 +485,31 @@ export function DoctorSubmissionsView() {
     getServerLayoutMode
   );
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [showRedcap, setShowRedcap] = useState(false);
+
+  // The new-submission notice links here with ?status=new.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("status");
+    if (wanted && (SUBMISSION_REVIEW_FILTERS as readonly string[]).includes(wanted)) {
+      setFilters((prev) => ({ ...prev, page: 1, status: wanted as SubmissionQueryFilters["status"] }));
+    }
+  }, []);
+
+  /** First open by any doctor moves a submission out of "Hồ sơ mới". */
+  const markOpened = (submissionId: string) => {
+    void fetch(`/api/submissions/${encodeURIComponent(submissionId)}/opened`, {
+      method: "POST",
+      credentials: "same-origin",
+    })
+      .then((response) => response.json())
+      .then((result: { changed?: boolean }) => {
+        if (result.changed) {
+          silentReloadRef.current = true;
+          setReloadTick((n) => n + 1);
+        }
+      })
+      .catch(() => undefined);
+  };
 
   useEffect(() => {
     const bar = toolbarRef.current;
@@ -697,6 +724,8 @@ export function DoctorSubmissionsView() {
   };
 
   const openRegistry = (intakeId: string) => {
+    const opened = items.find((item) => item.pipelineIntakeId === intakeId);
+    if (opened) markOpened(opened.dbSubmissionId);
     router.push(`/registry?intake=${encodeURIComponent(intakeId)}`);
   };
 
@@ -745,41 +774,57 @@ export function DoctorSubmissionsView() {
               </h1>
             </div>
 
-            <dl className="grid grid-cols-2 gap-2.5 text-center sm:grid-cols-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
-                <dt className="text-[11px] font-medium text-slate-600">
-                  {copy.kpiTotal}
-                </dt>
-                <dd className="mt-0.5 font-mono text-xl font-bold text-slate-900">
-                  {stats.total}
-                </dd>
-              </div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5">
-                <dt className="text-[11px] font-medium text-amber-900">
-                  {copy.kpiPending}
-                </dt>
-                <dd className="mt-0.5 font-mono text-xl font-bold text-amber-950">
-                  {stats.pending}
-                </dd>
-              </div>
-              <div className="rounded-xl border border-rose-200 bg-rose-50/70 px-3.5 py-2.5">
-                <dt className="text-[11px] font-medium text-rose-900">
-                  {copy.kpiManual}
-                </dt>
-                <dd className="mt-0.5 font-mono text-xl font-bold text-rose-950">
-                  {stats.manualRequiredDossiers}
-                </dd>
-              </div>
-              <div className="rounded-xl border border-teal-200 bg-teal-50/70 px-3.5 py-2.5">
-                <dt className="text-[11px] font-medium text-teal-900">
-                  {copy.kpiApproved}
-                </dt>
-                <dd className="mt-0.5 font-mono text-xl font-bold text-teal-950">
-                  {stats.approved}
-                </dd>
-              </div>
-            </dl>
+            <nav aria-label={isVi ? "Bảng điều khiển hồ sơ" : "Submission dashboard"} className="grid w-full grid-cols-2 gap-2.5 text-center sm:grid-cols-5 lg:w-auto">
+              {([
+                ["new", isVi ? "Hồ sơ mới" : "New", stats.new, "border-sky-300 bg-sky-50 text-sky-950"],
+                ["pending_doctor_review", isVi ? "Chưa phê duyệt" : "Not yet approved", stats.pending, "border-amber-200 bg-amber-50/70 text-amber-950"],
+                ["approved", isVi ? "Đã phê duyệt" : "Approved", stats.approved, "border-teal-200 bg-teal-50/70 text-teal-950"],
+              ] as const).map(([key, label, value, tone]) => (
+                <button
+                  key={key}
+                  type="button"
+                  id={`doctor-dashboard-${key}`}
+                  aria-pressed={filters.status === key && !showRedcap}
+                  onClick={() => {
+                    setShowRedcap(false);
+                    setFilters((prev) => ({ ...prev, page: 1, status: key }));
+                  }}
+                  className={`rounded-xl border px-3.5 py-2.5 transition cursor-pointer hover:shadow-sm ${tone} ${
+                    filters.status === key && !showRedcap ? "ring-2 ring-teal-600" : ""
+                  }`}
+                >
+                  <span className="block text-[11px] font-semibold">{label}</span>
+                  <span className="mt-0.5 block font-mono text-xl font-bold">{value}</span>
+                </button>
+              ))}
+              <Link
+                href="/crf-form"
+                id="doctor-dashboard-crf"
+                className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-slate-900 transition hover:shadow-sm"
+              >
+                <span className="text-[11px] font-semibold">{isVi ? "Phiếu CRF" : "CRF form"}</span>
+                <span className="mt-0.5 text-lg font-bold" aria-hidden="true">→</span>
+              </Link>
+              <button
+                type="button"
+                id="doctor-dashboard-redcap"
+                aria-pressed={showRedcap}
+                aria-controls="doctor-redcap-panel"
+                onClick={() => {
+                  setShowRedcap((open) => !open);
+                  setFilters((prev) => ({ ...prev, page: 1, status: "approved" }));
+                }}
+                className={`flex flex-col items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50/70 px-3.5 py-2.5 text-indigo-950 transition cursor-pointer hover:shadow-sm ${
+                  showRedcap ? "ring-2 ring-indigo-600" : ""
+                }`}
+              >
+                <span className="text-[11px] font-semibold">REDCap</span>
+                <span className="mt-0.5 text-lg font-bold" aria-hidden="true">⇩</span>
+              </button>
+            </nav>
           </div>
+
+          {showRedcap && <RedcapExportPanel items={items} isVi={isVi} />}
 
           {/* Semantic <search><form> Filter Controls */}
           <search className="mt-5 border-t border-slate-200 pt-4">
@@ -1281,9 +1326,10 @@ export function DoctorSubmissionsView() {
                 item={item}
                 copy={copy}
                 onOpenRegistry={openRegistry}
-                onOpenDocument={(patient, fileId) =>
-                  setViewerTarget({ patient, fileId })
-                }
+                onOpenDocument={(patient, fileId) => {
+                  markOpened(item.dbSubmissionId);
+                  setViewerTarget({ patient, fileId });
+                }}
                 onRetried={() => setReloadTick((n) => n + 1)}
               />
             ))
