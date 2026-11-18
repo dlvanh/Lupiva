@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INITIAL_CRF_PATIENTS } from "@/data/crfData";
+import { CANONICAL_OCR_FIELDS, buildEmptySleCrfRecord } from "@/data/crfData";
 import {
   attachDecryptedHivField,
   scrubCheckItems,
@@ -45,7 +45,15 @@ describe("Lupiva CRF 3-Zone PII Scrubber & HIV Segregation", () => {
   });
 
   it("strips HIV Ag/Ab from Zone C ocrFieldsJson and restores it cleanly after Zone B decryption", () => {
-    const patient = INITIAL_CRF_PATIENTS[0];
+    const patient = buildEmptySleCrfRecord({
+      id: "crf-test-084",
+      studyId: "VN-0084-26",
+      patientName: "Tran Thi Mai",
+    });
+    patient.ocrFields = CANONICAL_OCR_FIELDS.map((f) =>
+      f.code === "HIV-AGAB" ? { ...f, value: "Non-reactive" } : f
+    );
+
     const hasHivInitially = patient.ocrFields.some(
       (f) => f.code === "HIV-AGAB" || f.id === "crf-hiv"
     );

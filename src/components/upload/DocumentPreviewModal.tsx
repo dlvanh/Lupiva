@@ -4,10 +4,6 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   SleCrfPatientRecord,
   UploadedDocFile,
-  calculateBmi,
-  calculateEularAcrSummary,
-  calculateSledai2kSummary,
-  getSubmissionStatus,
 } from "@/data/crfData";
 import type { UploadPageCopy } from "@/data/uploadTranslations";
 import { downloadOriginalClinicalFile } from "@/lib/originalFileGenerator";
@@ -111,19 +107,9 @@ function DocumentPreviewDialogBody({
   onSelectFile: (fileId: string) => void;
 }) {
   const [zoom, setZoom] = useState<number>(100);
-  const [currentPage, setCurrentPage] = useState<number>(1);
 
   const fileFormat = getFileFormatBadge(activeFile);
   const hasDirectImagePreview = Boolean(activeFile.isImage && activeFile.url);
-  const totalPages = hasDirectImagePreview ? 1 : 2;
-  const bmi = calculateBmi(patient.heightCm, patient.weightKg);
-
-  const approved = getSubmissionStatus(patient) === "approved";
-  const eular = calculateEularAcrSummary(
-    patient.eularAcrCriteria,
-    patient.anaEntryCriterionMet
-  );
-  const sledai = calculateSledai2kSummary(patient.sledai2kCriteria);
 
   const handleZoomOut = () => {
     setZoom((prev) => Math.max(ZOOM_MIN, prev - ZOOM_STEP));
@@ -142,9 +128,6 @@ function DocumentPreviewDialogBody({
   };
 
   const vc = copy.docViewer;
-  const highlightedBlots = patient.antibodyBlots.filter(
-    (b) => b.printedResult !== "Negative" || b.confidence <= 90
-  );
 
   return (
     <div className="flex max-h-[90vh] flex-col">
@@ -213,36 +196,8 @@ function DocumentPreviewDialogBody({
             })}
           </div>
 
-          {/* PDF / DOCX / Image Controls: Page X of Y, Zoom In/Out, Rotate, Download */}
+          {/* Zoom & Download Controls */}
           <div className="flex flex-wrap items-center gap-1.5">
-            {/* Page Navigation & Count */}
-            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs tabular-nums">
-              <button
-                type="button"
-                id="doc-viewer-prev-page"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                aria-label={vc.prevPage}
-                className="min-h-7 rounded px-2 py-0.5 font-semibold text-slate-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-              >
-                ← {vc.prevPage}
-              </button>
-              <span className="px-2.5 font-bold text-slate-900">
-                {vc.pageIndicator(currentPage, totalPages)}
-              </span>
-              <button
-                type="button"
-                id="doc-viewer-next-page"
-                disabled={currentPage >= totalPages}
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                aria-label={vc.nextPage}
-                className="min-h-7 rounded px-2 py-0.5 font-semibold text-slate-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-              >
-                {vc.nextPage} →
-              </button>
-            </div>
 
             {/* Zoom Controls */}
             <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs tabular-nums">
@@ -325,52 +280,35 @@ function DocumentPreviewDialogBody({
                   />
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-300 bg-[#fcfcfa] p-6 text-slate-900 shadow-md">
-                  {/* Document Sheet Header */}
-                  <div className="flex flex-wrap items-start justify-between gap-3 border-b-2 border-slate-800 pb-3">
+                <div className="rounded-xl border border-slate-300 bg-white p-6 text-slate-900 shadow-xs">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
                     <div>
                       <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-teal-900">
-                        VINMEC CENTRAL LABORATORY • SLE DOSSIER ({fileFormat})
+                        {fileFormat}
                       </p>
                       <h3 className="mt-0.5 text-sm font-bold text-slate-900">
-                        {currentPage === 1
-                          ? vc.labSheetTitle
-                          : vc.blotAndTxSheetTitle}
-                      </h3>
-                      <p className="mt-0.5 font-mono text-[11px] text-slate-600">
                         {activeFile.name}
-                      </p>
+                      </h3>
                     </div>
-                    <div className="text-right font-mono text-[11px]">
+                    <div className="text-right font-mono text-[11px] text-slate-600">
                       <p className="font-bold text-slate-900">
                         {copy.pidPrefix} {patient.studyId}
                       </p>
-                      <p className="text-slate-600">
-                        {vc.pageIndicator(currentPage, totalPages)}
-                      </p>
+                      {patient.submittedAt && (
+                        <p>{copy.submittedAtPrefix} {patient.submittedAt}</p>
+                      )}
                     </div>
                   </div>
 
-                  {/* Patient Demographics Strip */}
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-100/80 px-3 py-2 font-mono text-[11px] text-slate-800">
-                    <span>
-                      <strong>{patient.patientName}</strong> ({patient.age}{" "}
-                      {copy.ageUnit} •{" "}
-                      {patient.gender === "Female" ? copy.female : copy.male})
-                    </span>
-                    <span>
-                      {patient.heightCm} cm / {patient.weightKg} kg (BMI{" "}
-                      <strong>{bmi}</strong>) • ICF: {patient.icfSignedDate}
-                    </span>
-                    {patient.submittedAt && (
-                      <span>
-                        {copy.submittedAtPrefix} {patient.submittedAt}
-                      </span>
-                    )}
-                  </div>
-
-                  {currentPage === 1 ? (
-                    /* PAGE 1: Clinical Laboratory & Serology Biomarkers Table */
+                  {patient.ocrFields.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-600">
+                      <p>
+                        {isVi
+                          ? "Tài liệu không hỗ trợ xem ảnh trực tiếp trong trình duyệt. Vui lòng nhấn Tải xuống để mở tệp gốc."
+                          : "Inline preview is unavailable for this file format. Click Download to open the file."}
+                      </p>
+                    </div>
+                  ) : (
                     <div className="mt-4 overflow-x-auto">
                       <table className="w-full border-collapse border border-slate-300 font-mono text-xs">
                         <thead>
@@ -387,169 +325,29 @@ function DocumentPreviewDialogBody({
                             <th scope="col" className="border border-slate-300 px-2.5 py-1.5">
                               {vc.refCol}
                             </th>
-                            <th scope="col" className="border border-slate-300 px-2.5 py-1.5 text-center">
-                              {vc.flagCol}
-                            </th>
-                            <th scope="col" className="border border-slate-300 px-2.5 py-1.5 text-right">
-                              {vc.confCol}
-                            </th>
                           </tr>
                         </thead>
                         <tbody>
-                          {patient.ocrFields.map((f) => {
-                            const printed = f.value.trim() || f.printedValue;
-                            const isAbnormal = f.flag !== "Normal";
-                            return (
-                              <tr
-                                key={f.id}
-                                className={
-                                  isAbnormal ? "bg-rose-50/35" : "bg-white"
-                                }
-                              >
-                                <td className="border border-slate-300 px-2.5 py-1.5 font-sans">
-                                  <span className="font-semibold text-slate-900">
-                                    {isVi ? f.labelVi : f.labelEn}
-                                  </span>{" "}
-                                  <span className="font-mono text-[10px] text-slate-500">
-                                    [{f.code}]
-                                  </span>
-                                </td>
-                                <td className="border border-slate-300 px-2.5 py-1.5 text-right font-bold text-slate-900">
-                                  {printed}
-                                  {f.printedSecondaryValue
-                                    ? ` (${f.printedSecondaryValue})`
-                                    : ""}
-                                </td>
-                                <td className="border border-slate-300 px-2.5 py-1.5 text-slate-600">
-                                  {f.unit}
-                                </td>
-                                <td className="border border-slate-300 px-2.5 py-1.5 text-slate-600">
-                                  {f.referenceRange}
-                                </td>
-                                <td className="border border-slate-300 px-2.5 py-1.5 text-center">
-                                  <span
-                                    className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                                      isAbnormal
-                                        ? "bg-rose-100 text-rose-900"
-                                        : "bg-slate-100 text-slate-700"
-                                    }`}
-                                  >
-                                    {f.flag}
-                                  </span>
-                                </td>
-                                <td className="border border-slate-300 px-2.5 py-1.5 text-right font-bold">
-                                  <span
-                                    className={`rounded px-1.5 py-0.5 text-[10px] ${
-                                      f.confidence < 80
-                                        ? "bg-rose-100 text-rose-900"
-                                        : f.confidence <= 90
-                                        ? "bg-amber-100 text-amber-950"
-                                        : "bg-teal-50 text-teal-900"
-                                    }`}
-                                  >
-                                    {f.confidence}%
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
+                          {patient.ocrFields.map((f) => (
+                            <tr key={f.id} className="bg-white">
+                              <td className="border border-slate-300 px-2.5 py-1.5 font-sans">
+                                <span className="font-semibold text-slate-900">
+                                  {isVi ? f.labelVi : f.labelEn}
+                                </span>
+                              </td>
+                              <td className="border border-slate-300 px-2.5 py-1.5 text-right font-bold text-slate-900">
+                                {f.value.trim() || "—"}
+                              </td>
+                              <td className="border border-slate-300 px-2.5 py-1.5 text-slate-600">
+                                {f.unit}
+                              </td>
+                              <td className="border border-slate-300 px-2.5 py-1.5 text-slate-600">
+                                {f.referenceRange}
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
-                    </div>
-                  ) : (
-                    /* PAGE 2: Immunoblot Strip, Treatments & Care Team Sign-Off */
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <h4 className="font-mono text-xs font-bold uppercase tracking-wide text-slate-700">
-                          {vc.blotHeading}
-                        </h4>
-                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {highlightedBlots.map((b) => (
-                            <div
-                              key={b.id}
-                              className="flex items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs"
-                            >
-                              <div>
-                                <p className="font-bold text-slate-900">
-                                  {b.name}{" "}
-                                  <span className="text-[10px] font-normal text-slate-500">
-                                    ({b.panel.toUpperCase()})
-                                  </span>
-                                </p>
-                                <p className="text-[11px] text-slate-700">
-                                  {b.result || b.printedResult}{" "}
-                                  <strong>
-                                    {b.intensity || b.printedIntensity}
-                                  </strong>
-                                </p>
-                              </div>
-                              <span
-                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                                  b.confidence < 80
-                                    ? "bg-rose-100 text-rose-900"
-                                    : b.confidence <= 90
-                                    ? "bg-amber-100 text-amber-950"
-                                    : "bg-teal-50 text-teal-900"
-                                }`}
-                              >
-                                {b.confidence}%
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="border-t border-slate-200 pt-3">
-                        <h4 className="font-mono text-xs font-bold uppercase tracking-wide text-slate-700">
-                          {vc.txHeading}
-                        </h4>
-                        {patient.treatments.length > 0 ? (
-                          <ul className="mt-2 space-y-1.5 text-xs">
-                            {patient.treatments.map((t) => (
-                              <li
-                                key={t.id}
-                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2"
-                              >
-                                <span className="font-semibold text-slate-900">
-                                  {t.name} ({t.dose})
-                                </span>
-                                <span className="font-mono text-[11px] text-slate-600">
-                                  {t.route} • {t.frequency} • {t.duration}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="mt-1 text-xs text-slate-600">
-                            {copy.noTreatments}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="rounded-lg border border-slate-200 bg-slate-100/80 p-3 text-xs">
-                        <h4 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-700">
-                          {vc.careTeamHeading}
-                        </h4>
-                        <p className="mt-1 text-slate-700">
-                          {copy.physicianPrefix}{" "}
-                          <strong className="text-slate-900">
-                            {patient.physician}
-                          </strong>{" "}
-                          • {copy.nursePrefix} {patient.nurse}
-                        </p>
-                        {approved ? (
-                          <p className="mt-1.5 font-mono text-[11px] font-semibold text-teal-900">
-                            {vc.signedByLabel}{" "}
-                            {patient.signedOffBy ?? patient.physician} • EULAR/ACR:{" "}
-                            {eular.totalScore} pts • SLEDAI-2K:{" "}
-                            {sledai.totalScore} pts
-                          </p>
-                        ) : (
-                          <p className="mt-1.5 font-mono text-[11px] font-semibold text-amber-900">
-                            {vc.pendingSignOff}
-                          </p>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>

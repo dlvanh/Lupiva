@@ -182,7 +182,7 @@ export function rehydrateSleCrfRecord(
     submissionStatus: row.status,
     studyId,
     patientName,
-    age: String(row.age),
+    age: row.age > 0 ? String(row.age) : "",
     gender: row.gender,
     icfSignedDate,
     heightCm: row.heightCm != null ? String(row.heightCm) : "",

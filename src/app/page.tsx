@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useLupiva } from "@/context/LupivaContext";
+import { DoctorWorkspace } from "@/components/DoctorWorkspace";
 
 function ArrowRightIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -23,9 +24,9 @@ function ArrowRightIcon({ className = "h-4 w-4" }: { className?: string }) {
 }
 
 const BENEFIT_ICONS = [
-  // Folder / centralized archive
+  // Improved Treatment
   <svg
-    key="archive"
+    key="heart"
     aria-hidden="true"
     className="h-5 w-5"
     viewBox="0 0 24 24"
@@ -35,28 +36,9 @@ const BENEFIT_ICONS = [
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
   </svg>,
-  // Specialist medical check
-  <svg
-    key="specialist"
-    aria-hidden="true"
-    className="h-5 w-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.9"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <polyline points="16 11 18 13 22 9" />
-  </svg>,
-  // Security shield
+  // Anonymity and Security
   <svg
     key="shield"
     aria-hidden="true"
@@ -71,25 +53,31 @@ const BENEFIT_ICONS = [
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     <path d="m9 12 2 2 4-4" />
   </svg>,
-  // Heart / care continuity
-  <svg
-    key="heart"
-    aria-hidden="true"
-    className="h-5 w-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.9"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-  </svg>,
 ];
 
 export default function LandingPage() {
-  const { t } = useLupiva();
+  const { t, currentUser, authLoading } = useLupiva();
   const l = t.landing;
+
+  if (authLoading) {
+    return (
+      <main
+        id="main-content"
+        tabIndex={-1}
+        aria-busy="true"
+        className="flex-1 bg-slate-50 py-12 focus:outline-none"
+      >
+        <div className="mx-auto max-w-6xl space-y-4 px-4 sm:px-6 lg:px-8">
+          <div className="h-32 animate-pulse rounded-xl border border-slate-200 bg-white" />
+          <div className="h-48 animate-pulse rounded-xl border border-slate-200 bg-white" />
+        </div>
+      </main>
+    );
+  }
+
+  if (currentUser?.role === "specialist") {
+    return <DoctorWorkspace />;
+  }
 
   const sectionAnchors = [
     { href: "#boi-canh", label: l.navBackground },

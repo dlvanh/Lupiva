@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
 import {
+  CANONICAL_ANTIBODY_BLOTS,
+  CANONICAL_OCR_FIELDS,
   CrfSectionId,
   CrfOcrField,
   CrfAntibodyBlotRow,
@@ -27,14 +28,6 @@ import { SleScoreTables } from "@/components/SleScoreTables";
 import { downloadOriginalClinicalFile } from "@/lib/originalFileGenerator";
 import { formatLocalTimestamp } from "@/lib/submissionFilters";
 
-type ScanDossierFilter =
-  | "all"
-  | "immunology"
-  | "renal"
-  | "hematology"
-  | "infectious"
-  | "pft";
-
 type DoctorWorkflowStep = "step1_triage" | "step2_review" | "step3_signoff";
 
 export default function SleCrfManagerPage() {
@@ -47,6 +40,8 @@ export default function SleCrfManagerPage() {
     crfPatients,
     activeCrfPatientId,
     setActiveCrfPatientId,
+    setDoctorActiveTab,
+    createNewCrfPatient,
     updateCrfPatient,
     showToast,
   } = useLupiva();
@@ -62,46 +57,58 @@ export default function SleCrfManagerPage() {
 
   const activePatient = useMemo(
     () =>
-      crfPatients.find((p) => p.id === activeCrfPatientId) || crfPatients[0],
+      crfPatients.find((p) => p.id === activeCrfPatientId) ||
+      crfPatients[0] ||
+      null,
     [crfPatients, activeCrfPatientId]
   );
 
-  const isApprovedRecord = getSubmissionStatus(activePatient) === "approved";
+  const isApprovedRecord = activePatient
+    ? getSubmissionStatus(activePatient) === "approved"
+    : false;
   const isReadOnly = isApprovedRecord;
 
   const resolvedOcrFields = useMemo(
-    () => getResolvedPatientOcrFields(activePatient),
+    () => (activePatient ? getResolvedPatientOcrFields(activePatient) : []),
     [activePatient]
   );
   const resolvedAntibodyBlots = useMemo(
-    () => getResolvedPatientAntibodyBlots(activePatient),
+    () => (activePatient ? getResolvedPatientAntibodyBlots(activePatient) : []),
     [activePatient]
   );
 
   const [activeSection, setActiveSection] = useState<CrfSectionId | "all">(
     "all"
   );
-  const [scanPanelFilter, setScanPanelFilter] =
-    useState<ScanDossierFilter>("all");
   const [showDocViewer, setShowDocViewer] = useState<boolean>(true);
   const [selectedGroundingId, setSelectedGroundingId] = useState<string>("crf-c3");
   const [isJsonModalOpen, setIsJsonModalOpen] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"edit" | "clean">("edit");
-  const [viewerTabOverride, setViewerTabOverride] = useState<
-    "uploaded" | "grounded" | null
-  >(null);
   const [workflowStep, setWorkflowStep] =
     useState<DoctorWorkflowStep>("step1_triage");
   const [activeFileIdx, setActiveFileIdx] = useState<number>(0);
 
   // Auto-calculated BMI from Height (cm) & Weight (kg)
   const calculatedBmi = useMemo(
-    () => calculateBmi(activePatient.heightCm, activePatient.weightKg),
-    [activePatient.heightCm, activePatient.weightKg]
+    () =>
+      activePatient
+        ? calculateBmi(activePatient.heightCm, activePatient.weightKg)
+        : "—",
+    [activePatient]
   );
 
   // 3-Tier OCR Triage Counts across both ocrFields and antibodyBlots
   const triageStats = useMemo(() => {
+    if (!activePatient) {
+      return {
+        manualUnder80: 0,
+        verify80to90: 0,
+        approved: 0,
+        total: 0,
+        unresolved: 0,
+      };
+    }
+
     let manualUnder80 = 0;
     let verify80to90 = 0;
     let approved = 0;
@@ -133,57 +140,101 @@ export default function SleCrfManagerPage() {
       total: activePatient.ocrFields.length + activePatient.antibodyBlots.length,
       unresolved: manualUnder80 + verify80to90,
     };
-  }, [activePatient.ocrFields, activePatient.antibodyBlots]);
+  }, [activePatient]);
 
   // EULAR/ACR 2019 & SLEDAI-2K Live Summaries
   const eularSummary = useMemo(
     () =>
-      calculateEularAcrSummary(
-        activePatient.eularAcrCriteria,
-        activePatient.anaEntryCriterionMet
-      ),
-    [activePatient.eularAcrCriteria, activePatient.anaEntryCriterionMet]
+      activePatient
+        ? calculateEularAcrSummary(
+            activePatient.eularAcrCriteria,
+            activePatient.anaEntryCriterionMet
+          )
+        : {
+            clinicalScore: 0,
+            immunologicalScore: 0,
+            totalScore: 0,
+            hasClinicalCriterion: false,
+            isClassifiedSle: false,
+            domainMaxMap: {},
+          },
+    [activePatient]
   );
 
   const sledaiSummary = useMemo(
-    () => calculateSledai2kSummary(activePatient.sledai2kCriteria),
-    [activePatient.sledai2kCriteria]
+    () =>
+      activePatient
+        ? calculateSledai2kSummary(activePatient.sledai2kCriteria)
+        : {
+            totalScore: 0,
+            activityTierEn: "No Activity (0 pts)",
+            activityTierVi: "Không hoạt tính (0 điểm)",
+            badgeTone: "teal" as const,
+          },
+    [activePatient]
   );
 
   // Helper to update current patient record
   const patchPatient = (
-    updater: (prev: typeof activePatient) => typeof activePatient
+    updater: (prev: NonNullable<typeof activePatient>) => NonNullable<typeof activePatient>
   ) => {
-    if (isReadOnly) return;
+    if (!activePatient || isReadOnly) return;
     updateCrfPatient(activePatient.id, (prev) => ({
       ...updater(prev),
       lastUpdated: formatLocalTimestamp(),
     }));
   };
 
-  // Update an OCR-extracted field value (typing into a <80% blank field or editing 80-90% field)
+  // Update an OCR-extracted field value (upserting canonical fields if not yet in ocrFields)
   const handleUpdateOcrField = (
     fieldId: string,
     updates: Partial<CrfOcrField>
   ) => {
     if (isReadOnly) return;
-    patchPatient((prev) => ({
-      ...prev,
-      ocrFields: prev.ocrFields.map((f) => {
-        if (f.id !== fieldId) return f;
-        const nextVal =
-          updates.value !== undefined ? updates.value : f.value;
-        const hasVal = nextVal.trim().length > 0;
-        const nextStatus =
-          updates.status ??
-          (hasVal ? "user_verified" : getInitialOcrTierStatus(f.confidence));
+    patchPatient((prev) => {
+      const exists = prev.ocrFields.some((f) => f.id === fieldId);
+      if (!exists) {
+        const tmpl = CANONICAL_OCR_FIELDS.find(
+          (t) =>
+            t.id === fieldId ||
+            `${prev.id}-na-${t.code.toLowerCase()}` === fieldId
+        );
+        if (!tmpl) return prev;
+        const nextVal = updates.value !== undefined ? updates.value : "";
+        const nextFlag = updates.flag ?? tmpl.flag;
         return {
-          ...f,
-          ...updates,
-          status: nextStatus,
+          ...prev,
+          ocrFields: [
+            ...prev.ocrFields,
+            {
+              ...tmpl,
+              ...updates,
+              value: nextVal,
+              printedValue: nextVal,
+              flag: nextFlag,
+              status: "user_verified",
+            },
+          ],
         };
-      }),
-    }));
+      }
+      return {
+        ...prev,
+        ocrFields: prev.ocrFields.map((f) => {
+          if (f.id !== fieldId) return f;
+          const nextVal =
+            updates.value !== undefined ? updates.value : f.value;
+          const hasVal = nextVal.trim().length > 0;
+          const nextStatus =
+            updates.status ??
+            (hasVal ? "user_verified" : getInitialOcrTierStatus(f.confidence));
+          return {
+            ...f,
+            ...updates,
+            status: nextStatus,
+          };
+        }),
+      };
+    });
   };
 
   // Verify a single 80-90% field or confirm a filled <80% field
@@ -220,22 +271,44 @@ export default function SleCrfManagerPage() {
     updates: Partial<CrfAntibodyBlotRow>
   ) => {
     if (isReadOnly) return;
-    patchPatient((prev) => ({
-      ...prev,
-      antibodyBlots: prev.antibodyBlots.map((b) => {
-        if (b.id !== blotId) return b;
-        const nextResult =
-          updates.result !== undefined ? updates.result : b.result;
-        const nextStatus =
-          updates.status ??
-          (nextResult ? "user_verified" : getInitialOcrTierStatus(b.confidence));
+    patchPatient((prev) => {
+      const exists = prev.antibodyBlots.some((b) => b.id === blotId);
+      if (!exists) {
+        const tmpl = CANONICAL_ANTIBODY_BLOTS.find(
+          (t) =>
+            t.id === blotId ||
+            `${prev.id}-na-${t.panel}-${t.code.toLowerCase()}` === blotId
+        );
+        if (!tmpl) return prev;
         return {
-          ...b,
-          ...updates,
-          status: nextStatus,
+          ...prev,
+          antibodyBlots: [
+            ...prev.antibodyBlots,
+            {
+              ...tmpl,
+              ...updates,
+              status: "user_verified",
+            },
+          ],
         };
-      }),
-    }));
+      }
+      return {
+        ...prev,
+        antibodyBlots: prev.antibodyBlots.map((b) => {
+          if (b.id !== blotId) return b;
+          const nextResult =
+            updates.result !== undefined ? updates.result : b.result;
+          const nextStatus =
+            updates.status ??
+            (nextResult ? "user_verified" : getInitialOcrTierStatus(b.confidence));
+          return {
+            ...b,
+            ...updates,
+            status: nextStatus,
+          };
+        }),
+      };
+    });
   };
 
   // Batch verify all 80-90% pre-filled fields (leaving <80% blank fields for explicit check, or optionally filling them if user clicks Resolve All)
@@ -267,7 +340,7 @@ export default function SleCrfManagerPage() {
 
   // Jump to the next unresolved (<80% or 80-90%) field and highlight on original scan
   const handleJumpNextUnresolved = () => {
-    if (isReadOnly) return;
+    if (!activePatient || isReadOnly) return;
     setWorkflowStep("step1_triage");
     const nextField = activePatient.ocrFields.find(
       (f) =>
@@ -311,7 +384,7 @@ export default function SleCrfManagerPage() {
 
   // Auto-suggest 2019 EULAR/ACR & SLEDAI-2K checkboxes from verified CRF labs & clinical findings
   const handleAutoSuggestScores = () => {
-    if (isReadOnly) return;
+    if (!activePatient || isReadOnly) return;
     patchPatient(syncCriteriaFromVerifiedCrf);
 
     showToast(
@@ -327,7 +400,7 @@ export default function SleCrfManagerPage() {
 
   // Sign Off & Commit the complete SLE Case Report Form
   const handleSignOffCrf = () => {
-    if (isReadOnly) return;
+    if (!activePatient || isReadOnly) return;
     if (triageStats.unresolved > 0) {
       showToast(
         isVi
@@ -401,7 +474,7 @@ export default function SleCrfManagerPage() {
       field.status === "needs_verify" &&
       field.value.trim().length > 0;
     const isSelected = selectedGroundingId === field.id;
-    const isFieldLocked = isReadOnly || Boolean(field.notReturnedByOcr);
+    const isFieldLocked = isReadOnly;
 
     return (
       <div
@@ -503,14 +576,16 @@ export default function SleCrfManagerPage() {
             <input
               id={`crf-input-${field.id}`}
               type="text"
-              value={isNotReturned ? "N/A" : field.value}
+              value={isNotReturned ? (isReadOnly ? "N/A" : "") : field.value}
               readOnly={isFieldLocked}
               disabled={isFieldLocked}
               placeholder={
-                isManualRequired
+                isNotReturned
+                  ? "N/A"
+                  : isManualRequired
                   ? isVi
-                    ? "Kiểm tra bản gốc & nhập giá trị..."
-                    : "Check original scan & type value..."
+                    ? "Nhập giá trị..."
+                    : "Enter value..."
                   : undefined
               }
               onChange={(e) =>
@@ -532,9 +607,10 @@ export default function SleCrfManagerPage() {
                 type="text"
                 aria-label={`${field.labelEn} % predicted`}
                 value={
-                  isNotReturned ||
-                  (isReadOnly && !(field.secondaryValue || "").trim())
+                  isReadOnly && (isNotReturned || !(field.secondaryValue || "").trim())
                     ? "N/A"
+                    : field.secondaryValue === "N/A"
+                    ? ""
                     : field.secondaryValue || ""
                 }
                 readOnly={isFieldLocked}
@@ -549,7 +625,7 @@ export default function SleCrfManagerPage() {
               />
             )}
 
-            {isNotReturned ? (
+            {isReadOnly && isNotReturned ? (
               <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-1 font-mono text-[10px] font-bold text-slate-600">
                 N/A
               </span>
@@ -633,18 +709,7 @@ export default function SleCrfManagerPage() {
     );
   };
 
-  // Filtered list of items shown on the simulated Original Document Viewer (Left Pane)
-  const docViewerFields = useMemo(() => {
-    if (scanPanelFilter === "all") return activePatient.ocrFields;
-    return activePatient.ocrFields.filter(
-      (f) => f.panelGroup === scanPanelFilter
-    );
-  }, [activePatient.ocrFields, scanPanelFilter]);
-
-  const uploadedFiles = activePatient.uploadedFiles ?? [];
-  const hasUploadedImage = uploadedFiles.some((f) => f.isImage && f.url);
-  const viewerTab: "uploaded" | "grounded" =
-    viewerTabOverride ?? (hasUploadedImage ? "uploaded" : "grounded");
+  const uploadedFiles = activePatient?.uploadedFiles ?? [];
   const currentFile = uploadedFiles[activeFileIdx] ?? uploadedFiles[0];
 
   const showSection = (sec: CrfSectionId) =>
@@ -653,65 +718,69 @@ export default function SleCrfManagerPage() {
       : workflowStep === "step2_review") &&
     (activeSection === "all" || activeSection === sec);
 
-  const fullCrfJsonPayload = {
-    schema: "vinmec-mddu-sle-crf-2026-v1",
-    studyId: activePatient.studyId,
-    patientName: activePatient.patientName,
-    demographics: {
-      age: activePatient.age,
-      gender: activePatient.gender,
-      icfSignedDate: activePatient.icfSignedDate,
-      heightCm: activePatient.heightCm,
-      weightKg: activePatient.weightKg,
-      bmi: calculatedBmi,
-      physician: activePatient.physician,
-      nurse: activePatient.nurse,
-    },
-    signOff: {
-      signedOffBy: activePatient.signedOffBy,
-      signedOffRole: activePatient.signedOffRole,
-      lastUpdated: activePatient.lastUpdated,
-      unresolvedOcrCount: triageStats.unresolved,
-    },
-    scores: {
-      eularAcr2019: {
-        anaEntryCriterionMet: activePatient.anaEntryCriterionMet,
-        clinicalScore: eularSummary.clinicalScore,
-        immunologicalScore: eularSummary.immunologicalScore,
-        totalScore: eularSummary.totalScore,
-        classifiedAsSle: eularSummary.isClassifiedSle,
-      },
-      sledai2k: {
-        totalScore: sledaiSummary.totalScore,
-        activityTier: sledaiSummary.activityTierEn,
-      },
-    },
-    ocrExtractedFields: resolvedOcrFields.map((f) => ({
-      code: f.code,
-      label: f.labelEn,
-      value: f.notReturnedByOcr || !f.value.trim() ? "N/A" : f.value,
-      secondaryValue:
-        f.printedSecondaryValue !== undefined
-          ? f.notReturnedByOcr || !(f.secondaryValue || "").trim()
-            ? "N/A"
-            : f.secondaryValue
-          : undefined,
-      unit: f.unit,
-      flag: f.notReturnedByOcr ? "N/A" : f.flag,
-      ocrConfidence: f.notReturnedByOcr ? null : f.confidence,
-      triageStatus: f.notReturnedByOcr ? "not_returned" : f.status,
-    })),
-    antibodyBlotPanels: resolvedAntibodyBlots.map((b) => ({
-      panel: b.panel,
-      antibody: b.name,
-      result: b.notReturnedByOcr || !b.result ? "N/A" : b.result,
-      intensity: b.notReturnedByOcr || !b.intensity.trim() ? "N/A" : b.intensity,
-      ocrConfidence: b.notReturnedByOcr ? null : b.confidence,
-      triageStatus: b.notReturnedByOcr ? "not_returned" : b.status,
-    })),
-  };
+  const fullCrfJsonPayload = activePatient
+    ? {
+        schema: "vinmec-mddu-sle-crf-2026-v1",
+        studyId: activePatient.studyId,
+        patientName: activePatient.patientName,
+        demographics: {
+          age: activePatient.age,
+          gender: activePatient.gender,
+          icfSignedDate: activePatient.icfSignedDate,
+          heightCm: activePatient.heightCm,
+          weightKg: activePatient.weightKg,
+          bmi: calculatedBmi,
+          physician: activePatient.physician,
+          nurse: activePatient.nurse,
+        },
+        signOff: {
+          signedOffBy: activePatient.signedOffBy,
+          signedOffRole: activePatient.signedOffRole,
+          lastUpdated: activePatient.lastUpdated,
+          unresolvedOcrCount: triageStats.unresolved,
+        },
+        scores: {
+          eularAcr2019: {
+            anaEntryCriterionMet: activePatient.anaEntryCriterionMet,
+            clinicalScore: eularSummary.clinicalScore,
+            immunologicalScore: eularSummary.immunologicalScore,
+            totalScore: eularSummary.totalScore,
+            classifiedAsSle: eularSummary.isClassifiedSle,
+          },
+          sledai2k: {
+            totalScore: sledaiSummary.totalScore,
+            activityTier: sledaiSummary.activityTierEn,
+          },
+        },
+        ocrExtractedFields: resolvedOcrFields.map((f) => ({
+          code: f.code,
+          label: f.labelEn,
+          value: f.notReturnedByOcr || !f.value.trim() ? "N/A" : f.value,
+          secondaryValue:
+            f.printedSecondaryValue !== undefined
+              ? f.notReturnedByOcr || !(f.secondaryValue || "").trim()
+                ? "N/A"
+                : f.secondaryValue
+              : undefined,
+          unit: f.unit,
+          flag: f.notReturnedByOcr ? "N/A" : f.flag,
+          ocrConfidence: f.notReturnedByOcr ? null : f.confidence,
+          triageStatus: f.notReturnedByOcr ? "not_returned" : f.status,
+        })),
+        antibodyBlotPanels: resolvedAntibodyBlots.map((b) => ({
+          panel: b.panel,
+          antibody: b.name,
+          result: b.notReturnedByOcr || !b.result ? "N/A" : b.result,
+          intensity:
+            b.notReturnedByOcr || !b.intensity.trim() ? "N/A" : b.intensity,
+          ocrConfidence: b.notReturnedByOcr ? null : b.confidence,
+          triageStatus: b.notReturnedByOcr ? "not_returned" : b.status,
+        })),
+      }
+    : null;
 
   const handleDownloadCrfJson = () => {
+    if (!activePatient || !fullCrfJsonPayload) return;
     const blob = new Blob([JSON.stringify(fullCrfJsonPayload, null, 2)], {
       type: "application/json",
     });
@@ -746,6 +815,45 @@ export default function SleCrfManagerPage() {
     return null;
   }
 
+  if (!activePatient) {
+    return (
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 bg-slate-100/80 py-12 focus:outline-none"
+      >
+        <div className="mx-auto max-w-xl px-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-2xs">
+            <h1 className="text-lg font-bold text-slate-900">
+              {isVi ? "Chưa có hồ sơ CRF nào" : "No CRF dossiers yet"}
+            </h1>
+            <p className="mt-2 text-xs text-slate-600">
+              {isVi
+                ? "Khi bệnh nhân tải tài liệu lên hoặc bác sĩ tạo mới, hồ sơ CRF sẽ hiển thị tại đây."
+                : "Patient submissions or newly created CRF records will appear here."}
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => createNewCrfPatient("", "")}
+                className="rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800 cursor-pointer"
+              >
+                {isVi ? "+ Tạo hồ sơ CRF" : "+ New CRF"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDoctorActiveTab("pending")}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                {isVi ? "Xem Hồ sơ chưa duyệt" : "View Pending Review"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main id="main-content" tabIndex={-1} className="flex-1 bg-slate-100/80 pb-14">
       {/* Compact context bar: patient + status + utilities (one row) */}
@@ -767,7 +875,6 @@ export default function SleCrfManagerPage() {
                   const nextId = e.target.value;
                   const nextPat = crfPatients.find((p) => p.id === nextId);
                   setActiveCrfPatientId(nextId);
-                  setViewerTabOverride(null);
                   setActiveFileIdx(0);
                   setViewMode("edit");
                   if (nextPat && getSubmissionStatus(nextPat) === "approved") {
@@ -996,338 +1103,86 @@ export default function SleCrfManagerPage() {
       {/* Main Split-Screen Workspace: Original Scan Grounding (Left) + 6-Section CRF (Right) */}
       <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* LEFT PANE: Collapsible Side-by-Side Original Document Viewer */}
+          {/* LEFT PANE: Patient Uploaded Document Viewer */}
           {showDocViewer && (
             <aside
-              aria-label="Original Clinical Dossier Scan Viewer"
+              aria-label="Uploaded Clinical Documents"
               className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs lg:col-span-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]"
             >
-              <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-teal-600" />
-                    <h2 className="text-xs font-bold uppercase tracking-wide text-slate-800">
-                      {isVi
-                        ? "Bản Quét Hồ sơ Xét nghiệm Gốc (Đối chiếu OCR)"
-                        : "Original Document Scan (Source Grounding)"}
-                    </h2>
-                  </div>
-                  <span className="font-mono text-[10px] text-slate-500">
-                    {activePatient.studyId}
-                  </span>
+              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-teal-600" />
+                  <h2 className="text-xs font-bold uppercase tracking-wide text-slate-800">
+                    {isVi ? "Tài liệu bệnh nhân tải lên" : "Patient Uploaded Documents"}
+                  </h2>
                 </div>
-
-                {/* Viewer source tabs: patient-uploaded files vs grounded scan sheets */}
-                <div className="mt-2 flex gap-1">
-                  {(
-                    [
-                      ["uploaded", isVi ? "Tệp bệnh nhân tải lên" : "Patient uploaded files"],
-                      ["grounded", isVi ? "Bản quét có khung đối chiếu" : "Grounded scan sheets"],
-                    ] as ["uploaded" | "grounded", string][]
-                  ).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      id={`crf-viewer-tab-${key}`}
-                      onClick={() => setViewerTabOverride(key)}
-                      className={`rounded px-2.5 py-1 text-[11px] font-semibold cursor-pointer ${
-                        viewerTab === key
-                          ? "bg-teal-700 text-white"
-                          : "bg-slate-200/70 text-slate-700 hover:bg-slate-300/70"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Dossier Sheet Switcher */}
-                <div
-                  className={`mt-2 flex flex-wrap gap-1 ${
-                    viewerTab === "grounded" ? "" : "hidden"
-                  }`}
-                >
-                  {(
-                    [
-                      ["all", isVi ? "Toàn bộ" : "All Panels"],
-                      ["immunology", isVi ? "Miễn dịch" : "Immunology"],
-                      ["renal", isVi ? "Thận" : "Renal"],
-                      ["hematology", isVi ? "Huyết học" : "CBC"],
-                      ["infectious", isVi ? "Truyền nhiễm" : "Infectious"],
-                      ["pft", isVi ? "Hô hấp PFT" : "PFTs"],
-                    ] as [ScanDossierFilter, string][]
-                  ).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setScanPanelFilter(key)}
-                      className={`rounded px-2 py-0.5 text-[10px] font-semibold transition cursor-pointer ${
-                        scanPanelFilter === key
-                          ? "bg-slate-900 text-white"
-                          : "bg-slate-200/70 text-slate-700 hover:bg-slate-300/70"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <span className="font-mono text-[10px] text-slate-500">
+                  {activePatient.studyId}
+                </span>
               </div>
 
-              {viewerTab === "uploaded" && (
-                <div className="relative flex-1 overflow-y-auto bg-slate-200/75 p-4">
-                  {uploadedFiles.length === 0 ? (
-                    <p className="rounded-lg bg-white p-4 text-xs text-slate-600">
-                      {isVi
-                        ? "Bệnh nhân chưa tải tệp nào."
-                        : "This patient has not uploaded any file."}
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap gap-1">
-                          {uploadedFiles.map((f, i) => (
-                            <button
-                              key={f.id}
-                              type="button"
-                              onClick={() => setActiveFileIdx(i)}
-                              className={`rounded px-2 py-1 text-[11px] font-semibold cursor-pointer ${
-                                currentFile?.id === f.id
-                                  ? "bg-slate-900 text-white"
-                                  : "bg-white text-slate-700"
-                              }`}
-                            >
-                              {f.name}
-                            </button>
-                          ))}
-                        </div>
-                        {currentFile && (
+              <div className="relative flex-1 overflow-y-auto bg-slate-100 p-4">
+                {uploadedFiles.length === 0 ? (
+                  <p className="rounded-lg bg-white p-4 text-xs text-slate-600">
+                    {isVi
+                      ? "Bệnh nhân chưa tải tệp nào."
+                      : "This patient has not uploaded any file."}
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap gap-1">
+                        {uploadedFiles.map((f, i) => (
                           <button
+                            key={f.id}
                             type="button"
-                            onClick={() =>
-                              void downloadOriginalClinicalFile(
-                                activePatient,
-                                currentFile
-                              )
-                            }
-                            className="inline-flex items-center gap-1 rounded bg-teal-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-800 cursor-pointer"
+                            onClick={() => setActiveFileIdx(i)}
+                            className={`rounded px-2 py-1 text-[11px] font-semibold cursor-pointer ${
+                              currentFile?.id === f.id
+                                ? "bg-slate-900 text-white"
+                                : "bg-white text-slate-700"
+                            }`}
                           >
-                            <span>{isVi ? "Tải xuống" : "Download"}</span>
+                            {f.name}
                           </button>
-                        )}
+                        ))}
                       </div>
-                      {currentFile?.isImage && currentFile?.url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={currentFile.url}
-                          alt={currentFile.name}
-                          className="w-full rounded border border-slate-300 bg-white object-contain"
-                        />
-                      ) : (
-                        <div className="rounded-lg border border-slate-300 bg-white p-4 text-xs text-slate-600">
-                          <p className="font-semibold text-slate-900">
-                            {currentFile?.name}
-                          </p>
-                          <p className="mt-1">
-                            {isVi
-                              ? "Không có bản xem trước cho tệp này. Dùng tab “Bản quét có khung đối chiếu” để đối chiếu từng chỉ số."
-                              : "No inline preview for this file. Use the “Grounded scan sheets” tab to compare each field."}
-                          </p>
-                        </div>
+                      {currentFile && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void downloadOriginalClinicalFile(
+                              activePatient,
+                              currentFile
+                            )
+                          }
+                          className="inline-flex items-center gap-1 rounded bg-teal-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-800 cursor-pointer"
+                        >
+                          <span>{isVi ? "Tải xuống" : "Download"}</span>
+                        </button>
                       )}
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* Simulated Scanned Hospital Lab Paper */}
-              <div
-                className={`relative flex-1 overflow-y-auto bg-slate-200/75 p-4 ${
-                  viewerTab === "grounded" ? "" : "hidden"
-                }`}
-              >
-                <div className="relative mx-auto rounded-lg border border-slate-300 bg-[#fcfcfa] p-4 text-slate-800 shadow-md">
-                  {/* Hospital Sheet Header */}
-                  <div className="border-b-2 border-slate-800 pb-2.5">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-mono text-[10px] font-bold uppercase text-teal-900">
-                          VINMEC CENTRAL LABORATORY • SLE DOSSIER
+                    {currentFile?.isImage && currentFile?.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={currentFile.url}
+                        alt={currentFile.name}
+                        className="w-full rounded border border-slate-300 bg-white object-contain"
+                      />
+                    ) : (
+                      <div className="rounded-lg border border-slate-300 bg-white p-4 text-xs text-slate-600">
+                        <p className="font-semibold text-slate-900">
+                          {currentFile?.name}
                         </p>
-                        <h3 className="text-xs font-bold text-slate-900">
+                        <p className="mt-1">
                           {isVi
-                            ? "Phiếu Kết quả Xét nghiệm & Thăm dò Chức năng (Bản gốc)"
-                            : "Official Clinical Lab & Diagnostic Printout"}
-                        </h3>
+                            ? "Không có bản xem trước trực tiếp cho tệp này. Nhấn Tải xuống để xem tệp gốc."
+                            : "No inline preview for this file. Click Download to open the original file."}
+                        </p>
                       </div>
-                      <span className="font-mono text-[10px] font-bold text-slate-700">
-                        {activePatient.studyId}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap justify-between rounded bg-slate-100 px-2 py-1 font-mono text-[10px]">
-                      <span>
-                        PT: <strong>{activePatient.patientName}</strong> (
-                        {activePatient.age}
-                        {activePatient.gender === "Female" ? "F" : "M"})
-                      </span>
-                      <span>ICF: {activePatient.icfSignedDate}</span>
-                    </div>
+                    )}
                   </div>
-
-                  {/* Interactive Printed Rows on Original Scan */}
-                  <div className="mt-2.5 space-y-1.5">
-                    {docViewerFields.map((field) => {
-                      const isSelected = selectedGroundingId === field.id;
-                      const isManual =
-                        field.status === "manual_required" ||
-                        !field.value.trim();
-                      const isVerify =
-                        field.status === "needs_verify" &&
-                        field.value.trim().length > 0;
-
-                      return (
-                        <div
-                          key={field.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => {
-                            setSelectedGroundingId(field.id);
-                            setActiveSection(field.sectionId);
-                            setTimeout(() => {
-                              const el = document.getElementById(
-                                `crf-input-${field.id}`
-                              );
-                              el?.scrollIntoView({
-                                behavior: "smooth",
-                                block: "center",
-                              });
-                              el?.focus();
-                            }, 80);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setSelectedGroundingId(field.id);
-                              setActiveSection(field.sectionId);
-                            }
-                          }}
-                          className={`relative grid grid-cols-12 items-center rounded border-2 px-2 py-1.5 font-mono text-[10px] transition cursor-pointer ${
-                            isSelected
-                              ? isManual
-                                ? "border-rose-600 bg-rose-100/60 ring-2 ring-rose-500/40"
-                                : isVerify
-                                ? "border-amber-600 bg-amber-100/60 ring-2 ring-amber-500/40"
-                                : "border-teal-700 bg-teal-50/70 ring-2 ring-teal-600/35"
-                              : isManual
-                              ? "border-dashed border-rose-500 bg-rose-50/40 hover:bg-rose-50"
-                              : isVerify
-                              ? "border-dashed border-amber-500 bg-amber-50/35 hover:bg-amber-50"
-                              : "border-teal-600/35 bg-white hover:border-teal-700"
-                          }`}
-                        >
-                          <div className="col-span-6 pr-1">
-                            <span className="font-sans font-semibold text-slate-900">
-                              {isVi ? field.labelVi : field.labelEn}
-                            </span>
-                            <span className="ml-1 text-[9px] text-slate-500">
-                              [{field.code}]
-                            </span>
-                          </div>
-                          <div className="col-span-4 text-right font-bold text-slate-900">
-                            {field.printedValue}
-                            {field.printedSecondaryValue
-                              ? ` (${field.printedSecondaryValue})`
-                              : ""}{" "}
-                            <span className="font-normal text-[9px] text-slate-500">
-                              {field.unit}
-                            </span>
-                          </div>
-                          <div className="col-span-2 text-right">
-                            <span
-                              className={`rounded px-1 py-0.2 text-[9px] font-bold ${
-                                isManual
-                                  ? "bg-rose-600 text-white"
-                                  : isVerify
-                                  ? "bg-amber-500 text-white"
-                                  : "bg-teal-100 text-teal-900"
-                              }`}
-                            >
-                              {field.confidence}%
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {/* Antibody Blot Grounding Strip */}
-                    <div className="mt-3 border-t border-slate-300 pt-2">
-                      <p className="font-mono text-[9px] font-bold uppercase text-slate-500">
-                        {isVi
-                          ? "Bản In Immunoblot (ANA Profile 23 & Myositis)"
-                          : "Immunoblot Strip Printout (ANA-23 & Myositis)"}
-                      </p>
-                      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                        {activePatient.antibodyBlots
-                          .filter(
-                            (b) =>
-                              b.printedResult !== "Negative" ||
-                              b.confidence <= 90
-                          )
-                          .map((b) => {
-                            const isManual =
-                              b.status === "manual_required" || !b.result;
-                            const isVerify =
-                              b.status === "needs_verify" && Boolean(b.result);
-                            return (
-                              <div
-                                key={b.id}
-                                onClick={() => {
-                                  setSelectedGroundingId(b.id);
-                                  setActiveSection("immunology");
-                                }}
-                                className={`rounded border px-2 py-1 font-mono text-[10px] cursor-pointer ${
-                                  isManual
-                                    ? "border-rose-500 bg-rose-50 text-rose-950"
-                                    : isVerify
-                                    ? "border-amber-500 bg-amber-50 text-amber-950"
-                                    : "border-slate-300 bg-white text-slate-800"
-                                }`}
-                              >
-                                <div className="flex justify-between font-bold">
-                                  <span>{b.name}</span>
-                                  <span>{b.confidence}%</span>
-                                </div>
-                                <div className="text-[9px]">
-                                  Print: <strong>{b.printedResult}</strong>{" "}
-                                  {b.printedIntensity}
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Viewer Legend */}
-              <div className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-[11px] text-slate-600">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-rose-600" />
-                    <strong>&lt;80%</strong>:{" "}
-                    {isVi ? "Đọc số in & nhập tay" : "Read scan & add"}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-500" />
-                    <strong>80–90%</strong>:{" "}
-                    {isVi ? "Xác nhận lại" : "Verify"}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-teal-600" />
-                    <strong>&gt;90%</strong>:{" "}
-                    {isVi ? "Tự động duyệt" : "Auto-approve"}
-                  </span>
-                </div>
+                )}
               </div>
             </aside>
           )}
@@ -1494,13 +1349,6 @@ export default function SleCrfManagerPage() {
                     >
                       {isVi ? "Đồng bộ lại điểm từ OCR" : "Re-sync Scores from OCR"}
                     </button>
-                    <Link
-                      href="/scores"
-                      id="crf-link-full-scores"
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
-                    >
-                      {isVi ? "Mở trang Bảng điểm →" : "Open Scores Page →"}
-                    </Link>
                     <button
                       type="button"
                       id="crf-mode-clean"
@@ -3277,8 +3125,7 @@ export default function SleCrfManagerPage() {
                                 !isNotReturned &&
                                 row.status === "needs_verify" &&
                                 Boolean(row.result);
-                              const isRowLocked =
-                                isReadOnly || Boolean(row.notReturnedByOcr);
+                              const isRowLocked = isReadOnly;
 
                               return (
                                 <tr
@@ -3297,7 +3144,7 @@ export default function SleCrfManagerPage() {
                                     {row.name}
                                   </td>
                                   <td className="px-3 py-2">
-                                    {isNotReturned ? (
+                                    {isReadOnly && isNotReturned ? (
                                       <span className="inline-block rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-600">
                                         N/A
                                       </span>
@@ -3318,8 +3165,9 @@ export default function SleCrfManagerPage() {
                                               handleUpdateBlotRow(row.id, {
                                                 result: opt as BlotResultStatus,
                                                 intensity:
-                                                  row.intensity ||
-                                                  row.printedIntensity,
+                                                  row.intensity === "N/A"
+                                                    ? ""
+                                                    : row.intensity || "",
                                               })
                                             }
                                             className={`rounded px-2 py-0.5 font-mono text-[10px] font-bold cursor-pointer disabled:cursor-default ${
@@ -3339,7 +3187,7 @@ export default function SleCrfManagerPage() {
                                     )}
                                   </td>
                                   <td className="px-3 py-2">
-                                    {isNotReturned ? (
+                                    {isReadOnly && isNotReturned ? (
                                       <span className="font-mono text-xs font-semibold text-slate-500">
                                         N/A
                                       </span>
@@ -3351,16 +3199,12 @@ export default function SleCrfManagerPage() {
                                           type="text"
                                           readOnly={isRowLocked}
                                           disabled={isRowLocked}
-                                          placeholder={
-                                            isManual
-                                              ? isVi
-                                                ? "Xem bản gốc..."
-                                                : "Check scan..."
-                                              : "Intensity (+/++/+++)"
-                                          }
+                                          placeholder="Intensity (+/++/+++)"
                                           value={
                                             isReadOnly && !row.intensity.trim()
                                               ? "N/A"
+                                              : row.intensity === "N/A"
+                                              ? ""
                                               : row.intensity
                                           }
                                           onChange={(e) =>

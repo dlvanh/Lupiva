@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { INITIAL_CRF_PATIENTS, type CrfOcrField } from "@/data/crfData";
+import { INITIAL_CRF_PATIENTS } from "@/data/crfData";
 import { DEMO_USERS } from "@/data/mockData";
 import {
   crfSubmissions,
@@ -9,13 +9,12 @@ import {
 } from "@/db/schema";
 import { seedDatabase } from "@/db/seed";
 import { decryptField, isEncryptedEnvelope } from "@/lib/crypto";
-import { attachDecryptedHivField, isSensitiveHivOcrField } from "@/lib/piiScrubber";
 import {
   createTestDatabase,
   type TestDatabaseHandle,
 } from "./helpers/pgliteTestDb";
 
-describe("Lupiva Database Seed & 3-Zone PII Vault Verification", () => {
+describe("Lupiva Database Seed & Zone B PII Vault Verification", () => {
   let testDb: TestDatabaseHandle;
 
   beforeAll(async () => {
@@ -30,17 +29,14 @@ describe("Lupiva Database Seed & 3-Zone PII Vault Verification", () => {
     await testDb.close();
   });
 
-  it("seeds demo accounts and baseline SLE e-CRF dossiers idempotently", async () => {
+  it("seeds auth accounts idempotently with zero mock CRF dossiers", async () => {
+    expect(INITIAL_CRF_PATIENTS).toHaveLength(0);
+
     const first = await seedDatabase(testDb.db);
     expect(first.usersSeeded).toBe(2);
-    expect(first.profilesSeeded).toBe(INITIAL_CRF_PATIENTS.length);
-    expect(first.submissionsSeeded).toBe(INITIAL_CRF_PATIENTS.length);
-
-    const expectedDocsCount = INITIAL_CRF_PATIENTS.reduce(
-      (sum, pat) => sum + (pat.uploadedFiles?.length ?? 0),
-      0
-    );
-    expect(first.documentsSeeded).toBe(expectedDocsCount);
+    expect(first.profilesSeeded).toBe(0);
+    expect(first.submissionsSeeded).toBe(0);
+    expect(first.documentsSeeded).toBe(0);
 
     // Run seed a second time — must upsert cleanly with zero duplicate rows
     await seedDatabase(testDb.db);
@@ -51,12 +47,12 @@ describe("Lupiva Database Seed & 3-Zone PII Vault Verification", () => {
     const docRows = await testDb.db.select().from(uploadedDocuments);
 
     expect(userRows).toHaveLength(2);
-    expect(profileRows).toHaveLength(INITIAL_CRF_PATIENTS.length);
-    expect(submissionRows).toHaveLength(INITIAL_CRF_PATIENTS.length);
-    expect(docRows).toHaveLength(expectedDocsCount);
+    expect(profileRows).toHaveLength(0);
+    expect(submissionRows).toHaveLength(0);
+    expect(docRows).toHaveLength(0);
   });
 
-  it("encrypts Zone B PII columns and strips HIV Ag/Ab from Zone C JSONB at rest", async () => {
+  it("encrypts Zone B PII columns on seeded user accounts", async () => {
     await seedDatabase(testDb.db);
 
     const userRows = await testDb.db.select().from(users);
@@ -85,55 +81,5 @@ describe("Lupiva Database Seed & 3-Zone PII Vault Verification", () => {
         decryptedName
       );
     }
-
-    const profileRows = await testDb.db.select().from(patientProfiles);
-    const serializedProfiles = JSON.stringify(profileRows);
-    for (const pat of INITIAL_CRF_PATIENTS) {
-      expect(serializedProfiles).not.toContain(pat.studyId);
-      expect(serializedProfiles).not.toContain(pat.patientName);
-      expect(serializedProfiles).not.toContain(pat.icfSignedDate);
-    }
-
-    for (const p of profileRows) {
-      expect(isEncryptedEnvelope(p.studyIdEncrypted)).toBe(true);
-      expect(isEncryptedEnvelope(p.patientNameEncrypted)).toBe(true);
-      expect(isEncryptedEnvelope(p.icfSignedDateEncrypted)).toBe(true);
-
-      const decryptedStudyId = decryptField(
-        p.studyIdEncrypted,
-        `patient_profiles:${p.id}:study_id`
-      );
-      expect(INITIAL_CRF_PATIENTS.map((pat) => pat.studyId)).toContain(
-        decryptedStudyId
-      );
-    }
-
-    const submissionRows = await testDb.db.select().from(crfSubmissions);
-    const vn084Sub = submissionRows.find(
-      (s) => s.legacyRecordKey === "crf-pat-084"
-    );
-    expect(vn084Sub).toBeDefined();
-
-    // HIV Ag/Ab must NOT appear in plain ocrFieldsJson
-    expect(
-      vn084Sub!.ocrFieldsJson.some((field) => isSensitiveHivOcrField(field))
-    ).toBe(false);
-    expect(JSON.stringify(vn084Sub!.ocrFieldsJson)).not.toContain("HIV-AGAB");
-
-    // HIV Ag/Ab must be encrypted in hivStatusEncrypted and decrypt cleanly with row AAD
-    expect(isEncryptedEnvelope(vn084Sub!.hivStatusEncrypted)).toBe(true);
-    const decryptedHiv = JSON.parse(
-      decryptField(
-        vn084Sub!.hivStatusEncrypted!,
-        `crf_submissions:${vn084Sub!.id}:hiv_status`
-      )
-    ) as CrfOcrField;
-    expect(decryptedHiv.code).toBe("HIV-AGAB");
-
-    const rehydratedFields = attachDecryptedHivField(
-      vn084Sub!.ocrFieldsJson,
-      decryptedHiv
-    );
-    expect(rehydratedFields.some((f) => f.code === "HIV-AGAB")).toBe(true);
   });
 });

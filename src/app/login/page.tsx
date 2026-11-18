@@ -9,7 +9,7 @@ import { useLupiva } from "@/context/LupivaContext";
 type AuthMode = "login" | "register";
 
 function resolveSafeRedirect(nextParam: string | null, role: UserRole): string {
-  const defaultRoute = role === "patient" ? "/upload" : "/ocr";
+  const defaultRoute = role === "patient" ? "/upload" : "/";
   if (!nextParam) return defaultRoute;
 
   const isSafeRelative =

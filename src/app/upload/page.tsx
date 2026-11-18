@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useLupiva } from "@/context/LupivaContext";
-import { DoctorSubmissionsView } from "@/components/upload/DoctorSubmissionsView";
+import { DoctorWorkspace } from "@/components/DoctorWorkspace";
 import { PatientUploadView } from "@/components/upload/PatientUploadView";
 
 export default function PatientUploadPage() {
@@ -25,7 +25,7 @@ export default function PatientUploadPage() {
   }
 
   if (currentUser?.role === "specialist") {
-    return <DoctorSubmissionsView />;
+    return <DoctorWorkspace />;
   }
 
   return <PatientUploadView />;

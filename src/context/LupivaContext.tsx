@@ -9,13 +9,7 @@ import React, {
   useRef,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  AuthUser,
-  DEMO_USERS,
-  MOCK_LAB_REPORTS,
-  BiomarkerField,
-  UserRole,
-} from "@/data/mockData";
+import { AuthUser, DEMO_USERS, UserRole } from "@/data/mockData";
 import {
   Language,
   Translations,
@@ -25,28 +19,17 @@ import {
 import { getUploadPageCopy } from "@/data/uploadTranslations";
 import {
   SleCrfPatientRecord,
-  INITIAL_CRF_PATIENTS,
-  buildDefaultEularAcrCriteria,
-  buildDefaultSledai2kCriteria,
-  buildSkinMucosaItems,
-  buildCardiovascularItems,
-  buildNeuropsychiatricItems,
-  buildGiItems,
   UploadedDocFile,
+  buildEmptySleCrfRecord,
 } from "@/data/crfData";
 import { formatLocalTimestamp } from "@/lib/submissionFilters";
 
-export interface SavedRegistryRecord {
-  recordId: string;
-  reportId: string;
-  reportTitle: string;
-  patientName: string;
-  patientId: string;
-  verifiedBy: string;
-  savedAt: string;
-  sledaiImpact: string;
-  fields: BiomarkerField[];
-}
+export type DoctorWorkspaceTab =
+  | "dashboard"
+  | "pending"
+  | "approved"
+  | "crf"
+  | "redcap";
 
 export interface ToastMessage {
   id: string;
@@ -91,20 +74,12 @@ interface LupivaContextValue {
   registerAccount: (input: RegisterAccountInput) => Promise<AuthActionResult>;
   logout: () => Promise<void>;
   isSigningOut: () => boolean;
-  selectedReportId: string;
-  setSelectedReportId: (id: string) => void;
-  savedRecords: SavedRegistryRecord[];
-  saveReportToRegistry: (
-    reportId: string,
-    reportTitle: string,
-    patientName: string,
-    patientId: string,
-    sledaiImpact: string,
-    fields: BiomarkerField[]
-  ) => SavedRegistryRecord;
   crfPatients: SleCrfPatientRecord[];
   activeCrfPatientId: string;
   setActiveCrfPatientId: (id: string) => void;
+  doctorActiveTab: DoctorWorkspaceTab;
+  setDoctorActiveTab: (tab: DoctorWorkspaceTab) => void;
+  openDoctorPatientCrf: (patientId: string) => void;
   mergeCrfPatientsFromApi: (
     records: SleCrfPatientRecord[],
     replaceAll?: boolean
@@ -121,8 +96,6 @@ interface LupivaContextValue {
     patientName: string,
     files: UploadedDocFile[]
   ) => Promise<SleCrfPatientRecord | null>;
-  isActionGuideOpen: boolean;
-  setIsActionGuideOpen: (open: boolean) => void;
   toast: ToastMessage | null;
   showToast: (
     title: string,
@@ -155,17 +128,10 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
-  const [selectedReportId, setSelectedReportId] = useState<string>(
-    MOCK_LAB_REPORTS[0].id
-  );
-  const [savedRecords, setSavedRecords] = useState<SavedRegistryRecord[]>([]);
-  const [crfPatients, setCrfPatients] = useState<SleCrfPatientRecord[]>(
-    () => INITIAL_CRF_PATIENTS
-  );
-  const [activeCrfPatientId, setActiveCrfPatientId] = useState<string>(
-    INITIAL_CRF_PATIENTS[0].id
-  );
-  const [isActionGuideOpen, setIsActionGuideOpen] = useState<boolean>(false);
+  const [crfPatients, setCrfPatients] = useState<SleCrfPatientRecord[]>([]);
+  const [activeCrfPatientId, setActiveCrfPatientId] = useState<string>("");
+  const [doctorActiveTab, setDoctorActiveTab] =
+    useState<DoctorWorkspaceTab>("dashboard");
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
   const crfPatientsRef = useRef<SleCrfPatientRecord[]>(crfPatients);
@@ -204,7 +170,6 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     setToast(null);
   }, []);
 
-  // Reset sign-out guard once navigation to Overview completes
   useEffect(() => {
     if (pathname === "/") {
       isSigningOutRef.current = false;
@@ -213,14 +178,12 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
   const isSigningOut = useCallback(() => isSigningOutRef.current, []);
 
-  // Synchronize document lang attribute whenever language changes
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.lang = language;
     }
   }, [language]);
 
-  // Hydrate authenticated user from HttpOnly session cookie via PostgreSQL backend
   useEffect(() => {
     let active = true;
 
@@ -297,7 +260,6 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading || !currentUser) return;
 
-    const isPatient = currentUser.role === "patient";
     let active = true;
     const utcOffset = -new Date().getTimezoneOffset();
 
@@ -318,16 +280,14 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         if (!active || !Array.isArray(data.items)) return;
 
         const records = data.items.map((item) => item.record);
-        if (isPatient || records.length > 0) {
-          mergeCrfPatientsFromApi(records, true);
-          setActiveCrfPatientId((prevId) =>
-            records.some((r) => r.id === prevId)
-              ? prevId
-              : (records[0]?.id ?? "")
-          );
-        }
+        mergeCrfPatientsFromApi(records, true);
+        setActiveCrfPatientId((prevId) =>
+          records.some((r) => r.id === prevId)
+            ? prevId
+            : (records[0]?.id ?? "")
+        );
       } catch {
-        if (active && isPatient) {
+        if (active) {
           setCrfPatients([]);
           setActiveCrfPatientId("");
         }
@@ -403,10 +363,9 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
         isSigningOutRef.current = false;
         setCurrentUser(data.user);
-        if (data.user.role === "patient") {
-          setCrfPatients([]);
-          setActiveCrfPatientId("");
-        }
+        setCrfPatients([]);
+        setActiveCrfPatientId("");
+        setDoctorActiveTab("dashboard");
         setAuthLoading(false);
         showToast(
           t.toasts.signedIn(data.user.name),
@@ -453,10 +412,9 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
         isSigningOutRef.current = false;
         setCurrentUser(data.user);
-        if (data.user.role === "patient") {
-          setCrfPatients([]);
-          setActiveCrfPatientId("");
-        }
+        setCrfPatients([]);
+        setActiveCrfPatientId("");
+        setDoctorActiveTab("dashboard");
         setAuthLoading(false);
         showToast(
           t.toasts.accountCreatedTitle(data.user.name),
@@ -489,12 +447,18 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       // Clear local state regardless of network hiccup
     } finally {
       setCurrentUser(null);
-      setCrfPatients(INITIAL_CRF_PATIENTS);
-      setActiveCrfPatientId(INITIAL_CRF_PATIENTS[0].id);
+      setCrfPatients([]);
+      setActiveCrfPatientId("");
+      setDoctorActiveTab("dashboard");
       showToast(t.toasts.signedOutTitle, t.toasts.signedOutDesc, "navy");
       router.replace("/");
     }
   }, [pathname, router, showToast, t]);
+
+  const openDoctorPatientCrf = useCallback((patientId: string) => {
+    setActiveCrfPatientId(patientId);
+    setDoctorActiveTab("crf");
+  }, []);
 
   const updateCrfPatient = useCallback(
     (
@@ -551,115 +515,23 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
 
   const createNewCrfPatient = useCallback(
     (patientName: string, studyId: string) => {
-      const template = INITIAL_CRF_PATIENTS[0];
-      const newPat: SleCrfPatientRecord = {
-        ...template,
-        id: `crf-pat-${Date.now()}`,
-        studyId: studyId || `VN-0${120 + crfPatients.length}-26`,
-        patientName: patientName || "Nguyen Thi Thu",
-        age: "32",
-        gender: "Female",
-        icfSignedDate: "10/11/2026",
-        heightCm: "160",
-        weightKg: "54.0",
-        physician: currentUser ? currentUser.name : "Dr. Nguyen Minh, MD, PhD",
-        nurse: "RN. Le Thi Huong",
-        lastUpdated: formatLocalTimestamp(),
-        signedOffBy: null,
-        signedOffRole: null,
-        malignantDisease: "NO",
-        malignantSpecify: "",
-        otherComorbidities: "NO",
-        otherComorbiditiesSpecify: "",
-        familyAutoimmuneHistory: "NO",
-        familyRelatives: {
-          Father: false,
-          Mother: false,
-          Brother: false,
-          Sister: false,
-          Child: false,
-          Others: false,
-        },
-        familyDiseaseSpecify: "",
-        fever: "NO",
-        feverTempC: "",
-        feverOnsetDate: "",
-        feverType: "periodic",
-        feverTypeSpecify: "",
-        historyOfInfection: "NO",
-        infectionEpisodes: [],
-        treatmentStatus: "NO",
-        treatments: [],
-        skinMucosaAbnormality: "NO",
-        skinMucosaItems: buildSkinMucosaItems(),
-        muscleDamage: "NO",
-        muscleBiopsyOther: "NO",
-        muscleBiopsySpecify: "",
-        jointsDamage: "NO",
-        swollenJointsCount: "0",
-        tenderJointsCount: "0",
-        vasScore: "0",
-        abnormalXray: "NO",
-        abnormalXraySpecify: "",
-        abnormalUltrasound: "NO",
-        abnormalUltrasoundSpecify: "",
-        jointDeformity: "NO",
-        jointDeformitySpecify: "",
-        jointsOther: "NO",
-        jointsOtherSpecify: "",
-        kidneysDamage: "NO",
-        renalBiopsyPerformed: "NO",
-        renalBiopsyNote: "",
-        renalBiopsyClasses: [],
-        kidneysOther: "NO",
-        kidneysOtherSpecify: "",
-        haematologicalDisorders: "NO",
-        haematologicalSpecify: "",
-        cardiovascularAbnormality: "NO",
-        cardiovascularItems: buildCardiovascularItems(),
-        lungDamage: "NO",
-        lungIld: false,
-        lungIldPatterns: [],
-        lungPleuritis: false,
-        lungPleuritisSpecify: "",
-        lungOther: false,
-        lungOtherSpecify: "",
-        neuropsychiatricDisorders: "NO",
-        neuropsychiatricItems: buildNeuropsychiatricItems(),
-        giDisorders: "NO",
-        giItems: buildGiItems(),
-        ocrFields: template.ocrFields.map((f) => ({
-          ...f,
-          value: f.confidence < 80 ? "" : f.printedValue,
-          secondaryValue: f.confidence < 80 ? "" : f.printedSecondaryValue,
-          status:
-            f.confidence > 90
-              ? "auto_approved"
-              : f.confidence >= 80
-              ? "needs_verify"
-              : "manual_required",
-        })),
-        antibodyBlots: template.antibodyBlots.map((b) => ({
-          ...b,
-          result: b.confidence < 80 ? "" : b.printedResult,
-          intensity: b.confidence < 80 ? "" : b.printedIntensity,
-          status:
-            b.confidence > 90
-              ? "auto_approved"
-              : b.confidence >= 80
-              ? "needs_verify"
-              : "manual_required",
-        })),
-        anaEntryCriterionMet: true,
-        eularAcrCriteria: buildDefaultEularAcrCriteria(),
-        sledai2kCriteria: buildDefaultSledai2kCriteria(),
-      };
+      const timestamp = formatLocalTimestamp();
+      const newPat = buildEmptySleCrfRecord({
+        id: `crf-draft-${Date.now()}`,
+        studyId: studyId.trim() || `VN-${String(100 + crfPatients.length + 1).padStart(4, "0")}-26`,
+        patientName: patientName.trim() || (language === "vi" ? "Bệnh nhân mới" : "New Patient"),
+        icfSignedDate: timestamp.slice(0, 10),
+        physician: currentUser ? currentUser.name : "",
+        submittedAt: timestamp,
+        lastUpdated: `${timestamp} ICT`,
+      });
 
       setCrfPatients((prev) => [newPat, ...prev]);
       setActiveCrfPatientId(newPat.id);
+      setDoctorActiveTab("crf");
       return newPat;
     },
-    [crfPatients.length, currentUser]
+    [crfPatients.length, currentUser, language]
   );
 
   const submitPatientUpload = useCallback(
@@ -725,9 +597,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         return recordWithUrls;
       } catch {
         showToast(
-          language === "vi"
-            ? "Lỗi kết nối máy chủ"
-            : "Network error",
+          language === "vi" ? "Lỗi kết nối máy chủ" : "Network error",
           language === "vi"
             ? "Không thể kết nối tới API lưu hồ sơ."
             : "Unable to reach the submissions API.",
@@ -737,65 +607,6 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [language, showToast]
-  );
-
-  const saveReportToRegistry = useCallback(
-    (
-      reportId: string,
-      reportTitle: string,
-      patientName: string,
-      patientId: string,
-      sledaiImpact: string,
-      fields: BiomarkerField[]
-    ) => {
-      const newRecord: SavedRegistryRecord = {
-        recordId: `CRF-${1040 + savedRecords.length + 1}`,
-        reportId,
-        reportTitle,
-        patientName,
-        patientId,
-        verifiedBy: currentUser
-          ? currentUser.name
-          : language === "vi"
-          ? "Người Đánh giá Lâm sàng (Khách)"
-          : "Clinical Evaluator (Guest)",
-        savedAt: formatLocalTimestamp(),
-        sledaiImpact,
-        fields: fields.map((f) => ({ ...f })),
-      };
-      setSavedRecords((prev) => [newRecord, ...prev]);
-
-      // Also synchronize verified biomarkers into the primary patient's CRF record
-      setCrfPatients((prev) =>
-        prev.map((pat, idx) => {
-          if (idx !== 0 && pat.patientName !== patientName) return pat;
-          const updatedOcrFields = pat.ocrFields.map((crfField) => {
-            const matched = fields.find((f) => f.code === crfField.code);
-            if (!matched) return crfField;
-            return {
-              ...crfField,
-              value: matched.value,
-              unit: matched.unit,
-              flag: matched.flag,
-              status: "user_verified" as const,
-            };
-          });
-          return {
-            ...pat,
-            lastUpdated: formatLocalTimestamp(),
-            ocrFields: updatedOcrFields,
-          };
-        })
-      );
-
-      showToast(
-        t.toasts.savedRegistryTitle(newRecord.recordId),
-        t.toasts.savedRegistryDesc(fields.length, sledaiImpact),
-        "teal"
-      );
-      return newRecord;
-    },
-    [currentUser, language, savedRecords.length, showToast, t]
   );
 
   return (
@@ -811,19 +622,16 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         registerAccount,
         logout,
         isSigningOut,
-        selectedReportId,
-        setSelectedReportId,
-        savedRecords,
-        saveReportToRegistry,
         crfPatients,
         activeCrfPatientId,
         setActiveCrfPatientId,
+        doctorActiveTab,
+        setDoctorActiveTab,
+        openDoctorPatientCrf,
         mergeCrfPatientsFromApi,
         updateCrfPatient,
         createNewCrfPatient,
         submitPatientUpload,
-        isActionGuideOpen,
-        setIsActionGuideOpen,
         toast,
         showToast,
         dismissToast,

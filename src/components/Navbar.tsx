@@ -1,13 +1,26 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useLupiva } from "@/context/LupivaContext";
-import { getLocalizedButtonActionMap } from "@/data/translations";
+import { usePathname, useRouter } from "next/navigation";
+import { DoctorWorkspaceTab, useLupiva } from "@/context/LupivaContext";
+import { getSubmissionStatus } from "@/data/crfData";
+import { getOcrTierCounts } from "@/lib/submissionFilters";
+
+const READ_NOTIFS_STORAGE_KEY = "lupiva-read-notifs";
+
+interface DoctorNotificationItem {
+  id: string;
+  patientId: string;
+  tone: "amber" | "rose" | "teal";
+  title: string;
+  description: string;
+  timeLabel?: string;
+}
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const {
     language,
     toggleLanguage,
@@ -16,19 +29,33 @@ export function Navbar() {
     currentUser,
     logout,
     crfPatients,
-    isActionGuideOpen,
-    setIsActionGuideOpen,
+    doctorActiveTab,
+    setDoctorActiveTab,
+    openDoctorPatientCrf,
     toast,
     dismissToast,
   } = useLupiva();
 
   const [fadingToastId, setFadingToastId] = useState<string | null>(null);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(READ_NOTIFS_STORAGE_KEY);
+      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+      return Array.isArray(parsed)
+        ? parsed.filter((x): x is string => typeof x === "string")
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  const notifContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!toast) return;
 
     const currentId = toast.id;
-    // Start fading out after 4.3 seconds, fully dismiss after 5 seconds
     const fadeTimer = setTimeout(() => {
       setFadingToastId(currentId);
     }, 4300);
@@ -44,51 +71,152 @@ export function Navbar() {
   }, [toast, dismissToast]);
 
   useEffect(() => {
-    if (!isActionGuideOpen) return;
+    if (!isNotifOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsActionGuideOpen(false);
+      if (e.key === "Escape") setIsNotifOpen(false);
+    };
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        notifContainerRef.current &&
+        !notifContainerRef.current.contains(e.target as Node)
+      ) {
+        setIsNotifOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isActionGuideOpen, setIsActionGuideOpen]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isNotifOpen]);
+
+  const persistReadIds = (nextIds: string[]) => {
+    setReadNotifIds(nextIds);
+    try {
+      localStorage.setItem(READ_NOTIFS_STORAGE_KEY, JSON.stringify(nextIds));
+    } catch {
+      // ignore storage failure
+    }
+  };
+
+  const isVi = language === "vi";
+  const isSpecialist = currentUser?.role === "specialist";
+
+  const { pendingCount, approvedCount } = useMemo(() => {
+    let pending = 0;
+    let approved = 0;
+    for (const p of crfPatients) {
+      if (getSubmissionStatus(p) === "approved") approved += 1;
+      else pending += 1;
+    }
+    return { pendingCount: pending, approvedCount: approved };
+  }, [crfPatients]);
+
+  const notifications = useMemo<DoctorNotificationItem[]>(() => {
+    if (!isSpecialist) return [];
+    const list: DoctorNotificationItem[] = [];
+    for (const p of crfPatients) {
+      const approved = getSubmissionStatus(p) === "approved";
+      if (!approved) {
+        const counts = getOcrTierCounts(p);
+        const unresolved = counts.manualCount + counts.verifyCount;
+        list.push({
+          id: `pending-${p.id}`,
+          patientId: p.id,
+          tone: "amber",
+          title: `${p.studyId} • ${p.patientName}`,
+          description: isVi
+            ? "Hồ sơ mới tải lên, đang chờ bác sĩ duyệt."
+            : "New dossier uploaded, pending doctor review.",
+          timeLabel: p.submittedAt,
+        });
+        if (unresolved > 0) {
+          list.push({
+            id: `ocr-${p.id}`,
+            patientId: p.id,
+            tone: "rose",
+            title: `${p.studyId} • OCR`,
+            description: isVi
+              ? `Có ${unresolved} mục OCR cần bác sĩ kiểm tra.`
+              : `${unresolved} OCR field(s) require verification.`,
+            timeLabel: p.submittedAt,
+          });
+        }
+      } else {
+        list.push({
+          id: `approved-${p.id}`,
+          patientId: p.id,
+          tone: "teal",
+          title: `${p.studyId} • ${p.patientName}`,
+          description: isVi
+            ? "Đã phê duyệt CRF và sẵn sàng cho REDCap."
+            : "CRF approved and ready for REDCap.",
+          timeLabel: p.lastUpdated || p.submittedAt,
+        });
+      }
+    }
+    return list;
+  }, [crfPatients, isSpecialist, isVi]);
+
+  const readSet = useMemo(() => new Set(readNotifIds), [readNotifIds]);
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !readSet.has(n.id)).length,
+    [notifications, readSet]
+  );
+
+  const doctorTabs: Array<{
+    id: DoctorWorkspaceTab;
+    label: string;
+    badge?: number;
+  }> = [
+    {
+      id: "pending",
+      label: isVi ? "Hồ sơ chưa duyệt" : "Pending Review",
+      badge: pendingCount,
+    },
+    {
+      id: "approved",
+      label: isVi ? "Hồ sơ đã phê duyệt" : "Approved",
+      badge: approvedCount,
+    },
+    {
+      id: "crf",
+      label: "CRF",
+    },
+    {
+      id: "redcap",
+      label: "REDCap",
+    },
+  ];
+
+  const handleSelectDoctorTab = (tab: DoctorWorkspaceTab) => {
+    setDoctorActiveTab(tab);
+    if (pathname !== "/") {
+      router.push("/");
+    }
+  };
+
+  const handleNotificationClick = (item: DoctorNotificationItem) => {
+    if (!readSet.has(item.id)) {
+      persistReadIds([...readNotifIds, item.id]);
+    }
+    openDoctorPatientCrf(item.patientId);
+    if (pathname !== "/") {
+      router.push("/");
+    }
+    setIsNotifOpen(false);
+  };
+
+  const handleMarkAllRead = () => {
+    const allIds = Array.from(
+      new Set([...readNotifIds, ...notifications.map((n) => n.id)])
+    );
+    persistReadIds(allIds);
+  };
 
   const visibleToast = toast;
   const isFadingOut = Boolean(toast && fadingToastId === toast.id);
-
-  const isVi = language === "vi";
-
-  const navLinks =
-    currentUser?.role === "specialist"
-      ? [
-          {
-            href: "/upload",
-            label: isVi ? "Hồ sơ Bệnh nhân" : "Patient Submissions",
-            id: "nav-link-upload",
-          },
-          {
-            href: "/ocr",
-            label: isVi ? "Duyệt hồ sơ" : "Review",
-            id: "nav-link-ocr",
-          },
-          {
-            href: "/scores",
-            label: isVi ? "Bảng điểm SLE" : "SLE Scores",
-            id: "nav-link-scores",
-          },
-        ]
-      : currentUser?.role === "patient"
-        ? [
-            {
-              href: "/upload",
-              label: isVi ? "Tải tài liệu" : "Upload Document",
-              id: "nav-link-upload",
-            },
-          ]
-        : [];
-
-  const localizedButtonMap = getLocalizedButtonActionMap(language);
 
   return (
     <>
@@ -105,6 +233,14 @@ export function Navbar() {
             <Link
               href="/"
               id="nav-brand-logo"
+              onClick={(e) => {
+                if (isSpecialist) {
+                  setDoctorActiveTab("dashboard");
+                  if (pathname === "/") {
+                    e.preventDefault();
+                  }
+                }
+              }}
               className="group flex min-w-0 items-center gap-2.5 rounded-lg"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-800/20 bg-teal-700 text-white shadow-2xs transition group-hover:bg-teal-800">
@@ -123,8 +259,8 @@ export function Navbar() {
               </span>
               <span
                 className={`text-xs font-bold leading-snug tracking-tight text-slate-900 sm:text-sm ${
-                  currentUser?.role === "specialist"
-                    ? "max-w-[230px] sm:max-w-[320px] xl:max-w-[360px]"
+                  isSpecialist
+                    ? "max-w-[230px] sm:max-w-[300px] xl:max-w-[340px]"
                     : "max-w-[240px] sm:max-w-[380px] lg:max-w-none"
                 }`}
               >
@@ -132,52 +268,65 @@ export function Navbar() {
               </span>
             </Link>
 
-            {/* Clean Horizontal Menu Bar */}
-            {navLinks.length > 0 && (
+            {isSpecialist ? (
               <nav
                 aria-label="Primary"
                 className="flex items-center gap-1 overflow-x-auto"
               >
-                {navLinks.map((item) => {
-                  const isActive =
-                    item.href === "/ocr"
-                      ? pathname === "/ocr" || pathname === "/crf"
-                      : pathname === item.href;
+                {doctorTabs.map((tab) => {
+                  const isActive = doctorActiveTab === tab.id;
                   return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      id={item.id}
+                    <button
+                      key={tab.id}
+                      type="button"
+                      id={`nav-tab-${tab.id}`}
                       aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
+                      onClick={() => handleSelectDoctorTab(tab.id)}
+                      className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:text-sm cursor-pointer ${
                         isActive
                           ? "bg-teal-50 text-teal-900"
                           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
-                      {item.label}
-                      {item.href === "/ocr" && crfPatients.length > 0 && (
+                      {tab.label}
+                      {typeof tab.badge === "number" && tab.badge > 0 && (
                         <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-teal-100 px-1.5 py-0.2 text-[11px] font-bold tabular-nums text-teal-800">
-                          {crfPatients.length}
+                          {tab.badge}
                         </span>
                       )}
-                    </Link>
+                    </button>
                   );
                 })}
               </nav>
-            )}
+            ) : currentUser?.role === "patient" ? (
+              <nav
+                aria-label="Primary"
+                className="flex items-center gap-1 overflow-x-auto"
+              >
+                <Link
+                  href="/upload"
+                  id="nav-link-upload"
+                  aria-current={pathname === "/upload" ? "page" : undefined}
+                  className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
+                    pathname === "/upload"
+                      ? "bg-teal-50 text-teal-900"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  {isVi ? "Tải tài liệu" : "Upload Document"}
+                </Link>
+              </nav>
+            ) : null}
           </div>
 
-          {/* Right Controls: Session (only if logged in) or Sign In, and Compact Language Switcher on far right */}
+          {/* Right Controls: Session, Push Notification (Specialist) & Language Switcher */}
           <div className="ml-auto flex items-center gap-2">
             {currentUser ? (
               <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1 shadow-2xs">
                 <span
                   aria-hidden="true"
                   className={`h-2 w-2 rounded-full ${
-                    currentUser.role === "specialist"
-                      ? "bg-teal-600"
-                      : "bg-blue-600"
+                    isSpecialist ? "bg-teal-600" : "bg-blue-600"
                   }`}
                 />
                 <span className="hidden text-xs font-semibold text-slate-900 sm:inline">
@@ -200,6 +349,109 @@ export function Navbar() {
               >
                 {t.common.signIn}
               </Link>
+            )}
+
+            {/* Push Notification Bell next to Language Switcher (Specialist only) */}
+            {isSpecialist && (
+              <div ref={notifContainerRef} className="relative">
+                <button
+                  type="button"
+                  id="nav-btn-notifications"
+                  aria-expanded={isNotifOpen}
+                  aria-label={isVi ? "Thông báo" : "Notifications"}
+                  onClick={() => setIsNotifOpen((open) => !open)}
+                  className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100 cursor-pointer"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold leading-4 tabular-nums text-white">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {isNotifOpen && (
+                  <div
+                    role="region"
+                    aria-label={isVi ? "Danh sách thông báo" : "Notification list"}
+                    className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3.5 py-2.5">
+                      <span className="text-xs font-bold text-slate-900">
+                        {isVi ? "Thông báo" : "Notifications"}
+                      </span>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          id="nav-btn-mark-all-read"
+                          onClick={handleMarkAllRead}
+                          className="text-[11px] font-semibold text-teal-800 hover:underline cursor-pointer"
+                        >
+                          {isVi ? "Đánh dấu đã đọc" : "Mark all read"}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                      {notifications.length === 0 ? (
+                        <p className="px-4 py-6 text-center text-xs text-slate-500">
+                          {isVi ? "Không có thông báo mới." : "No notifications."}
+                        </p>
+                      ) : (
+                        notifications.map((item) => {
+                          const isUnread = !readSet.has(item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => handleNotificationClick(item)}
+                              className={`flex w-full items-start gap-2.5 px-3.5 py-2.5 text-left transition hover:bg-slate-50 cursor-pointer ${
+                                isUnread ? "bg-teal-50/40" : "bg-white"
+                              }`}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                                  item.tone === "rose"
+                                    ? "bg-rose-600"
+                                    : item.tone === "amber"
+                                    ? "bg-amber-500"
+                                    : "bg-teal-600"
+                                }`}
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-xs font-semibold text-slate-900">
+                                  {item.title}
+                                </span>
+                                <span className="mt-0.5 block text-[11px] text-slate-600">
+                                  {item.description}
+                                </span>
+                                {item.timeLabel && (
+                                  <span className="mt-0.5 block font-mono text-[10px] text-slate-400">
+                                    {item.timeLabel}
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Compact Bilingual English / Vietnamese Switcher (Far Right) */}
@@ -322,107 +574,6 @@ export function Navbar() {
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
-        </div>
-      )}
-
-      {/* Interactive Button & Mock Data Reference Modal */}
-      {isActionGuideOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-button-map-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsActionGuideOpen(false);
-          }}
-        >
-          <div className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
-              <div>
-                <h2
-                  id="modal-button-map-title"
-                  className="text-base font-bold text-slate-900"
-                >
-                  {t.navbar.modalTitle}
-                </h2>
-                <p className="text-xs text-slate-600">
-                  {t.navbar.modalDescription}
-                </p>
-              </div>
-              <button
-                type="button"
-                id="modal-btn-close-guide"
-                onClick={() => setIsActionGuideOpen(false)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-              >
-                {t.common.closeEsc}
-              </button>
-            </div>
-
-            <div className="overflow-y-auto p-6">
-              <div
-                tabIndex={0}
-                role="region"
-                aria-labelledby="modal-button-map-title"
-                className="overflow-x-auto rounded-lg border border-slate-200"
-              >
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-700">
-                      <th scope="col" className="px-3.5 py-2.5 font-semibold">
-                        {t.navbar.modalThPage}
-                      </th>
-                      <th scope="col" className="px-3.5 py-2.5 font-semibold">
-                        {t.navbar.modalThButton}
-                      </th>
-                      <th scope="col" className="px-3.5 py-2.5 font-semibold">
-                        {t.navbar.modalThAction}
-                      </th>
-                      <th scope="col" className="px-3.5 py-2.5 font-semibold">
-                        {t.navbar.modalThOutcome}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {localizedButtonMap.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/80">
-                        <td className="whitespace-nowrap px-3.5 py-2.5 font-medium text-slate-900">
-                          {item.page}
-                        </td>
-                        <td className="px-3.5 py-2.5">
-                          <span className="inline-block rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-teal-900">
-                            {item.buttonLabel}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-2.5 text-slate-600">
-                          {item.mockAction}
-                        </td>
-                        <td className="px-3.5 py-2.5 text-slate-700">
-                          {item.expectedOutcome}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-3 text-xs text-slate-600">
-              <span>
-                {t.common.allMockDataNotice}{" "}
-                <code className="rounded bg-slate-200/70 px-1.5 py-0.5 font-mono text-[11px] text-slate-800">
-                  src/data/mockData.ts
-                </code>
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsActionGuideOpen(false)}
-                className="rounded-lg bg-teal-700 px-4 py-1.5 font-semibold text-white hover:bg-teal-800 cursor-pointer"
-              >
-                {t.common.gotIt}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </>
