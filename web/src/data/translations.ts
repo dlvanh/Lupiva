@@ -225,6 +225,8 @@ export interface Translations {
     counterPending: string;
     counterApproved: string;
     crfFormBtn: string;
+    viewCrfForm: string;
+    crfFormUnavailable: string;
     redcapBtn: string;
     moreFilters: string;
     hideFilters: string;
@@ -557,6 +559,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       counterPending: "Unreviewed",
       counterApproved: "Approved",
       crfFormBtn: "CRF form",
+      viewCrfForm: "View CRF form",
+      crfFormUnavailable: "This dossier does not have a linked CRF.",
       redcapBtn: "REDCap",
       moreFilters: "More filters",
       hideFilters: "Hide filters",
@@ -900,6 +904,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       counterPending: "Chưa duyệt",
       counterApproved: "Đã duyệt",
       crfFormBtn: "Phiếu CRF",
+      viewCrfForm: "Xem phiếu CRF",
+      crfFormUnavailable: "Hồ sơ chưa có phiếu CRF liên kết.",
       redcapBtn: "REDCap",
       moreFilters: "Lọc thêm",
       hideFilters: "Ẩn lọc",
@@ -913,7 +919,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       collapseBtn: "Thu gọn",
       approveDossierBtn: "Phê duyệt hồ sơ",
       approveDossierBusy: "Đang phê duyệt…",
-      dossierApprovedBtn: "Hồ sơ đã phê duyệt",
+      dossierApprovedBtn: "Đã phê duyệt hồ sơ",
       approveDossierHint: "Duyệt hết các ô CRF còn lại trước khi phê duyệt hồ sơ.",
       dossierApprovedNotice: "Đã phê duyệt hồ sơ; hồ sơ được tính vào mục Đã duyệt trên bảng hồ sơ.",
       reviewSaved: (count) => `Đã duyệt ${count} ô.`,

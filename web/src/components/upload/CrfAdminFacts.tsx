@@ -16,6 +16,7 @@ import type { CrfView } from "@/lib/crfApproval";
 import { caseForIntake, viAdminValue, withoutHidden } from "@/lib/crfEvidence";
 import { shownValue, type Shown } from "@/lib/crfForm";
 import { adminField } from "@/lib/doctorDashboard";
+import type { IntakeJob } from "@/lib/webCaseIdentities";
 
 const FACTS = [
   ["ADM02", "Tuổi", "Age"],
@@ -28,9 +29,9 @@ const FACTS = [
   ["ADM09", "Điều dưỡng", "Nurse"],
 ] as const;
 
-type Jobs = { jobs?: { job_id?: string; case_id?: string | null }[] };
+type Jobs = { jobs?: IntakeJob[] };
 export type Fact = { id: string; label: string; slot: string; shown: Shown | null };
-export type CrfCaseState = { caseId: string; intakeId: string; view: CrfView } | { error: true };
+export type CrfCaseState = { caseId: string; intakeId: string; view: CrfView } | { error: true; caseId?: string };
 
 async function pipeline<T>(path: string): Promise<T> {
   const response = await fetch("/api/pipeline" + path, { cache: "no-store", credentials: "same-origin" });
@@ -80,18 +81,19 @@ export function clearCrfViewCache(): void {
   jobsCache = null;
 }
 
-async function loadCrfCase(intakeId: string): Promise<CrfCaseState> {
+async function loadCrfCase(intakeId: string, knownJobs?: readonly IntakeJob[]): Promise<CrfCaseState> {
+  let caseId: string | null = null;
   try {
-    const caseId = caseForIntake((await intakeJobs()).jobs, intakeId);
+    caseId = caseForIntake(knownJobs ?? (await intakeJobs()).jobs, intakeId);
     if (caseId) return { caseId, intakeId, view: await crfViewForCase(caseId) };
   } catch {
-    return { error: true };
+    return { error: true, caseId: caseId ?? undefined };
   }
   return { error: true };
 }
 
-/** Fetch CRFs only for dossiers shown in the dashboard, sharing results with the expanded rows. */
-export function useCrfCases(intakeIds: readonly string[]) {
+/** Fetch CRFs for the visible dossiers, sharing results with the expanded dashboard rows. */
+export function useCrfCases(intakeIds: readonly string[], knownJobs?: readonly IntakeJob[]) {
   const key = JSON.stringify([...new Set(intakeIds)].sort());
   const requests = useRef(new Map<string, Promise<CrfCaseState>>());
   const [loaded, setLoaded] = useState<Record<string, CrfCaseState>>({});
@@ -100,7 +102,7 @@ export function useCrfCases(intakeIds: readonly string[]) {
     for (const intakeId of JSON.parse(key) as string[]) {
       let request = requests.current.get(intakeId);
       if (!request) {
-        request = loadCrfCase(intakeId);
+        request = loadCrfCase(intakeId, knownJobs);
         requests.current.set(intakeId, request);
       }
       void request.then((state) => {
@@ -112,7 +114,7 @@ export function useCrfCases(intakeIds: readonly string[]) {
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, knownJobs]);
   return loaded;
 }
 

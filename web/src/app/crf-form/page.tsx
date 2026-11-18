@@ -10,12 +10,18 @@
  */
 import Link from "next/link";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLupiva } from "@/context/LupivaContext";
+import { CrfFormTitle } from "@/components/CrfDossierStatus";
 import { UiIcon } from "@/components/UiIcon";
+import { useCrfCases } from "@/components/upload/CrfAdminFacts";
+import { getSubmissionStatus } from "@/data/crfData";
+import { TRANSLATIONS } from "@/data/translations";
 import type { CrfField } from "@/lib/crfApproval";
 import { parseSlot } from "@/lib/crfSlot";
-import { withoutHidden, type CrfViewWithSources } from "@/lib/crfEvidence";
+import { linkedCases, withoutHidden, type CrfViewWithSources } from "@/lib/crfEvidence";
+import { dashboardPatient } from "@/lib/doctorDashboard";
+import { useWebCaseIdentities, webCaseLabel, type IntakeJob } from "@/lib/webCaseIdentities";
 import {
   approvedCriteria,
   cellKey,
@@ -136,9 +142,10 @@ function Checkboxes({ spec, shown, onPick }: { spec: CheckboxSpec; shown: Shown 
 }
 
 export default function CrfFormPage() {
-  const { currentUser } = useLupiva();
+  const { currentUser, language } = useLupiva();
   const isSpecialist = currentUser?.role === "specialist";
   const [cases, setCases] = useState<CaseItem[]>([]);
+  const [intakeJobs, setIntakeJobs] = useState<IntakeJob[]>([]);
   const [caseId, setCaseId] = useState("");
   const [view, setView] = useState<FormView | null>(null);
   const [showEmpty, setShowEmpty] = useState(false);
@@ -154,17 +161,33 @@ export default function CrfFormPage() {
   const [notice, setNotice] = useState<string | null>(null);
   // Cells with a source value or proposal not yet decided on "Duyệt hồ sơ".
   const [waiting, setWaiting] = useState(0);
+  const { identityByCase } = useWebCaseIdentities(intakeJobs, setError);
+  const patientCases = useMemo(() => linkedCases(cases, new Set(identityByCase.keys()), caseId), [cases, identityByCase, caseId]);
+  const selectedSubmission = identityByCase.get(caseId);
+  const webApproved = !!selectedSubmission && getSubmissionStatus(selectedSubmission.record) === "approved";
+  const demographicsIntakes = patientCases.flatMap(({ case_id }) => {
+    const submission = identityByCase.get(case_id);
+    if (!submission?.pipelineIntakeId) return [];
+    const { record } = submission;
+    if (dashboardPatient(record.patientName, null, language === "vi").name || (record.gender && record.age.trim())) return [];
+    return [submission.pipelineIntakeId];
+  });
+  const demographicsCases = useCrfCases(demographicsIntakes, intakeJobs);
+  const loadVersion = useRef(0);
 
   const load = useCallback(async (id: string) => {
+    const version = ++loadVersion.current;
     setCaseId(id);
     setView(null);
     setSummaries(null);
+    setScoreError(null);
     setError(null);
     setNotice(null);
+    setLoading(!!id);
     if (!id) return;
-    setLoading(true);
     try {
       const raw = withoutHidden(await backend<FormView>("/api/crf", { case_id: id }));
+      if (version !== loadVersion.current) return;
       // The form is filled from approved values only: source values and proposals are
       // reviewed on "Duyệt hồ sơ" first. Cells still waiting there are counted, not shown.
       const reviewed = raw.review?.values ?? {};
@@ -183,21 +206,27 @@ export default function CrfFormPage() {
       setEdits(initial);
       setView(next);
     } catch (reason) {
-      setError((reason as Error).message);
+      if (version === loadVersion.current) setError((reason as Error).message);
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!isSpecialist) return;
-    backend<{ cases: CaseItem[] }>("/api/summary")
-      .then(async (summary) => {
+    let cancelled = false;
+    void backend<{ jobs?: IntakeJob[] }>("/api/intakes")
+      .then(({ jobs }) => { if (!cancelled) setIntakeJobs(jobs ?? []); })
+      .catch((reason: Error) => { if (!cancelled) setError(reason.message); });
+    void backend<{ cases: CaseItem[] }>("/api/summary")
+      .then((summary) => {
+        if (cancelled) return;
         setCases(summary.cases);
         const initial = new URLSearchParams(window.location.search).get("case") ?? "";
-        if (initial && summary.cases.some((item) => item.case_id === initial)) await load(initial);
+        if (initial && summary.cases.some((item) => item.case_id === initial)) void load(initial);
       })
-      .catch((reason: Error) => setError(reason.message));
+      .catch((reason: Error) => { if (!cancelled) setError(reason.message); });
+    return () => { cancelled = true; };
   }, [isSpecialist, load]);
 
   const approved = view?.review?.values;
@@ -213,6 +242,7 @@ export default function CrfFormPage() {
   // Totals from the backend, counting only criteria the doctor has approved.
   useEffect(() => {
     if (!view?.score_form || !caseId) return;
+    let cancelled = false;
     const criteria = approvedCriteria(view.score_form, approved);
     backend<{ summaries: Record<string, Summary> }>("/api/crf/scores", undefined, {
       case_id: caseId,
@@ -220,10 +250,12 @@ export default function CrfFormPage() {
       assessment: { ana, date: view.score_default_date ?? "", criteria },
     })
       .then((report) => {
+        if (cancelled) return;
         setSummaries(report.summaries);
         setScoreError(null);
       })
-      .catch((reason: Error) => setScoreError(reason.message));
+      .catch((reason: Error) => { if (!cancelled) setScoreError(reason.message); });
+    return () => { cancelled = true; };
   }, [view, approved, ana, caseId]);
 
   const counts = useMemo(() => {
@@ -461,20 +493,29 @@ export default function CrfFormPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h1 className="text-xl font-semibold text-slate-800">Phiếu CRF</h1>
+        <CrfFormTitle language={language} webApproved={webApproved} />
         <div className="flex flex-wrap items-center gap-3">
           <select
-            aria-label="Bệnh nhân"
+            aria-label={TRANSLATIONS[language].doctor.dashboard.columns.patient}
             className="rounded border border-slate-300 px-2 py-1 text-sm"
             value={caseId}
-            onChange={(event) => load(event.target.value)}
+            disabled={saving}
+            onChange={(event) => {
+              setAna("");
+              void load(event.target.value);
+            }}
           >
-            <option value="">Chọn bệnh nhân…</option>
-            {cases.map((item) => (
-              <option key={item.case_id} value={item.case_id}>
-                {item.registry_code}
-              </option>
-            ))}
+            <option value="">{language === "vi" ? "Chọn bệnh nhân…" : "Choose a patient…"}</option>
+            {patientCases.map((item) => {
+              const submission = identityByCase.get(item.case_id);
+              const crf = submission?.pipelineIntakeId ? demographicsCases[submission.pipelineIntakeId] : null;
+              const view = crf && "view" in crf && crf.caseId === item.case_id ? crf.view : null;
+              return (
+                <option key={item.case_id} value={item.case_id}>
+                  {submission ? webCaseLabel(submission.record, view, language) : item.registry_code}
+                </option>
+              );
+            })}
           </select>
           <label className="flex items-center gap-1 text-sm text-slate-600">
             <input type="checkbox" checked={showEmpty} onChange={(event) => setShowEmpty(event.target.checked)} />

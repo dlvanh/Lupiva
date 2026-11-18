@@ -18,6 +18,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import { AdminFactsList, type Fact } from "@/components/upload/CrfAdminFacts";
 import { EvidencePanel, FieldRow } from "@/app/registry/page";
+import CrfFormPage from "@/app/crf-form/page";
+import { CrfFormTitle, DossierApprovalNotice } from "@/components/CrfDossierStatus";
 import { DoctorSubmissionsView, SubmissionRow, SubmissionTable } from "@/components/upload/DoctorSubmissionsView";
 import PatientUploadPage from "@/app/upload/page";
 
@@ -231,7 +233,7 @@ describe("compact submission rows", () => {
     submissionStatus: "approved" as const,
   };
 
-  const markup = (expanded: boolean, redcapExported = false) => renderToStaticMarkup(
+  const markup = (expanded: boolean, redcapExported = false, crf: React.ComponentProps<typeof SubmissionRow>["crf"] = { error: true, caseId: "backend/case" }) => renderToStaticMarkup(
     <SubmissionRow
       item={{
         dbSubmissionId: "web-id",
@@ -244,6 +246,8 @@ describe("compact submission rows", () => {
       copy={getUploadPageCopy("vi").doctor}
       isVi
       expanded={expanded}
+      inApprovedGroup
+      crf={crf}
       redcapExported={redcapExported}
       onToggle={() => {}}
       onOpenRegistry={() => {}}
@@ -252,13 +256,20 @@ describe("compact submission rows", () => {
     />,
   );
 
-  it("shows identity, date, image count, status and review while details are collapsed", () => {
+  it("links the approved dossier to its backend CRF while details are collapsed", () => {
     const html = markup(false);
-    for (const value of ["VN-1234-26", "Nguyễn Văn Minh", "19/11/2026", "1 ảnh", "Đã duyệt", ">Duyệt</button>"]) {
+    for (const value of ["VN-1234-26", "Nguyễn Văn Minh", "19/11/2026", "1 ảnh", "Đã duyệt", 'href="/crf-form?case=backend%2Fcase"', ">Xem phiếu CRF</a>"]) {
       expect(html).toContain(value);
     }
+    expect(html).not.toContain(">Duyệt</button>");
     expect(html).not.toContain("hành chính");
     expect(html).not.toContain("Tài liệu đính kèm");
+  });
+
+  it("shows the CRF action as unavailable when there is no backend case", () => {
+    const html = markup(false, false, { error: true });
+    expect(html).toMatch(/<button[^>]+disabled[^>]*>Xem phiếu CRF<\/button>/);
+    expect(html).not.toContain("/crf-form?case=");
   });
 
   it("shows documents and administrative details on expansion, and only marks known exports", () => {
@@ -268,6 +279,28 @@ describe("compact submission rows", () => {
     expect(html).toContain(">results</span>");
     expect(html).toContain("Đã xuất REDCap");
     expect(markup(false)).not.toContain("Đã xuất REDCap");
+  });
+});
+
+describe("dossier approval in the CRF workflow", () => {
+  it("links to the approved case from the registry success notice in both languages", () => {
+    for (const [language, label] of [["vi", "Xem phiếu CRF"], ["en", "View CRF form"]] as const) {
+      const html = renderToStaticMarkup(<DossierApprovalNotice caseId="approved/case" language={language} />);
+      expect(html).toContain('href="/crf-form?case=approved%2Fcase"');
+      expect(html).toContain(`>${label}</a>`);
+    }
+  });
+
+  it("shows the dossier approval state in the CRF header only after web sign-off", () => {
+    expect(renderToStaticMarkup(<CrfFormTitle language="vi" webApproved />)).toContain("Đã phê duyệt hồ sơ");
+    expect(renderToStaticMarkup(<CrfFormTitle language="vi" webApproved={false} />)).not.toContain("Đã phê duyệt hồ sơ");
+    expect(renderToStaticMarkup(<CrfFormTitle language="en" webApproved />)).toContain("Dossier approved");
+  });
+
+  it("starts with the patient prompt and no dossier selected", () => {
+    const html = renderToStaticMarkup(<CrfFormPage />);
+    expect(html).toContain('<option value="" selected="">Chọn bệnh nhân…</option>');
+    expect(html).not.toContain("Đã phê duyệt hồ sơ");
   });
 });
 
@@ -303,14 +336,14 @@ describe("grouped dossier table", () => {
     },
   };
   const copy = getUploadPageCopy("vi").doctor;
-  const table = (isVi = true) => renderToStaticMarkup(<SubmissionTable
+  const table = (isVi = true, workingCrf = crf) => renderToStaticMarkup(<SubmissionTable
     items={[
       item("awaiting", { firstOpenedAt: "opened" }),
       item("fresh"),
       item("working", { pipelineStatus: "completed", pipelineIntakeId: "intake-id", firstOpenedAt: "opened" }),
       item("failed", { pipelineStatus: "failed", pipelineError: "This exact source image is already linked to another patient." }),
     ]}
-    crfCases={{ "intake-id": crf }}
+    crfCases={{ "intake-id": workingCrf }}
     copy={getUploadPageCopy(isVi ? "vi" : "en").doctor}
     isVi={isVi}
     expandedId="working"
@@ -334,6 +367,8 @@ describe("grouped dossier table", () => {
     expect(markup).toContain('aria-label="Huyết học: 0/1 đã duyệt"');
     expect(markup).toContain("/registry?case=case-id&amp;intake=intake-id&amp;section=blood");
     expect(markup).toContain("còn 3 ô cần quyết định");
+    expect(markup).toContain(">Duyệt</button>");
+    expect(markup).not.toContain("Xem phiếu CRF");
     expect(markup).toContain("BS. Nguyễn An · 14:05 19/11");
     expect(markup).toContain("Ảnh trùng với hồ sơ khác đã có trong hệ thống");
     expect(markup).not.toContain("Gửi lại");
@@ -350,12 +385,19 @@ describe("grouped dossier table", () => {
     expect(markup).toContain("Dr Nguyễn An · 14:05 19/11");
   });
 
+  it("offers both CRF and review actions on a dossier ready for final sign-off", () => {
+    const ready = { ...crf, view: { ...crf.view, fields: [] } };
+    const markup = table(true, ready);
+    expect(markup).toMatch(/scope="rowgroup"[^>]*>Đã duyệt.*?VN-working.*?href="\/crf-form\?case=case-id"[^>]*>Xem phiếu CRF<\/a>.*?>Duyệt<\/button>/);
+  });
+
   it("offers a retry on transient failures and shows unknown details only on demand", () => {
     const row = (pipelineError: string) => renderToStaticMarkup(<SubmissionRow
       item={item("failed", { pipelineStatus: "failed", pipelineError })}
       copy={copy}
       isVi
       expanded
+      inApprovedGroup={false}
       redcapExported={false}
       onToggle={() => {}}
       onOpenRegistry={() => {}}

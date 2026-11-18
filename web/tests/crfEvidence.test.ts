@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   caseForIntake,
+  linkedCases,
   evidenceFor,
   proxiedAsset,
   reviewGroup,
@@ -116,5 +117,15 @@ describe("withoutHidden", () => {
       draft_sha256: "d",
     };
     expect(withoutHidden(view).fields.map((f) => f.slot)).toEqual(["IMM01/result", "IMM01/titre"]);
+  });
+});
+
+describe("linkedCases", () => {
+  const cases = [{ case_id: "a" }, { case_id: "b" }, { case_id: "c" }];
+  it("lists only backend cases that belong to a web submission", () => {
+    expect(linkedCases(cases, new Set(["b"]), "").map((c) => c.case_id)).toEqual(["b"]);
+  });
+  it("keeps the case currently open even when it has no web submission", () => {
+    expect(linkedCases(cases, new Set(["b"]), "c").map((c) => c.case_id)).toEqual(["b", "c"]);
   });
 });

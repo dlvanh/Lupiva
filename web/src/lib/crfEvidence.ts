@@ -317,3 +317,16 @@ export function viFieldLabel(field: CrfField): string | undefined {
   }
   return undefined;
 }
+
+/**
+ * Review-page patient list: only backend cases that belong to a web submission.
+ * Older backend-only test cases stay in the backend (append-only) but are hidden;
+ * the case currently open (e.g. from a link) is kept.
+ */
+export function linkedCases<T extends { case_id: string }>(
+  cases: readonly T[],
+  linked: ReadonlySet<string>,
+  current: string,
+): T[] {
+  return cases.filter((item) => linked.has(item.case_id) || item.case_id === current);
+}

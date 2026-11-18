@@ -14,6 +14,7 @@
  * field with its date and, when the image size matches, the row box.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { DossierApprovalNotice, ViewCrfLink } from "@/components/CrfDossierStatus";
 import { UiIcon } from "@/components/UiIcon";
 import { useLupiva } from "@/context/LupivaContext";
 import { getSubmissionStatus } from "@/data/crfData";
@@ -34,6 +35,7 @@ import {
   caseForIntake,
   evidenceFor,
   firstReviewField,
+  linkedCases,
   optionDate,
   reviewGroup,
   reviewProgress,
@@ -49,10 +51,10 @@ import {
 } from "@/lib/crfEvidence";
 import { parseSlot } from "@/lib/crfSlot";
 import type { SubmissionItemDTO } from "@/lib/submissionsService";
+import { useWebCaseIdentities, type IntakeJob } from "@/lib/webCaseIdentities";
 import { clearCrfViewCache } from "@/components/upload/CrfAdminFacts";
 
 type CaseItem = { case_id: string; registry_code: string };
-type IntakeJob = { job_id?: string; case_id?: string | null };
 type ScoreRow = { field_id: string; label: string; weight: number; definition?: string };
 type ReviewView = CrfViewWithSources & {
   score_form?: Record<string, ScoreRow[]>;
@@ -438,18 +440,17 @@ export default function RegistryCrfPage() {
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const [showEmpty, setShowEmpty] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | { approvedCaseId: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [drafting, setDrafting] = useState(false);
   // Free-text boxes stay hidden until the doctor clicks Edit.
   const [editing, setEditing] = useState<Set<string>>(new Set());
-  // Web submissions + intake jobs map backend case ids to Study ID / patient name.
-  const [identityByCase, setIdentityByCase] = useState<Map<string, SubmissionItemDTO>>(new Map());
   const [intakeJobs, setIntakeJobs] = useState<IntakeJob[]>([]);
   const [finalizing, setFinalizing] = useState(false);
   const loadVersion = useRef(0);
   const [openingIntake, setOpeningIntake] = useState<string | null>(null);
+  const { identityByCase, setIdentityByCase } = useWebCaseIdentities(intakeJobs, setError, openingIntake);
   const [requestedAnchor, setRequestedAnchor] = useState<string | null>(null);
 
   const load = useCallback(async (id: string, requestedSlot?: string, requestedSection?: string) => {
@@ -543,47 +544,6 @@ export default function RegistryCrfPage() {
       cancelled = true;
     };
   }, [canApprove, load]);
-
-  useEffect(() => {
-    if (!intakeJobs.length) return;
-    const controller = new AbortController();
-    const caseByIntake = new Map(intakeJobs.map(({ job_id, case_id }) => [job_id, case_id]));
-    const unmatched = new Set(intakeJobs.filter((job) => job.case_id).map((job) => job.job_id));
-    const map = new Map<string, SubmissionItemDTO>();
-    async function loadIdentities() {
-      for (let page = 1; page <= 1000 && !controller.signal.aborted; page++) {
-        // Date order remains stable when a specialist opens or approves a dossier.
-        const response = await fetch(`/api/submissions?sort=oldest&pageSize=50&page=${page}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = (await response.json()) as { items: SubmissionItemDTO[]; pagination: { hasNextPage: boolean } };
-        for (const item of result.items) {
-          if (!item.pipelineIntakeId) continue;
-          const id = caseByIntake.get(item.pipelineIntakeId);
-          if (!id) continue;
-          const previous = map.get(id);
-          if (item.pipelineIntakeId === openingIntake || previous?.pipelineIntakeId !== openingIntake) map.set(id, item);
-          unmatched.delete(item.pipelineIntakeId);
-        }
-        if (controller.signal.aborted) return;
-        const pageIdentities = new Map(map);
-        setIdentityByCase((current) => {
-          for (const [id, item] of current) {
-            if (pageIdentities.get(id)?.dbSubmissionId === item.dbSubmissionId &&
-                getSubmissionStatus(item.record) === "approved") pageIdentities.set(id, item);
-          }
-          return pageIdentities;
-        });
-        if (!result.pagination.hasNextPage || !unmatched.size) break;
-      }
-    }
-    void loadIdentities().catch((reason) => {
-      if (!controller.signal.aborted) setError((reason as Error).message);
-    });
-    return () => controller.abort();
-  }, [intakeJobs, openingIntake]);
 
   const selectedCount = Object.entries(selections).filter(([slot, id]) => id && !typed[slot]?.trim()).length +
     Object.entries(typed).filter(([slot, text]) => text.trim() && text.trim() !== view?.review?.values[slot]?.value).length +
@@ -827,13 +787,13 @@ export default function RegistryCrfPage() {
       const approved = (await response.json()) as SubmissionItemDTO;
       clearCrfViewCache();
       setIdentityByCase((previous) => new Map(previous).set(caseId, approved));
-      setNotice(dc.dossierApprovedNotice);
+      setNotice({ approvedCaseId: caseId });
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
       setFinalizing(false);
     }
-  }, [caseId, currentSubmission, finalizeReady, finalizing, webApproved, dc.dossierApprovedNotice]);
+  }, [caseId, currentSubmission, finalizeReady, finalizing, webApproved, setIdentityByCase]);
 
   const select = (slot: string, id: string) => setSelections((previous) => ({ ...previous, [slot]: id }));
   const tickAll = (fields: CrfField[]) => setSelections((previous) => ({
@@ -909,7 +869,7 @@ export default function RegistryCrfPage() {
           onChange={(event) => load(event.target.value)}
         >
           <option value="">{isVi ? "Chọn bệnh nhân…" : "Select a patient…"}</option>
-          {cases.map((item) => {
+          {linkedCases(cases, new Set(identityByCase.keys()), caseId).map((item) => {
             const mapped = identityByCase.get(item.case_id);
             return (
               <option key={item.case_id} value={item.case_id}>
@@ -986,7 +946,8 @@ export default function RegistryCrfPage() {
           {error === NO_LINKED_CRF && isVi ? "Hồ sơ này chưa có phiếu CRF." : error}
         </p>
       )}
-      {notice && <p className="mt-4 rounded bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</p>}
+      {typeof notice === "string" && <p className="mt-4 rounded bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</p>}
+      {notice && typeof notice !== "string" && <DossierApprovalNotice caseId={notice.approvedCaseId} language={language} />}
       {loading && <p className="mt-4 text-sm text-slate-500">{isVi ? "Đang tải phiếu…" : "Loading CRF…"}</p>}
 
       {view && progress && (
@@ -1206,6 +1167,13 @@ export default function RegistryCrfPage() {
                   ? dc.approveDossierBusy
                   : dc.approveDossierBtn}
             </button>
+          )}
+          {webApproved && (
+            <ViewCrfLink
+              caseId={caseId}
+              language={language}
+              className="rounded border border-teal-700 px-4 py-1.5 text-sm font-semibold text-teal-800 hover:bg-teal-50"
+            />
           )}
         </div>
       )}

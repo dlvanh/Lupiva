@@ -1,3 +1,4 @@
+import type { SleCrfPatientRecord } from "@/data/crfData";
 import type { CrfReview, CrfView } from "@/lib/crfApproval";
 import { CRF_SECTION_GROUPS, crfSectionGroup, viAdminValue, withoutHidden, type CrfSectionGroup } from "@/lib/crfEvidence";
 import { shownValue } from "@/lib/crfForm";
@@ -48,16 +49,17 @@ export function adminField(view: CrfView, fieldId: string) {
   return fields.find((field) => field.component === "result") ?? fields[0];
 }
 
-export function dashboardPatient(patientName: string, view: CrfView | null, isVi: boolean) {
+export function dashboardPatient(patientName: string, view: CrfView | null, isVi: boolean, profile?: Pick<SleCrfPatientRecord, "age" | "gender">) {
   const name = patientName.trim();
   if (name && !/^(chưa nhập tên|name not entered)$/i.test(name)) return { name, demographics: "" };
-  const demographics = view ? ["ADM03", "ADM02"].flatMap((id) => {
-    const field = adminField(view, id);
-    const value = field && shownValue(field, view.review?.values)?.text.trim();
+  const demographics = ["ADM03", "ADM02"].flatMap((id) => {
+    const field = view && adminField(view, id);
+    const fromCrf = field && shownValue(field, view?.review?.values)?.text.trim();
+    const value = fromCrf || (id === "ADM02" ? profile?.age : profile?.gender)?.trim();
     if (!value) return [];
     const formatted = id === "ADM02" && /^\d+$/.test(value) ? `${value} ${value === "1" ? "year" : "years"}` : value;
     return [isVi ? viAdminValue(id, formatted) : formatted];
-  }).join(", ") : "";
+  }).join(", ");
   return { name: "", demographics };
 }
 

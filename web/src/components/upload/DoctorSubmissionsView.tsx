@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ViewCrfLink } from "@/components/CrfDossierStatus";
 import { useLupiva } from "@/context/LupivaContext";
 import {
   SleCrfPatientRecord,
@@ -69,6 +70,7 @@ const DOT_TONES: Record<SectionTone, string> = {
   complete: "bg-emerald-600",
 };
 const COLUMN_WIDTHS = { studyId: "12%", patient: "17%", date: "11%", images: "7%", progress: "24%", status: "17%", actions: "12%" };
+const ROW_ACTION_CLASS = "inline-flex min-h-8 cursor-pointer items-center rounded-lg bg-teal-700 px-2 py-1 text-sm text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 
 function DocumentsAndTreatmentsGrid({
   patient,
@@ -180,6 +182,7 @@ export function SubmissionRow({
   isVi,
   crf = null,
   expanded,
+  inApprovedGroup,
   redcapExported,
   onToggle,
   onOpenRegistry,
@@ -191,6 +194,7 @@ export function SubmissionRow({
   isVi: boolean;
   crf?: CrfCaseState | null;
   expanded: boolean;
+  inApprovedGroup: boolean;
   redcapExported: boolean;
   onToggle: () => void;
   onOpenRegistry: (intakeId: string) => void;
@@ -300,18 +304,32 @@ export function SubmissionRow({
         </SubmissionCell>
         <SubmissionCell label={columns.actions}>
           <div className="flex flex-wrap items-center gap-1">
-            <button
-              type="button"
-              disabled={!intakeId}
-              title={intakeId ? undefined : dashboard.reviewUnavailable}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (intakeId) onOpenRegistry(intakeId);
-              }}
-              className="min-h-8 cursor-pointer rounded-lg bg-teal-700 px-2 py-1 text-sm text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-            >
-              {dc.reviewBtn}
-            </button>
+            {inApprovedGroup && (crf?.caseId ? (
+              <ViewCrfLink caseId={crf.caseId} language={isVi ? "vi" : "en"} className={ROW_ACTION_CLASS} stopPropagation />
+            ) : (
+              <button
+                type="button"
+                disabled
+                title={item.pipelineIntakeId && !crf ? dc.progressLoading : dc.crfFormUnavailable}
+                className={ROW_ACTION_CLASS}
+              >
+                {dc.viewCrfForm}
+              </button>
+            ))}
+            {(!inApprovedGroup || !webApproved) && (
+              <button
+                type="button"
+                disabled={!intakeId}
+                title={intakeId ? undefined : dashboard.reviewUnavailable}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (intakeId) onOpenRegistry(intakeId);
+                }}
+                className={ROW_ACTION_CLASS}
+              >
+                {dc.reviewBtn}
+              </button>
+            )}
             <button
               type="button"
               aria-expanded={expanded}
@@ -405,7 +423,7 @@ export function SubmissionTable({
 }) {
   const dashboard = TRANSLATIONS[isVi ? "vi" : "en"].doctor.dashboard;
   const groups = groupDashboardRows(items.map((item) => {
-    const crf = item.pipelineStatus === "completed" && item.pipelineIntakeId ? crfCases[item.pipelineIntakeId] : null;
+    const crf = item.pipelineIntakeId ? crfCases[item.pipelineIntakeId] : null;
     const view = crf && "view" in crf ? crf.view : null;
     return {
       item,
@@ -452,6 +470,7 @@ export function SubmissionTable({
                 copy={copy}
                 isVi={isVi}
                 expanded={expandedId === item.dbSubmissionId}
+                inApprovedGroup={group === "approved"}
                 redcapExported={exportedIds.has(item.dbSubmissionId)}
                 onToggle={() => onToggle(item)}
                 onOpenRegistry={onOpenRegistry}
@@ -673,9 +692,11 @@ export function DoctorSubmissionsView({
   };
 
   const items = apiState.data?.items ?? [];
-  const crfCases = useCrfCases(items.flatMap((item) =>
-    item.pipelineStatus === "completed" && item.pipelineIntakeId ? [item.pipelineIntakeId] : [],
-  ));
+  const crfCases = useCrfCases(items.flatMap((item) => {
+    const canHaveCrf = item.pipelineStatus === "completed" ||
+      (item.pipelineStatus !== "failed" && getSubmissionStatus(item.record) === "approved");
+    return canHaveCrf && item.pipelineIntakeId ? [item.pipelineIntakeId] : [];
+  }));
 
   const openRegistry = (intakeId: string) => {
     router.push(`/registry?intake=${encodeURIComponent(intakeId)}`);
