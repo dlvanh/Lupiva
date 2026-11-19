@@ -28,7 +28,7 @@ describe("deriveCriteria", () => {
   it("uses an unapproved LLM proposal over the image value, and the approved value over both", () => {
     const fields = [lab("HEM05/result", ["9.1"], "3.2"), lab("HEM11/result", ["250"], "80")];
     const derived = deriveCriteria(fields, { "HEM11/result": { value: "150" } });
-    expect(derived.EAC02).toEqual({ answer: "yes", evidence: "HEM05 = 3.2" });
+    expect(derived.EAC02).toEqual({ answer: "yes", evidence: "HEM05 = 3.2", slots: ["HEM05/result"], basis: "lab" });
     expect(derived.SDA24.answer).toBe("no");
     expect(derived.EAC03.answer).toBe("no");
   });
