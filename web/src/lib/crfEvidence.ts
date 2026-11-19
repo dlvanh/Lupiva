@@ -151,6 +151,22 @@ export function singleSourceSelections(fields: readonly CrfField[]): Record<stri
   return result;
 }
 
+/**
+ * Pre-ticks the background/administrative group (sex, age, height, weight,
+ * BMI, physician, nurse…) when the documents give exactly one value, or BMI
+ * was calculated from them. Conflicting values stay for the doctor; nothing
+ * is stored until "Duyệt các ô đã chọn".
+ */
+export function adminPrefill(fields: readonly CrfField[], approved: Readonly<Record<string, unknown>>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const field of fields) {
+    if (approved[field.slot] || crfSectionGroup(field) !== "admin") continue;
+    if (field.options.length === 1) result[field.slot] = field.options[0].id;
+    else if (!field.options.length && field.proposal?.origin === "calculated") result[field.slot] = field.proposal.id;
+  }
+  return result;
+}
+
 /** Map a backend intake job to its registry case (for /registry?intake=…). */
 export function caseForIntake(
   jobs: readonly { job_id?: string; case_id?: string | null }[] | undefined,

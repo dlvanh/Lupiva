@@ -143,3 +143,17 @@ describe("linkedCases", () => {
     expect(linkedCases(cases, new Set(["b"]), "c").map((c) => c.case_id)).toEqual(["b", "c"]);
   });
 });
+
+describe("adminPrefill", () => {
+  it("ticks background/administrative fields that have exactly one source value or a calculated BMI", async () => {
+    const { adminPrefill } = await import("@/lib/crfEvidence");
+    const fields = [
+      field({ slot: "ADM03/result", section: "Administrative", options: [{ id: "o1", value: "Female" }] }),
+      field({ slot: "ADM06/result", section: "Administrative", options: [{ id: "a", value: "52 kg" }, { id: "b", value: "54 kg" }] }),
+      field({ slot: "ADM07/result", section: "Administrative", proposal: { id: "bmi", value: "25.4", origin: "calculated" } }),
+      field({ slot: "ADM05/result", section: "Administrative", options: [{ id: "h", value: "143 cm" }] }),
+      field({ slot: "CBC01/result", section: "Haematology", options: [{ id: "c", value: "4.2" }] }),
+    ];
+    expect(adminPrefill(fields, { "ADM05/result": true })).toEqual({ "ADM03/result": "o1", "ADM07/result": "bmi" });
+  });
+});

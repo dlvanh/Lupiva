@@ -48,6 +48,7 @@ import {
   type Evidence,
   type SourceDetail,
   withoutHidden,
+  adminPrefill,
 } from "@/lib/crfEvidence";
 import { parseSlot } from "@/lib/crfSlot";
 import type { SubmissionItemDTO } from "@/lib/submissionsService";
@@ -473,6 +474,7 @@ export default function RegistryCrfPage() {
       const next = withoutHidden(await backend<ReviewView>("/api/crf", { case_id: id }));
       if (version !== loadVersion.current) return;
       setView(next);
+      setSelections(adminPrefill(next.fields, next.review?.values ?? {}));
       const previous = next.review?.scores?.assessment;
       setAna(previous?.ana === "yes" || previous?.ana === "no" ? previous.ana : "");
       setScoreDate(previous?.date || next.score_default_date || "");
