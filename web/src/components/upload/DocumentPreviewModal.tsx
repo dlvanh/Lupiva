@@ -312,7 +312,7 @@ function DocumentPreviewDialogBody({
         >
           {/* Attachment Switcher Pills */}
           <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-            <span className="font-mono text-[11px] font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-slate-600">
               {vc.filesLabel}
             </span>
             {uploadedFiles.map((f) => {
@@ -340,7 +340,7 @@ function DocumentPreviewDialogBody({
           {/* PDF / DOCX / Image Controls: Page X of Y, Zoom In/Out, Rotate, Download */}
           <div className="flex flex-wrap items-center gap-1.5">
             {/* Page Navigation & Count */}
-            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 font-mono text-[11px]">
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs tabular-nums">
               <button
                 type="button"
                 id="doc-viewer-prev-page"
@@ -369,7 +369,7 @@ function DocumentPreviewDialogBody({
             </div>
 
             {/* Zoom Controls */}
-            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 font-mono text-[11px]">
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs tabular-nums">
               <button
                 type="button"
                 id="doc-viewer-zoom-out"
@@ -404,7 +404,7 @@ function DocumentPreviewDialogBody({
             </div>
 
             {/* Rotate Controls */}
-            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 font-mono text-[11px]">
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs tabular-nums">
               <button
                 type="button"
                 id="doc-viewer-rotate-left"
@@ -613,7 +613,7 @@ function DocumentPreviewDialogBody({
                     /* PAGE 2: Immunoblot Strip, Treatments & Care Team Sign-Off */
                     <div className="mt-4 space-y-4">
                       <div>
-                        <h4 className="font-mono text-xs font-bold uppercase tracking-wide text-slate-700">
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-700">
                           {vc.blotHeading}
                         </h4>
                         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -653,7 +653,7 @@ function DocumentPreviewDialogBody({
                       </div>
 
                       <div className="border-t border-slate-200 pt-3">
-                        <h4 className="font-mono text-xs font-bold uppercase tracking-wide text-slate-700">
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-700">
                           {vc.txHeading}
                         </h4>
                         {patient.treatments.length > 0 ? (
@@ -680,7 +680,7 @@ function DocumentPreviewDialogBody({
                       </div>
 
                       <div className="rounded-lg border border-slate-200 bg-slate-100/80 p-3 text-xs">
-                        <h4 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-700">
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-700">
                           {vc.careTeamHeading}
                         </h4>
                         <p className="mt-1 text-slate-700">
@@ -691,14 +691,14 @@ function DocumentPreviewDialogBody({
                           • {copy.nursePrefix} {patient.nurse}
                         </p>
                         {approved ? (
-                          <p className="mt-1.5 font-mono text-[11px] font-semibold text-teal-900">
+                          <p className="mt-1.5 text-xs font-semibold tabular-nums text-teal-900">
                             {vc.signedByLabel}{" "}
                             {patient.signedOffBy ?? patient.physician} • EULAR/ACR:{" "}
                             {eular.totalScore} pts • SLEDAI-2K:{" "}
                             {sledai.totalScore} pts
                           </p>
                         ) : (
-                          <p className="mt-1.5 font-mono text-[11px] font-semibold text-amber-900">
+                          <p className="mt-1.5 text-xs font-semibold text-amber-900">
                             {vc.pendingSignOff}
                           </p>
                         )}

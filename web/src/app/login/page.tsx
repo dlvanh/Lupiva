@@ -3,33 +3,10 @@
 import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { UserRole } from "@/data/mockData";
 import { useLupiva } from "@/context/LupivaContext";
+import { resolveSafeRedirect } from "@/lib/loginRedirect";
 
 type AuthMode = "login" | "register";
-
-function resolveSafeRedirect(nextParam: string | null, role: UserRole): string {
-  const defaultRoute = role === "patient" ? "/upload" : "/";
-  if (!nextParam) return defaultRoute;
-
-  const isSafeRelative =
-    nextParam.startsWith("/") &&
-    !nextParam.startsWith("//") &&
-    !nextParam.startsWith("/\\");
-
-  if (!isSafeRelative) return defaultRoute;
-
-  const isSpecialistRoute =
-    nextParam.startsWith("/ocr") ||
-    nextParam.startsWith("/crf") ||
-    nextParam.startsWith("/scores");
-
-  if (role === "patient" && isSpecialistRoute) {
-    return "/upload";
-  }
-
-  return nextParam;
-}
 
 function buildAuthModeHref(mode: AuthMode, nextParam: string | null): string {
   const params = new URLSearchParams();

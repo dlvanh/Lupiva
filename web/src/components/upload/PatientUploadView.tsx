@@ -380,7 +380,7 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
           className={`rounded-xl border border-slate-200 bg-white shadow-2xs ${embedded ? "p-6" : "p-4 sm:p-6"}`}
         >
           {embedded && (
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-teal-800">
+            <span className="text-xs font-semibold uppercase tracking-wider text-teal-800">
               {embeddedCopy.eyebrow}
             </span>
           )}
@@ -575,7 +575,7 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
                             </span>
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className={embedded ? "font-mono text-[11px] font-semibold text-teal-800" : "font-semibold text-teal-900"}>
+                            <p className={embedded ? "text-[11px] font-semibold text-teal-800" : "font-semibold text-teal-900"}>
                               {fileLabel(index, language)}
                             </p>
                             <p className="font-medium text-slate-900">

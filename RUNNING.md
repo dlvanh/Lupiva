@@ -1,4 +1,4 @@
-# Hướng dẫn chạy VietNam Lupus Registry
+# Hướng dẫn chạy Vietnam Lupus Registry
 
 Hệ thống gồm hai phần chạy cùng nhau:
 
