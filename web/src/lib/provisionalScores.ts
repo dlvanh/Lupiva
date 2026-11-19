@@ -1,6 +1,5 @@
 import type { CrfProposal } from "@/lib/crfApproval";
 import { parseSlot } from "@/lib/crfSlot";
-import { deriveAna, deriveCriteria, type Derived } from "@/lib/labDerivedCriteria";
 
 type Answer = "yes" | "no";
 type ProvisionalClassification = "meets" | "ana_not_met" | "undetermined";
@@ -84,27 +83,23 @@ function provisionalAna(view: ProvisionalScoreView): Answer | undefined {
   const fields = view.fields.filter((field) => parseSlot(field.slot).baseSlot === "IMM01/result");
   const proposals = new Set(fields.map((field) => anaPolarity(proposalValue(field))).filter(Boolean));
   if (proposals.size) return proposals.size === 1 ? proposals.values().next().value : undefined;
-  return anaPolarity(singleOptionValue(fields.flatMap((field) => field.options)))
-    ?? deriveAna(view.fields, view.review?.values)?.answer;
+  return anaPolarity(singleOptionValue(fields.flatMap((field) => field.options)));
 }
 
 export function computeProvisionalScores(view: ProvisionalScoreView) {
   const fields = new Map(view.fields.map((field) => [field.slot, field]));
   const assessment = view.review?.scores?.assessment;
   const approved = view.review?.values;
-  const derivedAll = deriveCriteria(view.fields, approved);
 
   const resolveCriteria = (rows: readonly ScoreRow[] = []) => rows
     .filter(({ field_id }) => field_id !== "EAC22" && field_id !== "SDA25")
-    .map(({ field_id, weight, label }) => {
+    .map(({ field_id, weight }) => {
       const slot = field_id + "/result";
       const field = fields.get(slot);
       const confirmed = binaryAnswer(assessment?.criteria?.[field_id]) ?? binaryAnswer(approved?.[slot]?.value);
       const proposal = confirmed ? undefined : binaryAnswer(proposalValue(field));
-      const direct = confirmed ?? proposal ?? binaryAnswer(singleOptionValue(field?.options));
-      const derived: Derived | undefined = direct ? undefined : derivedAll[field_id];
-      const answer = direct ?? derived?.answer;
-      return { field_id, label, weight, answer, proposed: proposal !== undefined, derived };
+      const answer = confirmed ?? proposal ?? binaryAnswer(singleOptionValue(field?.options));
+      return { field_id, weight, answer, proposed: proposal !== undefined };
     });
 
   const sledai = resolveCriteria(view.score_form?.sledai);
@@ -126,22 +121,13 @@ export function computeProvisionalScores(view: ProvisionalScoreView) {
       yesCount: sledaiYes.length,
       proposalCount: sledai.filter(({ proposed }) => proposed).length,
       unansweredCount: sledai.filter(({ answer }) => !answer).length,
-      derived: derivedRows(sledai),
     },
     eular: {
       total: eularTotal,
       classification,
       proposalCount: eular.filter(({ proposed }) => proposed).length,
-      unansweredCount: eular.filter(({ answer }) => !answer).length,
-      derived: derivedRows(eular),
-      ana,
     },
   };
-}
-
-function derivedRows(rows: { field_id: string; label: string; weight: number; derived?: Derived }[]) {
-  return rows.flatMap(({ field_id, label, weight, derived }) =>
-    derived ? [{ field_id, label, weight, answer: derived.answer, evidence: derived.evidence }] : []);
 }
 
 export type ProvisionalScores = ReturnType<typeof computeProvisionalScores>;

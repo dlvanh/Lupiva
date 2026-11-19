@@ -37,7 +37,7 @@ describe("computeProvisionalScores", () => {
     };
     const original = structuredClone(view);
 
-    expect(computeProvisionalScores(view).sledai).toMatchObject({
+    expect(computeProvisionalScores(view).sledai).toEqual({
       total: 7, yesCount: 3, proposalCount: 2, unansweredCount: 0,
     });
     expect(view).toEqual(original);
@@ -60,7 +60,7 @@ describe("computeProvisionalScores", () => {
       },
     });
 
-    expect(result.sledai).toMatchObject({ total: 16, yesCount: 2, proposalCount: 1, unansweredCount: 4 });
+    expect(result.sledai).toEqual({ total: 16, yesCount: 2, proposalCount: 1, unansweredCount: 4 });
   });
 
   it("uses one maximum per EULAR domain even when score form rows are reordered", () => {
@@ -75,7 +75,7 @@ describe("computeProvisionalScores", () => {
 
     expect(computeProvisionalScores({
       score_form, fields, review: { scores: { assessment: { ana: "yes" } } },
-    }).eular).toMatchObject({ total: 51, classification: "meets", proposalCount: 21 });
+    }).eular).toEqual({ total: 51, classification: "meets", proposalCount: 21 });
   });
 
   it.each([
@@ -94,7 +94,7 @@ describe("computeProvisionalScores", () => {
       score_form: eularAtThreshold,
       fields: [...clinicalAndImmunologic, ...anaFields],
       review: { scores: { assessment: { ana } } },
-    }).eular).toMatchObject({ total: 10, classification, proposalCount: 2 });
+    }).eular).toEqual({ total: 10, classification, proposalCount: 2 });
   });
 
   it.each([
@@ -107,6 +107,6 @@ describe("computeProvisionalScores", () => {
       review: { scores: { assessment: { ana: "yes" } } },
     });
 
-    expect(result.eular).toMatchObject({ total, classification: "undetermined", proposalCount: 2 });
+    expect(result.eular).toEqual({ total, classification: "undetermined", proposalCount: 2 });
   });
 });

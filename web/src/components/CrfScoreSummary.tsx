@@ -52,8 +52,6 @@ export function CrfScoreSummary({
     ? `gồm ${proposalCount} đề xuất chưa duyệt, còn ${unansweredCount} tiêu chí chưa có dữ kiện`
     : `includes ${proposalCount} unapproved ${proposalCount === 1 ? "proposal" : "proposals"}, ${unansweredCount} ${unansweredCount === 1 ? "criterion" : "criteria"} without evidence`;
 
-  const derivedRows = [...provisional.eular.derived, ...provisional.sledai.derived];
-
   return (
     <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
       <div className="rounded border border-slate-200 bg-slate-50 p-3 text-slate-800">
@@ -64,27 +62,11 @@ export function CrfScoreSummary({
       <aside className="rounded border border-dashed border-amber-500 bg-amber-50 p-3 text-amber-950 print:hidden">
         <h3 className="font-semibold">{isVi ? "Điểm tạm tính (chưa duyệt)" : "Provisional scores (unapproved)"}</h3>
         <p className="mt-1">SLEDAI-2K ≈ {provisional.sledai.total} ({provisionalDetails})</p>
-        <p>EULAR/ACR 2019 ≈ {provisional.eular.total} · {labels[provisional.eular.classification]}
-          {provisional.eular.ana && ` · ANA ${provisional.eular.ana === "yes" ? (isVi ? "dương tính (tạm)" : "positive (provisional)") : (isVi ? "âm tính (tạm)" : "negative (provisional)")}`}
-        </p>
-        {derivedRows.length > 0 && (
-          <details className="mt-1">
-            <summary className="cursor-pointer">
-              {isVi ? `${derivedRows.length} tiêu chí suy từ xét nghiệm` : `${derivedRows.length} criteria inferred from lab results`}
-            </summary>
-            <ul className="mt-1 list-disc pl-5 text-xs">
-              {derivedRows.map((row) => (
-                <li key={row.field_id}>
-                  {row.label}: {row.answer === "yes" ? (isVi ? `Có (+${row.weight})` : `Yes (+${row.weight})`) : (isVi ? "Không" : "No")} ({row.evidence})
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
+        <p>EULAR/ACR 2019 ≈ {provisional.eular.total} · {labels[provisional.eular.classification]}</p>
         <p className="mt-1 text-xs">
           {isVi
-            ? "Chỉ để tham khảo, gồm đề xuất chưa duyệt và tiêu chí suy từ xét nghiệm (không xét cửa sổ 10 ngày); điểm chính thức tính từ các tiêu chí bác sĩ đã xác nhận."
-            : "For reference only: includes unapproved proposals and criteria inferred from lab results (10-day window not checked). Official scores use the criteria confirmed by the doctor."}
+            ? "Chỉ để tham khảo; điểm chính thức tính từ các tiêu chí bác sĩ đã xác nhận."
+            : "For reference only. Official scores use the criteria confirmed by the doctor."}
         </p>
       </aside>
     </div>
