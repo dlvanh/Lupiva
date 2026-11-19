@@ -51,24 +51,6 @@ export function polarity(value: string): Answer | undefined {
   return undefined;
 }
 
-function yesNo(value: string): Answer | undefined {
-  const text = value.trim().toLowerCase();
-  if (/^(yes|có|co)(?![\p{L}\d])/u.test(text)) return "yes";
-  if (/^(no|không|khong)(?![\p{L}\d])/u.test(text)) return "no";
-  return undefined;
-}
-
-/** Clinical Có/Không fields: any "yes" meets the criterion, otherwise all answered "no". */
-function clinical(readings: Reading[]): Derived | undefined {
-  const judged = readings.flatMap((reading) => {
-    const answer = yesNo(reading.value);
-    return answer ? [{ reading, answer }] : [];
-  });
-  if (!judged.length) return undefined;
-  const yes = judged.filter(({ answer }) => answer === "yes");
-  return { answer: yes.length ? "yes" : "no", evidence: show((yes.length ? yes : judged).map(({ reading }) => reading)) };
-}
-
 const show = (readings: Reading[]) => readings.map(({ fieldId, value }) => `${fieldId} = ${value}`).join("; ");
 
 /** Numeric test per reading; an explicit negative text counts as "not met". */
@@ -127,40 +109,10 @@ export function deriveCriteria(fields: readonly LabField[], approved?: Approved)
   const proteinuria = threshold([...read("REN08"), ...read("REN01")],
     (n, reading, unit) => proteinGrams(reading.fieldId, n, unit) > 0.5);
   const urineCells = (fieldId: string) => threshold(read(fieldId), (n) => n > 5);
-  const yesNoOf = (...ids: string[]) => clinical(ids.flatMap(read));
-  const feverAnswer = yesNoOf("HIS11");
-  const swollen = threshold(read("JNT02"), (n) => n >= 2);
-  const joints = swollen ?? (yesNoOf("JNT01")?.answer === "no" ? yesNoOf("JNT01") : undefined);
-  const seizure = yesNoOf("NEU02");
-  const psychosis = yesNoOf("NEU04");
-  const malar = yesNoOf("SKN02");
-  const alopecia = yesNoOf("SKN06");
-  const oralUlcers = yesNoOf("SKN08");
-  const pericarditis = yesNoOf("CV03");
 
   const derived: Record<string, Derived | undefined> = {
-    EAC01: threshold(fever, (n) => n > 38.3) ?? feverAnswer,
-    SDA22: threshold(fever, (n) => n > 38) ?? feverAnswer,
-    EAC06: psychosis,
-    SDA02: psychosis,
-    EAC07: seizure,
-    SDA01: seizure,
-    SDA05: yesNoOf("NEU05"),
-    SDA07: yesNoOf("NEU06"),
-    SDA08: yesNoOf("SKN10"),
-    EAC08: alopecia,
-    SDA16: alopecia,
-    EAC09: oralUlcers,
-    SDA17: oralUlcers,
-    EAC11: malar,
-    SDA15: malar,
-    EAC12: yesNoOf("CV06", "LUNG04"),
-    SDA18: yesNoOf("LUNG04"),
-    EAC13: pericarditis,
-    SDA19: pericarditis,
-    EAC14: joints,
-    SDA09: joints,
-    SDA10: yesNoOf("MUS02"),
+    EAC01: threshold(fever, (n) => n > 38.3),
+    SDA22: threshold(fever, (n) => n > 38),
     EAC02: threshold(wbc, countBelow(4, 1000)),
     SDA24: threshold(wbc, countBelow(3, 1000)),
     EAC03: threshold(platelets, countBelow(100, 10000)),
