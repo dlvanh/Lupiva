@@ -58,6 +58,39 @@ describe("deriveCriteria", () => {
   });
 });
 
+describe("clinical criteria", () => {
+  it("maps Có/Không clinical fields to EULAR and SLEDAI criteria, skipping unknown and no_evidence", () => {
+    const derived = deriveCriteria([
+      lab("NEU02/result", [], "yes"),
+      lab("SKN02/result", [], "Có"),
+      lab("SKN06/result", [], "unknown"),
+      lab("SKN08/result", [], "yes", "no_evidence"),
+      lab("MUS02/result", [], "no"),
+      lab("JNT02/result", [], "3"),
+      lab("LUNG04/result", [], "no"),
+      lab("CV06/result", [], "yes"),
+      lab("HIS11/result", [], "no"),
+    ]);
+    expect(derived.EAC07.answer).toBe("yes");
+    expect(derived.SDA01.answer).toBe("yes");
+    expect(derived.EAC11.answer).toBe("yes");
+    expect(derived.SDA15.answer).toBe("yes");
+    expect(derived.SDA10.answer).toBe("no");
+    expect(derived.EAC14.answer).toBe("yes");
+    expect(derived.SDA09.evidence).toBe("JNT02 = 3");
+    expect(derived.EAC12.answer).toBe("yes");
+    expect(derived.SDA18.answer).toBe("no");
+    expect(derived.EAC01.answer).toBe("no");
+    expect(derived.EAC08).toBeUndefined();
+    expect(derived.EAC09).toBeUndefined();
+  });
+
+  it("does not take joint damage 'yes' alone as arthritis of two or more joints", () => {
+    expect(deriveCriteria([lab("JNT01/result", [], "yes")]).EAC14).toBeUndefined();
+    expect(deriveCriteria([lab("JNT01/result", [], "no")]).EAC14?.answer).toBe("no");
+  });
+});
+
 describe("deriveAna and polarity", () => {
   it("treats a pattern with intensity as positive, titre wins when present", () => {
     expect(deriveAna([lab("IMM01/result", ["Homogeneous 3+"])])?.answer).toBe("yes");
