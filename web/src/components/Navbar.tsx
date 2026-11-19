@@ -70,18 +70,16 @@ export function Navbar() {
           { href: "/registry", label: isVi ? "Duyệt hồ sơ" : "Review", id: "nav-link-registry" },
           { href: "/crf-form", label: isVi ? "Phiếu CRF" : "CRF form", id: "nav-link-crf-form" },
         ]
-      : [
-          ...SITE_PAGES.map((page) => ({ href: page.href, label: isVi ? page.vi : page.en, id: page.id })),
-          ...(currentUser?.role === "patient"
-            ? [
-                {
-                  href: "/upload",
-                  label: t.patientPortal.patientMenuLabel,
-                  id: "nav-link-upload",
-                },
-              ]
-            : []),
-        ];
+      : SITE_PAGES.map((page) => ({
+          href: page.href,
+          label:
+            page.href === "/upload" && currentUser?.role === "patient"
+              ? t.patientPortal.patientMenuLabel
+              : isVi
+                ? page.vi
+                : page.en,
+          id: page.id,
+        }));
 
   const localizedButtonMap = getLocalizedButtonActionMap(language);
 
@@ -187,13 +185,22 @@ export function Navbar() {
                 </button>
               </div>
             ) : (
-              <Link
-                href="/login"
-                id="nav-btn-signin"
-                className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
-              >
-                {t.common.signIn}
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login?role=specialist"
+                  id="nav-btn-doctor"
+                  className="inline-flex items-center rounded-lg border border-teal-700/30 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-900 transition hover:bg-teal-100"
+                >
+                  {isVi ? "Dành cho bác sĩ" : "For physicians"}
+                </Link>
+                <Link
+                  href="/login"
+                  id="nav-btn-signin"
+                  className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+                >
+                  {t.common.signIn}
+                </Link>
+              </div>
             )}
 
             {currentUser?.role === "specialist" && (
