@@ -13,9 +13,8 @@ export type LabField = {
   options: readonly { value: string }[];
   proposal?: { value: string; origin?: string };
 };
-/** basis: "lab" = measured value or test result, "clinical" = a Có/Không answer in the CRF (needs a closer look). */
-export type Derived = { answer: Answer; evidence: string; slots: string[]; basis: "lab" | "clinical" };
-type Reading = { fieldId: string; slot: string; value: string };
+export type Derived = { answer: Answer; evidence: string };
+type Reading = { fieldId: string; value: string };
 type Approved = Record<string, { value: string }> | undefined;
 
 const UNKNOWN = new Set(["", "unknown", "chưa rõ", "không rõ"]);
@@ -31,9 +30,9 @@ export function labReadings(fields: readonly LabField[], approved: Approved, fie
     if (slot.fieldId !== fieldId || slot.component !== component) continue;
     const approvedValue = approved?.[field.slot]?.value;
     const proposal = field.proposal?.origin === "no_evidence" ? undefined : field.proposal?.value;
-    if (usable(approvedValue)) readings.push({ fieldId, slot: field.slot, value: approvedValue });
-    else if (usable(proposal)) readings.push({ fieldId, slot: field.slot, value: proposal });
-    else for (const { value } of field.options) if (usable(value)) readings.push({ fieldId, slot: field.slot, value });
+    if (usable(approvedValue)) readings.push({ fieldId, value: approvedValue });
+    else if (usable(proposal)) readings.push({ fieldId, value: proposal });
+    else for (const { value } of field.options) if (usable(value)) readings.push({ fieldId, value });
   }
   return readings;
 }
@@ -67,12 +66,10 @@ function clinical(readings: Reading[]): Derived | undefined {
   });
   if (!judged.length) return undefined;
   const yes = judged.filter(({ answer }) => answer === "yes");
-  return make(yes.length ? "yes" : "no", (yes.length ? yes : judged).map(({ reading }) => reading), "clinical");
+  return { answer: yes.length ? "yes" : "no", evidence: show((yes.length ? yes : judged).map(({ reading }) => reading)) };
 }
 
 const show = (readings: Reading[]) => readings.map(({ fieldId, value }) => `${fieldId} = ${value}`).join("; ");
-const make = (answer: Answer, readings: Reading[], basis: Derived["basis"] = "lab"): Derived =>
-  ({ answer, evidence: show(readings), slots: [...new Set(readings.map(({ slot }) => slot))], basis });
 
 /** Numeric test per reading; an explicit negative text counts as "not met". */
 function threshold(readings: Reading[], test: (n: number, reading: Reading, unit: string) => boolean): Derived | undefined {
@@ -83,7 +80,7 @@ function threshold(readings: Reading[], test: (n: number, reading: Reading, unit
   });
   if (!judged.length) return undefined;
   const hits = judged.filter(({ hit }) => hit);
-  return make(hits.length ? "yes" : "no", (hits.length ? hits : judged).map(({ reading }) => reading));
+  return { answer: hits.length ? "yes" : "no", evidence: show((hits.length ? hits : judged).map(({ reading }) => reading)) };
 }
 
 function anyPositive(readings: Reading[]): Derived | undefined {
@@ -93,23 +90,14 @@ function anyPositive(readings: Reading[]): Derived | undefined {
   });
   if (!judged.length) return undefined;
   const positive = judged.filter(({ answer }) => answer === "yes");
-  return make(positive.length ? "yes" : "no", (positive.length ? positive : judged).map(({ reading }) => reading));
+  return { answer: positive.length ? "yes" : "no", evidence: show((positive.length ? positive : judged).map(({ reading }) => reading)) };
 }
 
 function either(...results: (Derived | undefined)[]): Derived | undefined {
   const present = results.filter((result): result is Derived => result !== undefined);
   if (!present.length) return undefined;
   const yes = present.filter(({ answer }) => answer === "yes");
-  return merge(yes.length ? "yes" : "no", yes.length ? yes : present);
-}
-
-function merge(answer: Answer, parts: Derived[]): Derived {
-  return {
-    answer,
-    evidence: parts.map(({ evidence }) => evidence).join("; "),
-    slots: [...new Set(parts.flatMap(({ slots }) => slots))],
-    basis: parts.every(({ basis }) => basis === "lab") ? "lab" : "clinical",
-  };
+  return { answer: yes.length ? "yes" : "no", evidence: (yes.length ? yes : present).map(({ evidence }) => evidence).join("; ") };
 }
 
 /** Counts in G/L (= 10⁹/L); values written per mm³ (e.g. 4500) are converted. */
@@ -133,7 +121,7 @@ export function deriveCriteria(fields: readonly LabField[], approved?: Approved)
   const c3 = threshold(read("IMM11"), complementBelow(0.9));
   const c4 = threshold(read("IMM12"), complementBelow(0.1));
   const lowBoth: Derived | undefined = c3 && c4
-    ? merge(c3.answer === "yes" && c4.answer === "yes" ? "yes" : "no", [c3, c4])
+    ? { answer: c3.answer === "yes" && c4.answer === "yes" ? "yes" : "no", evidence: `${c3.evidence}; ${c4.evidence}` }
     : undefined;
   const dsDna = anyPositive([...read("IMM04"), ...read("ANA01")]);
   const proteinuria = threshold([...read("REN08"), ...read("REN01")],
