@@ -36,7 +36,7 @@ describe("dashboard section progress", () => {
     expect(crfSectionGroup(field(slot, section))).toBe(group);
   });
 
-  it("counts populated approvals, proposals and repeat instances while ignoring blank and hidden cells", () => {
+  it("counts populated approvals and repeat instances while ignoring blank and hidden cells (proposals are not shown)", () => {
     const fields = [
       field("ADM02/result", "Administrative", { options: option("64 years") }),
       field("ADM03/result", "Administrative"),
@@ -48,7 +48,7 @@ describe("dashboard section progress", () => {
     ];
     expect(sectionProgress(view(fields, review({ "ADM02/result": receipt("64"), "CBC01/result": receipt("0") })))).toEqual([
       { group: "admin", approved: 1, total: 1, tone: "complete" },
-      { group: "blood", approved: 1, total: 2, tone: "unverified" },
+      { group: "blood", approved: 1, total: 1, tone: "complete" },
       { group: "renal", approved: 0, total: 0, tone: "empty" },
       { group: "immune", approved: 0, total: 0, tone: "empty" },
       { group: "clinical", approved: 0, total: 0, tone: "empty" },

@@ -44,8 +44,22 @@ export type CrfViewWithSources = CrfView & { sources?: Record<string, SourceDeta
  */
 export const HIDDEN_SLOTS = new Set(["IMM01/method"]);
 
+/**
+ * Also drops every proposal (LLM clinical Yes/No answers, rule-based score
+ * criteria): the review collects only values read from the documents or
+ * entered by the doctor.
+ */
 export function withoutHidden<T extends CrfView>(view: T): T {
-  return { ...view, fields: view.fields.filter((field) => !HIDDEN_SLOTS.has(parseSlot(field.slot).baseSlot)) };
+  return {
+    ...view,
+    fields: view.fields
+      .filter((field) => !HIDDEN_SLOTS.has(parseSlot(field.slot).baseSlot))
+      .map((field) => {
+        const rest = { ...field };
+        delete rest.proposal;
+        return rest;
+      }),
+  };
 }
 
 const DATE_KIND: Record<string, string> = {

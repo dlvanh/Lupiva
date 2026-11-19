@@ -160,9 +160,8 @@ describe("patient submission to backend (database)", () => {
     const [row] = await testDb.db.select().from(crfSubmissions).where(eq(crfSubmissions.id, created.dbSubmissionId));
     expect(row.pipelineStatus).toBe("completed");
     expect(row.pipelineIntakeId).toBe("intake-abc");
-    // The clinical draft is requested once the images are read.
-    const draft = backend.calls.find((c) => c.path === "/api/crf/generate");
-    expect(draft?.method).toBe("POST");
+    // LLM clinical proposals are switched off: nothing asks the backend to draft them.
+    expect(backend.calls.find((c) => c.path === "/api/crf/generate")).toBeUndefined();
 
     const listing = await querySubmissions({ user: patient, db: testDb.db, filters: submissionQuerySchema.parse({ utcOffsetMinutes: 420 }) });
     const mine = listing.items.map(toPatientStatus).find((item) => item.dbSubmissionId === created.dbSubmissionId);

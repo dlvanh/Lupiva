@@ -443,7 +443,7 @@ export default function RegistryCrfPage() {
   const [notice, setNotice] = useState<string | { approvedCaseId: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [drafting, setDrafting] = useState(false);
+  const drafting = false; // LLM clinical proposals are switched off
   // Free-text boxes stay hidden until the doctor clicks Edit.
   const [editing, setEditing] = useState<Set<string>>(new Set());
   const [intakeJobs, setIntakeJobs] = useState<IntakeJob[]>([]);
@@ -571,37 +571,6 @@ export default function RegistryCrfPage() {
     }
   }, [caseId, view, selections, typed, criteria, scoreSettingsChanged, ana, scoreDate, load, selectedCount, dc]);
 
-  // Ask the backend LLM to answer the clinical questions from labs, report notes and
-  // printed diagnoses; proposals arrive as "LLM đề xuất · chưa duyệt".
-  const draftClinical = useCallback(async () => {
-    if (!caseId) return;
-    setError(null);
-    setNotice(null);
-    setDrafting(true);
-    try {
-      await backend("/api/crf/generate", undefined, { case_id: caseId });
-      for (let i = 0; i < 60; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-        const next = await backend<CrfViewWithSources & { job?: { status?: string; error?: string } }>("/api/crf", {
-          case_id: caseId,
-        });
-        if (next.job?.status !== "running") {
-          if (next.job?.status === "failed") {
-            throw new Error(next.job.error ?? (isVi ? "Không tạo được đề xuất." : "Unable to generate proposals."));
-          }
-          clearCrfViewCache();
-          await load(caseId);
-          setNotice(isVi ? "Đã tạo đề xuất LLM cho các câu lâm sàng." : "LLM proposals are ready for review.");
-          return;
-        }
-      }
-      throw new Error(isVi ? "Đang tạo đề xuất. Hãy tải lại phiếu sau." : "Proposal generation is still running. Reload the CRF later.");
-    } catch (reason) {
-      setError((reason as Error).message);
-    } finally {
-      setDrafting(false);
-    }
-  }, [caseId, isVi, load]);
 
   useEffect(() => {
     if (!caseId || drafting || view?.job?.status !== "running") return;
@@ -624,18 +593,6 @@ export default function RegistryCrfPage() {
   }, [caseId, drafting, view?.job?.status]);
 
   const fieldBySlot = useMemo(() => new Map((view?.fields ?? []).map((field) => [field.slot, field])), [view]);
-  const acceptScoreProposals = () =>
-    setCriteria((previous) => {
-      const next = { ...previous };
-      for (const row of Object.values(view?.score_form ?? {}).flat()) {
-        const value = fieldBySlot.get(row.field_id + "/result")?.proposal?.value;
-        const saved = view?.review?.values[row.field_id + "/result"];
-        if (!TOTALS.has(row.field_id) && !saved && !next[row.field_id] && (value === "yes" || value === "no")) {
-          next[row.field_id] = value;
-        }
-      }
-      return next;
-    });
 
   const groups = useMemo(() => {
     // Score criteria are answered in their own section, not in the field lists.
@@ -884,16 +841,6 @@ export default function RegistryCrfPage() {
           <input type="checkbox" checked={showEmpty} onChange={(event) => setShowEmpty(event.target.checked)} />
           {isVi ? "Hiện cả các ô trống" : "Show empty cells"}
         </label>
-        {view && canApprove && (
-          <button
-            type="button"
-            disabled={drafting || saving || finalizing || hasEdits}
-            onClick={() => void draftClinical()}
-            className="rounded border border-amber-600 px-2 py-1 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-50"
-          >
-            {drafting ? (isVi ? "Đang tạo đề xuất…" : "Generating proposals…") : (isVi ? "Tạo đề xuất LLM" : "Generate LLM proposals")}
-          </button>
-        )}
       </div>
       {view && progress && (
         <div className="mt-4 rounded border border-slate-200 bg-white p-3">
@@ -993,15 +940,6 @@ export default function RegistryCrfPage() {
               <section id="crf-section-score" className="mt-5 scroll-mt-[calc(35vh+4rem)] rounded border border-indigo-200 bg-white p-4 lg:scroll-mt-20">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-medium text-slate-800">{dc.scoreShort} · EULAR/ACR 2019 &amp; SLEDAI-2K</h2>
-                  {canApprove && (
-                    <button
-                      type="button"
-                      className="rounded border border-amber-600 px-2 py-1 text-xs text-amber-900 hover:bg-amber-50"
-                      onClick={acceptScoreProposals}
-                    >
-                      {isVi ? "Chọn các đề xuất" : "Select proposals"}
-                    </button>
-                  )}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
                   <label className="flex items-center gap-2">

@@ -118,6 +118,18 @@ describe("withoutHidden", () => {
     };
     expect(withoutHidden(view).fields.map((f) => f.slot)).toEqual(["IMM01/result", "IMM01/titre"]);
   });
+
+  it("drops LLM and rule proposals: the review shows only values read from the documents", async () => {
+    const { withoutHidden } = await import("@/lib/crfEvidence");
+    const view = {
+      fields: [field({ slot: "CV01/result", proposal: { id: "p1", value: "no", origin: "llm", reason: "Suy luận" } })],
+      review: null,
+      source_snapshot: "s",
+      draft_sha256: "d",
+    };
+    expect(withoutHidden(view).fields[0].proposal).toBeUndefined();
+    expect(withoutHidden(view).fields[0].slot).toBe("CV01/result");
+  });
 });
 
 describe("linkedCases", () => {
