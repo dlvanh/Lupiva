@@ -34,6 +34,25 @@ GEMINI_BASE_URL=<url endpoint, ví dụ proxy nội bộ>
 # LUPIVA_PROTOTYPE_DIRECT_LLM=1
 ```
 
+Mẫu đầy đủ (tên biến chuẩn, giá trị trống): `.env.example` ở thư mục gốc. Luồng dữ liệu và PII: `PRIVACY.md`.
+
+### Ba luồng trích xuất thử nghiệm
+
+| Luồng | Cách chạy | Gửi ra ngoài |
+|---|---|---|
+| A. Direct LLM (chỉ ảnh giả) | `.env`: `LUPIVA_PROTOTYPE_DIRECT_LLM=1` | Nguyên ảnh |
+| B. OCR → cắt/che PII → LLM | mặc định của intake; `scripts/run_llm_pool.py` | Ảnh đã cắt/che + text OCR, qua cổng chặn cuối |
+| C. Lai: OCR trước, LLM khi cần | `scripts/run_hybrid_pool.py` | Không gì với trang OCR tự đủ; trang còn lại đi luồng B với vùng che đề xuất tại máy |
+
+Chạy luồng C (cần `.venv-senocr` và `.venv-privacy-trial`; `--dry-run` = không gọi API):
+
+```powershell
+python -X utf8 scripts
+un_hybrid_pool.py --manifest <manifest.json> --output research\hybrid-run-01 --dry-run
+```
+
+`<manifest.json>`: `{"documents": [{"document_id": "IN-1", "input_path": "examples/inputs/a.jpg"}]}`. Kết quả ở `routing.json`: trang nào `local` / `api` / `held` (chưa che tự động được, không gửi) / `skipped` (chỉ biểu đồ), lý do và thời gian.
+
 Chạy server:
 
 ```powershell
