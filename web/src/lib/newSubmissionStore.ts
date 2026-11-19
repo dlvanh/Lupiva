@@ -1,21 +1,42 @@
-/** Shared "Hồ sơ mới" count for the doctor menu badge, plus which ids were already announced. */
+/** Never-opened submissions for the doctor's notification bell: total count plus the newest few. */
 import { useSyncExternalStore } from "react";
 
 export interface NewSubmissionEntry {
   id: string;
   submittedAt: string;
+  studyId: string;
+  patientName: string;
 }
 
-let count = 0;
+export interface NewSubmissionsSnapshot {
+  count: number;
+  latest: readonly NewSubmissionEntry[];
+}
+
+const EMPTY: NewSubmissionsSnapshot = { count: 0, latest: [] };
+let snapshot: NewSubmissionsSnapshot = EMPTY;
 const listeners = new Set<() => void>();
 
-export function newSubmissionCount(): number {
-  return count;
+function sameSnapshot(a: NewSubmissionsSnapshot, b: NewSubmissionsSnapshot): boolean {
+  return (
+    a.count === b.count &&
+    a.latest.length === b.latest.length &&
+    a.latest.every(
+      (entry, i) =>
+        entry.id === b.latest[i].id &&
+        entry.studyId === b.latest[i].studyId &&
+        entry.patientName === b.latest[i].patientName
+    )
+  );
 }
 
-export function setNewSubmissionCount(next: number): void {
-  if (next === count) return;
-  count = next;
+export function newSubmissions(): NewSubmissionsSnapshot {
+  return snapshot;
+}
+
+export function setNewSubmissions(next: NewSubmissionsSnapshot): void {
+  if (sameSnapshot(snapshot, next)) return;
+  snapshot = next.count === 0 && next.latest.length === 0 ? EMPTY : next;
   listeners.forEach((listener) => listener());
 }
 
@@ -24,16 +45,6 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-export function useNewSubmissionCount(): number {
-  return useSyncExternalStore(subscribe, newSubmissionCount, () => 0);
-}
-
-/** Ids in ``latest`` (newest first) that this browser session has not announced yet. */
-export function unnotifiedIds(latest: readonly NewSubmissionEntry[], notified: ReadonlySet<string>): string[] {
-  return latest.filter((entry) => !notified.has(entry.id)).map((entry) => entry.id);
-}
-
-/** How many to announce: all of them when the whole capped list is unannounced (e.g. right after sign-in). */
-export function announcedCount(freshCount: number, listedCount: number, total: number): number {
-  return freshCount > 0 && freshCount === listedCount ? Math.max(total, freshCount) : freshCount;
+export function useNewSubmissions(): NewSubmissionsSnapshot {
+  return useSyncExternalStore(subscribe, newSubmissions, () => EMPTY);
 }

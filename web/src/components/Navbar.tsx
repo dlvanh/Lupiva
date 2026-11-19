@@ -6,7 +6,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
 import { getLocalizedButtonActionMap } from "@/data/translations";
-import { useNewSubmissionCount } from "@/lib/newSubmissionStore";
+import { useNewSubmissions } from "@/lib/newSubmissionStore";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -60,7 +61,7 @@ export function Navbar() {
   const isFadingOut = Boolean(toast && fadingToastId === toast.id);
 
   const isVi = language === "vi";
-  const newSubmissions = useNewSubmissionCount();
+  const newSubmissions = useNewSubmissions();
 
   const navLinks =
     currentUser?.role === "specialist"
@@ -142,15 +143,6 @@ export function Navbar() {
                     }`}
                   >
                     {item.label}
-                    {item.href === "/upload" && currentUser?.role === "specialist" && newSubmissions > 0 && (
-                      <span
-                        id="nav-new-submissions-badge"
-                        aria-label={isVi ? `${newSubmissions} hồ sơ mới` : `${newSubmissions} new`}
-                        className="ml-1.5 inline-flex items-center justify-center rounded-full bg-rose-600 px-1.5 font-mono text-[10px] font-bold text-white"
-                      >
-                        {newSubmissions}
-                      </span>
-                    )}
                     {item.href === "/ocr" && crfPatients.length > 0 && (
                       <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-teal-100 px-1.5 py-0.2 font-mono text-[10px] font-bold text-teal-800">
                         {crfPatients.length}
@@ -201,6 +193,10 @@ export function Navbar() {
               >
                 {t.common.signIn}
               </Link>
+            )}
+
+            {currentUser?.role === "specialist" && (
+              <NotificationBell count={newSubmissions.count} latest={newSubmissions.latest} isVi={isVi} />
             )}
 
             {/* Compact Bilingual English / Vietnamese Switcher (Far Right) */}

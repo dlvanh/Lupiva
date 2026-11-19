@@ -1,24 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { announcedCount, newSubmissionCount, setNewSubmissionCount, unnotifiedIds } from "@/lib/newSubmissionStore";
+import { newSubmissions, setNewSubmissions } from "@/lib/newSubmissionStore";
 
-describe("new-submission notice bookkeeping", () => {
-  it("announces only submissions not announced before in this session", () => {
-    const latest = [{ id: "a", submittedAt: "2026-11-18T08:00:00Z" }, { id: "b", submittedAt: "2026-11-18T07:00:00Z" }];
-    expect(unnotifiedIds(latest, new Set())).toEqual(["a", "b"]);
-    expect(unnotifiedIds(latest, new Set(["a", "b"]))).toEqual([]);
-    expect(unnotifiedIds([{ id: "c", submittedAt: "2026-11-18T09:00:00Z" }, ...latest], new Set(["a", "b"]))).toEqual(["c"]);
+const entry = { id: "a", submittedAt: "2026-11-18T08:00:00Z", studyId: "VN-1111-26", patientName: "A" };
+
+describe("new-submission store for the bell", () => {
+  it("shares count and newest entries", () => {
+    setNewSubmissions({ count: 3, latest: [entry] });
+    expect(newSubmissions().count).toBe(3);
+    expect(newSubmissions().latest[0].studyId).toBe("VN-1111-26");
+    setNewSubmissions({ count: 0, latest: [] });
+    expect(newSubmissions()).toEqual({ count: 0, latest: [] });
   });
 
-  it("announces the full total when every listed submission is unannounced (list is capped at 5)", () => {
-    expect(announcedCount(5, 5, 7)).toBe(7);
-    expect(announcedCount(1, 5, 8)).toBe(1);
-    expect(announcedCount(0, 5, 7)).toBe(0);
-  });
-
-  it("shares the count with the menu badge", () => {
-    setNewSubmissionCount(3);
-    expect(newSubmissionCount()).toBe(3);
-    setNewSubmissionCount(0);
-    expect(newSubmissionCount()).toBe(0);
+  it("keeps the same snapshot object when nothing changed (no re-render each poll)", () => {
+    setNewSubmissions({ count: 1, latest: [entry] });
+    const before = newSubmissions();
+    setNewSubmissions({ count: 1, latest: [{ ...entry }] });
+    expect(newSubmissions()).toBe(before);
+    setNewSubmissions({ count: 0, latest: [] });
   });
 });

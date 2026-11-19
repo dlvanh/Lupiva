@@ -62,6 +62,10 @@ describe("GET /api/submissions/new-count", () => {
     expect(first.body.latest).toHaveLength(5);
     const times = first.body.latest.map((entry: { submittedAt: string }) => Date.parse(entry.submittedAt));
     expect([...times].sort((a, b) => b - a)).toEqual(times);
+    for (const entry of first.body.latest as Array<{ studyId: string; patientName: string }>) {
+      expect(entry.studyId).toMatch(/\S/);
+      expect(typeof entry.patientName).toBe("string");
+    }
 
     await markSubmissionOpened({ user: specialist, submissionId: first.body.latest[0].id, db: testDb.db });
     const after = await newCount();

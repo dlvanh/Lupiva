@@ -1,5 +1,6 @@
 "use client";
 
+import { SHOW_NEW_SUBMISSIONS_EVENT } from "@/components/NotificationBell";
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -514,12 +515,16 @@ export function DoctorSubmissionsView({
   const [moreFilters, setMoreFilters] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // The new-submission notice links here with ?status=new.
+  // The notification bell links here with ?status=new; when the dashboard is
+  // already open, the bell's event switches the filter without a remount.
   useEffect(() => {
     const wanted = new URLSearchParams(window.location.search).get("status");
     if (wanted && ["new", "pending_doctor_review", "approved", "all"].includes(wanted)) {
       setFilters((prev) => ({ ...prev, page: 1, status: wanted as SubmissionQueryFilters["status"] }));
     }
+    const showNew = () => setFilters((prev) => ({ ...prev, page: 1, status: "new" }));
+    window.addEventListener(SHOW_NEW_SUBMISSIONS_EVENT, showNew);
+    return () => window.removeEventListener(SHOW_NEW_SUBMISSIONS_EVENT, showNew);
   }, []);
 
   /** First open by any doctor moves a submission out of "Hồ sơ mới". */

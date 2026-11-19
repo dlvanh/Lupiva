@@ -1,41 +1,19 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { CornerNotice } from "@/components/CornerNotice";
+import { useEffect } from "react";
 import { useLupiva } from "@/context/LupivaContext";
-import { announcedCount, setNewSubmissionCount, unnotifiedIds, type NewSubmissionEntry } from "@/lib/newSubmissionStore";
+import { setNewSubmissions, type NewSubmissionsSnapshot } from "@/lib/newSubmissionStore";
 
 const POLL_MS = 20_000;
-const STORAGE_KEY = "lupiva-notified-submissions";
 
-function readNotified(): Set<string> {
-  try {
-    return new Set(JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "[]") as string[]);
-  } catch {
-    return new Set();
-  }
-}
-
-function writeNotified(ids: Set<string>) {
-  try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...ids].slice(-500)));
-  } catch {
-    // storage blocked: the notice may repeat after a reload
-  }
-}
-
-/** While a specialist is signed in, asks every 20 s for never-opened submissions and announces new ones. */
+/** While a specialist is signed in, asks every 20 s for never-opened submissions and feeds the navbar bell. */
 export function NewSubmissionWatcher() {
-  const router = useRouter();
-  const { currentUser, language } = useLupiva();
-  const isVi = language === "vi";
+  const { currentUser } = useLupiva();
   const isSpecialist = currentUser?.role === "specialist";
-  const [announce, setAnnounce] = useState<number>(0);
 
   useEffect(() => {
     if (!isSpecialist) {
-      setNewSubmissionCount(0);
+      setNewSubmissions({ count: 0, latest: [] });
       return;
     }
     let stopped = false;
@@ -44,15 +22,7 @@ export function NewSubmissionWatcher() {
       try {
         const response = await fetch("/api/submissions/new-count", { cache: "no-store", credentials: "same-origin" });
         if (!response.ok || stopped) return;
-        const body = (await response.json()) as { count: number; latest: NewSubmissionEntry[] };
-        setNewSubmissionCount(body.count);
-        const notified = readNotified();
-        const fresh = unnotifiedIds(body.latest, notified);
-        if (fresh.length) {
-          fresh.forEach((id) => notified.add(id));
-          writeNotified(notified);
-          setAnnounce(announcedCount(fresh.length, body.latest.length, body.count));
-        }
+        setNewSubmissions((await response.json()) as NewSubmissionsSnapshot);
       } catch {
         // backend unreachable: try again next tick
       }
@@ -70,24 +40,5 @@ export function NewSubmissionWatcher() {
     };
   }, [isSpecialist]);
 
-  const close = useCallback(() => setAnnounce(0), []);
-  if (!isSpecialist || announce === 0) return null;
-
-  return (
-    <CornerNotice
-      id="doctor-new-submission-notice"
-      title={isVi ? `Có ${announce} hồ sơ mới` : `${announce} new submission${announce > 1 ? "s" : ""}`}
-      actionLabel={isVi ? "Mở hồ sơ" : "Open submissions"}
-      closeLabel={isVi ? "Đóng" : "Close"}
-      onAction={() => {
-        close();
-        router.push("/upload?status=new");
-      }}
-      onClose={close}
-    >
-      {isVi
-        ? "Bệnh nhân vừa nộp hồ sơ. Hồ sơ nằm ở mục “Hồ sơ mới” cho đến khi có bác sĩ mở."
-        : "A patient just submitted. It stays under “New” until a doctor opens it."}
-    </CornerNotice>
-  );
+  return null;
 }
