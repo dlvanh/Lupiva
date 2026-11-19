@@ -1,4 +1,5 @@
 """Additional API contract for the synthetic full-image prototype only."""
+from .llm_extraction import valid_row_box
 from .local_dates import _parse_date
 from .metadata import ADM_FIELDS, normalize_value, select_fact
 
@@ -17,6 +18,9 @@ Keep repeated facts, including disagreements. Return header_facts=[] when absent
 For this prototype, staff names in these two roles are requested header values; do not
 extract patient names, IDs, addresses or unrelated identifiers. Do not infer missing
 dates, units, demographics or staff roles. All values remain pending human review.
+For each header fact also return box as [left, top, right, bottom] in integer coordinates
+from 0 to 1000 relative to the exact input image, enclosing the printed label and its value.
+Return null when you cannot locate it reliably. The box is only a visual aid for review.
 '''
 
 
@@ -24,8 +28,9 @@ def extend_schema(schema):
     schema['properties']['header_facts'] = dict(type='array', items=dict(
         type='object', properties=dict(
             key=dict(type='string', enum=[*DATE_KEYS, *HEADER_KEYS]),
-            label_raw=dict(type='string'), value_raw=dict(type='string')),
-        required=['key', 'label_raw', 'value_raw'], additionalProperties=False))
+            label_raw=dict(type='string'), value_raw=dict(type='string'),
+            box={'type': ['array', 'null'], 'items': {'type': 'integer'}}),
+        required=['key', 'label_raw', 'value_raw', 'box'], additionalProperties=False))
     schema['required'].append('header_facts')
     return schema
 
@@ -43,7 +48,10 @@ def header_facts(extraction):
             value, flags = raw, []
         else:
             continue
-        facts.append(dict(key=key, value=value, value_raw=raw, label_raw=label, flags=flags))
+        fact = dict(key=key, value=value, value_raw=raw, label_raw=label, flags=flags)
+        if valid_row_box(item.get('box')):
+            fact['box'] = item['box']
+        facts.append(fact)
     for fact in facts:
         if len({f['value'] for f in facts if f['key'] == fact['key'] and f['value'] is not None}) > 1:
             fact['flags'].append('metadata_conflict')
