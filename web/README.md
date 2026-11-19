@@ -117,7 +117,7 @@ npm run lint
 npm run build
 ```
 
-> **Note**: When `NEXT_PUBLIC_DEMO_MODE="true"`, evaluators can sign in with one click using the seeded database demo accounts (`dr.minh.immunology@vinmec.com` / `VinmecSLE#2026` or `mai.tran.patient@lupiva.vn` / `PatientCare#2026`), or create new encrypted accounts directly on `/login`.
+> **Note**: When `NEXT_PUBLIC_DEMO_MODE="true"`, evaluators can sign in with one click using the seeded database demo accounts (`dr.minh.immunology@example.test` / `VinmecSLE#2026` or `mai.tran.patient@example.test` / `PatientCare#2026`), or create new encrypted accounts directly on `/login`.
 
 ---
 

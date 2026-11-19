@@ -214,7 +214,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
 
     const unknownRes = await loginPost(
       buildJsonRequest("/api/auth/login", {
-        email: "nobody@vinmec.com",
+        email: "nobody@example.test",
         password: "AnyPassword#123",
         selectedRole: "specialist",
       })
@@ -279,7 +279,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
         "/api/auth/register",
         {
           fullName: "Test User",
-          email: "csrf@lupiva.vn",
+          email: "csrf@example.test",
           password: "StrongPassword#1",
           role: "patient",
           consentChecked: true,
@@ -320,7 +320,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const weakRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Nguyen Thi Lan",
-        email: "lan.patient@lupiva.vn",
+        email: "lan.patient@example.test",
         password: "weak",
         role: "patient",
         consentChecked: true,
@@ -332,7 +332,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const regPatientRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Nguyen Thi Lan",
-        email: "Lan.Patient@Lupiva.vn",
+        email: "Lan.Patient@Example.test",
         password: "PatientSecure#2026",
         role: "patient",
         consentChecked: true,
@@ -342,7 +342,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const regData = (await regPatientRes.json()) as {
       user: { id: string; email: string; name: string; role: string };
     };
-    expect(regData.user.email).toBe("lan.patient@lupiva.vn");
+    expect(regData.user.email).toBe("lan.patient@example.test");
     expect(regData.user.name).toBe("Nguyen Thi Lan");
     expect(regData.user.role).toBe("patient");
     expect(regData.user).toMatchObject({
@@ -353,7 +353,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
       .select()
       .from(users)
       .where(eq(users.id, regData.user.id));
-    expect(storedUser.emailEncrypted).not.toContain("lan.patient@lupiva.vn");
+    expect(storedUser.emailEncrypted).not.toContain("lan.patient@example.test");
     expect(storedUser.fullNameEncrypted).not.toContain("Nguyen Thi Lan");
     expect(
       decryptField(storedUser.fullNameEncrypted, `users:${storedUser.id}:full_name`)
@@ -363,7 +363,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const dupRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Duplicate Lan",
-        email: "lan.patient@lupiva.vn",
+        email: "lan.patient@example.test",
         password: "PatientSecure#2026",
         role: "patient",
         consentChecked: true,
@@ -375,7 +375,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const deniedSpecRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Dr. Hoang Anh",
-        email: "hoang.anh@vinmec.com",
+        email: "hoang.anh@example.test",
         password: "DoctorSecure#2026",
         role: "specialist",
         consentChecked: true,
@@ -388,7 +388,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const okSpecRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Dr. Hoang Anh",
-        email: "hoang.anh@vinmec.com",
+        email: "hoang.anh@example.test",
         password: "DoctorSecure#2026",
         role: "specialist",
         consentChecked: true,
@@ -406,7 +406,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     await logoutPost(buildJsonRequest("/api/auth/logout", {}));
     const reLogin = await loginPost(
       buildJsonRequest("/api/auth/login", {
-        email: "hoang.anh@vinmec.com",
+        email: "hoang.anh@example.test",
         password: "DoctorSecure#2026",
         selectedRole: "specialist",
       })
