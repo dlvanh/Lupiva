@@ -93,7 +93,7 @@ function DocumentsAndTreatmentsGrid({
   return (
     <div className={`grid grid-cols-1 gap-4 @md:grid-cols-2 ${className}`}>
       <div>
-        <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
           {copy.attachedDocsHeading}
         </h3>
         {patient.uploadedFiles && patient.uploadedFiles.length > 0 ? (
@@ -145,7 +145,7 @@ function DocumentsAndTreatmentsGrid({
       </div>
 
       <div>
-        <h3 className="font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
           {copy.treatmentsHeading}
         </h3>
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -390,14 +390,14 @@ export function SubmissionRow({
             />
             {webApproved && !intakeId && (
               <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-4 py-2 text-xs">
-                <span className="font-mono font-bold uppercase tracking-wide text-slate-600">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
                   {copy.scorePreviewHeading}:
                 </span>
-                <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-slate-800">
-                  EULAR/ACR 2019: <strong>{eular.totalScore} pts</strong>
+                <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 tabular-nums text-slate-800">
+                  EULAR/ACR 2019: <strong className="font-mono">{eular.totalScore}</strong> pts
                 </span>
-                <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-mono text-slate-800">
-                  SLEDAI-2K: <strong>{sledai.totalScore} pts</strong>
+                <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 tabular-nums text-slate-800">
+                  SLEDAI-2K: <strong className="font-mono">{sledai.totalScore}</strong> pts
                 </span>
               </div>
             )}
@@ -805,7 +805,7 @@ export function DoctorSubmissionsView({
                   }`}
                 >
                   <span className="block text-xs font-semibold">{counterLabel(key)}</span>
-                  <span className="mt-1 block font-mono text-3xl font-bold">{counterValue(key)}</span>
+                  <span className="mt-1 block text-3xl font-bold tabular-nums">{counterValue(key)}</span>
                 </button>
               );
             })}
@@ -937,7 +937,7 @@ export function DoctorSubmissionsView({
                       onChange={(e) =>
                         handleCustomDateChange("fromDate", e.target.value)
                       }
-                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs tabular-nums text-slate-900 focus:border-teal-700"
                     />
                   </div>
 
@@ -957,7 +957,7 @@ export function DoctorSubmissionsView({
                       onChange={(e) =>
                         handleCustomDateChange("toDate", e.target.value)
                       }
-                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:border-teal-700"
+                      className="min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs tabular-nums text-slate-900 focus:border-teal-700"
                     />
                   </div>
 
@@ -1073,7 +1073,7 @@ export function DoctorSubmissionsView({
                   : ""}
               </p>
               {apiState.loading && (
-                <span className="font-mono text-xs text-teal-800">
+                <span className="text-xs font-medium text-teal-800">
                   {copy.loadingText}
                 </span>
               )}
@@ -1099,7 +1099,7 @@ export function DoctorSubmissionsView({
                         pageSize: Number(e.target.value),
                       }))
                     }
-                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-xs text-slate-900 focus:border-teal-700"
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs tabular-nums text-slate-900 focus:border-teal-700"
                   >
                     {PAGE_SIZE_OPTIONS.map((size) => (
                       <option key={size} value={size}>
@@ -1137,7 +1137,7 @@ export function DoctorSubmissionsView({
                         aria-current={isCurrent ? "page" : undefined}
                         disabled={apiState.loading}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`min-h-9 min-w-9 cursor-pointer rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold transition ${
+                        className={`min-h-9 min-w-9 cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-bold tabular-nums transition ${
                           isCurrent
                             ? "bg-teal-700 text-white shadow-2xs"
                             : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"

@@ -1,11 +1,11 @@
 /**
- * Public pages of VietNam Lupus Registry (home, about, patients, contact).
+ * Public pages of Vietnam Lupus Registry (home, about, patients, contact).
  * Wording is drawn from the VMEC 2026 abstract and the project plan; it is a
  * draft pending review by the research team. TODO: research team to confirm wording.
  */
 import type { Language } from "@/data/translations";
 
-export const SITE_NAME = "VietNam Lupus Registry";
+export const SITE_NAME = "Vietnam Lupus Registry";
 
 export const SITE_PAGES = [
   { href: "/", vi: "Trang chủ", en: "Home", id: "nav-link-home" },
@@ -83,7 +83,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
       aboutBtn: "Về registry",
       aimTitle: "Mục tiêu",
       aimBody:
-        "VietNam Lupus Registry thu thập dữ liệu khám và xét nghiệm thực tế của người bệnh lupus ban đỏ hệ thống (SLE) theo thời gian, để hiểu rõ đặc điểm bệnh, diễn tiến, đáp ứng điều trị ở người Việt Nam và hỗ trợ chăm sóc người bệnh tốt hơn.",
+        "Vietnam Lupus Registry thu thập dữ liệu khám và xét nghiệm thực tế của người bệnh lupus ban đỏ hệ thống (SLE) theo thời gian, để hiểu rõ đặc điểm bệnh, diễn tiến, đáp ứng điều trị ở người Việt Nam và hỗ trợ chăm sóc người bệnh tốt hơn.",
       aimMore: "Tìm hiểu thêm về registry",
       howTitle: "Registry hoạt động như thế nào",
       how: [
@@ -98,9 +98,9 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
       patientsMore: "Xem quyền lợi và cách tham gia",
     },
     about: {
-      title: "Về VietNam Lupus Registry",
+      title: "Về Vietnam Lupus Registry",
       intro:
-        "VietNam Lupus Registry là registry số do người bệnh cùng tham gia, dành cho bệnh lupus ban đỏ hệ thống (SLE) tại Việt Nam. Registry thu thập hồ sơ khám và xét nghiệm trong quá trình điều trị thường quy, chuẩn hóa theo phiếu nghiên cứu (CRF) và được bác sĩ chuyên khoa kiểm tra.",
+        "Vietnam Lupus Registry là registry số do người bệnh cùng tham gia, dành cho bệnh lupus ban đỏ hệ thống (SLE) tại Việt Nam. Registry thu thập hồ sơ khám và xét nghiệm trong quá trình điều trị thường quy, chuẩn hóa theo phiếu nghiên cứu (CRF) và được bác sĩ chuyên khoa kiểm tra.",
       backgroundTitle: "Bối cảnh",
       background: [
         "Lupus ban đỏ hệ thống là bệnh tự miễn mạn tính, có thể ảnh hưởng nhiều cơ quan như da, khớp, thận, máu, tim, phổi và thần kinh. Bệnh diễn tiến thành từng đợt và rất khác nhau giữa từng người.",
@@ -192,7 +192,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
       aboutBtn: "About the registry",
       aimTitle: "Aim",
       aimBody:
-        "VietNam Lupus Registry collects real-world visit and laboratory data of people with systemic lupus erythematosus (SLE) over time, to understand the disease, its course and treatment response in Vietnamese patients and to support better care.",
+        "Vietnam Lupus Registry collects real-world visit and laboratory data of people with systemic lupus erythematosus (SLE) over time, to understand the disease, its course and treatment response in Vietnamese patients and to support better care.",
       aimMore: "Learn more about the registry",
       howTitle: "How the registry works",
       how: [
@@ -207,9 +207,9 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
       patientsMore: "See benefits and how to join",
     },
     about: {
-      title: "About VietNam Lupus Registry",
+      title: "About Vietnam Lupus Registry",
       intro:
-        "VietNam Lupus Registry is a patient-powered digital registry for systemic lupus erythematosus (SLE) in Vietnam. It collects records from routine care, standardizes them on a case report form (CRF) and has them checked by specialists.",
+        "Vietnam Lupus Registry is a patient-powered digital registry for systemic lupus erythematosus (SLE) in Vietnam. It collects records from routine care, standardizes them on a case report form (CRF) and has them checked by specialists.",
       backgroundTitle: "Background",
       background: [
         "Systemic lupus erythematosus is a chronic autoimmune disease that can affect the skin, joints, kidneys, blood, heart, lungs and nervous system. It flares over time and differs greatly between patients.",

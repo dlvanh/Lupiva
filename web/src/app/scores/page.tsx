@@ -85,12 +85,12 @@ export default function SleScoresPage() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-teal-800">
+              <span className="text-xs font-bold uppercase tracking-wider text-teal-800">
                 {isVi
                   ? "Phân loại & Đánh giá Hoạt tính Bệnh SLE"
                   : "SLE Classification & Disease Activity Scoring"}
               </span>
-              <h1 className="mt-0.5 text-xl font-bold text-slate-900">
+              <h1 className="mt-0.5 text-xl font-bold text-slate-900 sm:text-2xl">
                 {isVi
                   ? "Bảng điểm EULAR/ACR 2019 & SLEDAI-2K"
                   : "2019 EULAR/ACR & SLEDAI-2K Scores"}

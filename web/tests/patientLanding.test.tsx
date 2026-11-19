@@ -32,10 +32,10 @@ beforeEach(() => {
 });
 
 describe("public site pages", () => {
-  it("home: VietNam Lupus Registry hero, one start action, links to the patient and about pages", () => {
+  it("home: Vietnam Lupus Registry hero, one start action, links to the patient and about pages", () => {
     const markup = renderToStaticMarkup(<LandingPage />);
     const hero = markup.match(/<section\b[^>]*>[\s\S]*?<\/section>/)?.[0];
-    expect(hero).toContain("VietNam Lupus Registry");
+    expect(hero).toContain("Vietnam Lupus Registry");
     expect(hero).toContain("Chia sẻ kết quả khám và xét nghiệm");
     expect(hero).not.toMatch(/registry tiến cứu|CRF|chuẩn hóa/i);
     expect(markup).toContain('href="/benh-nhan"');
@@ -82,14 +82,14 @@ describe("public site pages", () => {
     expect(patients).toContain("Agree to take part (sign electronically)");
   });
 
-  it("menu: VietNam Lupus Registry brand, the four public pages and one sign-in link", () => {
+  it("menu: Vietnam Lupus Registry brand, the four public pages and one sign-in link without upload link when signed out", () => {
     const markup = renderToStaticMarkup(<Navbar />);
-    expect(markup).toContain("VietNam Lupus Registry");
+    expect(markup).toContain("Vietnam Lupus Registry");
     expect(markup).not.toMatch(/>Lupiva</);
     for (const href of ["/", "/gioi-thieu", "/benh-nhan", "/lien-he"]) {
       expect(markup).toContain(`href="${href}"`);
     }
-    expect(markup).toMatch(/id="nav-link-upload"[^>]*>Nộp hồ sơ<\/a>/);
+    expect(markup).not.toContain('id="nav-link-upload"');
     expect(markup.match(/href="\/login"/g)).toHaveLength(1);
   });
 
@@ -101,13 +101,12 @@ describe("public site pages", () => {
     expect(markup).toMatch(/id="nav-link-upload"[^>]*>Hồ sơ của tôi<\/a>/);
   });
 
-  it("opens patient registration with the consent box for the patient to check", () => {
+  it("opens patient registration with full name input and without specialist invite code", () => {
     state.searchParams = new URLSearchParams("mode=register");
     const markup = renderToStaticMarkup(<LoginPage />);
     expect(markup).toContain('id="login-input-fullname"');
-    const checkbox = markup.match(/<input[^>]*id="login-checkbox-consent"[^>]*>/)?.[0];
-    expect(checkbox).toBeDefined();
-    expect(checkbox).not.toContain('checked=""');
+    expect(markup).toContain('id="login-password-hint"');
     expect(markup).not.toContain('id="login-input-invite-code"');
+    expect(markup).not.toContain('id="login-tab-specialist"');
   });
 });

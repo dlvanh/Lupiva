@@ -178,7 +178,7 @@ export function CrfAdminFacts({ state, isVi = true }: { state: CrfCaseState | nu
 
   return (
     <div className="border-b border-slate-200 px-5 py-2.5 @lg:px-6">
-      <p className="mb-1.5 font-mono text-[11px] font-bold uppercase tracking-wide text-slate-600">
+      <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-600">
         {isVi ? "Thông tin hành chính" : "Administrative details"}
       </p>
       <AdminFactsList facts={factsFrom(state.view, isVi)} caseId={state.caseId} intakeId={state.intakeId} isVi={isVi} />

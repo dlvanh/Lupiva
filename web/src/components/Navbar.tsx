@@ -72,14 +72,15 @@ export function Navbar() {
         ]
       : [
           ...SITE_PAGES.map((page) => ({ href: page.href, label: isVi ? page.vi : page.en, id: page.id })),
-          {
-            href: "/upload",
-            label:
-              currentUser?.role === "patient"
-                ? t.patientPortal.patientMenuLabel
-                : t.patientPortal.submitMenuLabel,
-            id: "nav-link-upload",
-          },
+          ...(currentUser?.role === "patient"
+            ? [
+                {
+                  href: "/upload",
+                  label: t.patientPortal.patientMenuLabel,
+                  id: "nav-link-upload",
+                },
+              ]
+            : []),
         ];
 
   const localizedButtonMap = getLocalizedButtonActionMap(language);
@@ -144,7 +145,7 @@ export function Navbar() {
                   >
                     {item.label}
                     {item.href === "/ocr" && crfPatients.length > 0 && (
-                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-teal-100 px-1.5 py-0.2 font-mono text-[10px] font-bold text-teal-800">
+                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-teal-100 px-1.5 py-0.2 text-[10px] font-bold tabular-nums text-teal-800">
                         {crfPatients.length}
                       </span>
                     )}
@@ -169,7 +170,7 @@ export function Navbar() {
                 <span className="hidden text-xs font-semibold text-slate-900 sm:inline">
                   {currentUser.name}
                 </span>
-                <span className="hidden rounded bg-teal-50 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-teal-800 md:inline">
+                <span className="hidden rounded bg-teal-50 px-1.5 py-0.2 text-[10px] font-semibold text-teal-800 md:inline">
                   {process.env.NEXT_PUBLIC_DEMO_MODE === "true"
                     ? currentUser.badgeText
                     : currentUser.role === "specialist"
@@ -226,7 +227,7 @@ export function Navbar() {
                   <line x1="2" y1="12" x2="22" y2="12" />
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                 </svg>
-                <span className="flex items-center gap-0.5 font-mono text-[10px]">
+                <span className="flex items-center gap-0.5 text-[11px] font-semibold">
                   <span
                     onClick={(e) => {
                       e.stopPropagation();
