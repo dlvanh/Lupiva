@@ -40,8 +40,11 @@ function firstSelect(tree: ReactNode): ReactElement<SelectProps> | undefined {
 }
 
 const provisional: ProvisionalScores = {
-  sledai: { total: 8, yesCount: 1, proposalCount: 2, unansweredCount: 21 },
-  eular: { total: 10, classification: "meets", proposalCount: 2 },
+  sledai: {
+    total: 8, yesCount: 1, proposalCount: 2, unansweredCount: 21,
+    derived: [{ field_id: "SDA24", label: "Giảm bạch cầu", weight: 1, answer: "no", evidence: "HEM05 = 9.19 G/l" }],
+  },
+  eular: { total: 10, classification: "meets", proposalCount: 2, unansweredCount: 10, derived: [], ana: "yes" },
 };
 
 describe("CrfScoreSummary", () => {
@@ -57,12 +60,14 @@ describe("CrfScoreSummary", () => {
     );
 
     expect(html).toContain("Điểm chính thức");
+    expect(html).toContain("1 tiêu chí suy từ xét nghiệm");
+    expect(html).toContain("Giảm bạch cầu: Không (HEM05 = 9.19 G/l)");
     expect(html).toContain("0 (còn 23 tiêu chí chưa trả lời)");
     expect(html).toContain("Chưa xác định - chưa xác nhận ANA");
     expect(html).toContain("Điểm tạm tính (chưa duyệt)");
     expect(html).toContain("SLEDAI-2K ≈ 8 (gồm 2 đề xuất chưa duyệt, còn 21 tiêu chí chưa có dữ kiện)");
     expect(html).toContain("EULAR/ACR 2019 ≈ 10 · Đạt tiêu chí phân loại");
-    expect(html).toContain("Chỉ để tham khảo; điểm chính thức tính từ các tiêu chí bác sĩ đã xác nhận.");
+    expect(html).toContain("Chỉ để tham khảo, gồm đề xuất chưa duyệt và tiêu chí suy từ xét nghiệm");
     expect(html).toContain("border-dashed");
     expect(html).not.toMatch(/<(input|select|button)\b/);
   });
