@@ -91,3 +91,6 @@ ENV/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Presentation drafts (abstract has authors' personal contacts)
+/present/

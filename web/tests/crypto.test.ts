@@ -79,7 +79,7 @@ describe("Lupiva AES-256-GCM & Blind Index Cryptography", () => {
     const aadRow2 = "users:user-2:email";
     const aadOtherCol = "users:user-1:full_name";
 
-    const envelope = encryptField("patient@vinmec.com", aadRow1);
+    const envelope = encryptField("patient@example.test", aadRow1);
 
     expect(() => decryptField(envelope, aadRow2)).toThrow(CryptoDecryptionError);
     expect(() => decryptField(envelope, aadOtherCol)).toThrow(
@@ -100,15 +100,15 @@ describe("Lupiva AES-256-GCM & Blind Index Cryptography", () => {
   });
 
   it("computes deterministic, domain-separated HMAC-SHA256 blind indexes", () => {
-    const emailNorm = normalizeEmail("  Dr.Minh.Immunology@Vinmec.COM ");
-    expect(emailNorm).toBe("dr.minh.immunology@vinmec.com");
+    const emailNorm = normalizeEmail("  Dr.Minh.Immunology@Example.TEST ");
+    expect(emailNorm).toBe("dr.minh.immunology@example.test");
 
     const studyNorm = normalizeStudyId("  vn-0084-26 ");
     expect(studyNorm).toBe("VN-0084-26");
 
     const idxEmail1 = computeBlindIndex(emailNorm, "email");
     const idxEmail2 = computeBlindIndex(
-      normalizeEmail("dr.minh.immunology@vinmec.com"),
+      normalizeEmail("dr.minh.immunology@example.test"),
       "email"
     );
     const idxDefaultNamespace = computeBlindIndex(emailNorm, "default");

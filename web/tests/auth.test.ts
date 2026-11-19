@@ -216,7 +216,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
 
     const unknownRes = await loginPost(
       buildJsonRequest("/api/auth/login", {
-        email: "nobody@vinmec.com",
+        email: "nobody@example.test",
         password: "AnyPassword#123",
         selectedRole: "specialist",
       })
@@ -281,7 +281,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
         "/api/auth/register",
         {
           fullName: "Test User",
-          email: "csrf@lupiva.vn",
+          email: "csrf@example.test",
           password: "StrongPassword#1",
           role: "patient",
           consentChecked: true,
@@ -473,7 +473,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
         fullName: "Tran Van Binh",
         phone: "0987654321",
         otpCode: otp2Body.devOtp,
-        email: "Binh.Patient@Lupiva.vn",
+        email: "Binh.Patient@Example.test",
         password: "PatientSecure#2026",
         role: "patient",
         consentChecked: true,
@@ -483,13 +483,13 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const reg2Data = (await regWithEmailRes.json()) as {
       user: { email: string | null; phone: string | null };
     };
-    expect(reg2Data.user.email).toBe("binh.patient@lupiva.vn");
+    expect(reg2Data.user.email).toBe("binh.patient@example.test");
     expect(reg2Data.user.phone).toBe("+84987654321");
 
     await logoutPost(buildJsonRequest("/api/auth/logout", {}));
     const emailLogin = await loginPost(
       buildJsonRequest("/api/auth/login", {
-        identifier: "binh.patient@lupiva.vn",
+        identifier: "binh.patient@example.test",
         password: "PatientSecure#2026",
       })
     );
@@ -499,7 +499,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const deniedSpecRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Dr. Hoang Anh",
-        email: "hoang.anh@vinmec.com",
+        email: "hoang.anh@example.test",
         password: "DoctorSecure#2026",
         role: "specialist",
         consentChecked: true,
@@ -512,7 +512,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const okSpecRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Dr. Hoang Anh",
-        email: "hoang.anh@vinmec.com",
+        email: "hoang.anh@example.test",
         password: "DoctorSecure#2026",
         role: "specialist",
         consentChecked: true,
@@ -532,7 +532,7 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     await logoutPost(buildJsonRequest("/api/auth/logout", {}));
     const reLogin = await loginPost(
       buildJsonRequest("/api/auth/login", {
-        identifier: "hoang.anh@vinmec.com",
+        identifier: "hoang.anh@example.test",
         password: "DoctorSecure#2026",
         selectedRole: "specialist",
       })

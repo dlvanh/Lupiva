@@ -12,7 +12,7 @@ import {
 describe("Lupiva CRF 3-Zone PII Scrubber & HIV Segregation", () => {
   it("redacts emails, Vietnam CCCD/CMND/BHYT/Passport numbers, phones, and explicit patient tokens", () => {
     const raw =
-      "Contact Tran Thi Mai (VN-0084-26) via mai.tran@gmail.com or +84 912-345-678; CCCD: 001097012345, BHYT: DN4012345678901, old CMND 123456789, landline 02439743556.";
+      "Contact Tran Thi Mai (VN-0084-26) via mai.tran@example.test or +84 912-345-678; CCCD: 001097012345, BHYT: DN4012345678901, old CMND 123456789, landline 02439743556.";
 
     const scrubbed = scrubFreeText(raw, {
       redactTokens: ["Tran Thi Mai", "VN-0084-26"],
@@ -20,7 +20,7 @@ describe("Lupiva CRF 3-Zone PII Scrubber & HIV Segregation", () => {
 
     expect(scrubbed).not.toContain("Tran Thi Mai");
     expect(scrubbed).not.toContain("VN-0084-26");
-    expect(scrubbed).not.toContain("mai.tran@gmail.com");
+    expect(scrubbed).not.toContain("mai.tran@example.test");
     expect(scrubbed).not.toContain("0912-345-678");
     expect(scrubbed).not.toContain("001097012345");
     expect(scrubbed).not.toContain("DN4012345678901");
@@ -101,7 +101,7 @@ describe("Lupiva CRF 3-Zone PII Scrubber & HIV Segregation", () => {
       {
         id: "tr1",
         group: "Medication",
-        name: "Hydroxychloroquine (rx by dr@vinmec.com)",
+        name: "Hydroxychloroquine (rx by dr@example.test)",
         route: "Oral",
         dose: "200 mg",
         frequency: "Daily",
