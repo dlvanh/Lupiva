@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { users } from "@/db/schema";
+import { phoneOtps, users } from "@/db/schema";
 import { writeAuditLog } from "@/lib/audit";
 import {
   createSession,
@@ -20,7 +20,9 @@ import {
   normalizeEmail,
   timingSafeStringEqual,
 } from "@/lib/crypto";
+import { OTP_MAX_VERIFY_ATTEMPTS, hashOtpCode } from "@/lib/otp";
 import { hashPassword } from "@/lib/password";
+import { normalizeVietnamPhone } from "@/lib/phone";
 import {
   REGISTER_LOCKOUT_MS,
   REGISTER_MAX_ATTEMPTS,
@@ -38,12 +40,9 @@ const registerRequestSchema = z.object({
     .trim()
     .min(2, "Full name must be at least 2 characters.")
     .max(120, "Full name must not exceed 120 characters."),
-  email: z
-    .string()
-    .trim()
-    .min(1, "Email is required.")
-    .max(254, "Email address is too long.")
-    .email("Please enter a valid email address."),
+  phone: z.string().trim().max(32).optional(),
+  otpCode: z.string().trim().max(12).optional(),
+  email: z.string().trim().max(254, "Email address is too long.").optional(),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters.")
@@ -90,6 +89,55 @@ export async function POST(request: Request) {
         error:
           parsed.error.issues[0]?.message ?? "Invalid registration details.",
       },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const data = parsed.data;
+  const rawEmail = data.email?.trim() ?? "";
+  let normalizedEmail: string | null = null;
+  if (rawEmail.length > 0) {
+    const emailCheck = z
+      .string()
+      .email("Please enter a valid email address.")
+      .safeParse(rawEmail);
+    if (!emailCheck.success) {
+      return NextResponse.json(
+        { error: emailCheck.error.issues[0]?.message ?? "Invalid email address." },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+    normalizedEmail = normalizeEmail(rawEmail);
+  }
+
+  const rawPhone = data.phone?.trim() ?? "";
+  let normalizedPhone: string | null = null;
+  if (rawPhone.length > 0) {
+    normalizedPhone = normalizeVietnamPhone(rawPhone);
+    if (!normalizedPhone) {
+      return NextResponse.json(
+        { error: "Please enter a valid Vietnamese mobile phone number." },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+  }
+
+  if (data.role === "patient") {
+    if (!normalizedPhone) {
+      return NextResponse.json(
+        { error: "Phone number is required." },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+    if (!data.otpCode || !/^\d{6}$/.test(data.otpCode)) {
+      return NextResponse.json(
+        { error: "Please enter the 6-digit OTP verification code." },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+  } else if (!normalizedEmail && !normalizedPhone) {
+    return NextResponse.json(
+      { error: "Email or phone number is required." },
       { status: 400, headers: NO_STORE_HEADERS }
     );
   }
@@ -146,8 +194,6 @@ export async function POST(request: Request) {
       db
     );
 
-    const data = parsed.data;
-
     // Gate specialist account creation behind server-side SPECIALIST_INVITE_CODE
     if (data.role === "specialist") {
       const expectedInviteCode = process.env.SPECIALIST_INVITE_CODE?.trim();
@@ -186,33 +232,129 @@ export async function POST(request: Request) {
       }
     }
 
-    const normalizedEmail = normalizeEmail(data.email);
-    const emailBlindIndex = computeBlindIndex(normalizedEmail, "email");
+    const phoneBlindIndex = normalizedPhone
+      ? computeBlindIndex(normalizedPhone, "phone")
+      : null;
+    const emailBlindIndex = normalizedEmail
+      ? computeBlindIndex(normalizedEmail, "email")
+      : null;
 
-    const [existing] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.emailBlindIndex, emailBlindIndex))
-      .limit(1);
+    if (phoneBlindIndex) {
+      const [existingPhone] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.phoneBlindIndex, phoneBlindIndex))
+        .limit(1);
 
-    if (existing) {
-      return NextResponse.json(
-        { error: "An account with this email address already exists." },
-        { status: 409, headers: NO_STORE_HEADERS }
-      );
+      if (existingPhone) {
+        return NextResponse.json(
+          { error: "An account with this phone number already exists." },
+          { status: 409, headers: NO_STORE_HEADERS }
+        );
+      }
+    }
+
+    if (emailBlindIndex) {
+      const [existingEmail] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.emailBlindIndex, emailBlindIndex))
+        .limit(1);
+
+      if (existingEmail) {
+        return NextResponse.json(
+          { error: "An account with this email address already exists." },
+          { status: 409, headers: NO_STORE_HEADERS }
+        );
+      }
+    }
+
+    const now = new Date();
+
+    // Verify & atomically consume phone OTP for patient self-registration.
+    if (data.role === "patient" && phoneBlindIndex && data.otpCode) {
+      const [otpRow] = await db
+        .select()
+        .from(phoneOtps)
+        .where(
+          and(
+            eq(phoneOtps.phoneBlindIndex, phoneBlindIndex),
+            isNull(phoneOtps.consumedAt)
+          )
+        )
+        .orderBy(desc(phoneOtps.createdAt))
+        .limit(1);
+
+      if (!otpRow || otpRow.expiresAt.getTime() <= now.getTime()) {
+        return NextResponse.json(
+          {
+            error:
+              "OTP verification code is invalid or expired. Please request a new code.",
+          },
+          { status: 400, headers: NO_STORE_HEADERS }
+        );
+      }
+
+      if (otpRow.attempts >= OTP_MAX_VERIFY_ATTEMPTS) {
+        return NextResponse.json(
+          {
+            error:
+              "Too many incorrect OTP attempts. Please request a new verification code.",
+          },
+          { status: 429, headers: NO_STORE_HEADERS }
+        );
+      }
+
+      const providedHash = hashOtpCode(phoneBlindIndex, data.otpCode);
+      if (!timingSafeStringEqual(otpRow.codeHash, providedHash)) {
+        const nextAttempts = otpRow.attempts + 1;
+        await db
+          .update(phoneOtps)
+          .set({ attempts: nextAttempts })
+          .where(eq(phoneOtps.id, otpRow.id));
+
+        return NextResponse.json(
+          {
+            error:
+              nextAttempts >= OTP_MAX_VERIFY_ATTEMPTS
+                ? "Too many incorrect OTP attempts. Please request a new verification code."
+                : "Incorrect OTP verification code.",
+          },
+          {
+            status: nextAttempts >= OTP_MAX_VERIFY_ATTEMPTS ? 429 : 400,
+            headers: NO_STORE_HEADERS,
+          }
+        );
+      }
+
+      const consumed = await db
+        .update(phoneOtps)
+        .set({ consumedAt: now })
+        .where(
+          and(eq(phoneOtps.id, otpRow.id), isNull(phoneOtps.consumedAt))
+        )
+        .returning({ id: phoneOtps.id });
+
+      if (consumed.length === 0) {
+        return NextResponse.json(
+          { error: "OTP verification code has already been used." },
+          { status: 400, headers: NO_STORE_HEADERS }
+        );
+      }
     }
 
     const userId = crypto.randomUUID();
-    const emailEncrypted = encryptField(
-      normalizedEmail,
-      `users:${userId}:email`
-    );
+    const emailEncrypted = normalizedEmail
+      ? encryptField(normalizedEmail, `users:${userId}:email`)
+      : null;
+    const phoneEncrypted = normalizedPhone
+      ? encryptField(normalizedPhone, `users:${userId}:phone`)
+      : null;
     const fullNameEncrypted = encryptField(
       data.fullName,
       `users:${userId}:full_name`
     );
     const passwordHash = await hashPassword(data.password);
-    const now = new Date();
 
     const title =
       data.role === "specialist"
@@ -226,6 +368,8 @@ export async function POST(request: Request) {
         id: userId,
         emailEncrypted,
         emailBlindIndex,
+        phoneEncrypted,
+        phoneBlindIndex,
         fullNameEncrypted,
         passwordHash,
         role: data.role,
@@ -239,7 +383,7 @@ export async function POST(request: Request) {
         updatedAt: now,
       });
     } catch (insertError) {
-      // Handle race condition on email_blind_index unique constraint
+      // Handle race condition on email_blind_index or phone_blind_index unique constraint
       const pgCode =
         typeof insertError === "object" &&
         insertError !== null &&
@@ -247,8 +391,18 @@ export async function POST(request: Request) {
           ? String((insertError as { code: unknown }).code)
           : "";
       if (pgCode === "23505") {
+        const constraint =
+          typeof insertError === "object" &&
+          insertError !== null &&
+          "constraint" in insertError
+            ? String((insertError as { constraint: unknown }).constraint)
+            : "";
         return NextResponse.json(
-          { error: "An account with this email address already exists." },
+          {
+            error: constraint.includes("email")
+              ? "An account with this email address already exists."
+              : "An account with this phone number already exists.",
+          },
           { status: 409, headers: NO_STORE_HEADERS }
         );
       }
@@ -280,6 +434,7 @@ export async function POST(request: Request) {
       id: userId,
       name: data.fullName,
       email: normalizedEmail,
+      phone: normalizedPhone,
       role: data.role,
       title,
       departmentOrRegistryId,

@@ -10,6 +10,8 @@ export type AuditAction =
   | "auth.register_success"
   | "auth.register_denied"
   | "auth.register_rate_limited"
+  | "auth.otp_sent"
+  | "auth.otp_rate_limited"
   | "submission.created"
   | "submission.updated"
   | "submission.image_stored"

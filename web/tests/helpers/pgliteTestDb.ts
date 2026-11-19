@@ -46,7 +46,7 @@ export async function createTestDatabase(): Promise<TestDatabaseHandle> {
     db,
     resetTables: async () => {
       await pg.exec(
-        "TRUNCATE TABLE audit_logs, auth_rate_limits, sessions, uploaded_documents, crf_submissions, patient_profiles, users RESTART IDENTITY CASCADE;"
+        "TRUNCATE TABLE audit_logs, auth_rate_limits, phone_otps, sessions, uploaded_documents, crf_submissions, patient_profiles, users RESTART IDENTITY CASCADE;"
       );
     },
     close: async () => {

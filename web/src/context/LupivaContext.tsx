@@ -47,7 +47,8 @@ export interface ToastMessage {
 }
 
 export interface LoginCredentialsInput {
-  email: string;
+  identifier?: string;
+  email?: string;
   password: string;
   selectedRole?: UserRole;
   consentChecked?: boolean;
@@ -55,11 +56,21 @@ export interface LoginCredentialsInput {
 
 export interface RegisterAccountInput {
   fullName: string;
-  email: string;
+  phone: string;
+  otpCode: string;
+  email?: string;
   password: string;
   role: UserRole;
   consentChecked: boolean;
   inviteCode?: string;
+}
+
+export interface SendOtpResult {
+  ok: boolean;
+  error?: string;
+  cooldownSeconds?: number;
+  retryAfterSeconds?: number;
+  devOtp?: string;
 }
 
 export interface AuthActionResult {
@@ -81,6 +92,7 @@ interface LupivaContextValue {
   loginWithCredentials: (
     input: LoginCredentialsInput
   ) => Promise<AuthActionResult>;
+  sendRegisterOtp: (phone: string) => Promise<SendOtpResult>;
   registerAccount: (input: RegisterAccountInput) => Promise<AuthActionResult>;
   logout: () => Promise<void>;
   selectedReportId: string;
@@ -315,8 +327,12 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser((prev) => {
         if (!prev) return null;
         if (process.env.NEXT_PUBLIC_DEMO_MODE !== "true") return prev;
-        const isSeededPersona =
-          prev.email.toLowerCase() === DEMO_USERS[prev.role].email.toLowerCase();
+        const demoEmail = DEMO_USERS[prev.role].email;
+        const isSeededPersona = Boolean(
+          prev.email &&
+            demoEmail &&
+            prev.email.toLowerCase() === demoEmail.toLowerCase()
+        );
         const localized = getLocalizedDemoUsers(newLang)[prev.role];
         return {
           ...prev,
@@ -382,6 +398,55 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [language, showToast, t]
+  );
+
+  const sendRegisterOtp = useCallback(
+    async (phone: string): Promise<SendOtpResult> => {
+      try {
+        const res = await fetch("/api/auth/register/send-otp", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone }),
+        });
+
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          error?: string;
+          cooldownSeconds?: number;
+          retryAfterSeconds?: number;
+          devOtp?: string;
+        };
+
+        if (!res.ok || !data.ok) {
+          const errorMessage =
+            data.error ||
+            (language === "vi"
+              ? "Không thể gửi mã OTP. Vui lòng thử lại."
+              : "Unable to send OTP code. Please try again.");
+          return {
+            ok: false,
+            error: errorMessage,
+            retryAfterSeconds: data.retryAfterSeconds,
+          };
+        }
+
+        return {
+          ok: true,
+          cooldownSeconds: data.cooldownSeconds,
+          devOtp: data.devOtp,
+        };
+      } catch {
+        return {
+          ok: false,
+          error:
+            language === "vi"
+              ? "Không thể kết nối tới máy chủ gửi OTP."
+              : "Unable to reach the OTP server.",
+        };
+      }
+    },
+    [language]
   );
 
   const registerAccount = useCallback(
@@ -744,6 +809,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
         currentUser,
         authLoading,
         loginWithCredentials,
+        sendRegisterOtp,
         registerAccount,
         logout,
         selectedReportId,

@@ -10,6 +10,10 @@ export const REGISTER_MAX_ATTEMPTS = 10;
 export const REGISTER_WINDOW_MS = 60 * 60 * 1000;
 export const REGISTER_LOCKOUT_MS = 30 * 60 * 1000;
 
+export const OTP_SEND_MAX_ATTEMPTS = 5;
+export const OTP_SEND_WINDOW_MS = 15 * 60 * 1000;
+export const OTP_SEND_LOCKOUT_MS = 15 * 60 * 1000;
+
 export interface RateLimitStatus {
   allowed: boolean;
   remainingAttempts: number;
@@ -18,13 +22,20 @@ export interface RateLimitStatus {
 
 export function buildLoginRateLimitKey(
   ipAddress: string,
-  emailBlindIndex: string
+  identifierBlindIndex: string
 ): string {
-  return `login:${ipAddress}:${emailBlindIndex.slice(0, 24)}`;
+  return `login:${ipAddress}:${identifierBlindIndex.slice(0, 24)}`;
 }
 
 export function buildRegisterRateLimitKey(ipAddress: string): string {
   return `register:${ipAddress}`;
+}
+
+export function buildOtpSendRateLimitKey(
+  ipAddress: string,
+  phoneBlindIndex: string
+): string {
+  return `otp:${ipAddress}:${phoneBlindIndex.slice(0, 24)}`;
 }
 
 export async function checkRateLimit(

@@ -12,13 +12,31 @@ export { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS };
 export interface AuthenticatedUserDTO {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
+  phone?: string | null;
   role: UserRole;
   title: string;
   departmentOrRegistryId: string;
   badgeText: string;
   consentSigned: boolean;
   consentSignedAt: string | null;
+}
+
+export function decryptUserContacts(user: {
+  id: string;
+  emailEncrypted: string | null;
+  phoneEncrypted: string | null;
+  fullNameEncrypted: string;
+}): { name: string; email: string | null; phone: string | null } {
+  return {
+    name: decryptField(user.fullNameEncrypted, `users:${user.id}:full_name`),
+    email: user.emailEncrypted
+      ? decryptField(user.emailEncrypted, `users:${user.id}:email`)
+      : null,
+    phone: user.phoneEncrypted
+      ? decryptField(user.phoneEncrypted, `users:${user.id}:phone`)
+      : null,
+  };
 }
 
 export class AuthError extends Error {
@@ -184,6 +202,7 @@ export async function getSessionFromToken(
       sessionId: sessions.id,
       userId: users.id,
       emailEncrypted: users.emailEncrypted,
+      phoneEncrypted: users.phoneEncrypted,
       fullNameEncrypted: users.fullNameEncrypted,
       role: users.role,
       title: users.title,
@@ -208,8 +227,12 @@ export async function getSessionFromToken(
   }
 
   const row = rows[0];
-  const email = decryptField(row.emailEncrypted, `users:${row.userId}:email`);
-  const name = decryptField(row.fullNameEncrypted, `users:${row.userId}:full_name`);
+  const { name, email, phone } = decryptUserContacts({
+    id: row.userId,
+    emailEncrypted: row.emailEncrypted,
+    phoneEncrypted: row.phoneEncrypted,
+    fullNameEncrypted: row.fullNameEncrypted,
+  });
 
   return {
     sessionId: row.sessionId,
@@ -217,6 +240,7 @@ export async function getSessionFromToken(
       id: row.userId,
       name,
       email,
+      phone,
       role: row.role,
       title: row.title,
       departmentOrRegistryId: row.departmentOrRegistryId,

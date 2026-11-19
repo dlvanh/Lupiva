@@ -24,26 +24,34 @@ afterEach(() => vi.unstubAllEnvs());
 
 describe("login copy", () => {
   it.each([
-    ["vi", "Đăng nhập", "Đăng nhập", "Đăng ký tài khoản"],
-    ["en", "Sign In", "Sign In", "Create an account"],
-  ] as const)("renders single-card sign-in screen in %s", (language, heading, button, registerLinkText) => {
+    ["vi", "Đăng nhập", "Đăng nhập", "Đăng ký tài khoản", "Số điện thoại hoặc Email"],
+    ["en", "Sign In", "Sign In", "Create an account", "Phone number or Email"],
+  ] as const)("renders single-card sign-in screen in %s", (language, heading, button, registerLinkText, identifierLabel) => {
     state.language = language;
     const html = renderToStaticMarkup(<LoginPage />);
     expect(html).toMatch(new RegExp(`<h1[^>]*id="login-form-heading"[^>]*>${heading}</h1>`));
     expect(html).toMatch(new RegExp(`id="login-btn-submit"[^>]*>${button}</button>`));
+    expect(html).toContain('id="login-input-identifier"');
+    expect(html).toContain(identifierLabel);
     expect(html).toContain('id="login-link-register"');
     expect(html).toContain('href="/login?mode=register"');
     expect(html).toContain(registerLinkText);
     expect(html).not.toMatch(/<aside\b|login-tab-specialist|login-tab-patient|login-input-invite-code|phân quyền|role-based clinical access|aes-256|hmac|blind index/i);
   });
 
-  it("registration is patient-only: shows full name and password hint without role choice or invite code", () => {
+  it("registration is patient-only: requires phone + OTP, optional email, full name and password hint without role choice or invite code", () => {
     state.query = "mode=register";
     const html = renderToStaticMarkup(<LoginPage />);
     expect(html).not.toMatch(/<aside\b|login-tab-specialist|login-tab-patient|login-input-invite-code|login-checkbox-consent/);
     expect(html).not.toContain("Bác sĩ Chuyên khoa");
     expect(html).toMatch(/<h1[^>]*id="login-form-heading"[^>]*>Đăng ký tài khoản<\/h1>/);
     expect(html).toContain('id="login-input-fullname"');
+    expect(html).toContain('id="login-input-phone"');
+    expect(html).toContain('id="login-btn-send-otp"');
+    expect(html).toContain('id="login-input-otp"');
+    expect(html).toContain('id="login-input-email"');
+    expect(html).toContain("Email (không bắt buộc)");
+    expect(html).not.toMatch(/id="login-input-email"[^>]*\brequired\b/);
     expect(html).toContain('id="login-password-hint"');
     expect(html).toMatch(/id="login-btn-submit"[^>]*>Đăng ký<\/button>/);
     expect(html).toContain('id="login-link-signin"');

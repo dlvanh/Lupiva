@@ -143,7 +143,18 @@ export interface Translations {
     patientTabDesc: string;
     fullNameLabel: string;
     fullNamePlaceholder: string;
+    identifierLabel: string;
+    identifierPlaceholder: string;
+    phoneLabel: string;
+    phonePlaceholder: string;
+    sendOtpBtn: string;
+    sendingOtpBtn: string;
+    resendOtpBtn: (seconds: number) => string;
+    otpLabel: string;
+    otpPlaceholder: string;
+    otpSentHint: string;
     emailLabel: string;
+    emailOptionalLabel: string;
     passwordLabel: string;
     passwordHint: string;
     passwordHintProduction: string;
@@ -288,6 +299,12 @@ export interface Translations {
     autofillDesc: (name: string) => string;
     emailRequiredTitle: string;
     emailRequiredDesc: string;
+    identifierRequiredTitle: string;
+    identifierRequiredDesc: string;
+    phoneRequiredTitle: string;
+    phoneRequiredDesc: string;
+    otpRequiredTitle: string;
+    otpRequiredDesc: string;
     consentRequiredTitle: string;
     consentRequiredDesc: string;
     ocrScanCompleteTitle: string;
@@ -455,9 +472,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       title: "Sign In",
       registerTitle: "Create Account",
       autofillBtn: "Autofill Demo Credentials",
-      subtitle: "Enter your email and password to access the system.",
+      subtitle: "Enter your phone number or email and password to access the system.",
       registerSubtitle:
-        "Create a patient account to upload and track your laboratory records.",
+        "Create a patient account with your phone number to upload and track your laboratory records.",
       modeSignInTab: "Sign In",
       modeRegisterTab: "Patient registration",
       specialistTabTitle: "Clinical Specialist",
@@ -468,7 +485,18 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       patientTabDesc: "Upload lab scans & earn vouchers",
       fullNameLabel: "Full Name",
       fullNamePlaceholder: "Enter your full name",
+      identifierLabel: "Phone number or Email",
+      identifierPlaceholder: "0912345678 or email@example.com",
+      phoneLabel: "Phone number",
+      phonePlaceholder: "0912345678",
+      sendOtpBtn: "Send OTP",
+      sendingOtpBtn: "Sending...",
+      resendOtpBtn: (seconds) => `Resend (${seconds}s)`,
+      otpLabel: "OTP verification code",
+      otpPlaceholder: "Enter 6-digit code",
+      otpSentHint: "A 6-digit verification code has been sent to your phone (valid for 5 minutes).",
       emailLabel: "Email",
+      emailOptionalLabel: "Email (optional)",
       passwordLabel: "Password",
       passwordHint: "Seeded demo passkey pre-filled",
       passwordHintProduction: "Enter your account password",
@@ -631,6 +659,12 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       autofillDesc: (name) => `Loaded mock profile for ${name}.`,
       emailRequiredTitle: "Email Required",
       emailRequiredDesc: "Please enter your email address.",
+      identifierRequiredTitle: "Account Required",
+      identifierRequiredDesc: "Please enter your phone number or email address.",
+      phoneRequiredTitle: "Valid Phone Number Required",
+      phoneRequiredDesc: "Please enter a valid Vietnamese mobile phone number (e.g. 0912345678).",
+      otpRequiredTitle: "OTP Required",
+      otpRequiredDesc: "Please enter the 6-digit OTP verification code.",
       consentRequiredTitle: "Informed Consent Required",
       consentRequiredDesc:
         "Patients must acknowledge e-CRF registry data de-identification consent.",
@@ -799,9 +833,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       title: "Đăng nhập",
       registerTitle: "Đăng ký tài khoản",
       autofillBtn: "Tự động Điền Tài khoản Mẫu",
-      subtitle: "Nhập email và mật khẩu để truy cập hệ thống.",
+      subtitle: "Nhập số điện thoại hoặc email và mật khẩu để truy cập hệ thống.",
       registerSubtitle:
-        "Tạo tài khoản bệnh nhân để tải lên và theo dõi hồ sơ xét nghiệm.",
+        "Tạo tài khoản bệnh nhân bằng số điện thoại để tải lên và theo dõi hồ sơ xét nghiệm.",
       modeSignInTab: "Đăng nhập",
       modeRegisterTab: "Đăng ký bệnh nhân",
       specialistTabTitle: "Bác sĩ Chuyên khoa",
@@ -812,7 +846,18 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       patientTabDesc: "Tải phiếu xét nghiệm & nhận voucher",
       fullNameLabel: "Họ và Tên",
       fullNamePlaceholder: "Nhập họ và tên đầy đủ",
+      identifierLabel: "Số điện thoại hoặc Email",
+      identifierPlaceholder: "0912345678 hoặc email@example.com",
+      phoneLabel: "Số điện thoại",
+      phonePlaceholder: "0912345678",
+      sendOtpBtn: "Gửi mã OTP",
+      sendingOtpBtn: "Đang gửi...",
+      resendOtpBtn: (seconds) => `Gửi lại (${seconds}s)`,
+      otpLabel: "Mã xác nhận OTP",
+      otpPlaceholder: "Nhập mã gồm 6 chữ số",
+      otpSentHint: "Mã OTP gồm 6 chữ số đã được gửi tới số điện thoại của bạn (hiệu lực 5 phút).",
       emailLabel: "Email",
+      emailOptionalLabel: "Email (không bắt buộc)",
       passwordLabel: "Mật khẩu",
       passwordHint: "Đã điền sẵn mật khẩu tài khoản mẫu",
       passwordHintProduction: "Nhập mật khẩu tài khoản của bạn",
@@ -975,6 +1020,12 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       autofillDesc: (name) => `Đã nạp hồ sơ mẫu của ${name}.`,
       emailRequiredTitle: "Yêu cầu Nhập Email",
       emailRequiredDesc: "Vui lòng nhập địa chỉ email của bạn.",
+      identifierRequiredTitle: "Yêu cầu Thông tin Đăng nhập",
+      identifierRequiredDesc: "Vui lòng nhập số điện thoại hoặc địa chỉ email.",
+      phoneRequiredTitle: "Số điện thoại chưa hợp lệ",
+      phoneRequiredDesc: "Vui lòng nhập số điện thoại di động Việt Nam hợp lệ (vd: 0912345678).",
+      otpRequiredTitle: "Yêu cầu Mã OTP",
+      otpRequiredDesc: "Vui lòng nhập mã xác nhận OTP gồm 6 chữ số.",
       consentRequiredTitle: "Yêu cầu Chấp thuận Tham gia",
       consentRequiredDesc:
         "Bệnh nhân cần xác nhận đồng ý đóng góp dữ liệu e-CRF đã ẩn danh.",
