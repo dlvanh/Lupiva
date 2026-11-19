@@ -129,6 +129,8 @@ describe("withoutHidden", () => {
     };
     expect(withoutHidden(view).fields[0].proposal).toBeUndefined();
     expect(withoutHidden(view).fields[0].slot).toBe("CV01/result");
+    const bmi = { ...view, fields: [field({ slot: "ADM07/result", proposal: { id: "b", value: "25.4", origin: "calculated" } })] };
+    expect(withoutHidden(bmi).fields[0].proposal?.value).toBe("25.4");
   });
 });
 

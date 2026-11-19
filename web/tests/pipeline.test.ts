@@ -30,6 +30,8 @@ describe("pipeline proxy guards", () => {
     expect(allowedPipelineCall("POST", "/api/crf/approve", "specialist")).toBe(true);
     expect(allowedPipelineCall("POST", "/api/crf/approve", "patient")).toBe(false);
     expect(allowedPipelineCall("POST", "/api/crf/generate", "patient")).toBe(false);
+    // LLM clinical proposals are switched off for everyone.
+    expect(allowedPipelineCall("POST", "/api/crf/generate", "specialist")).toBe(false);
     expect(allowedPipelineCall("POST", "/api/intakes", "patient")).toBe(false);
     expect(allowedPipelineCall("POST", "/api/intakes/image", "patient")).toBe(false);
     for (const path of ["/api/review", "/api/patient-review", "/api/source-review"]) {

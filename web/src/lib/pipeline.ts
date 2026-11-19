@@ -42,7 +42,6 @@ export const PIPELINE_POST: Record<string, readonly UserRole[]> = {
   "/api/intakes": ["specialist"],
   "/api/intakes/image": ["specialist"],
   "/api/intakes/start": ["specialist"],
-  "/api/crf/generate": ["specialist"],
   "/api/crf/scores": ["specialist"],
   "/api/crf/approve": ["specialist"],
   "/api/exports/preview": ["specialist"],
