@@ -531,23 +531,39 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
     let ok = true;
     for (const [index, file] of files.entries()) {
       const documentId = listed[index]?.id;
-      if (!documentId || !file.isImage || !file.url) continue;
-      try {
-        const blob = await (await fetch(file.url)).blob();
-        const res = await fetch(
-          `/api/submissions/${encodeURIComponent(submissionId)}/files?documentId=${encodeURIComponent(documentId)}`,
-          {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "Content-Type": "application/octet-stream" },
-            body: blob,
-          }
-        );
-        if (res.ok) stored += 1;
-        else ok = false;
-      } catch {
+      if (!file.isImage) continue;
+      if (!documentId || !file.url) {
+        // An image without bytes or without its server record must not pass silently.
         ok = false;
+        continue;
       }
+      // Weak mobile networks drop uploads; retry each image before giving up.
+      let uploaded = false;
+      for (const [attempt, waitMs] of [0, 1000, 3000].entries()) {
+        if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
+        try {
+          const blob = await (await fetch(file.url)).blob();
+          const res = await fetch(
+            `/api/submissions/${encodeURIComponent(submissionId)}/files?documentId=${encodeURIComponent(documentId)}`,
+            {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/octet-stream" },
+              body: blob,
+            }
+          );
+          // 409: an earlier attempt already stored it.
+          if (res.ok || (res.status === 409 && attempt > 0)) {
+            uploaded = true;
+            break;
+          }
+          if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) break;
+        } catch {
+          // network error: try again
+        }
+      }
+      if (uploaded) stored += 1;
+      else ok = false;
     }
     if (stored) {
       const res = await fetch(`/api/submissions/${encodeURIComponent(submissionId)}/send`, {
@@ -610,7 +626,7 @@ export function LupivaProvider({ children }: { children: React.ReactNode }) {
             showToast(
               language === "vi" ? "Ảnh chưa được gửi đi xử lý" : "Images not sent for processing",
               language === "vi"
-                ? "Hồ sơ đã lưu nhưng ảnh chưa tải lên được. Bác sĩ sẽ kiểm tra."
+                ? "Ảnh chưa gửi được, có thể do mạng yếu. Hãy kiểm tra kết nối rồi nộp lại ảnh."
                 : "The submission was saved but its images could not be uploaded.",
               "amber"
             );

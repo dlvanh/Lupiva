@@ -298,7 +298,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
           ? "No photos selected."
           : `${count} ${count === 1 ? "photo is" : "photos are"} ready to send.`,
       submitBtn: "Send records",
-      submittingBtn: "Sending records…",
+      submittingBtn: "Uploading images… please keep this page open",
       submitEmptyHint: "Choose at least 1 photo to send",
       submitSignInHint: "Sign in before you send your photos",
       guestBannerTitle: "Sign in to send your records",
@@ -470,7 +470,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
           ? "Chưa chọn ảnh nào."
           : `Có ${count} ảnh sẵn sàng gửi.`,
       submitBtn: "Gửi hồ sơ",
-      submittingBtn: "Đang gửi hồ sơ…",
+      submittingBtn: "Đang gửi ảnh… vui lòng không đóng trang",
       submitEmptyHint: "Chọn ít nhất 1 ảnh để gửi",
       submitSignInHint: "Đăng nhập để gửi ảnh",
       guestBannerTitle: "Đăng nhập để gửi hồ sơ",

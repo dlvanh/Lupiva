@@ -1,5 +1,6 @@
 "use client";
 
+import { loadIntoMemory, stagedBlockReason } from "@/lib/stagedFiles";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -111,6 +112,17 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
   const isVi = language === "vi";
 
   // Revoke any un-submitted object URLs when leaving the page
+  // Leaving the page while images are still uploading loses them on a weak network.
+  useEffect(() => {
+    if (!isSubmitting) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isSubmitting]);
+
   useEffect(() => {
     const trackedUrls = unsubmittedUrlsRef.current;
     return () => {
@@ -211,19 +223,35 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
           !embedded ||
           file.type.startsWith("image/") ||
           /\.(png|jpe?g|webp)$/i.test(file.name);
-        const objectUrl = isImage ? URL.createObjectURL(file) : null;
-        if (objectUrl) {
-          unsubmittedUrlsRef.current.add(objectUrl);
-        }
-
+        const id = `up-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`;
         added.push({
-          id: objectUrl ?? `up-${Date.now()}-${idx}`,
+          id,
           name: file.name,
-          url: objectUrl,
+          url: null,
           isImage,
           mimeType,
           sizeBytes: file.size,
+          status: isImage ? "loading" : undefined,
         });
+        if (isImage) {
+          // Read the image now so "Gửi hồ sơ" never sends a photo that is still
+          // downloading or cannot be read.
+          loadIntoMemory(file, mimeType)
+            .then((url) => {
+              unsubmittedUrlsRef.current.add(url);
+              setFiles((prev) => {
+                if (!prev.some((x) => x.id === id)) {
+                  URL.revokeObjectURL(url);
+                  unsubmittedUrlsRef.current.delete(url);
+                  return prev;
+                }
+                return prev.map((x) => (x.id === id ? { ...x, url, status: "ready" } : x));
+              });
+            })
+            .catch(() => {
+              setFiles((prev) => prev.map((x) => (x.id === id ? { ...x, status: "error" } : x)));
+            });
+        }
       });
 
       setValidationMessages(messages);
@@ -277,7 +305,7 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (files.length === 0 || !currentUser || isSubmitting) return;
+    if (files.length === 0 || !currentUser || isSubmitting || stagedBlockReason(files)) return;
 
     setIsSubmitting(true);
     try {
@@ -306,8 +334,17 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
   };
 
   const Wrapper = embedded ? "section" : "main";
-  const submitHint = !embedded && !isSubmitting
-    ? files.length === 0 ? copy.submitEmptyHint : !currentUser ? copy.submitSignInHint : null
+  const blockReason = stagedBlockReason(files);
+  const blockHint =
+    blockReason === "loading"
+      ? language === "vi" ? "Đang tải ảnh lên trang, vui lòng chờ đến khi tất cả ảnh hiện hình thu nhỏ." : "Images are still loading; wait until every thumbnail appears."
+      : blockReason === "error"
+        ? language === "vi" ? "Có ảnh không đọc được. Hãy xóa ảnh có dấu lỗi rồi chọn hoặc chụp lại." : "An image could not be read. Remove it and choose or take it again."
+        : null;
+  const submitHint = !isSubmitting
+    ? files.length === 0
+      ? embedded ? null : copy.submitEmptyHint
+      : !currentUser ? (embedded ? null : copy.submitSignInHint) : blockHint
     : null;
   const dropHandlers = {
     onDragOver: (event: React.DragEvent) => {
@@ -569,6 +606,12 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
                                 className={embedded ? "size-10 object-cover" : "size-14 object-cover"}
                               />
                             </button>
+                          ) : f.status === "loading" || f.status === "error" ? (
+                            <span
+                              className={`flex shrink-0 items-center justify-center rounded border text-center font-semibold ${embedded ? "size-10 text-[9px]" : "size-14 text-xs"} ${f.status === "error" ? "border-rose-300 bg-rose-50 text-rose-800" : "border-slate-200 bg-slate-100 text-slate-600"}`}
+                            >
+                              {f.status === "error" ? (language === "vi" ? "Lỗi" : "Error") : language === "vi" ? "Đang tải…" : "Loading…"}
+                            </span>
                           ) : embedded && (
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-slate-200 bg-slate-100 font-mono text-[10px] font-bold text-slate-700">
                               PDF
@@ -631,7 +674,7 @@ export function PatientUploadView({ embedded = false, onSubmitted }: { embedded?
             <button
               type="submit"
               id="upload-btn-submit"
-              disabled={files.length === 0 || !currentUser || isSubmitting}
+              disabled={files.length === 0 || !currentUser || isSubmitting || !!blockReason}
               aria-describedby={submitHint ? "upload-submit-hint" : undefined}
               className={`mt-5 min-h-11 w-full cursor-pointer rounded-lg bg-teal-700 px-5 py-3 font-semibold text-white shadow-2xs transition enabled:hover:bg-teal-800 disabled:cursor-not-allowed ${embedded ? "text-sm disabled:opacity-50" : "text-base disabled:bg-slate-200 disabled:text-slate-700"}`}
             >

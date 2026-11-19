@@ -121,6 +121,8 @@ export interface UploadedDocFile {
   isImage: boolean;
   mimeType?: string;
   sizeBytes?: number;
+  /** Patient upload: image bytes still being read, read into memory, or unreadable. */
+  status?: "loading" | "ready" | "error";
 }
 
 export type SubmissionStatus = "pending_doctor_review" | "approved";
