@@ -5,6 +5,8 @@
 [![Status](https://img.shields.io/badge/Status-Under%20Active%20Development-success.svg)]()
 [![AI Architecture](https://img.shields.io/badge/AI-Physician--in--the--Loop%20(HITL)-orange.svg)]()
 
+> **Hướng dẫn chạy (backend Python + web Next.js):** xem [RUNNING.md](RUNNING.md).
+
 > **Lupiva** is a next-generation clinical registry and patient care platform tailored for **Systemic Lupus Erythematosus (SLE)**. Built for the **Vinmec Innovation Challenge**, Lupiva bridges clinical data standardization, expert medical consultations, and physician-supervised AI to elevate chronic autoimmune disease management.
 
 ---
