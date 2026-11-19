@@ -98,12 +98,17 @@ describe("public site pages", () => {
     expect(markup).not.toContain("E-consent");
   });
 
-  it("contact: partners with full Vietnamese names, principal investigator and real email/phone", () => {
+  it("contact: team members matching home page, partners, and real email/phone", () => {
     const markup = renderToStaticMarkup(<ContactPage />);
     for (const text of [
       "Liên hệ",
-      "Chủ nhiệm nghiên cứu",
+      "Thành viên nhóm thực hiện",
       "PGS.TS.BS Nguyễn Văn Đĩnh",
+      "Hoàng Thị Oánh",
+      "Đỗ Lê Việt Anh",
+      "Phạm Văn Kiên",
+      "Vương Việt Hoàng",
+      "Học viên AI Thực Chiến",
       "Viện Nghiên cứu Miễn dịch Vinmec – VinUni",
       "VinUni VRIC - VinMec thuộc chương trình AI Thực Chiến",
       "Điện thoại",
@@ -113,6 +118,7 @@ describe("public site pages", () => {
       expect(markup).toContain(text);
     }
     expect(markup).not.toContain("VRISG");
+    expect(markup).not.toContain("Chủ nhiệm dự án");
   });
 
   it("presents the pages in English", () => {
@@ -124,6 +130,9 @@ describe("public site pages", () => {
     const patients = renderToStaticMarkup(<PatientsPage />);
     expect(patients).toContain("A chance to talk with a specialist");
     expect(patients).toContain("Agree to take part (sign consent)");
+    const contact = renderToStaticMarkup(<ContactPage />);
+    expect(contact).toContain("Our Members");
+    expect(contact).toContain("Assoc. Prof. Dr. Nguyen Van Dinh");
   });
 
   it("menu: 4 public pages (Trang chủ, Về Registry, Cho bệnh nhân, Liên hệ) and no doctor button beside sign-in", () => {

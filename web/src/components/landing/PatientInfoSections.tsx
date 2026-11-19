@@ -86,8 +86,6 @@ export function PatientContactSection() {
     <section aria-labelledby="patient-contact-heading" className="border-t border-slate-200 pt-5">
       <h2 id="patient-contact-heading" className={headingClass}>{copy.contactTitle}</h2>
       <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-base leading-relaxed text-slate-800">
-        <dt className="font-semibold">{copy.contactLeadLabel}</dt>
-        <dd className="wrap-anywhere">{copy.contactLead}</dd>
         <dt className="font-semibold">{t.login.emailLabel}</dt>
         <dd className="wrap-anywhere">{copy.contactEmail}</dd>
         <dt className="font-semibold">{copy.contactPhoneLabel}</dt>

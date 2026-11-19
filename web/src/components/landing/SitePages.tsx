@@ -102,6 +102,34 @@ function MemberCard({ member }: { member: CommitteeMember }) {
   );
 }
 
+function CommitteeMembersGrid({ committee }: { committee: CommitteeMember[] }) {
+  const topMembers = committee.filter((m) => m.row === "top");
+  const bottomMembers = committee.filter((m) => m.row === "bottom");
+
+  return (
+    <>
+      {/* Hàng trên: 2 thành viên nằm ngang */}
+      <ul
+        className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2"
+        role="list"
+      >
+        {topMembers.map((member) => (
+          <MemberCard key={member.name} member={member} />
+        ))}
+      </ul>
+      {/* Hàng dưới: 3 thành viên theo hàng ngang */}
+      <ul
+        className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3"
+        role="list"
+      >
+        {bottomMembers.map((member) => (
+          <MemberCard key={member.name} member={member} />
+        ))}
+      </ul>
+    </>
+  );
+}
+
 /** Merged Home & About Registry body styled after commit f8b75bee. */
 export function HomeSections() {
   const { language, t } = useLupiva();
@@ -109,8 +137,6 @@ export function HomeSections() {
   const home = content.home;
   const about = content.about;
   const contact = t.patientPortal;
-  const topMembers = about.committee.filter((m) => m.row === "top");
-  const bottomMembers = about.committee.filter((m) => m.row === "bottom");
 
   return (
     <>
@@ -243,24 +269,7 @@ export function HomeSections() {
 
           <div className="mt-8">
             <h3 className="text-lg font-bold text-slate-900">{about.committeeTitle}</h3>
-            {/* Hàng trên: 2 thành viên nằm ngang */}
-            <ul
-              className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2"
-              role="list"
-            >
-              {topMembers.map((member) => (
-                <MemberCard key={member.name} member={member} />
-              ))}
-            </ul>
-            {/* Hàng dưới: 3 thành viên theo hàng ngang */}
-            <ul
-              className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3"
-              role="list"
-            >
-              {bottomMembers.map((member) => (
-                <MemberCard key={member.name} member={member} />
-              ))}
-            </ul>
+            <CommitteeMembersGrid committee={about.committee} />
           </div>
 
           {/* Implementing Units with full Vietnamese names */}
@@ -338,12 +347,12 @@ export function PatientsContent() {
 
 export function ContactContent() {
   const { language } = useLupiva();
-  const contact = SITE_CONTENT[language].contact;
+  const { about, contact } = SITE_CONTENT[language];
   return (
     <PageShell title={contact.title} intro={contact.intro}>
-      <section aria-labelledby="contact-lead-heading">
-        <h2 id="contact-lead-heading" className={h2}>{contact.leadTitle}</h2>
-        <p className={`mt-3 ${text}`}>{contact.lead}</p>
+      <section aria-labelledby="contact-members-heading">
+        <h2 id="contact-members-heading" className={h2}>{about.committeeTitle}</h2>
+        <CommitteeMembersGrid committee={about.committee} />
       </section>
       <PatientContactSection />
       <section aria-labelledby="contact-units-heading">

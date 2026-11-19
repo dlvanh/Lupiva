@@ -89,8 +89,6 @@ export interface SiteContent {
     intro: string;
     unitsTitle: string;
     units: string[];
-    leadTitle: string;
-    lead: string;
     collaborateTitle: string;
     collaborateBody: string;
   };
@@ -276,8 +274,6 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Trung tâm Dị ứng – Miễn dịch lâm sàng, Bệnh viện Đa khoa Quốc tế Vinmec Times City, 458 Minh Khai, Hai Bà Trưng, Hà Nội",
         "VinUni VRIC - VinMec thuộc chương trình AI Thực Chiến",
       ],
-      leadTitle: "Chủ nhiệm nghiên cứu",
-      lead: "PGS.TS.BS Nguyễn Văn Đĩnh — Trưởng Chuyên khoa Miễn dịch Dị ứng kiêm Viện trưởng Viện nghiên cứu miễn dịch Vinmec - VinUni",
       collaborateTitle: "Hợp tác nghiên cứu",
       collaborateBody:
         "Bác sĩ, bệnh viện và nhà nghiên cứu muốn tham gia hoặc hợp tác với registry vui lòng liên hệ nhóm nghiên cứu qua email bên dưới.",
@@ -461,8 +457,6 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Centre of Allergy and Clinical Immunology, Vinmec Times City International Hospital, 458 Minh Khai, Hai Ba Trung, Hanoi",
         "VinUni VRIC - VinMec, Practical AI Program",
       ],
-      leadTitle: "Principal investigator",
-      lead: "Assoc. Prof. Dr. Nguyen Van Dinh — Head of Allergy & Clinical Immunology and Director, Vinmec-VinUni Institute of Immunology",
       collaborateTitle: "Research collaboration",
       collaborateBody: "Doctors, hospitals and researchers who wish to join or collaborate with the registry may contact the research team by email below.",
     },
