@@ -1,5 +1,5 @@
 /**
- * Public pages of Vietnam Lupus Registry (home, about, patients, contact).
+ * Public pages of Vietnam Lupus Registry (home + about merged, patients, contact).
  * Wording is drawn from the VMEC 2026 abstract and the project plan; it is a
  * draft pending review by the research team. TODO: research team to confirm wording.
  */
@@ -9,44 +9,65 @@ export const SITE_NAME = "Vietnam Lupus Registry";
 
 export const SITE_PAGES = [
   { href: "/", vi: "Trang chủ", en: "Home", id: "nav-link-home" },
-  { href: "/gioi-thieu", vi: "Về registry", en: "About the registry", id: "nav-link-about" },
-  { href: "/benh-nhan", vi: "Thông tin cho bệnh nhân", en: "For patients", id: "nav-link-patients" },
-  { href: "/lien-he", vi: "Liên hệ", en: "Contact", id: "nav-link-contact" },
+  { href: "/benh-nhan", vi: "Cho bệnh nhân", en: "For patients", id: "nav-link-patients" },
 ] as const;
 
 type Item = { title: string; body: string };
 
+export interface WorkflowStep {
+  stepLabel: string;
+  title: string;
+  bullets: string[];
+}
+
+export interface CommitteeMember {
+  name: string;
+  initials: string;
+  role: string;
+  photoSrc?: string | null;
+  row: "top" | "bottom";
+}
+
+export interface PartnerUnit {
+  name: string;
+  parent: string;
+}
+
 export interface SiteContent {
   home: {
-    tagline: string;
     intro: string;
     patientsBtn: string;
-    aboutBtn: string;
-    aimTitle: string;
-    aimBody: string;
-    aimMore: string;
-    howTitle: string;
-    how: Item[];
-    patientsTitle: string;
-    patientsBody: string;
-    patientsMore: string;
+    doctorBtn: string;
+    navAims: string;
+    navWorkflow: string;
+    navFuture: string;
+    navMembers: string;
   };
   about: {
     title: string;
     intro: string;
-    backgroundTitle: string;
-    background: string[];
+    aimKicker: string;
     aimTitle: string;
     aimBody: string;
     aims: string[];
+    approachKicker: string;
     approachTitle: string;
-    approachBody: string;
-    approach: Item[];
+    approachSubtitle: string;
+    workflowSteps: WorkflowStep[];
+    futureKicker: string;
     futureTitle: string;
     futureBody: string;
-    future: string[];
+    future: Item[];
+    membersKicker: string;
+    membersSectionTitle: string;
+    committeeTitle: string;
+    committee: CommitteeMember[];
+    groupPhotoSrc: string | null;
+    groupPhotoAlt: string;
+    groupPhotoCaption: string;
+    groupPhotoPlaceholderHint: string;
     teamTitle: string;
-    team: string[];
+    units: PartnerUnit[];
   };
   patients: {
     title: string;
@@ -66,8 +87,6 @@ export interface SiteContent {
     intro: string;
     unitsTitle: string;
     units: string[];
-    leadTitle: string;
-    lead: string;
     collaborateTitle: string;
     collaborateBody: string;
   };
@@ -76,68 +95,145 @@ export interface SiteContent {
 export const SITE_CONTENT: Record<Language, SiteContent> = {
   vi: {
     home: {
-      tagline: "Registry bệnh lupus ban đỏ hệ thống tại Việt Nam",
       intro:
-        "Chia sẻ kết quả khám và xét nghiệm để cùng bác sĩ hiểu rõ hơn về bệnh lupus ở người Việt Nam và tìm cách điều trị tốt hơn.",
-      patientsBtn: "Thông tin cho bệnh nhân",
-      aboutBtn: "Về registry",
-      aimTitle: "Mục tiêu",
-      aimBody:
-        "Vietnam Lupus Registry thu thập dữ liệu khám và xét nghiệm thực tế của người bệnh lupus ban đỏ hệ thống (SLE) theo thời gian, để hiểu rõ đặc điểm bệnh, diễn tiến, đáp ứng điều trị ở người Việt Nam và hỗ trợ chăm sóc người bệnh tốt hơn.",
-      aimMore: "Tìm hiểu thêm về registry",
-      howTitle: "Registry hoạt động như thế nào",
-      how: [
-        { title: "Người bệnh gửi hồ sơ", body: "Sau khi đồng ý tham gia, người bệnh chụp hoặc tải ảnh phiếu khám, phiếu xét nghiệm lên cổng trực tuyến." },
-        { title: "Hệ thống đọc tài liệu", body: "Công nghệ nhận dạng chữ và trí tuệ nhân tạo đọc tài liệu, hiểu ngữ cảnh lâm sàng và đề xuất giá trị cho phiếu nghiên cứu." },
-        { title: "Bác sĩ kiểm tra", body: "Bác sĩ chuyên khoa đối chiếu từng giá trị với tài liệu gốc trước khi phê duyệt." },
-        { title: "Dữ liệu cho nghiên cứu", body: "Dữ liệu đã duyệt được chuẩn hóa, giả danh hóa và dùng cho các nghiên cứu về bệnh lupus." },
-      ],
-      patientsTitle: "Bạn đang sống chung với bệnh lupus?",
-      patientsBody:
-        "Mỗi hồ sơ bạn chia sẻ giúp các bác sĩ và nhà nghiên cứu hiểu rõ hơn bệnh lupus ở người Việt Nam. Tham gia miễn phí và bạn có thể rút lại bất cứ lúc nào.",
-      patientsMore: "Xem quyền lợi và cách tham gia",
+        "Hệ thống thu thập dữ liệu lâm sàng bệnh lupus ban đỏ hệ thống (SLE) Việt Nam với sự tham gia của người bệnh — chuẩn hóa hồ sơ khám và xét nghiệm thực tế để phục vụ nghiên cứu, hỗ trợ bác sĩ theo dõi và nâng cao chất lượng điều trị.",
+      patientsBtn: "Dành cho bệnh nhân",
+      doctorBtn: "Dành cho bác sĩ",
+      navAims: "Mục tiêu & Hướng nghiên cứu",
+      navWorkflow: "Cách Registry vận hành",
+      navFuture: "Hướng phát triển",
+      navMembers: "Thành viên & Đơn vị thực hiện",
     },
     about: {
       title: "Về Vietnam Lupus Registry",
       intro:
-        "Vietnam Lupus Registry là registry số do người bệnh cùng tham gia, dành cho bệnh lupus ban đỏ hệ thống (SLE) tại Việt Nam. Registry thu thập hồ sơ khám và xét nghiệm trong quá trình điều trị thường quy, chuẩn hóa theo phiếu nghiên cứu (CRF) và được bác sĩ chuyên khoa kiểm tra.",
-      backgroundTitle: "Bối cảnh",
-      background: [
-        "Lupus ban đỏ hệ thống là bệnh tự miễn mạn tính, có thể ảnh hưởng nhiều cơ quan như da, khớp, thận, máu, tim, phổi và thần kinh. Bệnh diễn tiến thành từng đợt và rất khác nhau giữa từng người.",
-        "Các registry bệnh lupus rất quan trọng để hiểu dịch tễ, diễn tiến bệnh trong thực tế, hiệu quả và độ an toàn của điều trị, cũng như theo dõi người bệnh lâu dài. Giá trị nghiên cứu của registry vượt xa cơ sở dữ liệu bệnh viện thông thường.",
-        "Tại Việt Nam, dữ liệu của người bệnh lupus còn phân tán trên nhiều hồ sơ giấy và phiếu xét nghiệm. Một registry quốc gia giúp tìm ra các dấu ấn sinh học và mô hình dự báo phù hợp với người Việt Nam, đồng thời giúp các nhà nghiên cứu Việt Nam tham gia bình đẳng vào các câu hỏi khoa học lớn.",
-      ],
+        "Vietnam Lupus Registry là hệ thống thu thập dữ liệu lâm sàng dành cho người bệnh lupus ban đỏ hệ thống (SLE) Việt Nam.",
+      aimKicker: "Định hướng khoa học",
       aimTitle: "Mục tiêu và hướng nghiên cứu",
-      aimBody: "Registry tập trung vào các hướng:",
+      aimBody: "Chuẩn hóa dữ liệu lâm sàng thực tế của người bệnh SLE Việt Nam để phục vụ nghiên cứu dịch tễ, miễn dịch và y học chính xác:",
       aims: [
-        "Đặc điểm lâm sàng và cận lâm sàng của người bệnh SLE, phân loại theo tiêu chuẩn EULAR/ACR 2019.",
-        "Mức độ hoạt động bệnh và diễn tiến theo thời gian, đánh giá bằng thang SLEDAI-2K.",
-        "Tổn thương cơ quan (thận, máu, da, khớp, thần kinh…) và các yếu tố liên quan.",
-        "Hồ sơ kháng thể (ANA, anti-dsDNA…) và bổ thể C3/C4, mối liên hệ với biểu hiện bệnh.",
-        "Điều trị, đáp ứng và độ an toàn của điều trị lâu dài trong thực hành thực tế.",
+        "Chuẩn hóa hồ sơ khám và xét nghiệm thực tế thành cơ sở dữ liệu lâm sàng đồng bộ của người bệnh SLE Việt Nam.",
+        "Theo dõi mức độ hoạt động bệnh, diễn biến lâm sàng cùng hiệu quả và độ an toàn điều trị theo thời gian.",
+        "Ứng dụng AI hiểu ngữ cảnh y khoa để tự động trích xuất, tách định danh và chuẩn hóa dữ liệu tiếng Việt.",
+        "Kết nối ngân hàng mẫu sinh học (biobank) và dữ liệu đa tầng để tìm dấu ấn sinh học, xây dựng mô hình dự báo đợt bùng phát và đáp ứng điều trị.",
       ],
+      approachKicker: "Quy trình vận hành",
       approachTitle: "Cách registry vận hành",
-      approachBody:
-        "Thay vì bác sĩ nhập tay toàn bộ phiếu điện tử, registry dùng chính hồ sơ do người bệnh gửi, kết hợp công nghệ đọc tài liệu thông minh và kiểm tra của bác sĩ. Bản thử nghiệm đã đọc được nhiều loại tài liệu y khoa tiếng Việt và giảm hơn 75% công nhập liệu thủ công.",
-      approach: [
-        { title: "1. Thu thập hồ sơ từ người bệnh", body: "Cổng trực tuyến bảo mật trên web và điện thoại, có đồng ý tham gia điện tử. Nhận ảnh chụp phiếu xét nghiệm, giấy ra viện và các tài liệu khám." },
-        { title: "2. Xử lý tài liệu bằng AI", body: "Nhận dạng chữ (OCR) và mô hình ngôn ngữ hiểu ngữ cảnh lâm sàng để trích xuất thông tin như nhân khẩu học, ANA, anti-dsDNA, C3/C4, thuốc điều trị; đồng thời tách thông tin định danh." },
-        { title: "3. Kiểm tra và chuẩn hóa dữ liệu", body: "Quy tắc kiểm tra lâm sàng, ánh xạ theo phiếu CRF chuẩn và bác sĩ chuyên khoa phê duyệt từng giá trị, có truy ngược về tài liệu gốc." },
-        { title: "4. Phân tích và nghiên cứu", body: "Bảng tổng hợp lâm sàng (nhân khẩu học, xét nghiệm, hoạt động bệnh, kết cục), công cụ phân tích nhóm bệnh nhân và xuất dữ liệu sang REDCap cho nghiên cứu." },
+      approachSubtitle:
+        "Kết hợp hồ sơ do người bệnh chia sẻ, công nghệ AI nhận dạng chữ và xử lý tài liệu y khoa tiếng Việt cùng thẩm định trực tiếp của bác sĩ chuyên khoa.",
+      workflowSteps: [
+        {
+          stepLabel: "Bước 1",
+          title: "Thu thập hồ sơ từ người bệnh",
+          bullets: [
+            "Cổng trực tuyến bảo mật trên web & điện thoại, ký bản chấp thuận điện tử",
+            "Chụp hoặc tải ảnh phiếu xét nghiệm, đơn thuốc, giấy ra viện lên hệ thống",
+          ],
+        },
+        {
+          stepLabel: "Bước 2",
+          title: "Xử lý tài liệu bằng AI & nhận dạng chữ",
+          bullets: [
+            "Nhận dạng văn bản tiếng Việt và hiểu ngữ cảnh lâm sàng",
+            "Trích xuất thông tin hành chính, chỉ số ANA, anti-dsDNA, C3/C4 và tách dữ liệu định danh",
+          ],
+        },
+        {
+          stepLabel: "Bước 3",
+          title: "Bác sĩ kiểm tra & chuẩn hóa",
+          bullets: [
+            "Áp dụng quy tắc lâm sàng và ánh xạ theo phiếu nghiên cứu chuẩn (CRF)",
+            "Bác sĩ chuyên khoa đối chiếu tài liệu gốc và phê duyệt từng giá trị",
+          ],
+        },
+        {
+          stepLabel: "Bước 4",
+          title: "Phân tích & Nghiên cứu",
+          bullets: [
+            "Tổng hợp đặc điểm lâm sàng, tiêu chuẩn EULAR/ACR 2019 và diễn biến theo thời gian",
+            "Phân tích nhóm bệnh nhân và chuẩn hóa dữ liệu phục vụ nghiên cứu",
+          ],
+        },
       ],
+      futureKicker: "Tầm nhìn dài hạn",
       futureTitle: "Hướng phát triển",
-      futureBody: "Trong các giai đoạn tiếp theo, registry hướng tới:",
+      futureBody: "Trong các giai đoạn tiếp theo, hệ thống hướng tới:",
       future: [
-        "Mở rộng thành registry đa trung tâm, theo dõi người bệnh lâu dài qua nhiều lần khám.",
-        "Liên kết với ngân hàng mẫu sinh học (biobank) và dữ liệu đa omics để phân loại kiểu hình bệnh và tìm dấu ấn sinh học mới.",
-        "Xây dựng mô hình dự báo đợt bùng phát, tổn thương cơ quan và đáp ứng điều trị.",
-        "Hỗ trợ y học chính xác phù hợp với đặc điểm của người bệnh Việt Nam.",
+        {
+          title: "Mạng lưới đa trung tâm",
+          body: "Mở rộng thành mạng lưới dữ liệu đa trung tâm trên toàn quốc, theo dõi người bệnh dọc theo nhiều lần khám.",
+        },
+        {
+          title: "Ngân hàng mẫu sinh học & dữ liệu đa tầng",
+          body: "Liên kết với ngân hàng mẫu sinh học (biobank) và dữ liệu sinh học phân tử để phân loại kiểu hình và tìm dấu ấn sinh học mới.",
+        },
+        {
+          title: "Mô hình dự báo lâm sàng",
+          body: "Xây dựng mô hình dự báo đợt bùng phát, tổn thương cơ quan và đáp ứng điều trị.",
+        },
+        {
+          title: "Y học chính xác cho người Việt",
+          body: "Cá thể hóa phác đồ theo dõi và điều trị phù hợp với đặc điểm người bệnh Việt Nam.",
+        },
       ],
+      membersKicker: "Đội ngũ & Tổ chức",
+      membersSectionTitle: "Thành viên & Đơn vị thực hiện",
+      committeeTitle: "Thành viên nhóm thực hiện",
+      committee: [
+        {
+          name: "PGS.TS.BS Nguyễn Văn Đĩnh",
+          initials: "NĐ",
+          role: "Trưởng Chuyên khoa Miễn dịch Dị ứng kiêm Viện trưởng Viện nghiên cứu miễn dịch Vinmec - VinUni",
+          photoSrc: null,
+          row: "top",
+        },
+        {
+          name: "Hoàng Thị Oánh",
+          initials: "HO",
+          role: "Viện nghiên cứu Miễn dịch Vinmec - VinUni",
+          photoSrc: null,
+          row: "top",
+        },
+        {
+          name: "Đỗ Lê Việt Anh",
+          initials: "VA",
+          role: "Học viên AI Thực Chiến",
+          photoSrc: null,
+          row: "bottom",
+        },
+        {
+          name: "Phạm Văn Kiên",
+          initials: "VK",
+          role: "Học viên AI Thực Chiến",
+          photoSrc: null,
+          row: "bottom",
+        },
+        {
+          name: "Vương Việt Hoàng",
+          initials: "VH",
+          role: "Học viên AI Thực Chiến",
+          photoSrc: null,
+          row: "bottom",
+        },
+      ],
+      groupPhotoSrc: null,
+      groupPhotoAlt: "Ảnh nhóm thành viên Ban Điều hành và nhóm nghiên cứu Vietnam Lupus Registry",
+      groupPhotoCaption: "Ban Điều hành & Nhóm nghiên cứu Vietnam Lupus Registry",
+      groupPhotoPlaceholderHint: "Ảnh tập thể nhóm nghiên cứu sẽ được cập nhật tại đây",
       teamTitle: "Đơn vị thực hiện",
-      team: [
-        "Viện Miễn dịch học Vinmec-VinUni, Trường Khoa học Sức khỏe, Trường Đại học VinUni",
-        "Trung tâm Dị ứng – Miễn dịch lâm sàng, Bệnh viện Đa khoa Quốc tế Vinmec Times City",
-        "VRIC, Vinmec Times City",
+      units: [
+        {
+          name: "Viện Nghiên cứu Miễn dịch Vinmec – VinUni",
+          parent: "Trường Khoa học Sức khỏe, Trường Đại học VinUni",
+        },
+        {
+          name: "Trung tâm Dị ứng – Miễn dịch lâm sàng",
+          parent: "Bệnh viện Đa khoa Quốc tế Vinmec Times City",
+        },
+        {
+          name: "VinUni VRIC - VinMec",
+          parent: "Thuộc chương trình AI Thực Chiến",
+        },
       ],
     },
     patients: {
@@ -172,12 +268,10 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
       intro: "Nếu bạn có câu hỏi về registry, việc tham gia hoặc muốn rút khỏi dự án, vui lòng liên hệ nhóm nghiên cứu.",
       unitsTitle: "Đơn vị thực hiện",
       units: [
-        "Viện Miễn dịch học Vinmec-VinUni, Trường Khoa học Sức khỏe, Trường Đại học VinUni",
+        "Viện Nghiên cứu Miễn dịch Vinmec – VinUni, Trường Khoa học Sức khỏe, Trường Đại học VinUni",
         "Trung tâm Dị ứng – Miễn dịch lâm sàng, Bệnh viện Đa khoa Quốc tế Vinmec Times City, 458 Minh Khai, Hai Bà Trưng, Hà Nội",
-        "VRIC, Vinmec Times City",
+        "VinUni VRIC - VinMec thuộc chương trình AI Thực Chiến",
       ],
-      leadTitle: "Chủ nhiệm nghiên cứu",
-      lead: "Nguyen Van Dinh — Viện Miễn dịch học Vinmec-VinUni và Trung tâm Dị ứng – Miễn dịch lâm sàng, Vinmec Times City",
       collaborateTitle: "Hợp tác nghiên cứu",
       collaborateBody:
         "Bác sĩ, bệnh viện và nhà nghiên cứu muốn tham gia hoặc hợp tác với registry vui lòng liên hệ nhóm nghiên cứu qua email bên dưới.",
@@ -185,68 +279,145 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
   },
   en: {
     home: {
-      tagline: "The systemic lupus erythematosus registry of Vietnam",
       intro:
-        "Share your visit and test results to help doctors better understand lupus in Vietnamese patients and find better treatments.",
+        "A patient-powered digital registry for systemic lupus erythematosus (SLE) in Vietnam — collecting real-world visit and laboratory records to standardize research data, support longitudinal follow-up, and improve patient care.",
       patientsBtn: "For patients",
-      aboutBtn: "About the registry",
-      aimTitle: "Aim",
-      aimBody:
-        "Vietnam Lupus Registry collects real-world visit and laboratory data of people with systemic lupus erythematosus (SLE) over time, to understand the disease, its course and treatment response in Vietnamese patients and to support better care.",
-      aimMore: "Learn more about the registry",
-      howTitle: "How the registry works",
-      how: [
-        { title: "Patients submit records", body: "After giving consent, patients photograph or upload their visit and lab reports on the online portal." },
-        { title: "The system reads the documents", body: "Text recognition and artificial intelligence read the documents, understand the clinical context and propose values for the research form." },
-        { title: "Doctors check", body: "A specialist checks every value against the source document before approving it." },
-        { title: "Data for research", body: "Approved data is standardized, pseudonymized and used for lupus research." },
-      ],
-      patientsTitle: "Living with lupus?",
-      patientsBody:
-        "Every record you share helps doctors and researchers understand lupus in Vietnam. Taking part is free and you can withdraw at any time.",
-      patientsMore: "See benefits and how to join",
+      doctorBtn: "For physicians",
+      navAims: "Aim & Research Directions",
+      navWorkflow: "How the Registry Operates",
+      navFuture: "Future Directions",
+      navMembers: "Members & Partners",
     },
     about: {
       title: "About Vietnam Lupus Registry",
       intro:
-        "Vietnam Lupus Registry is a patient-powered digital registry for systemic lupus erythematosus (SLE) in Vietnam. It collects records from routine care, standardizes them on a case report form (CRF) and has them checked by specialists.",
-      backgroundTitle: "Background",
-      background: [
-        "Systemic lupus erythematosus is a chronic autoimmune disease that can affect the skin, joints, kidneys, blood, heart, lungs and nervous system. It flares over time and differs greatly between patients.",
-        "Lupus registries are vital for defining epidemiology, real-world disease trajectories, treatment safety and efficacy, and long-term patient follow-up, offering research value far beyond conventional hospital databases.",
-        "In Vietnam, lupus patient data are scattered across paper records and lab reports. A national registry enables population-specific biomarkers and predictive models and positions Vietnamese researchers as equal partners in high-impact questions.",
-      ],
+        "Vietnam Lupus Registry is a patient-powered digital registry for systemic lupus erythematosus (SLE) in Vietnam.",
+      aimKicker: "Scientific Focus",
       aimTitle: "Aim and research directions",
-      aimBody: "The registry focuses on:",
+      aimBody: "Standardizing real-world SLE clinical records in Vietnam to advance epidemiological, immunological, and precision medicine research:",
       aims: [
-        "Clinical and laboratory features of SLE patients, classified by the 2019 EULAR/ACR criteria.",
-        "Disease activity and its course over time, measured with SLEDAI-2K.",
-        "Organ involvement (kidney, blood, skin, joints, nervous system…) and related factors.",
-        "Antibody profiles (ANA, anti-dsDNA…) and complement C3/C4, and their link to disease manifestations.",
-        "Treatment, long-term response and safety in everyday practice.",
+        "Standardize real-world patient visit and laboratory records into unified SLE clinical schemas in Vietnam.",
+        "Track disease activity, clinical trajectories, and long-term treatment efficacy and safety over time.",
+        "Apply context-aware clinical AI for automated Vietnamese medical extraction, de-identification, and validation.",
+        "Link biobanking and multi-omics data to discover Vietnamese-specific biomarkers and build predictive models for flares and treatment response.",
       ],
+      approachKicker: "Operational Workflow",
       approachTitle: "How the registry operates",
-      approachBody:
-        "Instead of doctors typing every form by hand, the registry uses records submitted by patients, combined with intelligent document reading and specialist review. The prototype read diverse Vietnamese clinical documents and reduced manual transcription by more than 75%.",
-      approach: [
-        { title: "1. Patient-driven collection", body: "A secure web and mobile portal with electronic consent accepts photos of lab sheets, discharge summaries and other records." },
-        { title: "2. AI document processing", body: "Text recognition (OCR) and language models with clinical context extract demographics, ANA, anti-dsDNA, C3/C4 and medications, and separate identifying details." },
-        { title: "3. Validation and harmonization", body: "Clinical rules, mapping to a standard CRF and specialist approval of every value, traceable to the source document." },
-        { title: "4. Analytics and research", body: "Clinical dashboards (demographics, labs, disease activity, outcomes), cohort analytics and export to REDCap for research." },
+      approachSubtitle:
+        "Combining patient-submitted records, AI/OCR extraction for Vietnamese medical documents, and specialist verification.",
+      workflowSteps: [
+        {
+          stepLabel: "Step 1",
+          title: "Patient-driven collection",
+          bullets: [
+            "Secure web & mobile portal with electronic consent",
+            "Upload photos of lab sheets, prescriptions, and discharge summaries",
+          ],
+        },
+        {
+          stepLabel: "Step 2",
+          title: "AI & OCR document processing",
+          bullets: [
+            "Text recognition (OCR) and clinical language models",
+            "Extract demographics, ANA, anti-dsDNA, C3/C4 and separate identifiers",
+          ],
+        },
+        {
+          stepLabel: "Step 3",
+          title: "Specialist validation & CRF",
+          bullets: [
+            "Clinical rules and mapping to a standardized Case Report Form (CRF)",
+            "Specialists review and approve every value against source scans",
+          ],
+        },
+        {
+          stepLabel: "Step 4",
+          title: "Analytics & research",
+          bullets: [
+            "Clinical summaries for EULAR/ACR 2019 classification and longitudinal trends",
+            "Cohort analytics and standardized data export for research",
+          ],
+        },
       ],
+      futureKicker: "Long-Term Vision",
       futureTitle: "Future directions",
       futureBody: "In the next phases the registry aims to:",
       future: [
-        "Grow into a multi-centre registry following patients over many visits.",
-        "Link biobanking and multi-omics data to classify disease phenotypes and discover new biomarkers.",
-        "Develop models that predict flares, organ damage and treatment response.",
-        "Support precision medicine suited to Vietnamese patients.",
+        {
+          title: "Multi-centre longitudinal network",
+          body: "Grow into a national multi-centre registry following patients across visits over time.",
+        },
+        {
+          title: "Biobank & multi-omics linkage",
+          body: "Link biobanking and multi-omics data to classify phenotypes and discover new biomarkers.",
+        },
+        {
+          title: "Predictive clinical models",
+          body: "Develop models that predict flares, organ damage and treatment response.",
+        },
+        {
+          title: "Precision medicine",
+          body: "Support precision medicine tailored to Vietnamese patients with SLE.",
+        },
       ],
-      teamTitle: "Partners",
-      team: [
-        "Vinmec-VinUni Institute of Immunology, College of Health Sciences, VinUniversity",
-        "Centre of Allergy and Clinical Immunology, Vinmec Times City International Hospital",
-        "VRIC, Vinmec Times City",
+      membersKicker: "Team & Institutions",
+      membersSectionTitle: "Our Members & Implementing Partners",
+      committeeTitle: "Our Members",
+      committee: [
+        {
+          name: "Assoc. Prof. Dr. Nguyen Van Dinh",
+          initials: "ND",
+          role: "Head of Allergy & Clinical Immunology and Director, Vinmec-VinUni Institute of Immunology",
+          photoSrc: null,
+          row: "top",
+        },
+        {
+          name: "Hoang Thi Oanh",
+          initials: "HO",
+          role: "Vinmec-VinUni Institute of Immunology",
+          photoSrc: null,
+          row: "top",
+        },
+        {
+          name: "Do Le Viet Anh",
+          initials: "VA",
+          role: "Practical AI Fellow",
+          photoSrc: null,
+          row: "bottom",
+        },
+        {
+          name: "Pham Van Kien",
+          initials: "VK",
+          role: "Practical AI Fellow",
+          photoSrc: null,
+          row: "bottom",
+        },
+        {
+          name: "Vuong Viet Hoang",
+          initials: "VH",
+          role: "Practical AI Fellow",
+          photoSrc: null,
+          row: "bottom",
+        },
+      ],
+      groupPhotoSrc: null,
+      groupPhotoAlt: "Group photo of the Vietnam Lupus Registry Steering Committee and research team",
+      groupPhotoCaption: "Vietnam Lupus Registry Steering Committee & Research Team",
+      groupPhotoPlaceholderHint: "Team group photo will be updated here",
+      teamTitle: "Implementing Partners",
+      units: [
+        {
+          name: "Vinmec-VinUni Institute of Immunology",
+          parent: "College of Health Sciences, VinUniversity",
+        },
+        {
+          name: "Centre of Allergy and Clinical Immunology",
+          parent: "Vinmec Times City International Hospital",
+        },
+        {
+          name: "VinUni VRIC - VinMec",
+          parent: "Practical AI Program",
+        },
       ],
     },
     patients: {
@@ -278,14 +449,12 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
     contact: {
       title: "Contact",
       intro: "If you have questions about the registry, taking part or withdrawing from the project, please contact the research team.",
-      unitsTitle: "Partners",
+      unitsTitle: "Implementing Partners",
       units: [
         "Vinmec-VinUni Institute of Immunology, College of Health Sciences, VinUniversity",
         "Centre of Allergy and Clinical Immunology, Vinmec Times City International Hospital, 458 Minh Khai, Hai Ba Trung, Hanoi",
-        "VRIC, Vinmec Times City",
+        "VinUni VRIC - VinMec, Practical AI Program",
       ],
-      leadTitle: "Principal investigator",
-      lead: "Nguyen Van Dinh — Vinmec-VinUni Institute of Immunology and Centre of Allergy and Clinical Immunology, Vinmec Times City",
       collaborateTitle: "Research collaboration",
       collaborateBody: "Doctors, hospitals and researchers who wish to join or collaborate with the registry may contact the research team by email below.",
     },

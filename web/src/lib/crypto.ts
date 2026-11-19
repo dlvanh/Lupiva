@@ -182,7 +182,12 @@ export function normalizeStudyId(studyId: string): string {
   return studyId.trim().toUpperCase();
 }
 
-export type BlindIndexNamespace = "email" | "study_id" | "default";
+export type BlindIndexNamespace =
+  | "email"
+  | "phone"
+  | "otp"
+  | "study_id"
+  | "default";
 
 /**
  * Computes a deterministic, domain-separated HMAC-SHA256 blind index for exact-match

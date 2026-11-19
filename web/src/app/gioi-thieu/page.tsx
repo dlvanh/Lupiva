@@ -1,8 +1,5 @@
 "use client";
 
-import React from "react";
-import { AboutContent } from "@/components/landing/SitePages";
+import LandingPage from "@/app/page";
 
-export default function AboutPage() {
-  return <AboutContent />;
-}
+export default LandingPage;

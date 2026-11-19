@@ -6,6 +6,7 @@ import { users } from "@/db/schema";
 import { writeAuditLog } from "@/lib/audit";
 import {
   createSession,
+  decryptUserContacts,
   extractClientIp,
   extractUserAgent,
   setSessionCookie,
@@ -15,10 +16,10 @@ import {
 import {
   CryptoConfigurationError,
   computeBlindIndex,
-  decryptField,
   normalizeEmail,
 } from "@/lib/crypto";
 import { getDummyPasswordHash, verifyPassword } from "@/lib/password";
+import { normalizeVietnamPhone } from "@/lib/phone";
 import {
   buildLoginRateLimitKey,
   checkRateLimit,
@@ -26,20 +27,21 @@ import {
   recordRateLimitFailure,
 } from "@/lib/rateLimit";
 
-const loginRequestSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .min(1, "Email is required.")
-    .max(254, "Email address is too long.")
-    .email("Please enter a valid email address."),
-  password: z
-    .string()
-    .min(1, "Password is required.")
-    .max(256, "Password exceeds maximum length."),
-  selectedRole: z.enum(["specialist", "patient"]).optional(),
-  consentChecked: z.boolean().optional(),
-});
+const loginRequestSchema = z
+  .object({
+    identifier: z.string().trim().max(254).optional(),
+    email: z.string().trim().max(254).optional(),
+    password: z
+      .string()
+      .min(1, "Password is required.")
+      .max(256, "Password exceeds maximum length."),
+    selectedRole: z.enum(["specialist", "patient"]).optional(),
+    consentChecked: z.boolean().optional(),
+  })
+  .refine(
+    (data) => Boolean((data.identifier ?? data.email ?? "").trim().length > 0),
+    { message: "Phone number or email is required." }
+  );
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
 
@@ -70,14 +72,50 @@ export async function POST(request: Request) {
     );
   }
 
+  const rawIdentifier = (
+    parsed.data.identifier ??
+    parsed.data.email ??
+    ""
+  ).trim();
+
+  let lookupMode: "email" | "phone";
+  let normalizedValue: string;
+
+  if (rawIdentifier.includes("@")) {
+    const emailCheck = z
+      .string()
+      .email("Please enter a valid email address.")
+      .safeParse(rawIdentifier);
+    if (!emailCheck.success) {
+      return NextResponse.json(
+        { error: emailCheck.error.issues[0]?.message ?? "Invalid email address." },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+    lookupMode = "email";
+    normalizedValue = normalizeEmail(rawIdentifier);
+  } else {
+    const normalizedPhone = normalizeVietnamPhone(rawIdentifier);
+    if (!normalizedPhone) {
+      return NextResponse.json(
+        {
+          error:
+            "Please enter a valid Vietnamese mobile phone number or email address.",
+        },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+    lookupMode = "phone";
+    normalizedValue = normalizedPhone;
+  }
+
   const db = getDb();
   const ipAddress = extractClientIp(request.headers);
   const userAgent = extractUserAgent(request.headers);
 
   try {
-    const normalizedEmail = normalizeEmail(parsed.data.email);
-    const emailBlindIndex = computeBlindIndex(normalizedEmail, "email");
-    const rateLimitKey = buildLoginRateLimitKey(ipAddress, emailBlindIndex);
+    const identifierBlindIndex = computeBlindIndex(normalizedValue, lookupMode);
+    const rateLimitKey = buildLoginRateLimitKey(ipAddress, identifierBlindIndex);
 
     const rateStatus = await checkRateLimit(rateLimitKey, {}, db);
     if (!rateStatus.allowed) {
@@ -113,7 +151,11 @@ export async function POST(request: Request) {
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.emailBlindIndex, emailBlindIndex))
+      .where(
+        lookupMode === "email"
+          ? eq(users.emailBlindIndex, identifierBlindIndex)
+          : eq(users.phoneBlindIndex, identifierBlindIndex)
+      )
       .limit(1);
 
     if (!user || !user.isActive) {
@@ -136,7 +178,7 @@ export async function POST(request: Request) {
       );
 
       return NextResponse.json(
-        { error: "Invalid email or password." },
+        { error: "Invalid phone/email or password." },
         { status: 401, headers: NO_STORE_HEADERS }
       );
     }
@@ -162,7 +204,7 @@ export async function POST(request: Request) {
       );
 
       return NextResponse.json(
-        { error: "Invalid email or password." },
+        { error: "Invalid phone/email or password." },
         { status: 401, headers: NO_STORE_HEADERS }
       );
     }
@@ -208,11 +250,7 @@ export async function POST(request: Request) {
     );
     await setSessionCookie(rawToken, expiresAt, request.headers);
 
-    const email = decryptField(user.emailEncrypted, `users:${user.id}:email`);
-    const name = decryptField(
-      user.fullNameEncrypted,
-      `users:${user.id}:full_name`
-    );
+    const { name, email, phone } = decryptUserContacts(user);
 
     await writeAuditLog(
       {
@@ -234,6 +272,7 @@ export async function POST(request: Request) {
       id: user.id,
       name,
       email,
+      phone,
       role: user.role,
       title: user.title,
       departmentOrRegistryId: user.departmentOrRegistryId,

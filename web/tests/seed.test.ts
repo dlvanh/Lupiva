@@ -72,7 +72,7 @@ describe("Lupiva Database Seed & 3-Zone PII Vault Verification", () => {
       expect(isEncryptedEnvelope(u.fullNameEncrypted)).toBe(true);
       expect(u.passwordHash.startsWith("scrypt$")).toBe(true);
 
-      const decryptedEmail = decryptField(u.emailEncrypted, `users:${u.id}:email`);
+      const decryptedEmail = decryptField(u.emailEncrypted!, `users:${u.id}:email`);
       const decryptedName = decryptField(
         u.fullNameEncrypted,
         `users:${u.id}:full_name`

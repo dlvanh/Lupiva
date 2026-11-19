@@ -5,14 +5,16 @@ export interface AuthUser {
   name: string;
   role: UserRole;
   title: string;
-  email: string;
+  email: string | null;
+  phone?: string | null;
   departmentOrRegistryId: string;
   badgeText: string;
   consentSigned: boolean;
   consentSignedAt?: string | null;
 }
 
-export interface DemoUser extends AuthUser {
+export interface DemoUser extends Omit<AuthUser, "email"> {
+  email: string;
   passwordHint: string;
 }
 

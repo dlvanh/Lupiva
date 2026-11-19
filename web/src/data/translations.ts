@@ -143,7 +143,18 @@ export interface Translations {
     patientTabDesc: string;
     fullNameLabel: string;
     fullNamePlaceholder: string;
+    identifierLabel: string;
+    identifierPlaceholder: string;
+    phoneLabel: string;
+    phonePlaceholder: string;
+    sendOtpBtn: string;
+    sendingOtpBtn: string;
+    resendOtpBtn: (seconds: number) => string;
+    otpLabel: string;
+    otpPlaceholder: string;
+    otpSentHint: string;
     emailLabel: string;
+    emailOptionalLabel: string;
     passwordLabel: string;
     passwordHint: string;
     passwordHintProduction: string;
@@ -288,6 +299,12 @@ export interface Translations {
     autofillDesc: (name: string) => string;
     emailRequiredTitle: string;
     emailRequiredDesc: string;
+    identifierRequiredTitle: string;
+    identifierRequiredDesc: string;
+    phoneRequiredTitle: string;
+    phoneRequiredDesc: string;
+    otpRequiredTitle: string;
+    otpRequiredDesc: string;
     consentRequiredTitle: string;
     consentRequiredDesc: string;
     ocrScanCompleteTitle: string;
@@ -313,9 +330,9 @@ export interface Translations {
 }
 
 const patientContact = {
-  contactLead: "...",
-  contactEmail: "...",
-  contactPhone: "...",
+  contactLead: "PGS.TS.BS Nguyễn Văn Đĩnh",
+  contactEmail: "26ai.anhdlv@vinuni.edu.vn",
+  contactPhone: "(+84) 93 456 0122",
 };
 
 export const TRANSLATIONS: Record<Language, Translations> = {
@@ -420,8 +437,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       benefitPrivacyBody: "The project uses codes in place of names and other details that identify you in the research data.",
       howTitle: "How to join",
       registerTitle: "Create an account",
-      registerBody: "Use your email address to sign up and track the records you send.",
-      step1Title: "Agree to take part (sign electronically)",
+      registerBody: "Use your email or phone number to sign up and track the records you send.",
+      step1Title: "Agree to take part (sign consent)",
       step1Body: "When you agree to take part, you let the project use the records you share for lupus research. You can contact the project team to withdraw.",
       step1Btn: "Review consent",
       step1Done: "You’ve agreed to take part",
@@ -430,10 +447,10 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       faqTitle: "Frequently asked questions",
       // TODO: research team to confirm wording
       faq: [
-        { question: "Does it cost anything?", answer: "Taking part in the project is free." },
-        { question: "Who can see my records?", answer: "The project’s specialists can review your records. The research data is pseudonymized, which means it uses codes in place of identifying details." },
-        { question: "How long does it take?", answer: "Submitting depends on how many photos you send. Review usually takes a few working days." },
-        { question: "How will my records be used?", answer: "Specialists review the records, and the project uses the data to study how lupus changes over time and how people respond to treatment." },
+        { question: "Does it cost anything to take part?", answer: "Taking part in the project is voluntary and completely free." },
+        { question: "Who is authorized to see my records?", answer: "The project’s specialists can review your records. The research data is pseudonymized, which means it uses codes in place of identifying details." },
+        { question: "How long does submitting records take?", answer: "Sending each document takes a few minutes." },
+        { question: "What will my records be used for?", answer: "Specialists review the records, and the project uses the data to study how lupus changes over time and how people respond to treatment." },
       ],
       appointmentNotice: "This does not book an appointment or replace seeing a doctor.",
       contactTitle: "Contact",
@@ -455,9 +472,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       title: "Sign In",
       registerTitle: "Create Account",
       autofillBtn: "Autofill Demo Credentials",
-      subtitle: "Enter your email and password to access the system.",
+      subtitle: "Enter your phone number or email and password to access the system.",
       registerSubtitle:
-        "Create a patient account to upload and track your laboratory records.",
+        "Create a patient account with your phone number to upload and track your laboratory records.",
       modeSignInTab: "Sign In",
       modeRegisterTab: "Patient registration",
       specialistTabTitle: "Clinical Specialist",
@@ -468,7 +485,18 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       patientTabDesc: "Upload lab scans & earn vouchers",
       fullNameLabel: "Full Name",
       fullNamePlaceholder: "Enter your full name",
+      identifierLabel: "Phone number or Email",
+      identifierPlaceholder: "0912345678 or email@example.com",
+      phoneLabel: "Phone number",
+      phonePlaceholder: "0912345678",
+      sendOtpBtn: "Send OTP",
+      sendingOtpBtn: "Sending...",
+      resendOtpBtn: (seconds) => `Resend (${seconds}s)`,
+      otpLabel: "OTP verification code",
+      otpPlaceholder: "Enter 6-digit code",
+      otpSentHint: "A 6-digit verification code has been sent to your phone (valid for 5 minutes).",
       emailLabel: "Email",
+      emailOptionalLabel: "Email (optional)",
       passwordLabel: "Password",
       passwordHint: "Seeded demo passkey pre-filled",
       passwordHintProduction: "Enter your account password",
@@ -631,6 +659,12 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       autofillDesc: (name) => `Loaded mock profile for ${name}.`,
       emailRequiredTitle: "Email Required",
       emailRequiredDesc: "Please enter your email address.",
+      identifierRequiredTitle: "Account Required",
+      identifierRequiredDesc: "Please enter your phone number or email address.",
+      phoneRequiredTitle: "Valid Phone Number Required",
+      phoneRequiredDesc: "Please enter a valid Vietnamese mobile phone number (e.g. 0912345678).",
+      otpRequiredTitle: "OTP Required",
+      otpRequiredDesc: "Please enter the 6-digit OTP verification code.",
       consentRequiredTitle: "Informed Consent Required",
       consentRequiredDesc:
         "Patients must acknowledge e-CRF registry data de-identification consent.",
@@ -764,8 +798,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       benefitPrivacyBody: "Dữ liệu nghiên cứu dùng mã số thay cho tên và những thông tin có thể nhận ra bạn.",
       howTitle: "Cách tham gia",
       registerTitle: "Tạo tài khoản",
-      registerBody: "Dùng email để tạo tài khoản và theo dõi hồ sơ bạn đã gửi.",
-      step1Title: "Đồng ý tham gia (ký điện tử)",
+      registerBody: "Dùng email/số điện thoại để tạo tài khoản và theo dõi hồ sơ bạn đã gửi.",
+      step1Title: "Đồng ý tham gia (ký chấp thuận)",
       step1Body: "Khi đồng ý tham gia, bạn cho phép dự án dùng hồ sơ bạn chia sẻ để nghiên cứu bệnh lupus. Bạn có thể liên hệ nhóm dự án để rút khỏi dự án.",
       step1Btn: "Xem nội dung đồng ý tham gia",
       step1Done: "Bạn đã đồng ý tham gia",
@@ -774,10 +808,10 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       faqTitle: "Câu hỏi thường gặp",
       // TODO: research team to confirm wording
       faq: [
-        { question: "Có mất phí không?", answer: "Tham gia dự án là miễn phí." },
-        { question: "Ai được xem hồ sơ?", answer: "Các bác sĩ chuyên khoa của dự án có thể xem hồ sơ bạn gửi. Dữ liệu nghiên cứu được giả danh hóa, tức là dùng mã số thay cho thông tin nhận diện." },
-        { question: "Mất bao lâu?", answer: "Thời gian gửi tùy vào số ảnh bạn nộp. Hồ sơ thường được xem trong vài ngày làm việc." },
-        { question: "Hồ sơ dùng vào việc gì?", answer: "Bác sĩ xem hồ sơ và dự án dùng dữ liệu để tìm hiểu bệnh lupus thay đổi theo thời gian ra sao và người bệnh đáp ứng với điều trị thế nào." },
+        { question: "Tôi tham gia có mất phí không?", answer: "Việc tham gia dự án là hoàn toàn tự nguyện và miễn phí." },
+        { question: "Ai được quyền xem hồ sơ của tôi?", answer: "Các bác sĩ chuyên khoa của dự án có thể xem hồ sơ bạn gửi. Dữ liệu nghiên cứu được giả danh hóa, tức là dùng mã số thay cho thông tin nhận diện." },
+        { question: "Thời gian nộp hồ sơ mất bao lâu?", answer: "Thời gian gửi mỗi tài liệu mất vài phút." },
+        { question: "Hồ sơ của tôi dùng vào việc gì?", answer: "Bác sĩ xem hồ sơ và dự án dùng dữ liệu để tìm hiểu bệnh lupus thay đổi theo thời gian ra sao và người bệnh đáp ứng với điều trị thế nào." },
       ],
       appointmentNotice: "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.",
       contactTitle: "Liên hệ",
@@ -799,9 +833,9 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       title: "Đăng nhập",
       registerTitle: "Đăng ký tài khoản",
       autofillBtn: "Tự động Điền Tài khoản Mẫu",
-      subtitle: "Nhập email và mật khẩu để truy cập hệ thống.",
+      subtitle: "Nhập số điện thoại hoặc email và mật khẩu để truy cập hệ thống.",
       registerSubtitle:
-        "Tạo tài khoản bệnh nhân để tải lên và theo dõi hồ sơ xét nghiệm.",
+        "Tạo tài khoản bệnh nhân bằng số điện thoại để tải lên và theo dõi hồ sơ xét nghiệm.",
       modeSignInTab: "Đăng nhập",
       modeRegisterTab: "Đăng ký bệnh nhân",
       specialistTabTitle: "Bác sĩ Chuyên khoa",
@@ -812,7 +846,18 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       patientTabDesc: "Tải phiếu xét nghiệm & nhận voucher",
       fullNameLabel: "Họ và Tên",
       fullNamePlaceholder: "Nhập họ và tên đầy đủ",
+      identifierLabel: "Số điện thoại hoặc Email",
+      identifierPlaceholder: "0912345678 hoặc email@example.com",
+      phoneLabel: "Số điện thoại",
+      phonePlaceholder: "0912345678",
+      sendOtpBtn: "Gửi mã OTP",
+      sendingOtpBtn: "Đang gửi...",
+      resendOtpBtn: (seconds) => `Gửi lại (${seconds}s)`,
+      otpLabel: "Mã xác nhận OTP",
+      otpPlaceholder: "Nhập mã gồm 6 chữ số",
+      otpSentHint: "Mã OTP gồm 6 chữ số đã được gửi tới số điện thoại của bạn (hiệu lực 5 phút).",
       emailLabel: "Email",
+      emailOptionalLabel: "Email (không bắt buộc)",
       passwordLabel: "Mật khẩu",
       passwordHint: "Đã điền sẵn mật khẩu tài khoản mẫu",
       passwordHintProduction: "Nhập mật khẩu tài khoản của bạn",
@@ -975,6 +1020,12 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       autofillDesc: (name) => `Đã nạp hồ sơ mẫu của ${name}.`,
       emailRequiredTitle: "Yêu cầu Nhập Email",
       emailRequiredDesc: "Vui lòng nhập địa chỉ email của bạn.",
+      identifierRequiredTitle: "Yêu cầu Thông tin Đăng nhập",
+      identifierRequiredDesc: "Vui lòng nhập số điện thoại hoặc địa chỉ email.",
+      phoneRequiredTitle: "Số điện thoại chưa hợp lệ",
+      phoneRequiredDesc: "Vui lòng nhập số điện thoại di động Việt Nam hợp lệ (vd: 0912345678).",
+      otpRequiredTitle: "Yêu cầu Mã OTP",
+      otpRequiredDesc: "Vui lòng nhập mã xác nhận OTP gồm 6 chữ số.",
       consentRequiredTitle: "Yêu cầu Chấp thuận Tham gia",
       consentRequiredDesc:
         "Bệnh nhân cần xác nhận đồng ý đóng góp dữ liệu e-CRF đã ẩn danh.",

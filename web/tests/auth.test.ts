@@ -45,16 +45,18 @@ vi.mock("next/server", async (importOriginal) => {
 });
 
 import { DEMO_USERS } from "@/data/mockData";
-import { auditLogs, sessions, users } from "@/db/schema";
+import { auditLogs, phoneOtps, sessions, users } from "@/db/schema";
 import { seedDatabase } from "@/db/seed";
 import { AuthError, hashSessionToken, requireAuth } from "@/lib/auth";
 import { SESSION_COOKIE_NAME } from "@/lib/constants";
 import { decryptField } from "@/lib/crypto";
+import { normalizeVietnamPhone } from "@/lib/phone";
 import { GET as healthGet } from "@/app/api/health/route";
 import { POST as loginPost } from "@/app/api/auth/login/route";
 import { POST as logoutPost } from "@/app/api/auth/logout/route";
 import { GET as meGet } from "@/app/api/auth/me/route";
 import { POST as registerPost } from "@/app/api/auth/register/route";
+import { POST as sendOtpPost } from "@/app/api/auth/register/send-otp/route";
 import { proxy } from "@/proxy";
 import {
   TEST_SPECIALIST_INVITE_CODE,
@@ -315,12 +317,60 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     });
   });
 
-  it("supports encrypted patient self-registration and invite-gated specialist registration", async () => {
+  it("supports phone + OTP patient registration (email optional), phone/email login, and invite-gated specialist registration", async () => {
+    // Normalizes equivalent VN phone formats to +84
+    expect(normalizeVietnamPhone("0912 345 678")).toBe("+84912345678");
+    expect(normalizeVietnamPhone("+84 912-345-678")).toBe("+84912345678");
+    expect(normalizeVietnamPhone("84912345678")).toBe("+84912345678");
+    expect(normalizeVietnamPhone("12345")).toBeNull();
+
+    // Invalid phone rejected when requesting OTP
+    const badOtpPhoneRes = await sendOtpPost(
+      buildJsonRequest("/api/auth/register/send-otp", { phone: "12345" })
+    );
+    expect(badOtpPhoneRes.status).toBe(400);
+
+    // Valid phone receives demo OTP in demo mode
+    const otpRes = await sendOtpPost(
+      buildJsonRequest("/api/auth/register/send-otp", { phone: "0912345678" })
+    );
+    expect(otpRes.status).toBe(200);
+    const otpBody = (await otpRes.json()) as {
+      ok: boolean;
+      cooldownSeconds: number;
+      devOtp?: string;
+    };
+    expect(otpBody.ok).toBe(true);
+    expect(otpBody.cooldownSeconds).toBe(60);
+    expect(otpBody.devOtp).toMatch(/^\d{6}$/);
+
+    // Immediate resend hits 60s cooldown
+    const cooldownRes = await sendOtpPost(
+      buildJsonRequest("/api/auth/register/send-otp", { phone: "+84912345678" })
+    );
+    expect(cooldownRes.status).toBe(429);
+    expect(Number(cooldownRes.headers.get("Retry-After"))).toBeGreaterThan(0);
+
+    // Wrong OTP rejected
+    const wrongOtp = otpBody.devOtp === "000000" ? "111111" : "000000";
+    const wrongOtpRes = await registerPost(
+      buildJsonRequest("/api/auth/register", {
+        fullName: "Nguyen Thi Lan",
+        phone: "0912345678",
+        otpCode: wrongOtp,
+        password: "PatientSecure#2026",
+        role: "patient",
+        consentChecked: true,
+      })
+    );
+    expect(wrongOtpRes.status).toBe(400);
+
     // Weak password rejected
     const weakRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Nguyen Thi Lan",
-        email: "lan.patient@example.test",
+        phone: "0912345678",
+        otpCode: otpBody.devOtp,
         password: "weak",
         role: "patient",
         consentChecked: true,
@@ -328,11 +378,12 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     );
     expect(weakRes.status).toBe(400);
 
-    // Valid patient signup succeeds with encrypted PII in PostgreSQL
+    // Valid patient signup succeeds with phone + OTP and NO email
     const regPatientRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Nguyen Thi Lan",
-        email: "Lan.Patient@Example.test",
+        phone: "0912 345 678",
+        otpCode: otpBody.devOtp,
         password: "PatientSecure#2026",
         role: "patient",
         consentChecked: true,
@@ -340,36 +391,109 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     );
     expect(regPatientRes.status).toBe(201);
     const regData = (await regPatientRes.json()) as {
-      user: { id: string; email: string; name: string; role: string };
+      user: {
+        id: string;
+        email: string | null;
+        phone: string | null;
+        name: string;
+        role: string;
+      };
     };
-    expect(regData.user.email).toBe("lan.patient@example.test");
+    expect(regData.user.email).toBeNull();
+    expect(regData.user.phone).toBe("+84912345678");
     expect(regData.user.name).toBe("Nguyen Thi Lan");
     expect(regData.user.role).toBe("patient");
     expect(regData.user).toMatchObject({
-      title: "Registered Patient", departmentOrRegistryId: "", badgeText: "Patient",
+      title: "Registered Patient",
+      departmentOrRegistryId: "",
+      badgeText: "Patient",
     });
 
     const [storedUser] = await testDb.db
       .select()
       .from(users)
       .where(eq(users.id, regData.user.id));
-    expect(storedUser.emailEncrypted).not.toContain("lan.patient@example.test");
+    expect(storedUser.emailEncrypted).toBeNull();
+    expect(storedUser.emailBlindIndex).toBeNull();
+    expect(storedUser.phoneEncrypted).not.toContain("912345678");
+    expect(
+      decryptField(storedUser.phoneEncrypted!, `users:${storedUser.id}:phone`)
+    ).toBe("+84912345678");
     expect(storedUser.fullNameEncrypted).not.toContain("Nguyen Thi Lan");
     expect(
       decryptField(storedUser.fullNameEncrypted, `users:${storedUser.id}:full_name`)
     ).toBe("Nguyen Thi Lan");
 
-    // Duplicate email rejected cleanly
+    // Duplicate phone rejected on both send-otp and register
+    const dupOtpRes = await sendOtpPost(
+      buildJsonRequest("/api/auth/register/send-otp", { phone: "+84912345678" })
+    );
+    expect(dupOtpRes.status).toBe(409);
+
     const dupRes = await registerPost(
       buildJsonRequest("/api/auth/register", {
         fullName: "Duplicate Lan",
-        email: "lan.patient@example.test",
+        phone: "0912345678",
+        otpCode: otpBody.devOtp,
         password: "PatientSecure#2026",
         role: "patient",
         consentChecked: true,
       })
     );
     expect(dupRes.status).toBe(409);
+
+    // Phone-only patient can log out and log in with 0... or +84... format
+    await logoutPost(buildJsonRequest("/api/auth/logout", {}));
+    const phoneLoginLocal = await loginPost(
+      buildJsonRequest("/api/auth/login", {
+        identifier: "0912345678",
+        password: "PatientSecure#2026",
+      })
+    );
+    expect(phoneLoginLocal.status).toBe(200);
+    expect((await phoneLoginLocal.json()).user.phone).toBe("+84912345678");
+
+    await logoutPost(buildJsonRequest("/api/auth/logout", {}));
+    const phoneLoginE164 = await loginPost(
+      buildJsonRequest("/api/auth/login", {
+        identifier: "+84912345678",
+        password: "PatientSecure#2026",
+      })
+    );
+    expect(phoneLoginE164.status).toBe(200);
+    await logoutPost(buildJsonRequest("/api/auth/logout", {}));
+
+    // Patient registration with phone + OTP + optional email allows login via email OR phone
+    const otp2Res = await sendOtpPost(
+      buildJsonRequest("/api/auth/register/send-otp", { phone: "0987654321" })
+    );
+    const otp2Body = (await otp2Res.json()) as { devOtp: string };
+    const regWithEmailRes = await registerPost(
+      buildJsonRequest("/api/auth/register", {
+        fullName: "Tran Van Binh",
+        phone: "0987654321",
+        otpCode: otp2Body.devOtp,
+        email: "Binh.Patient@Example.test",
+        password: "PatientSecure#2026",
+        role: "patient",
+        consentChecked: true,
+      })
+    );
+    expect(regWithEmailRes.status).toBe(201);
+    const reg2Data = (await regWithEmailRes.json()) as {
+      user: { email: string | null; phone: string | null };
+    };
+    expect(reg2Data.user.email).toBe("binh.patient@example.test");
+    expect(reg2Data.user.phone).toBe("+84987654321");
+
+    await logoutPost(buildJsonRequest("/api/auth/logout", {}));
+    const emailLogin = await loginPost(
+      buildJsonRequest("/api/auth/login", {
+        identifier: "binh.patient@example.test",
+        password: "PatientSecure#2026",
+      })
+    );
+    expect(emailLogin.status).toBe(200);
 
     // Specialist signup without valid invite code rejected with 403
     const deniedSpecRes = await registerPost(
@@ -399,19 +523,90 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     const specBody = (await okSpecRes.json()) as { user: { role: string } };
     expect(specBody.user.role).toBe("specialist");
     expect(specBody.user).toMatchObject({
-      title: "Clinical Specialist", departmentOrRegistryId: "", badgeText: "Specialist",
+      title: "Clinical Specialist",
+      departmentOrRegistryId: "",
+      badgeText: "Specialist",
     });
 
     // Can log out and log right back in with the newly registered specialist
     await logoutPost(buildJsonRequest("/api/auth/logout", {}));
     const reLogin = await loginPost(
       buildJsonRequest("/api/auth/login", {
-        email: "hoang.anh@example.test",
+        identifier: "hoang.anh@example.test",
         password: "DoctorSecure#2026",
         selectedRole: "specialist",
       })
     );
     expect(reLogin.status).toBe(200);
+  });
+
+  it("enforces OTP expiration, max 5 failed OTP attempts, and production SMS config guard", async () => {
+    const otpRes = await sendOtpPost(
+      buildJsonRequest("/api/auth/register/send-otp", { phone: "0901234567" })
+    );
+    expect(otpRes.status).toBe(200);
+    const { devOtp } = (await otpRes.json()) as { devOtp: string };
+    const wrongOtp = devOtp === "000000" ? "999999" : "000000";
+
+    // 5 wrong OTP attempts lock out verification with 429
+    for (let i = 1; i <= 5; i += 1) {
+      const attemptRes = await registerPost(
+        buildJsonRequest("/api/auth/register", {
+          fullName: "OTP Lock Test",
+          phone: "0901234567",
+          otpCode: wrongOtp,
+          password: "PatientSecure#2026",
+          role: "patient",
+          consentChecked: true,
+        })
+      );
+      expect(attemptRes.status).toBe(i < 5 ? 400 : 429);
+    }
+
+    // Even the right OTP fails once max attempts are exhausted
+    const lockedRes = await registerPost(
+      buildJsonRequest("/api/auth/register", {
+        fullName: "OTP Lock Test",
+        phone: "0901234567",
+        otpCode: devOtp,
+        password: "PatientSecure#2026",
+        role: "patient",
+        consentChecked: true,
+      })
+    );
+    expect(lockedRes.status).toBe(429);
+
+    // Expired OTP rejected cleanly
+    const otp2Res = await sendOtpPost(
+      buildJsonRequest("/api/auth/register/send-otp", { phone: "0902223334" })
+    );
+    const { devOtp: devOtp2 } = (await otp2Res.json()) as { devOtp: string };
+    await testDb.db
+      .update(phoneOtps)
+      .set({ expiresAt: new Date(Date.now() - 1000) });
+    const expiredRes = await registerPost(
+      buildJsonRequest("/api/auth/register", {
+        fullName: "Expired OTP User",
+        phone: "0902223334",
+        otpCode: devOtp2,
+        password: "PatientSecure#2026",
+        role: "patient",
+        consentChecked: true,
+      })
+    );
+    expect(expiredRes.status).toBe(400);
+
+    // Non-demo mode without OTP_WEBHOOK_URL returns 503 instead of faking SMS
+    const prevDemo = process.env.NEXT_PUBLIC_DEMO_MODE;
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    try {
+      const unconfiguredRes = await sendOtpPost(
+        buildJsonRequest("/api/auth/register/send-otp", { phone: "0903334445" })
+      );
+      expect(unconfiguredRes.status).toBe(503);
+    } finally {
+      process.env.NEXT_PUBLIC_DEMO_MODE = prevDemo;
+    }
   });
 
   it("protects /ocr, /crf, and /scores in Next.js 16 proxy when session cookie is missing", () => {

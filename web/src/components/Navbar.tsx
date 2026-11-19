@@ -3,14 +3,23 @@
 import { SITE_NAME, SITE_PAGES } from "@/components/landing/siteContent";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
 import { getLocalizedButtonActionMap } from "@/data/translations";
 import { useNewSubmissions } from "@/lib/newSubmissionStore";
 import { NotificationBell } from "@/components/NotificationBell";
 
+export async function logoutAndGoHome(
+  logout: () => Promise<void>,
+  router: { replace: (href: string) => void }
+) {
+  await logout();
+  router.replace("/");
+}
+
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const {
     language,
     toggleLanguage,
@@ -71,15 +80,13 @@ export function Navbar() {
           { href: "/crf-form", label: isVi ? "Phiếu CRF" : "CRF form", id: "nav-link-crf-form" },
         ]
       : [
-          ...SITE_PAGES.map((page) => ({ href: page.href, label: isVi ? page.vi : page.en, id: page.id })),
+          ...SITE_PAGES.map((page) => ({
+            href: page.href,
+            label: isVi ? page.vi : page.en,
+            id: page.id,
+          })),
           ...(currentUser?.role === "patient"
-            ? [
-                {
-                  href: "/upload",
-                  label: t.patientPortal.patientMenuLabel,
-                  id: "nav-link-upload",
-                },
-              ]
+            ? [{ href: "/upload", label: t.patientPortal.patientMenuLabel, id: "nav-link-upload" }]
             : []),
         ];
 
@@ -180,7 +187,7 @@ export function Navbar() {
                 <button
                   type="button"
                   id="nav-btn-signout"
-                  onClick={logout}
+                  onClick={() => void logoutAndGoHome(logout, router)}
                   className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
                 >
                   {t.common.signOut}

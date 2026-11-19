@@ -102,8 +102,10 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    emailEncrypted: text("email_encrypted").notNull(),
-    emailBlindIndex: text("email_blind_index").notNull().unique(),
+    emailEncrypted: text("email_encrypted"),
+    emailBlindIndex: text("email_blind_index").unique(),
+    phoneEncrypted: text("phone_encrypted"),
+    phoneBlindIndex: text("phone_blind_index").unique(),
     fullNameEncrypted: text("full_name_encrypted").notNull(),
     passwordHash: text("password_hash").notNull(),
     role: text("role").$type<UserRole>().notNull(),
@@ -117,6 +119,23 @@ export const users = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index("users_role_idx").on(table.role)]
+);
+
+export const phoneOtps = pgTable(
+  "phone_otps",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    phoneBlindIndex: text("phone_blind_index").notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("phone_otps_phone_created_idx").on(table.phoneBlindIndex, table.createdAt),
+    index("phone_otps_expires_at_idx").on(table.expiresAt),
+  ]
 );
 
 // -----------------------------------------------------------------------------
