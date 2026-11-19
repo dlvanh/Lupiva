@@ -155,7 +155,7 @@ export interface Translations {
     patientEConsent: string;
     patientConsent: string;
     submitBtn: string;
-    submitRegisterBtn: (roleLabel: string) => string;
+    submitRegisterBtn: string;
     signingInBtn: string;
     creatingAccountBtn: string;
     skipBtn: string;
@@ -453,13 +453,13 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       modeLabel: "Sign in or create an account",
       roleLabel: "Account type",
       title: "Sign in to VietNam Lupus Registry",
-      registerTitle: "Create a VietNam Lupus Registry account",
+      registerTitle: "Patient registration",
       autofillBtn: "Autofill Demo Credentials",
       subtitle: "Sign in with your account.",
       registerSubtitle:
-        "Create a patient account or use an invitation to register as a Vinmec clinical specialist.",
+        "Create an account to submit your records and follow their status. Doctor accounts are issued by the project team.",
       modeSignInTab: "Sign In",
-      modeRegisterTab: "Create Account",
+      modeRegisterTab: "Patient registration",
       specialistTabTitle: "Clinical Specialist",
       specialistTabBadge: "HITL Doctor",
       specialistTabDesc: "Verify OCR labs & commit e-CRF",
@@ -482,7 +482,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       patientConsent:
         "I consent to contribute de-identified SLE lab values to the Vinmec Clinical Immunology Registry for review by my doctor.",
       submitBtn: "Sign in",
-      submitRegisterBtn: (roleLabel) => `Create ${roleLabel} Account →`,
+      submitRegisterBtn: "Create patient account →",
       signingInBtn: "Signing in…",
       creatingAccountBtn: "Creating account…",
       skipBtn: "Continue Without Signing In",
@@ -798,13 +798,13 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       modeLabel: "Đăng nhập hoặc tạo tài khoản",
       roleLabel: "Loại tài khoản",
       title: "Đăng nhập VietNam Lupus Registry",
-      registerTitle: "Tạo tài khoản VietNam Lupus Registry",
+      registerTitle: "Đăng ký bệnh nhân",
       autofillBtn: "Tự động Điền Tài khoản Mẫu",
       subtitle: "Đăng nhập bằng tài khoản của bạn.",
       registerSubtitle:
-        "Tạo tài khoản bệnh nhân hoặc dùng mã mời để đăng ký tài khoản bác sĩ chuyên khoa Vinmec.",
+        "Tạo tài khoản để nộp hồ sơ và theo dõi trạng thái. Tài khoản bác sĩ do nhóm dự án cấp.",
       modeSignInTab: "Đăng nhập",
-      modeRegisterTab: "Tạo Tài khoản",
+      modeRegisterTab: "Đăng ký bệnh nhân",
       specialistTabTitle: "Bác sĩ Chuyên khoa",
       specialistTabBadge: "Bác sĩ Duyệt HITL",
       specialistTabDesc: "Xác thực OCR xét nghiệm & lưu e-CRF",
@@ -827,7 +827,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       patientConsent:
         "Tôi đồng ý đóng góp các chỉ số xét nghiệm SLE đã ẩn danh vào Cơ sở Dữ liệu Miễn dịch Lâm sàng Vinmec để bác sĩ xem xét.",
       submitBtn: "Đăng nhập",
-      submitRegisterBtn: (roleLabel) => `Tạo Tài khoản ${roleLabel} →`,
+      submitRegisterBtn: "Đăng ký tài khoản bệnh nhân →",
       signingInBtn: "Đang đăng nhập…",
       creatingAccountBtn: "Đang tạo tài khoản…",
       skipBtn: "Tiếp tục mà không đăng nhập",

@@ -30,8 +30,7 @@ import {
   recordRateLimitFailure,
 } from "@/lib/rateLimit";
 
-const PASSWORD_COMPLEXITY_REGEX =
-  /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{8,128}$/;
+import { REGISTER_PASSWORD_REGEX as PASSWORD_COMPLEXITY_REGEX } from "@/lib/registerPassword";
 
 const registerRequestSchema = z.object({
   fullName: z

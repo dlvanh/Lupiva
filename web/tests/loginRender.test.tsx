@@ -35,14 +35,33 @@ describe("login copy", () => {
     expect(html).not.toMatch(/login-tab-specialist|phân quyền|role-based clinical access|aes-256|hmac|blind index/i);
   });
 
-  it("offers both roles at registration and describes the selected patient role", () => {
+  it("registration is patient-only: no role choice and no invite code", () => {
     state.query = "mode=register";
     const html = renderToStaticMarkup(<LoginPage />);
-    expect(html).toContain('id="login-tab-specialist"');
-    expect(html).toContain('id="login-tab-patient" aria-pressed="true"');
+    expect(html).not.toMatch(/login-tab-specialist|login-tab-patient|login-input-invite-code/);
+    expect(html).not.toContain("Bác sĩ Chuyên khoa");
+    expect(html).toMatch(/<h1[^>]*>Đăng ký bệnh nhân<\/h1>/);
+    expect(html).toMatch(/id="login-mode-register"[^>]*>Đăng ký bệnh nhân<\/button>/);
+    expect(html).toMatch(/id="login-btn-submit"[^>]*>Đăng ký tài khoản bệnh nhân →<\/button>/);
     const panel = html.match(/<aside\b[^>]*>.*?<\/aside>/)?.[0];
     expect(panel).toContain("Bệnh nhân nộp");
     expect(panel).not.toContain("Bác sĩ duyệt hồ sơ");
     expect(html).not.toMatch(/aes-256|hmac|blind index/i);
+  });
+
+  it("sign-in screen never shows the role tabs or invite code", () => {
+    const html = renderToStaticMarkup(<LoginPage />);
+    expect(html).not.toMatch(/login-tab-specialist|login-tab-patient|login-input-invite-code/);
+    expect(html).toMatch(/id="login-mode-register"[^>]*>Đăng ký bệnh nhân<\/button>/);
+  });
+});
+
+describe("registration password check", () => {
+  it("matches the server rule: letter, digit, special char, 8-128", async () => {
+    const { isValidRegisterPassword } = await import("@/lib/registerPassword");
+    expect(isValidRegisterPassword("Abc12345!")).toBe(true);
+    expect(isValidRegisterPassword("Abc12345")).toBe(false);
+    expect(isValidRegisterPassword("abcdefg!")).toBe(false);
+    expect(isValidRegisterPassword("Ab1!")).toBe(false);
   });
 });
