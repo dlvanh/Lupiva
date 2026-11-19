@@ -101,13 +101,12 @@ describe("public site pages", () => {
     expect(markup).toMatch(/id="nav-link-upload"[^>]*>Hồ sơ của tôi<\/a>/);
   });
 
-  it("opens patient registration with the consent box for the patient to check", () => {
+  it("opens patient registration with full name input and without specialist invite code", () => {
     state.searchParams = new URLSearchParams("mode=register");
     const markup = renderToStaticMarkup(<LoginPage />);
     expect(markup).toContain('id="login-input-fullname"');
-    const checkbox = markup.match(/<input[^>]*id="login-checkbox-consent"[^>]*>/)?.[0];
-    expect(checkbox).toBeDefined();
-    expect(checkbox).not.toContain('checked=""');
+    expect(markup).toContain('id="login-password-hint"');
     expect(markup).not.toContain('id="login-input-invite-code"');
+    expect(markup).not.toContain('id="login-tab-specialist"');
   });
 });

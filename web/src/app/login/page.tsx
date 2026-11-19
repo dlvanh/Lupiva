@@ -1,88 +1,72 @@
 "use client";
 
-import { resolveSafeRedirect } from "@/lib/loginRedirect";
-import { isValidRegisterPassword } from "@/lib/registerPassword";
 import React, { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { UserRole } from "@/data/mockData";
 import { useLupiva } from "@/context/LupivaContext";
-import { getLocalizedDemoUsers } from "@/data/translations";
 
 type AuthMode = "login" | "register";
 
-function LoginFormContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    language,
-    t,
-    currentUser,
-    loginWithCredentials,
-    registerAccount,
-    showToast,
-  } = useLupiva();
+function resolveSafeRedirect(nextParam: string | null, role: UserRole): string {
+  const defaultRoute = role === "patient" ? "/upload" : "/";
+  if (!nextParam) return defaultRoute;
 
-  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
-  const localizedUsers = getLocalizedDemoUsers(language);
-  const initialMode: AuthMode = searchParams.get("mode") === "register" ? "register" : "login";
-  const isEConsentEntry = searchParams.get("consent") === "1";
-  // Sign-up is for patients only; doctor accounts are provisioned by the team.
-  // selectedRole only picks the demo persona for sign-in autofill.
-  const selectedRole: UserRole = initialMode === "register" || isEConsentEntry
-    ? "patient"
-    : currentUser?.role ?? "specialist";
-  const initialRole = selectedRole;
-  const autofillLogin = isDemoMode && initialMode === "login";
+  const isSafeRelative =
+    nextParam.startsWith("/") &&
+    !nextParam.startsWith("//") &&
+    !nextParam.startsWith("/\\");
+
+  if (!isSafeRelative) return defaultRoute;
+
+  const isSpecialistRoute =
+    nextParam.startsWith("/ocr") ||
+    nextParam.startsWith("/crf") ||
+    nextParam.startsWith("/scores");
+
+  if (role === "patient" && isSpecialistRoute) {
+    return "/upload";
+  }
+
+  return nextParam;
+}
+
+function buildAuthModeHref(mode: AuthMode, nextParam: string | null): string {
+  const params = new URLSearchParams();
+  if (mode === "register") {
+    params.set("mode", "register");
+  }
+  if (nextParam) {
+    params.set("next", nextParam);
+  }
+  const query = params.toString();
+  return query ? `/login?${query}` : "/login";
+}
+
+function LoginFormContent({
+  initialMode,
+  nextParam,
+}: {
+  initialMode: AuthMode;
+  nextParam: string | null;
+}) {
+  const router = useRouter();
+  const { language, t, loginWithCredentials, registerAccount, showToast } =
+    useLupiva();
 
   const [mode, setMode] = useState<AuthMode>(initialMode);
-
   const [fullName, setFullName] = useState<string>("");
-  const [email, setEmail] = useState<string>(() =>
-    autofillLogin ? localizedUsers[initialRole].email : ""
-  );
-  const [password, setPassword] = useState<string>(() =>
-    autofillLogin ? localizedUsers[initialRole].passwordHint : ""
-  );
-  const [consentChecked, setConsentChecked] = useState(autofillLogin || isEConsentEntry);
-  // Sign-in: the account decides the role. The consent box shows only when the
-  // server says this patient account has not signed it yet (or in demo mode).
-  const [loginNeedsConsent, setLoginNeedsConsent] = useState<boolean>(isEConsentEntry);
-  const showConsent = mode === "register" || isDemoMode || loginNeedsConsent;
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSwitchMode = (nextMode: AuthMode) => {
     setMode(nextMode);
     setErrorMessage(null);
-    if (nextMode === "register") {
-      setFullName("");
-      setEmail("");
-      setPassword("");
-      setConsentChecked(false);
-    } else if (isDemoMode) {
-      const persona = localizedUsers[selectedRole];
-      setEmail(persona.email);
-      setPassword(persona.passwordHint);
-      setConsentChecked(true);
-    } else {
-      setEmail("");
-      setPassword("");
-      setConsentChecked(false);
-    }
-  };
-
-  const handleAutofillDemo = () => {
-    const persona = localizedUsers[selectedRole];
-    setMode("login");
-    setEmail(persona.email);
-    setPassword(persona.passwordHint);
-    setConsentChecked(true);
-    setErrorMessage(null);
-    showToast(
-      t.toasts.autofillTitle,
-      t.toasts.autofillDesc(persona.name),
-      "navy"
-    );
+    setFullName("");
+    setEmail("");
+    setPassword("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,28 +92,6 @@ function LoginFormContent() {
       return;
     }
 
-    if (mode === "register" && !isValidRegisterPassword(password)) {
-      setErrorMessage(
-        language === "vi"
-          ? "Mật khẩu cần 8–128 ký tự, có ít nhất 1 chữ cái, 1 chữ số và 1 ký tự đặc biệt (ví dụ ! @ # ?)."
-          : "Password needs 8–128 characters with at least 1 letter, 1 number and 1 special character (e.g. ! @ # ?)."
-      );
-      return;
-    }
-
-    if (
-      (mode === "register" || loginNeedsConsent) &&
-      !consentChecked
-    ) {
-      setErrorMessage(t.toasts.consentRequiredDesc);
-      showToast(
-        t.toasts.consentRequiredTitle,
-        t.toasts.consentRequiredDesc,
-        "amber"
-      );
-      return;
-    }
-
     setSubmitting(true);
     try {
       const result =
@@ -137,22 +99,17 @@ function LoginFormContent() {
           ? await loginWithCredentials({
               email: email.trim(),
               password,
-              ...(showConsent ? { consentChecked } : {}),
+              consentChecked: true,
             })
           : await registerAccount({
               fullName: fullName.trim(),
               email: email.trim(),
               password,
               role: "patient",
-              consentChecked,
+              consentChecked: true,
             });
 
       if (!result.ok || !result.user) {
-        if (mode === "login" && result.consentRequired) {
-          setLoginNeedsConsent(true);
-          setErrorMessage(t.toasts.consentRequiredDesc);
-          return;
-        }
         setErrorMessage(
           result.error ||
             (language === "vi"
@@ -162,247 +119,197 @@ function LoginFormContent() {
         return;
       }
 
-      const destination = resolveSafeRedirect(
-        searchParams.get("next"),
-        result.user.role,
-        mode
-      );
+      const destination = resolveSafeRedirect(nextParam, result.user.role);
       router.push(destination);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const roleDisplayLabel = t.login.patientTabTitle;
-
-  const passwordHelperText =
-    mode === "register"
-      ? t.login.passwordHintRegister
-      : isDemoMode
-      ? t.login.passwordHint
-      : t.login.passwordHintProduction;
+  const registerBtnLabel = language === "vi" ? "Đăng ký" : "Create Account";
 
   return (
     <main
       id="main-content"
       tabIndex={-1}
-      className="flex-1 py-10 sm:py-14 focus:outline-none"
+      className="flex-1 py-10 sm:py-16 focus:outline-none"
     >
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-          {/* Left Column: Auth Card */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs sm:p-8 lg:col-span-7">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h1
-                  id="login-form-heading"
-                  className="mt-1 text-2xl font-bold text-slate-900"
-                >
-                  {mode === "login" ? t.login.title : t.login.registerTitle}
-                </h1>
-              </div>
+      <div className="mx-auto max-w-md px-4 sm:px-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs sm:p-8">
+          <h1
+            id="login-form-heading"
+            className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl"
+          >
+            {mode === "login" ? t.login.title : t.login.registerTitle}
+          </h1>
 
-              {isDemoMode && mode === "login" && (
-                <button
-                  type="button"
-                  id="login-btn-autofill"
-                  onClick={handleAutofillDemo}
-                  className="rounded-lg border border-teal-700/30 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-900 transition hover:bg-teal-100 cursor-pointer"
-                >
-                  {t.login.autofillBtn}
-                </button>
-              )}
-            </div>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            {mode === "login" ? t.login.subtitle : t.login.registerSubtitle}
+          </p>
 
-            <p className="mt-2 text-xs text-slate-600">
-              {mode === "register" ? t.login.registerSubtitle : t.login.subtitle}
-            </p>
-
-            {/* Sign In vs Create Account Switcher */}
+          {errorMessage && (
             <div
-              role="tablist"
-              aria-label={t.login.modeLabel}
-              className="mt-4 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1"
+              id="login-error-alert"
+              role="alert"
+              className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-900"
             >
-              <button
-                type="button"
-                role="tab"
-                id="login-mode-signin"
-                aria-selected={mode === "login"}
-                onClick={() => handleSwitchMode("login")}
-                className={`rounded-md px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
-                  mode === "login"
-                    ? "bg-white text-slate-900 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {t.login.modeSignInTab}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                id="login-mode-register"
-                aria-selected={mode === "register"}
-                onClick={() => handleSwitchMode("register")}
-                className={`rounded-md px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
-                  mode === "register"
-                    ? "bg-white text-slate-900 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {t.login.modeRegisterTab}
-              </button>
+              {errorMessage}
             </div>
+          )}
 
-            {errorMessage && (
-              <div
-                id="login-error-alert"
-                role="alert"
-                className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-medium text-rose-900"
-              >
-                {errorMessage}
+          <form
+            aria-labelledby="login-form-heading"
+            onSubmit={handleSubmit}
+            className="mt-6 space-y-4"
+          >
+            {mode === "register" && (
+              <div>
+                <label
+                  htmlFor="login-input-fullname"
+                  className="block text-sm font-semibold text-slate-700"
+                >
+                  {t.login.fullNameLabel}
+                </label>
+                <input
+                  id="login-input-fullname"
+                  name="fullName"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-teal-700"
+                  placeholder={t.login.fullNamePlaceholder}
+                />
               </div>
             )}
 
-            {/* Auth Form */}
-            <form
-              aria-labelledby="login-form-heading"
-              onSubmit={handleSubmit}
-              className="mt-5 space-y-4"
-            >
-              {mode === "register" && (
-                <div>
-                  <label
-                    htmlFor="login-input-fullname"
-                    className="block text-xs font-semibold text-slate-700"
-                  >
-                    {t.login.fullNameLabel}
-                  </label>
-                  <input
-                    id="login-input-fullname"
-                    name="fullName"
-                    type="text"
-                    autoComplete="name"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-900 focus:border-teal-700"
-                    placeholder={t.login.fullNamePlaceholder}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label
-                  htmlFor="login-input-email"
-                  className="block text-xs font-semibold text-slate-700"
-                >
-                  {t.login.emailLabel}
-                </label>
-                <input
-                  id="login-input-email"
-                  name="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="username"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 font-mono text-xs text-slate-900 focus:border-teal-700"
-                  placeholder={mode === "register" ? "ten@email.com" : "name@vinmec.com"}
-                />
-              </div>
-
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label
-                    htmlFor="login-input-password"
-                    className="block text-xs font-semibold text-slate-700"
-                  >
-                    {t.login.passwordLabel}
-                  </label>
-                  <span
-                    id="login-password-hint"
-                    className="font-mono text-[11px] text-slate-500"
-                  >
-                    {passwordHelperText}
-                  </span>
-                </div>
-                <input
-                  id="login-input-password"
-                  name="password"
-                  type="password"
-                  required
-                  autoComplete={
-                    mode === "login" ? "current-password" : "new-password"
-                  }
-                  aria-describedby="login-password-hint"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 font-mono text-xs text-slate-900 focus:border-teal-700"
-                />
-              </div>
-
-              {/* Informed Consent / Governance Checkbox */}
-              {showConsent && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5">
-                <div className="flex items-start gap-2.5">
-                  <input
-                    id="login-checkbox-consent"
-                    name="consent"
-                    type="checkbox"
-                    checked={consentChecked}
-                    onChange={(e) => setConsentChecked(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-teal-700 cursor-pointer"
-                  />
-                  <label
-                    htmlFor="login-checkbox-consent"
-                    className="text-xs leading-relaxed text-slate-600 cursor-pointer"
-                  >
-                    {mode === "login" && !loginNeedsConsent && selectedRole === "specialist"
-                      ? t.login.specialistConsent
-                      : isEConsentEntry ? t.login.patientEConsent : t.login.patientConsent}
-                  </label>
-                </div>
-              </div>
-              )}
-
-              <div className="pt-2 flex flex-col gap-2.5 sm:flex-row">
-                <button
-                  type="submit"
-                  id="login-btn-submit"
-                  disabled={submitting}
-                  className="flex-1 rounded-lg bg-teal-700 px-5 py-3 text-xs font-semibold text-white shadow-2xs transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-                >
-                  {submitting
-                    ? mode === "login"
-                      ? t.login.signingInBtn
-                      : t.login.creatingAccountBtn
-                    : mode === "login"
-                    ? t.login.submitBtn
-                    : t.login.submitRegisterBtn}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <aside className="self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8 lg:col-span-5">
-            <h2 className="text-lg font-bold text-slate-900">
-              {mode === "login" ? t.login.portalTitle : fullName.trim() || roleDisplayLabel}
-            </h2>
-            <div className="mt-3 space-y-2 text-sm leading-relaxed text-slate-700">
-              <p>{t.login.patientUse}</p>
-              {mode === "login" && <p>{t.login.doctorUse}</p>}
+            <div>
+              <label
+                htmlFor="login-input-email"
+                className="block text-sm font-semibold text-slate-700"
+              >
+                {t.login.emailLabel}
+              </label>
+              <input
+                id="login-input-email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="username"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-teal-700"
+                placeholder="email@example.com"
+              />
             </div>
-            <p className="mt-4 rounded-lg bg-teal-50 p-3 text-sm text-teal-900">{t.login.dataProtection}</p>
-            {currentUser && <p className="mt-4 text-sm text-slate-600">{t.login.loggedInAs(currentUser.name)}</p>}
-          </aside>
+
+            <div>
+              <label
+                htmlFor="login-input-password"
+                className="block text-sm font-semibold text-slate-700"
+              >
+                {t.login.passwordLabel}
+              </label>
+              <input
+                id="login-input-password"
+                name="password"
+                type="password"
+                required
+                autoComplete={
+                  mode === "login" ? "current-password" : "new-password"
+                }
+                aria-describedby={
+                  mode === "register" ? "login-password-hint" : undefined
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-teal-700"
+              />
+              {mode === "register" && (
+                <p
+                  id="login-password-hint"
+                  className="mt-1.5 text-xs text-slate-500"
+                >
+                  {t.login.passwordHintRegister}
+                </p>
+              )}
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                id="login-btn-submit"
+                disabled={submitting}
+                className="w-full min-h-11 rounded-lg bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-2xs transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              >
+                {submitting
+                  ? mode === "login"
+                    ? t.login.signingInBtn
+                    : t.login.creatingAccountBtn
+                  : mode === "login"
+                  ? t.login.modeSignInTab
+                  : registerBtnLabel}
+              </button>
+            </div>
+          </form>
+
+          <p className="mt-6 border-t border-slate-200 pt-5 text-center text-sm text-slate-600">
+            {mode === "login" ? (
+              <>
+                {language === "vi"
+                  ? "Nếu chưa có tài khoản, "
+                  : "Don't have an account? "}
+                <Link
+                  href={buildAuthModeHref("register", nextParam)}
+                  id="login-link-register"
+                  onClick={() => handleSwitchMode("register")}
+                  className="font-semibold text-teal-800 hover:text-teal-900 hover:underline"
+                >
+                  {language === "vi"
+                    ? "Đăng ký tài khoản"
+                    : "Create an account"}
+                </Link>
+              </>
+            ) : (
+              <>
+                {language === "vi"
+                  ? "Đã có tài khoản? "
+                  : "Already have an account? "}
+                <Link
+                  href={buildAuthModeHref("login", nextParam)}
+                  id="login-link-signin"
+                  onClick={() => handleSwitchMode("login")}
+                  className="font-semibold text-teal-800 hover:text-teal-900 hover:underline"
+                >
+                  {language === "vi" ? "Đăng nhập" : "Sign in"}
+                </Link>
+              </>
+            )}
+          </p>
         </div>
       </div>
     </main>
+  );
+}
+
+function LoginFormWithQueryParams() {
+  const searchParams = useSearchParams();
+
+  const modeParam = searchParams.get("mode");
+  const nextParam = searchParams.get("next");
+  const initialMode: AuthMode = modeParam === "register" ? "register" : "login";
+
+  return (
+    <LoginFormContent
+      key={initialMode}
+      initialMode={initialMode}
+      nextParam={nextParam}
+    />
   );
 }
 
@@ -415,13 +322,13 @@ export default function LoginPage() {
           tabIndex={-1}
           className="flex flex-1 items-center justify-center py-16"
         >
-          <div className="rounded-xl border border-slate-200 bg-white px-6 py-4 text-xs font-medium text-slate-600 shadow-2xs">
+          <div className="rounded-xl border border-slate-200 bg-white px-6 py-4 text-sm font-medium text-slate-600 shadow-2xs">
             Loading authentication workspace...
           </div>
         </main>
       }
     >
-      <LoginFormContent />
+      <LoginFormWithQueryParams />
     </Suspense>
   );
 }
