@@ -1,0 +1,3173 @@
+{
+  "schema_version": "lupus-candidate-pool-0.1",
+  "dictionary_version": "lupus-table-rules-0.1",
+  "catalog_version": "crf-docx-v1",
+  "catalog_template_sha256": "A5EF44C70EF74D2A9BD180EA1377CE8CE6F754B7B817042805CE93FFAEF7E76D",
+  "created_at_utc": "2026-11-05T15:30:50.777017+00:00",
+  "case_id": "SYNTHETIC-ONLY",
+  "identity_status": "unconfirmed",
+  "pool_stage": "candidate",
+  "source_documents": [
+    {
+      "document_id": "SYN-BIO",
+      "source_kind": "synthetic_table",
+      "context": {
+        "decimal_separator": ",",
+        "source_date": "2026-08-01",
+        "date_type": "sample_date"
+      }
+    },
+    {
+      "document_id": "SYN-CBC",
+      "source_kind": "synthetic_table",
+      "context": {
+        "specimen": "blood"
+      }
+    },
+    {
+      "document_id": "SYN-ANA",
+      "source_kind": "synthetic_table",
+      "context": {
+        "panel": "ana_profile_23",
+        "class_legend": {
+          "o": "negative",
+          "(+)": "borderline",
+          "+": "positive",
+          "++": "positive",
+          "+++": "strong_positive"
+        },
+        "intensity_ranges": {
+          "o": [
+            0,
+            7
+          ],
+          "(+)": [
+            8,
+            14
+          ],
+          "+": [
+            15,
+            35
+          ],
+          "++": [
+            36,
+            70
+          ],
+          "+++": [
+            71,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "document_id": "SYN-MYO",
+      "source_kind": "synthetic_table",
+      "context": {
+        "panel": "myositis"
+      }
+    },
+    {
+      "document_id": "SYN-PFT",
+      "source_kind": "synthetic_table",
+      "context": {
+        "panel": "pft"
+      }
+    },
+    {
+      "document_id": "SYN-ERRORS",
+      "source_kind": "synthetic_table",
+      "context": {}
+    }
+  ],
+  "fields": {
+    "ADM01": {
+      "label": "Study ID",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "ADM02": {
+      "label": "Age",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "ADM03": {
+      "label": "Gender: Female / Male",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "ADM04": {
+      "label": "ICF signed date",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "ADM05": {
+      "label": "Height, cm",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "ADM06": {
+      "label": "Weight, kg",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "ADM07": {
+      "label": "BMI",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "ADM08": {
+      "label": "Physician",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "ADM09": {
+      "label": "Nurse",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS01": {
+      "label": "Pregnancy / Beta-hCG",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "HIS02": {
+      "label": "Malignant disease: No / Yes, Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS03": {
+      "label": "Other comorbidities: No / Yes, Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS04": {
+      "label": "Family Autoimmune Disease History: No / Yes",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS05": {
+      "label": "Father / Disease Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS06": {
+      "label": "Mother / Disease Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS07": {
+      "label": "Brother / Disease Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS08": {
+      "label": "Sister / Disease Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS09": {
+      "label": "Child / Disease Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS10": {
+      "label": "Others / Who? Which diseases?",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS11": {
+      "label": "Fever: Yes / No",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS12": {
+      "label": "Temperature, highest, °C",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS13": {
+      "label": "Date of onset",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS14": {
+      "label": "Type: periodic / prolonged / others",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS15": {
+      "label": "History of Infection: Yes / No / Unknown",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS16": {
+      "label": "Factor",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS17": {
+      "label": "Date of onset",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HIS18": {
+      "label": "Date of normalization",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "INF01": {
+      "label": "CMV IgM",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "INF02": {
+      "label": "CMV IgG",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "INF03": {
+      "label": "CMV PCR*",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "INF04": {
+      "label": "HSV 1+2 IgM",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "INF05": {
+      "label": "HSV 1+2 IgG",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "INF06": {
+      "label": "EBV IgM",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "INF07": {
+      "label": "EBV Real-time PCR*",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "INF08": {
+      "label": "HBsAg",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "INF09": {
+      "label": "Anti-HBc total",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "INF10": {
+      "label": "Anti-HBs",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "INF11": {
+      "label": "HCV Ag/Ab",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "INF12": {
+      "label": "HIV Ag/Ab",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "INF13": {
+      "label": "QuantiFERON-TB",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "TRT01": {
+      "label": "Current/previous treatment/vaccination: No / Yes",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "TRT02": {
+      "label": "Group: Medication / Vaccine / Other",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "TRT03": {
+      "label": "Name",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "TRT04": {
+      "label": "Administration route",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "TRT05": {
+      "label": "Dose",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "TRT06": {
+      "label": "Frequency",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "TRT07": {
+      "label": "Duration",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "TRT08": {
+      "label": "Begin date",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "TRT09": {
+      "label": "End date",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN01": {
+      "label": "Skin and Mucosal abnormality?",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN02": {
+      "label": "Butterfly rash / Malar rash",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN03": {
+      "label": "Puffy fingers / Dactylitis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN04": {
+      "label": "Calcinosis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN05": {
+      "label": "Skin sclerosis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN06": {
+      "label": "Alopecia",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN07": {
+      "label": "Digital ulcers",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN08": {
+      "label": "Oral ulcers",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN09": {
+      "label": "Raynaud",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN10": {
+      "label": "Cutaneous vasculitis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN11": {
+      "label": "Livedoid vasculopathy",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN12": {
+      "label": "V sign",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN13": {
+      "label": "Shawl sign",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN14": {
+      "label": "Gottron's sign",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN15": {
+      "label": "Heliotrope rash",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN16": {
+      "label": "Mechanic's hands",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN17": {
+      "label": "Inverse Gottron sign",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN18": {
+      "label": "Photosensitive rash / Photosensitivity",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SKN19": {
+      "label": "Others / Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "MUS01": {
+      "label": "Creatine kinase (CK)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MUS02": {
+      "label": "Muscle damage?: Yes / No / Unknown",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "MUS03": {
+      "label": "Lactate dehydrogenase (LDH)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MUS04": {
+      "label": "Electromyography (EMG)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "MUS05": {
+      "label": "Muscle MRI",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "MUS06": {
+      "label": "Others, e.g. muscle biopsy: No / Yes, specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "JNT01": {
+      "label": "Joints damage?: Yes / No / Unknown",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "JNT02": {
+      "label": "Number of swollen joints",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "JNT03": {
+      "label": "Number of tender joints",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "JNT04": {
+      "label": "Visual analogue scale (VAS), /100",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "JNT05": {
+      "label": "Abnormal X-ray?: Yes / No / Unknown, specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "JNT06": {
+      "label": "Abnormal ultrasound?: Yes / No / Unknown, specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "JNT07": {
+      "label": "Joint deformity?: Yes / No / Unknown, specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "JNT08": {
+      "label": "Others: No / Yes, specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "REN01": {
+      "label": "Urine Protein Creatinine Ratio (UPCR)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "REN02": {
+      "label": "Haematuria (RBC in urine)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "REN03": {
+      "label": "Pyuria (WBC in urine)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "REN04": {
+      "label": "Urea",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "REN05": {
+      "label": "Creatinine",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00002"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "REN06": {
+      "label": "Estimated glomerular filtration rate (eGFR), ml/min/1.73 m²",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "REN07": {
+      "label": "Kidneys damage?: Yes / No / Unknown",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "REN08": {
+      "label": "24 hour Proteinuria",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "REN09": {
+      "label": "Albumin",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "REN10": {
+      "label": "Renal biopsy: No / Yes",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "REN11": {
+      "label": "Class I / II / III / IV / V / VI",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "REN12": {
+      "label": "IIIA / IVA / IIIC / IVC / IIIA/C / IVA/C",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "REN13": {
+      "label": "Others: No / Yes, specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HEM01": {
+      "label": "RBC (T/L): RBC",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00005"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "HEM02": {
+      "label": "Hb",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00006"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "HEM03": {
+      "label": "MCV",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "HEM04": {
+      "label": "MCHC (g/L)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "HEM05": {
+      "label": "WBC",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "HEM06": {
+      "label": "NE",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00007",
+        "OBS00008"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "HEM07": {
+      "label": "LY",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "HEM08": {
+      "label": "MO",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "HEM09": {
+      "label": "EO",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "HEM10": {
+      "label": "BA",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "HEM11": {
+      "label": "PLT",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00009"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "HEM12": {
+      "label": "Haematological disorders?: Yes / No / Unknown, specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "HEM13": {
+      "label": "Direct Coombs test",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "CV01": {
+      "label": "Cardiovascular abnormality (Echocardiography/ECG)?: Yes / No / Unknown",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "CV02": {
+      "label": "Myocarditis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "CV03": {
+      "label": "Pericarditis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "CV04": {
+      "label": "Endocarditis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "CV05": {
+      "label": "Myocardial infarction",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "CV06": {
+      "label": "Pericardial effusion",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "CV07": {
+      "label": "Pulmonary embolism",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "CV08": {
+      "label": "Elevated Pulmonary artery pressure",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "CV09": {
+      "label": "Others / Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "PFT01": {
+      "label": "VC(L)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "PFT02": {
+      "label": "FVC(L)",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00015",
+        "OBS00016",
+        "OBS00017",
+        "OBS00018"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "PFT03": {
+      "label": "FEV1 (L)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "PFT04": {
+      "label": "FEV1/VC(%)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "PFT05": {
+      "label": "FEV1/FVC(%)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "PFT06": {
+      "label": "TLC (L) / TLC(L)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "PFT07": {
+      "label": "RV(L)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "PFT08": {
+      "label": "RV/TLC",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "PFT09": {
+      "label": "VA(L) / VA",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "PFT10": {
+      "label": "Kco Hb(mL/mmHg/Mi) / Kco Hb (mL/mmHg/Mi)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "PFT11": {
+      "label": "DLCO Hb (or TLco)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "LUNG01": {
+      "label": "Lung damage?",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "LUNG02": {
+      "label": "Interstitial lung disease (ILD)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "LUNG03": {
+      "label": "HRCT/ILD pattern conclusion",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "LUNG04": {
+      "label": "Pleuritis / Pleural effusion",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "LUNG05": {
+      "label": "Others / Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "NEU01": {
+      "label": "Neuropsychiatric disorders?: Yes / No / Unknown",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "NEU02": {
+      "label": "Seizures",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "NEU03": {
+      "label": "Headache",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "NEU04": {
+      "label": "Psychosis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "NEU05": {
+      "label": "Cranial neuropathy",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "NEU06": {
+      "label": "Cranial arterial/venous embolism",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "NEU07": {
+      "label": "Others / Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI01": {
+      "label": "ASAT (GOT)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI02": {
+      "label": "ALAT (GPT)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI03": {
+      "label": "GGT",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "GI04": {
+      "label": "Gastrointestinal disorders?: Yes / No / Unknown",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI05": {
+      "label": "Constipation",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI06": {
+      "label": "Diarrhoea",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI07": {
+      "label": "IBD (UC/Crohn)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI08": {
+      "label": "GERD",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI09": {
+      "label": "Hepatomegaly",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI10": {
+      "label": "Splenomegaly",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI11": {
+      "label": "Ulcerative colitis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI12": {
+      "label": "Peptic ulcer",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI13": {
+      "label": "Oesophageal dysmotility",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "GI14": {
+      "label": "Others / Specify",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "IMM01": {
+      "label": "ANA (pattern)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM02": {
+      "label": "Anti CCP",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM03": {
+      "label": "RF (Rheumatoid Factor)",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00004"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "IMM04": {
+      "label": "dsDNA (ImmunoCAP)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM05": {
+      "label": "Anticardiolipin IgG",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "IMM06": {
+      "label": "Anticardiolipin IgM",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "IMM07": {
+      "label": "Anti-beta2-glycoprotein I IgG",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "IMM08": {
+      "label": "Anti-beta2-glycoprotein I IgM",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "IMM09": {
+      "label": "Lupus anticoagulant screening (LAC/LA screen)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "IMM10": {
+      "label": "Lupus anticoagulant confirmation (LAC/LA confirm)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "IMM11": {
+      "label": "C3",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00001"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "IMM12": {
+      "label": "C4",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM13": {
+      "label": "IgE",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM14": {
+      "label": "IgA",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM15": {
+      "label": "IgG",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM16": {
+      "label": "IgM",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM17": {
+      "label": "IL-6",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM18": {
+      "label": "KL-6",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM19": {
+      "label": "CRP",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00003",
+        "OBS00019"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "IMM20": {
+      "label": "ESR",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "IMM21": {
+      "label": "Ferritin",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA01": {
+      "label": "dsDNA",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00010"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "ANA02": {
+      "label": "Nucleosome",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA03": {
+      "label": "Histone",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA04": {
+      "label": "SS-A",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA05": {
+      "label": "Ro-52",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA06": {
+      "label": "SS-B",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA07": {
+      "label": "nRNP/Sm",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA08": {
+      "label": "Sm",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA09": {
+      "label": "Mi-anpha protein",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA10": {
+      "label": "Mi-2 beta protein",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA11": {
+      "label": "Ku protein",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00011"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "ANA12": {
+      "label": "CENP A",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA13": {
+      "label": "CENP B",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA14": {
+      "label": "Sp100 protein",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA15": {
+      "label": "PML protein",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA16": {
+      "label": "Scl-70",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00012"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "ANA17": {
+      "label": "PM-Scl100 protein",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA18": {
+      "label": "PM-Scl75 protein",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA19": {
+      "label": "RP11",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA20": {
+      "label": "RP155",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA21": {
+      "label": "Gp210 protein",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA22": {
+      "label": "PCNA",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "ANA23": {
+      "label": "DFS70",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO01": {
+      "label": "Mi-2 alpha",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO02": {
+      "label": "Mi-2 beta",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO03": {
+      "label": "TIFI-gamma",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO04": {
+      "label": "MDA5",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO05": {
+      "label": "SAE1",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO06": {
+      "label": "Ku",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00013"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "MYO07": {
+      "label": "PM-Scl100 protein",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO08": {
+      "label": "PM-Scl75 protein",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO09": {
+      "label": "Jo-1",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO10": {
+      "label": "SRP",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO11": {
+      "label": "PL-7",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO12": {
+      "label": "PL-12",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO13": {
+      "label": "EJ",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO14": {
+      "label": "Ro-52",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO15": {
+      "label": "cN-1A",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": null
+    },
+    "MYO16": {
+      "label": "HMGCR",
+      "extraction_status": "found",
+      "observation_ids": [
+        "OBS00014"
+      ],
+      "scope": "processed_table_regions_only",
+      "review_status": "pending",
+      "reason": null
+    },
+    "EAC01": {
+      "label": "Fever",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC02": {
+      "label": "Leukopenia",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC03": {
+      "label": "Thrombocytopenia",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC04": {
+      "label": "Autoimmune hemolysis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC05": {
+      "label": "Delirium",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC06": {
+      "label": "Psychosis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC07": {
+      "label": "Seizure",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC08": {
+      "label": "Non-scarring alopecia",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC09": {
+      "label": "Oral ulcers",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC10": {
+      "label": "Subacute cutaneous OR discoid lupus",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC11": {
+      "label": "Acute cutaneous lupus",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC12": {
+      "label": "Pleural or pericardial effusion",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC13": {
+      "label": "Acute pericarditis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC14": {
+      "label": "Joint involvement",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC15": {
+      "label": "Proteinuria >0.5 g/24h",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC16": {
+      "label": "Renal biopsy with Class II or V lupus nephritis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC17": {
+      "label": "Renal biopsy with Class III or IV lupus nephritis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC18": {
+      "label": "Anti-cardiolipin OR Anti-beta2GP1 OR Lupus anticoagulant",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC19": {
+      "label": "Low C3 OR low C4",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC20": {
+      "label": "Low C3 AND low C4",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC21": {
+      "label": "Anti-dsDNA OR Anti-Smith",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "EAC22": {
+      "label": "SLE: 2019 EULAR/ACR score, Total",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA01": {
+      "label": "Seizure",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA02": {
+      "label": "Psychosis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA03": {
+      "label": "Organic Brain Syndrome",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA04": {
+      "label": "Visual Disturbance",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA05": {
+      "label": "Cranial Nerve Disorder",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA06": {
+      "label": "Lupus Headache",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA07": {
+      "label": "CVA (Cerebrovascular Accident)",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA08": {
+      "label": "Vasculitis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA09": {
+      "label": "Arthritis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA10": {
+      "label": "Myositis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA11": {
+      "label": "Urinary Casts",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA12": {
+      "label": "Hematuria",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA13": {
+      "label": "Proteinuria",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA14": {
+      "label": "Pyuria",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA15": {
+      "label": "Rash",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA16": {
+      "label": "Alopecia",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA17": {
+      "label": "Mucosal Ulcers",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA18": {
+      "label": "Pleurisy",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA19": {
+      "label": "Pericarditis",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA20": {
+      "label": "Low Complement",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA21": {
+      "label": "Increased DNA binding",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA22": {
+      "label": "Fever",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA23": {
+      "label": "Thrombocytopenia",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA24": {
+      "label": "Leukopenia",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    },
+    "SDA25": {
+      "label": "SLEDAI-2K score, Total",
+      "extraction_status": "not_processed",
+      "observation_ids": [],
+      "scope": "processed_table_regions_only",
+      "review_status": "not_reviewed",
+      "reason": "parser_not_implemented_for_field"
+    }
+  },
+  "observations": [
+    {
+      "observation_id": "OBS00001",
+      "field_id": "IMM11",
+      "document_id": "SYN-BIO",
+      "name_raw": "C3",
+      "result_raw": "0,65",
+      "unit_raw": "g/L",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": "0,9 - 1,8",
+      "component": "result",
+      "panel": null,
+      "specimen": null,
+      "source_date": "2026-08-01",
+      "date_type": "sample_date",
+      "result_type": "numeric",
+      "numeric_value": "0.65",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00001"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00002",
+      "field_id": "REN05",
+      "document_id": "SYN-BIO",
+      "name_raw": "Creatinine",
+      "result_raw": "65",
+      "unit_raw": "umol/L",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": "49 - 90",
+      "component": "result",
+      "panel": null,
+      "specimen": null,
+      "source_date": "2026-08-01",
+      "date_type": "sample_date",
+      "result_type": "numeric",
+      "numeric_value": "65",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00002"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00003",
+      "field_id": "IMM19",
+      "document_id": "SYN-BIO",
+      "name_raw": "CRP",
+      "result_raw": "4,6",
+      "unit_raw": "mg/L",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": "< 5",
+      "component": "result",
+      "panel": null,
+      "specimen": null,
+      "source_date": "2026-08-01",
+      "date_type": "sample_date",
+      "result_type": "numeric",
+      "numeric_value": "4.6",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00003"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00004",
+      "field_id": "IMM03",
+      "document_id": "SYN-BIO",
+      "name_raw": "RF",
+      "result_raw": "<10",
+      "unit_raw": "IU/mL",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": "< 14",
+      "component": "result",
+      "panel": null,
+      "specimen": null,
+      "source_date": "2026-08-01",
+      "date_type": "sample_date",
+      "result_type": "numeric",
+      "numeric_value": "10",
+      "comparator": "<",
+      "flags": [],
+      "evidence_ids": [
+        "EV00004"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00005",
+      "field_id": "HEM01",
+      "document_id": "SYN-CBC",
+      "name_raw": "RBC",
+      "result_raw": "4.87",
+      "unit_raw": "T/L",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": null,
+      "component": "result",
+      "panel": null,
+      "specimen": "blood",
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "4.87",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00005"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00006",
+      "field_id": "HEM02",
+      "document_id": "SYN-CBC",
+      "name_raw": "HGB",
+      "result_raw": "135",
+      "unit_raw": "g/L",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": null,
+      "component": "result",
+      "panel": null,
+      "specimen": "blood",
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "135",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00006"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00007",
+      "field_id": "HEM06",
+      "document_id": "SYN-CBC",
+      "name_raw": "NE#",
+      "result_raw": "5.61",
+      "unit_raw": "G/L",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": null,
+      "component": "absolute_count",
+      "panel": null,
+      "specimen": "blood",
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "5.61",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00007"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00008",
+      "field_id": "HEM06",
+      "document_id": "SYN-CBC",
+      "name_raw": "NE%",
+      "result_raw": "61.1",
+      "unit_raw": "%",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": null,
+      "component": "percentage",
+      "panel": null,
+      "specimen": "blood",
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "61.1",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00008"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00009",
+      "field_id": "HEM11",
+      "document_id": "SYN-CBC",
+      "name_raw": "PLT",
+      "result_raw": "299",
+      "unit_raw": "G/L",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": null,
+      "component": "result",
+      "panel": null,
+      "specimen": "blood",
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "299",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00009"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00010",
+      "field_id": "ANA01",
+      "document_id": "SYN-ANA",
+      "name_raw": "dsDNA [AC-1] (dsDNA)",
+      "result_raw": "0",
+      "unit_raw": null,
+      "unit_origin": "absent",
+      "reference_range_raw": null,
+      "component": "intensity",
+      "panel": "ana_profile_23",
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "0",
+      "comparator": "=",
+      "intensity_raw": "0",
+      "class_raw": "o",
+      "qualitative_value": "negative",
+      "flags": [],
+      "evidence_ids": [
+        "EV00010"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00011",
+      "field_id": "ANA11",
+      "document_id": "SYN-ANA",
+      "name_raw": "Ku [AC-4] (Ku)",
+      "result_raw": "8",
+      "unit_raw": null,
+      "unit_origin": "absent",
+      "reference_range_raw": null,
+      "component": "intensity",
+      "panel": "ana_profile_23",
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "8",
+      "comparator": "=",
+      "intensity_raw": "8",
+      "class_raw": "(+)",
+      "qualitative_value": "borderline",
+      "flags": [],
+      "evidence_ids": [
+        "EV00011"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00012",
+      "field_id": "ANA16",
+      "document_id": "SYN-ANA",
+      "name_raw": "Scl-70 [AC-29] (Scl-70)",
+      "result_raw": "124",
+      "unit_raw": null,
+      "unit_origin": "absent",
+      "reference_range_raw": null,
+      "component": "intensity",
+      "panel": "ana_profile_23",
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "124",
+      "comparator": "=",
+      "intensity_raw": "124",
+      "class_raw": "+++",
+      "qualitative_value": "strong_positive",
+      "flags": [],
+      "evidence_ids": [
+        "EV00012"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00013",
+      "field_id": "MYO06",
+      "document_id": "SYN-MYO",
+      "name_raw": "Ku",
+      "result_raw": "5 Negative",
+      "unit_raw": null,
+      "unit_origin": "absent",
+      "reference_range_raw": null,
+      "component": "result",
+      "panel": "myositis",
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "mixed",
+      "numeric_value": "5",
+      "comparator": "=",
+      "qualitative_value": "negative",
+      "intensity_raw": null,
+      "class_raw": null,
+      "flags": [],
+      "evidence_ids": [
+        "EV00013"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00014",
+      "field_id": "MYO16",
+      "document_id": "SYN-MYO",
+      "name_raw": "HMGCR",
+      "result_raw": "6 Negative",
+      "unit_raw": null,
+      "unit_origin": "absent",
+      "reference_range_raw": null,
+      "component": "result",
+      "panel": "myositis",
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "mixed",
+      "numeric_value": "6",
+      "comparator": "=",
+      "qualitative_value": "negative",
+      "intensity_raw": null,
+      "class_raw": null,
+      "flags": [],
+      "evidence_ids": [
+        "EV00014"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00015",
+      "field_id": "PFT02",
+      "document_id": "SYN-PFT",
+      "name_raw": "FVC(L)",
+      "result_raw": "3.0",
+      "unit_raw": "L",
+      "unit_origin": "name_cell",
+      "reference_range_raw": null,
+      "component": "pre_measured",
+      "panel": "pft",
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "3.0",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00015"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00016",
+      "field_id": "PFT02",
+      "document_id": "SYN-PFT",
+      "name_raw": "FVC(L)",
+      "result_raw": "75",
+      "unit_raw": "%",
+      "unit_origin": "name_cell",
+      "reference_range_raw": null,
+      "component": "pre_percent_predicted",
+      "panel": "pft",
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "75",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00016"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00017",
+      "field_id": "PFT02",
+      "document_id": "SYN-PFT",
+      "name_raw": "FVC(L)",
+      "result_raw": "3.2",
+      "unit_raw": "L",
+      "unit_origin": "name_cell",
+      "reference_range_raw": null,
+      "component": "post_measured",
+      "panel": "pft",
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "3.2",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00017"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00018",
+      "field_id": "PFT02",
+      "document_id": "SYN-PFT",
+      "name_raw": "FVC(L)",
+      "result_raw": "80",
+      "unit_raw": "%",
+      "unit_origin": "name_cell",
+      "reference_range_raw": null,
+      "component": "post_percent_predicted",
+      "panel": "pft",
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "numeric",
+      "numeric_value": "80",
+      "comparator": "=",
+      "flags": [],
+      "evidence_ids": [
+        "EV00018"
+      ],
+      "extraction_status": "found",
+      "validation_status": "structure_checks_passed",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    },
+    {
+      "observation_id": "OBS00019",
+      "field_id": "IMM19",
+      "document_id": "SYN-ERRORS",
+      "name_raw": "CRP",
+      "result_raw": "4.O",
+      "unit_raw": "mg/L",
+      "unit_origin": "unit_cell",
+      "reference_range_raw": null,
+      "component": "result",
+      "panel": null,
+      "specimen": null,
+      "source_date": null,
+      "date_type": null,
+      "result_type": "unparsed",
+      "numeric_value": null,
+      "flags": [
+        "unparsed_result"
+      ],
+      "evidence_ids": [
+        "EV00019"
+      ],
+      "extraction_status": "unreadable",
+      "validation_status": "needs_review",
+      "review_status": "pending",
+      "eligible_for_verified_pool": false
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "EV00001",
+      "document_id": "SYN-BIO",
+      "table_id": "BIO.1",
+      "row_index_0based": 1,
+      "result_column_0based": 3,
+      "headers": [
+        "Test",
+        "Reference",
+        "Unit",
+        "Result"
+      ],
+      "row_raw": [
+        "C3",
+        "0,9 - 1,8",
+        "g/L",
+        "0,65"
+      ],
+      "table_sha256": "9ac8e1e6f8162673994b42d66170d49a46729b16cd619be090dd06439a10e68a",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00002",
+      "document_id": "SYN-BIO",
+      "table_id": "BIO.1",
+      "row_index_0based": 2,
+      "result_column_0based": 3,
+      "headers": [
+        "Test",
+        "Reference",
+        "Unit",
+        "Result"
+      ],
+      "row_raw": [
+        "Creatinine",
+        "49 - 90",
+        "umol/L",
+        "65"
+      ],
+      "table_sha256": "9ac8e1e6f8162673994b42d66170d49a46729b16cd619be090dd06439a10e68a",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00003",
+      "document_id": "SYN-BIO",
+      "table_id": "BIO.1",
+      "row_index_0based": 3,
+      "result_column_0based": 3,
+      "headers": [
+        "Test",
+        "Reference",
+        "Unit",
+        "Result"
+      ],
+      "row_raw": [
+        "CRP",
+        "< 5",
+        "mg/L",
+        "4,6"
+      ],
+      "table_sha256": "9ac8e1e6f8162673994b42d66170d49a46729b16cd619be090dd06439a10e68a",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00004",
+      "document_id": "SYN-BIO",
+      "table_id": "BIO.1",
+      "row_index_0based": 4,
+      "result_column_0based": 3,
+      "headers": [
+        "Test",
+        "Reference",
+        "Unit",
+        "Result"
+      ],
+      "row_raw": [
+        "RF",
+        "< 14",
+        "IU/mL",
+        "<10"
+      ],
+      "table_sha256": "9ac8e1e6f8162673994b42d66170d49a46729b16cd619be090dd06439a10e68a",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00005",
+      "document_id": "SYN-CBC",
+      "table_id": "CBC.1",
+      "row_index_0based": 1,
+      "result_column_0based": 1,
+      "headers": [
+        "Test",
+        "Result",
+        "Unit"
+      ],
+      "row_raw": [
+        "RBC",
+        "4.87",
+        "T/L"
+      ],
+      "table_sha256": "b27a44af2dc3ab5cb8ec851b48254cb1d9381c517e45bfa6c665ab507752952a",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00006",
+      "document_id": "SYN-CBC",
+      "table_id": "CBC.1",
+      "row_index_0based": 2,
+      "result_column_0based": 1,
+      "headers": [
+        "Test",
+        "Result",
+        "Unit"
+      ],
+      "row_raw": [
+        "HGB",
+        "135",
+        "g/L"
+      ],
+      "table_sha256": "b27a44af2dc3ab5cb8ec851b48254cb1d9381c517e45bfa6c665ab507752952a",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00007",
+      "document_id": "SYN-CBC",
+      "table_id": "CBC.1",
+      "row_index_0based": 3,
+      "result_column_0based": 1,
+      "headers": [
+        "Test",
+        "Result",
+        "Unit"
+      ],
+      "row_raw": [
+        "NE#",
+        "5.61",
+        "G/L"
+      ],
+      "table_sha256": "b27a44af2dc3ab5cb8ec851b48254cb1d9381c517e45bfa6c665ab507752952a",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00008",
+      "document_id": "SYN-CBC",
+      "table_id": "CBC.1",
+      "row_index_0based": 4,
+      "result_column_0based": 1,
+      "headers": [
+        "Test",
+        "Result",
+        "Unit"
+      ],
+      "row_raw": [
+        "NE%",
+        "61.1",
+        "%"
+      ],
+      "table_sha256": "b27a44af2dc3ab5cb8ec851b48254cb1d9381c517e45bfa6c665ab507752952a",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00009",
+      "document_id": "SYN-CBC",
+      "table_id": "CBC.1",
+      "row_index_0based": 5,
+      "result_column_0based": 1,
+      "headers": [
+        "Test",
+        "Result",
+        "Unit"
+      ],
+      "row_raw": [
+        "PLT",
+        "299",
+        "G/L"
+      ],
+      "table_sha256": "b27a44af2dc3ab5cb8ec851b48254cb1d9381c517e45bfa6c665ab507752952a",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00010",
+      "document_id": "SYN-ANA",
+      "table_id": "ANA.1",
+      "row_index_0based": 1,
+      "result_column_0based": 1,
+      "headers": [
+        "Antigen",
+        "Intensity",
+        "Class"
+      ],
+      "row_raw": [
+        "dsDNA [AC-1] (dsDNA)",
+        "0",
+        "o"
+      ],
+      "table_sha256": "1ee91f617aa30c78dba006bc794fc45674ed3f23e4c724218b8ece26ad0583a7",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00011",
+      "document_id": "SYN-ANA",
+      "table_id": "ANA.1",
+      "row_index_0based": 2,
+      "result_column_0based": 1,
+      "headers": [
+        "Antigen",
+        "Intensity",
+        "Class"
+      ],
+      "row_raw": [
+        "Ku [AC-4] (Ku)",
+        "8",
+        "(+)"
+      ],
+      "table_sha256": "1ee91f617aa30c78dba006bc794fc45674ed3f23e4c724218b8ece26ad0583a7",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00012",
+      "document_id": "SYN-ANA",
+      "table_id": "ANA.1",
+      "row_index_0based": 3,
+      "result_column_0based": 1,
+      "headers": [
+        "Antigen",
+        "Intensity",
+        "Class"
+      ],
+      "row_raw": [
+        "Scl-70 [AC-29] (Scl-70)",
+        "124",
+        "+++"
+      ],
+      "table_sha256": "1ee91f617aa30c78dba006bc794fc45674ed3f23e4c724218b8ece26ad0583a7",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00013",
+      "document_id": "SYN-MYO",
+      "table_id": "MYO.1",
+      "row_index_0based": 1,
+      "result_column_0based": 1,
+      "headers": [
+        "Antigen",
+        "Result"
+      ],
+      "row_raw": [
+        "Ku",
+        "5 Negative"
+      ],
+      "table_sha256": "9fdf37367e1c366c4944ca1aca6394cd876b0b5379acd006b7607c5b0abab8a7",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00014",
+      "document_id": "SYN-MYO",
+      "table_id": "MYO.1",
+      "row_index_0based": 2,
+      "result_column_0based": 1,
+      "headers": [
+        "Antigen",
+        "Result"
+      ],
+      "row_raw": [
+        "HMGCR",
+        "6 Negative"
+      ],
+      "table_sha256": "9fdf37367e1c366c4944ca1aca6394cd876b0b5379acd006b7607c5b0abab8a7",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00015",
+      "document_id": "SYN-PFT",
+      "table_id": "PFT.1",
+      "row_index_0based": 2,
+      "result_column_0based": 2,
+      "headers": [
+        "Test",
+        "Pred",
+        "Pre / Meas.",
+        "Pre / %Pred",
+        "Post / Meas.",
+        "Post / %Pred"
+      ],
+      "row_raw": [
+        "FVC(L)",
+        "4.0",
+        "3.0",
+        "75",
+        "3.2",
+        "80"
+      ],
+      "table_sha256": "68736b1708da59c5180cd0e626e9714d17575ef37c3c6ef30d49d087c87771d9",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00016",
+      "document_id": "SYN-PFT",
+      "table_id": "PFT.1",
+      "row_index_0based": 2,
+      "result_column_0based": 3,
+      "headers": [
+        "Test",
+        "Pred",
+        "Pre / Meas.",
+        "Pre / %Pred",
+        "Post / Meas.",
+        "Post / %Pred"
+      ],
+      "row_raw": [
+        "FVC(L)",
+        "4.0",
+        "3.0",
+        "75",
+        "3.2",
+        "80"
+      ],
+      "table_sha256": "68736b1708da59c5180cd0e626e9714d17575ef37c3c6ef30d49d087c87771d9",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00017",
+      "document_id": "SYN-PFT",
+      "table_id": "PFT.1",
+      "row_index_0based": 2,
+      "result_column_0based": 4,
+      "headers": [
+        "Test",
+        "Pred",
+        "Pre / Meas.",
+        "Pre / %Pred",
+        "Post / Meas.",
+        "Post / %Pred"
+      ],
+      "row_raw": [
+        "FVC(L)",
+        "4.0",
+        "3.0",
+        "75",
+        "3.2",
+        "80"
+      ],
+      "table_sha256": "68736b1708da59c5180cd0e626e9714d17575ef37c3c6ef30d49d087c87771d9",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00018",
+      "document_id": "SYN-PFT",
+      "table_id": "PFT.1",
+      "row_index_0based": 2,
+      "result_column_0based": 5,
+      "headers": [
+        "Test",
+        "Pred",
+        "Pre / Meas.",
+        "Pre / %Pred",
+        "Post / Meas.",
+        "Post / %Pred"
+      ],
+      "row_raw": [
+        "FVC(L)",
+        "4.0",
+        "3.0",
+        "75",
+        "3.2",
+        "80"
+      ],
+      "table_sha256": "68736b1708da59c5180cd0e626e9714d17575ef37c3c6ef30d49d087c87771d9",
+      "region": null,
+      "region_granularity": "unavailable"
+    },
+    {
+      "evidence_id": "EV00019",
+      "document_id": "SYN-ERRORS",
+      "table_id": "BAD-NUMBER.1",
+      "row_index_0based": 1,
+      "result_column_0based": 1,
+      "headers": [
+        "Test",
+        "Result",
+        "Unit"
+      ],
+      "row_raw": [
+        "CRP",
+        "4.O",
+        "mg/L"
+      ],
+      "table_sha256": "a6faf6ac5d16072c2e3e591b4fbee2c7e4afe7e3edc88e6f827ac84dbd24504f",
+      "region": null,
+      "region_granularity": "unavailable"
+    }
+  ],
+  "issues": [
+    {
+      "document_id": "SYN-MYO",
+      "table_id": "MYO.1",
+      "row": 3,
+      "name_raw": "OJ",
+      "row_raw": [
+        "OJ",
+        "11 Borderline"
+      ],
+      "candidate_field_ids": [],
+      "reason": "unmapped_test"
+    },
+    {
+      "document_id": "SYN-ERRORS",
+      "table_id": "MISSING-PANEL.1",
+      "row": 1,
+      "name_raw": "Ku",
+      "row_raw": [
+        "Ku",
+        "8",
+        "Borderline"
+      ],
+      "candidate_field_ids": [
+        "ANA11",
+        "MYO06"
+      ],
+      "reason": "ambiguous_mapping"
+    },
+    {
+      "document_id": "SYN-ERRORS",
+      "table_id": "TRUNCATED",
+      "reason": "incomplete_generation"
+    }
+  ],
+  "processing_scope": "explicit_table_regions_only",
+  "processing_status": "partial",
+  "summary": {
+    "successful_tables": 7,
+    "observations": 19,
+    "mapped_fields": 14,
+    "issue_count": 3,
+    "verified_observations": 0,
+    "ocr_accuracy_evaluated": false
+  }
+}

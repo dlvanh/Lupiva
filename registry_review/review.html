@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hồ sơ bệnh nhân · Lupus Registry</title>
+<style>
+.patient-table{width:100%;border-collapse:collapse;text-align:left;font-size:13px}.patient-table th{position:sticky;top:0;background:#e3eeea;z-index:1}.patient-table td,.patient-table th{padding:10px;border-bottom:1px solid #dbe7e1;vertical-align:top}.patient-table td:first-child{width:26%}.patient-table td:last-child{width:18%}.patient-value{border-left:3px solid #b6cbc3;padding:5px 10px;margin:5px 0}.patient-value label{align-items:start;gap:9px}.patient-value p{margin:3px 0}.patient-value input{margin-top:5px}.patient-table small{display:block;color:#5b726e}.patient-table tr.empty-field{background:#f8faf9}
+[hidden]{display:none!important}
+.confidence-summary{padding:12px 14px;border:1px solid #c9ded5;background:#f5faf7;border-radius:8px;margin:12px 0}.confidence-badge{display:inline-block;padding:3px 8px;border-radius:5px;font-size:12px;font-weight:600}.confidence-high{background:#e2f1e8;color:#215b3e}.confidence-medium{background:#fff2cf;color:#755216}.confidence-low{background:#fde8e4;color:#873a30}.confidence-details{margin:5px 0;font-size:12px}.confidence-details summary{cursor:pointer}.confidence-summary .actions{margin-top:8px}
+:root{font:15px/1.5 system-ui,sans-serif;color:#173437;background:#f0f5f3}*{box-sizing:border-box}body{margin:0}header{padding:22px 30px;background:#133f43;color:white}header h1{font-size:25px;margin:0 0 5px}header p{margin:0;color:#d0e4df}.top{padding:18px 30px;display:flex;gap:15px;align-items:end;flex-wrap:wrap;background:white;border-bottom:1px solid #ceded8}label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}input,select,textarea,button{font:inherit;border:1px solid #b6cbc3;border-radius:6px;padding:8px;background:white;color:#173437}button{cursor:pointer;font-weight:600}button.primary{background:#17655d;color:white;border-color:#17655d}button:disabled{opacity:.45;cursor:default}main{display:grid;grid-template-columns:280px minmax(0,1fr);gap:18px;padding:22px 30px}section,.card{background:white;border:1px solid #cfdfd8;border-radius:9px;padding:18px}h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:14px 0 8px}.muted{color:#5b726e;font-size:13px}.notice{padding:12px 16px;background:#fff6db;border-radius:7px;margin:12px 0;color:#6c5215}.status{padding:8px 30px;background:#e0eeea;min-height:38px}.status.error{background:#fde6e1;color:#842d20}.layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(310px,1fr);gap:18px}.source img{width:100%;max-height:580px;object-fit:contain;border:1px solid #d7e4df;background:#fafbf9}.source a{color:#17655d}.list{max-height:550px;overflow:auto}.item{display:block;text-align:left;width:100%;margin:0 0 7px;font-size:13px}.item.active{border:2px solid #17655d;background:#edf7f3}.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.wide{grid-column:1/-1}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}textarea{min-height:70px;width:100%}pre{white-space:pre-wrap;word-break:break-word;background:#f2f6f4;padding:12px;font-size:12px;max-height:260px;overflow:auto}details{border-top:1px solid #dbe7e1;margin-top:15px;padding-top:12px}summary{cursor:pointer;font-weight:600}#identity{margin-bottom:18px}.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.tick{display:flex;flex-direction:row;align-items:center;font-weight:400;padding:10px 0}.badge{font-size:12px;padding:3px 8px;background:#e3eeea;border-radius:12px}.empty{padding:40px;color:#617b74;text-align:center}a{color:#17655d}#export{margin-top:12px;display:inline-block}@media(max-width:1050px){main{grid-template-columns:230px minmax(0,1fr);padding:16px}.layout{grid-template-columns:1fr}.top{padding:16px}}@media(max-width:650px){main{grid-template-columns:1fr}.list{max-height:220px}.fields{grid-template-columns:1fr}}
+main{display:block;max-width:1500px;margin:auto;padding:20px 30px}.top label{min-width:220px}.filters{gap:12px}.filters label:first-child{flex:1;min-width:220px}.table-scroll{max-height:60vh;overflow:auto;margin-top:12px}.patient-table{font-size:14px}.patient-table td:first-child{width:25%}.patient-value{padding:5px 10px;margin:4px 0}.patient-value .actions{margin-top:6px}.patient-value button{padding:5px 10px;font-size:13px}.patient-value .tick{padding:4px 0}.grow{flex:1;min-width:240px}.batch-review{border-top:1px solid #dbe7e1;margin-top:20px;padding-top:4px}.batch-review textarea{min-height:48px}.intake-panel{background:#fff;border:1px solid #cfdfd8;border-radius:9px;padding:16px 18px;margin-top:18px}.intake-panel>summary{font-size:15px}.editor-heading{position:sticky;top:0;background:#fff;display:flex;align-items:start;justify-content:space-between;gap:16px;padding:18px 0 12px;border-bottom:1px solid #dbe7e1;z-index:2}.editor-heading h2,.editor-heading p{margin:0 0 5px}#editorBackdrop{position:fixed;inset:0;background:#17343766;z-index:20}#reviewEditor{position:fixed;inset:0 0 0 auto;width:min(1080px,100vw);overflow:auto;border-radius:0;border:0;box-shadow:-8px 0 40px #17343733;z-index:21;padding:0 24px 24px}#reviewEditor>.card,#reviewEditor>section{padding:16px 0;border:0}#reviewEditor .layout{grid-template-columns:minmax(0,1.2fr) minmax(280px,1fr)}#reviewEditor .source img{max-height:65vh}.editor-actions{position:sticky;bottom:0;background:#fff;padding:12px 0}.source-preview{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}.source-preview img{max-width:100%;max-height:50vh;object-fit:contain}.history-line{border-left:2px solid #cfdfd8;padding:4px 10px;margin:8px 0}@media(max-width:800px){main{padding:12px}.top{padding:14px}.top label{min-width:150px;flex:1}#reviewEditor{padding:0 14px 20px}#reviewEditor .layout{grid-template-columns:1fr}.patient-table{min-width:650px}.table-scroll{max-height:55vh}.fields{grid-template-columns:1fr}}
+.intake-panel{margin:0 0 18px}.intake-files{display:grid;gap:6px;max-height:240px;overflow:auto}.intake-file{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 10px;background:#f2f6f4;border-radius:6px}.intake-file span{overflow-wrap:anywhere;min-width:0}.intake-file button{flex-shrink:0;padding:4px 9px;font-size:13px}#intakeSelectionNotice:empty{display:none}
+#privacyEditor{position:fixed;inset:0;background:#102c39ee;z-index:40;overflow:auto;padding:20px}#privacyEditor>div{max-width:1150px;margin:auto;background:white;padding:20px;border-radius:10px}.privacy-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}.privacy-layout canvas{width:100%;height:auto;border:1px solid #cad7d2;touch-action:none}#privacyCanvas{cursor:crosshair}.privacy-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.privacy-toolbar button[aria-pressed=true]{background:#176b55;color:white}@media(max-width:800px){.privacy-layout{grid-template-columns:1fr}#privacyEditor{padding:8px}}
+.patient-table td:first-child{width:30%}.patient-table td:last-child{width:auto}.candidate-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:5px}.candidate-actions p{margin:0}.confidence-toolbar{align-items:center;justify-content:space-between}.confidence-toolbar p{margin:0;flex:1}.confidence-toolbar label{flex-direction:row;align-items:center;gap:10px}.confidence-help{border:0;padding:0;margin:6px 0 0;font-size:12px;color:#5b726e}.confidence-details{margin:4px 0;border:0;padding:0}.confidence-details summary{font-weight:400}.confidence-details summary::marker{color:#5b726e}.source-links{display:flex;flex-wrap:wrap;gap:12px}.source-links p{margin:6px 0}.batch-review>summary{padding:8px 0}#patientPriorOcr .tick{padding:0}#patientPriorOcrNotice{margin:10px 0 6px}#patientPriorOcr{margin:10px 0}.patient-value{margin:0 0 8px;padding:3px 10px}#patientCounts{margin:0 0 14px}@media(max-width:650px){.confidence-toolbar label{flex-direction:column;align-items:start}.patient-table{min-width:0}.patient-table td:first-child{width:38%}}
+header{padding:14px 30px}header h1{font-size:22px;margin:0}.top{padding:12px 30px}.intake-panel{padding:12px 18px}
+.intake-file{flex-wrap:wrap}.intake-file>span{flex:1;min-width:180px}.intake-file small{flex-basis:100%;color:#5b726e}#privacyProposalInfo:empty{display:none}
+.confidence-unverified{background:#edf0f1;color:#374c52}
+.source-row-image{position:relative;width:100%;outline:1px solid #d7e4df}
+.source .source-row-image img,.source-preview .source-row-image img{display:block;width:100%;height:auto;max-height:none;border:0}
+.source-row-mark{position:absolute;pointer-events:none;border:2px solid #ad6700;background:#ffd25240}
+.crf-form{display:grid;gap:12px}.crf-group{border:1px solid #cfdfd8;border-radius:7px;padding:8px 14px}.crf-field{display:grid;grid-template-columns:minmax(160px,1fr) minmax(170px,1fr);gap:8px 16px;padding:10px 0;border-top:1px solid #dbe7e1}.crf-field p{margin:0}.crf-field select,.crf-field input[type=text]{width:100%}.crf-value{min-width:0}.crf-value .tick{padding:4px 0}.crf-evidence{margin:4px 0;padding:0;border:0;font-size:13px}.crf-empty input{background:#f5f8f7}.crf-section-label{padding:8px 0}.crf-review{margin-top:16px}@media(max-width:650px){.crf-field{grid-template-columns:1fr}}
+.crf-paper{font:16px/1.42 'Times New Roman',serif;color:#202020;background:white;padding:16px;overflow:auto}.crf-paper h4{margin:18px 0 8px;font-size:17px}.crf-paper h4:first-child{text-align:center;font-size:23px}.crf-paper table{width:100%;border-collapse:collapse;margin:6px 0 16px}.crf-paper td{border:1px solid #a8aca8;padding:5px 8px;vertical-align:top;white-space:pre-line;overflow-wrap:anywhere}.crf-paper .crf-field{display:block;padding:4px 0;border:0}.crf-paper .crf-field label{margin-bottom:4px}.crf-paper td .crf-field>label:only-of-type{font-size:12px}.crf-print-value{display:none}
+@media print{body.crf-print{background:white;color:black}body.crf-print>:not(main),body.crf-print main>:not(#registryExports),body.crf-print #registryExports>:not(#patientData),body.crf-print #patientData>:not(#patientTitle):not(#crfPanel),body.crf-print #crfPanel>:not(#crfFields),body.crf-print .crf-evidence,body.crf-print .crf-field input,body.crf-print .crf-field .notice{display:none!important}body.crf-print main,body.crf-print #registryExports,body.crf-print #crfPanel,body.crf-print .crf-paper{display:block;margin:0;padding:0;border:0;overflow:visible}body.crf-print .crf-print-value{display:block;white-space:pre-wrap}body.crf-print tr{break-inside:avoid}body.crf-print h4{break-after:avoid}body.crf-print #patientTitle{margin-bottom:12px}}
+@media print{.crf-print .crf-score-editor,.crf-print .crf-template-choice{display:none!important}.crf-print .crf-print-choice{display:inline}}
+select.crf-suggested{border:1px dashed #b7791f;background:#fffbeb;font-style:italic}
+@media print{.crf-print .crf-field select,.crf-print .crf-field .tick,.crf-print .crf-field details{display:none!important}.crf-print #crfFields{display:flex!important;flex-direction:column}.crf-print .crf-draft-mark{display:block;order:-1;font-weight:bold;border:1px solid #000;padding:4px 8px;margin-bottom:8px}}
+.prototype-direct-llm{padding:8px 30px;background:#fde6e1;color:#a11f16;font-size:13px;font-weight:600}
+</style>
+<header><h1>Hồ sơ bệnh nhân</h1></header>
+<div id="prototypeDirectLlm" class="prototype-direct-llm" role="status" hidden>Chế độ prototype – gửi ảnh gốc cho LLM, chỉ dùng dữ liệu giả lập</div>
+<div class="top">
+ <label>Người duyệt<input id="actor" autocomplete="off" placeholder="Nhập tên người thực hiện"></label>
+ <label>Bệnh nhân<select id="exportCase"></select></label>
+ <button id="reload">Tải lại</button>
+</div>
+<div id="status" class="status" role="status">Đang tải hồ sơ…</div>
+<main>
+ <details id="patientIntake" class="intake-panel">
+  <summary>Thêm hồ sơ từ ảnh</summary>
+  <p class="muted">Chọn các ảnh của cùng một bệnh nhân. Có thể chọn nhiều ảnh cùng lúc hoặc bấm chọn thêm nhiều lần.</p>
+  <label>Cách đọc ảnh<select id="intakeEngine"><option value="local">OCR tại máy</option><option value="gemini" selected>AI qua API</option><option value="tokenharbor">Token Harbor · DeepSeek V4.1 Flash</option></select></label>
+  <p id="intakeEngineInfo" class="muted" hidden>API chỉ nhận vùng kết quả đã cắt và kiểm tra. Chọn vùng gửi và che định danh cho từng ảnh; ảnh gốc được giữ tại máy.</p>
+  <div class="row"><label>Mã hồ sơ (có thể để trống)<input id="intakeCode" autocomplete="off" placeholder="Tạo tự động nếu để trống"></label><input id="intakeFiles" type="file" accept="image/jpeg,image/png,image/tiff,image/bmp,image/webp" multiple hidden aria-label="Chọn các ảnh hồ sơ"><button id="chooseIntakeFiles" type="button">Chọn / thêm ảnh</button><button id="clearIntakeFiles" type="button" disabled>Bỏ tất cả ảnh đã chọn</button></div>
+  <p id="intakeFileCount" class="muted" aria-live="polite">Chưa chọn ảnh. Tối đa 50 ảnh, 20 MiB mỗi ảnh, tổng 100 MiB.</p>
+  <p id="intakeSelectionNotice" class="muted" role="status"></p><div id="intakeSelectedFiles" class="intake-files"></div>
+  <label class="tick"><input id="intakeSamePatient" type="checkbox">Các ảnh này thuộc cùng một bệnh nhân.</label>
+  <div class="actions"><button id="submitIntake" class="primary">Tạo hồ sơ và xử lý ảnh</button><button id="newIntake">Lượt gửi bệnh nhân khác</button><button id="reloadIntakes">Tải lại tiến độ</button></div>
+  <p id="intakeStatus" role="status"></p><div id="intakeJobs"></div>
+ </details>
+    <details id="referencePanel" class="intake-panel" hidden><summary>Danh mục khoảng tham chiếu</summary>
+     <p class="muted">Tạo hồ sơ theo phòng xét nghiệm và máy hoặc phương pháp. Chọn các ảnh có cùng phạm vi áp dụng.</p>
+     <button id="loadReferences" type="button">Mở bảng khoảng tham chiếu</button>
+     <div id="referenceForm" hidden>
+      <div class="row"><label>Hồ sơ đã lưu<select id="referenceProfiles"></select></label><label>Tên hồ sơ<input id="referenceName" type="text" maxlength="160"></label></div>
+      <details><summary>Khoảng đã lưu trong hồ sơ</summary><div id="referenceSaved"></div></details>
+      <details open><summary>Áp dụng hồ sơ cho các ảnh đã chọn</summary><div id="referenceDocuments"></div></details>
+      <details><summary id="referenceRowsTitle">Khoảng đọc từ phiếu</summary><div id="referenceRows"></div></details>
+      <button id="saveReferences" type="button" class="primary">Xác nhận và lưu</button>
+     </div>
+     <p id="referenceStatus" role="status" class="muted"></p>
+    </details>
+ <section id="registryExports">
+  <div id="patientData" hidden>
+   <h2 id="patientTitle"></h2><p id="patientCounts" class="muted"></p>
+   <section id="crfPanel" hidden>
+    <h3>Phiếu CRF</h3>
+    <div class="row"><button id="generateCrf" type="button">Điền đề xuất bằng LLM</button><label class="tick"><input id="crfAllFields" type="checkbox"> Hiện cả các ô trống</label></div>
+    <p id="crfStatus" role="status" class="muted"></p>
+    <details id="crfScores" class="crf-score-editor" hidden>
+     <summary>Chấm điểm EULAR/ACR 2019 và SLEDAI-2K</summary>
+     <p><a href="/api/crf/knowledge" target="_blank" rel="noopener">Kho quy tắc CRF</a></p>
+     <div id="crfScoreInputs"></div>
+     <div class="actions"><button id="previewCrfScores" type="button">Tính điểm nháp</button><button id="applyCrfScoreSuggestions" type="button" hidden>Điền các mục có đề xuất</button></div>
+     <p id="crfScoreStatus" role="status" class="muted"></p>
+    </details>
+    <div id="crfFields" class="crf-form"></div>
+    <details id="crfMetadata" hidden><summary>Thông tin hành chính trên phiếu nguồn</summary><div id="crfMetadataRows"></div></details>
+    <div class="crf-review"><button id="approveCrf" class="primary" type="button">Duyệt phiếu CRF</button><button id="editCrf" type="button" hidden>Mở lại bản nháp</button></div>
+    <div class="actions" id="crfDownloads" hidden><a id="crfWord">Xuất Word</a><button id="crfPdf" type="button">In / Lưu PDF</button></div>
+   </section>
+   <details id="ocrReviewPanel" open><summary>Dữ liệu OCR và ảnh đối chiếu</summary>
+   <div class="row filters"><label>Tìm dữ liệu<input id="patientSearch" type="search" placeholder="Tên mục, kết quả, mã ảnh…"></label><label>Phạm vi<select id="patientScope"><option value="all">Thuộc và không thuộc CRF</option><option value="crf">Thuộc CRF</option><option value="non_crf">Không thuộc CRF</option></select></label><label>Nhóm<select id="patientSection"></select></label><label>Hiển thị<select id="patientFilter"><option value="data">Có dữ liệu</option><option value="pending">Cần duyệt / xem lại</option><option value="all">Tất cả các trường</option><option value="empty">Chưa có dữ liệu</option></select></label></div>
+   <div id="patientPriorOcr" hidden><p id="patientPriorOcrNotice" class="notice"></p><label class="tick"><input id="showPriorOcr" type="checkbox"> Xem dữ liệu cũ và đề xuất sửa đang chờ</label></div>
+   <div class="confidence-summary" id="confidencePanel"><div class="row confidence-toolbar"><p id="confidenceCounts"></p><label>Mức kiểm tra<select id="patientConfidence"><option value="all">Tất cả mức</option><option value="attention">Ưu tiên xem lại</option><option value="low">Cần đối chiếu</option><option value="medium">Kiểm tra thêm</option><option value="high">Ít cảnh báo</option><option value="unverified">LLM · Chưa đối chiếu</option><option value="source_reviewed">Đã duyệt nguồn</option><option value="placeholder">Dấu trống trên nguồn</option></select></label></div><details class="confidence-help"><summary>Cách ưu tiên kiểm tra</summary><p class="muted">Mức kiểm tra dựa trên cảnh báo tự động, chưa phải xác suất đọc đúng. Cần đối chiếu ảnh trước khi duyệt.</p></details><details id="confidenceCoverage" hidden><summary id="confidenceCoverageTitle"></summary><div id="confidenceCoverageItems"></div></details></div>
+   <p id="patientVisible" class="muted"></p>
+   <div id="patientCrfFields"><h3>Thuộc CRF</h3><div class="table-scroll"><table class="patient-table"><thead><tr><th>Trường dữ liệu</th><th>Giá trị và ảnh nguồn</th></tr></thead><tbody id="patientFieldRows"></tbody></table></div></div>
+   <div id="patientNonCrfFields" hidden><h3>Không thuộc CRF</h3><div class="table-scroll"><table class="patient-table"><thead><tr><th>Trường dữ liệu</th><th>Giá trị và ảnh nguồn</th></tr></thead><tbody id="patientSupplementalRows"></tbody></table></div></div>
+   <details id="patientExtra"><summary>Thông tin trên phiếu và thu mẫu</summary><div id="patientExtraRows"></div></details>
+   <details class="batch-review" id="patientBatchPanel"><summary>Duyệt nhóm <span id="batchSelectionBadge"></span></summary><p id="patientSelectionCount">Chưa chọn giá trị nào.</p><div class="actions"><button id="selectPatientVisible">Chọn tất cả trong bộ lọc</button><button id="clearPatientSelection">Bỏ chọn</button></div><div class="row"><label>Thao tác<select id="patientBatchAction"><option value="approve">Duyệt</option><option value="needs_clarification">Cần xem lại</option><option value="reject">Loại</option><option value="withdraw">Bỏ duyệt</option></select></label><label class="grow">Ghi chú<textarea id="patientBatchReason" placeholder="Ghi chú cho các giá trị đã chọn"></textarea></label></div><label class="tick"><input id="patientBatchConfirm" type="checkbox">Tôi đã đối chiếu các giá trị được chọn với ảnh nguồn.</label><button id="savePatientBatch" class="primary" disabled>Duyệt dữ liệu đã chọn</button></details>
+   <details><summary>Ảnh trong hồ sơ</summary><div id="patientSources"></div></details>
+   <details><summary>Lịch sử duyệt</summary><div id="patientBatchHistory"></div></details>
+   </details>
+  </div>
+ </section>
+</main>
+<section id="privacyEditor" role="dialog" aria-modal="true" aria-labelledby="privacyTitle" hidden><div>
+ <h2 id="privacyTitle">Kiểm tra vùng ảnh gửi AI</h2><p id="privacyFilename"></p><p id="privacyProposalInfo" class="muted" role="status"></p><p>Kéo chuột để chọn vùng kết quả, sau đó chuyển sang Che thêm để che tên, mã, barcode, ngày hoặc thông tin định danh còn trong vùng. Kiểm tra bản xem trước bên phải.</p>
+ <div class="privacy-toolbar"><button id="privacyCrop" type="button" aria-pressed="true">Chọn vùng kết quả</button><button id="privacyMask" type="button" aria-pressed="false">Che thêm</button><button id="privacyUndo" type="button">Bỏ vùng che cuối</button><button id="privacyReset" type="button">Chọn lại từ đầu</button></div>
+ <details><summary>Nhập vùng theo tỉ lệ ảnh</summary><div class="row"><label>Trái (%)<input id="privacyLeft" type="number" min="0" max="100" step="0.1"></label><label>Trên (%)<input id="privacyTop" type="number" min="0" max="100" step="0.1"></label><label>Phải (%)<input id="privacyRight" type="number" min="0" max="100" step="0.1"></label><label>Dưới (%)<input id="privacyBottom" type="number" min="0" max="100" step="0.1"></label></div><button id="privacyApply" type="button">Áp dụng vùng theo tỉ lệ</button></details>
+ <div class="privacy-layout"><div><h3>Ảnh tại máy</h3><canvas id="privacyCanvas"></canvas></div><div><h3>Ảnh sẽ gửi API</h3><p id="privacyPreviewNotice">Chưa chọn vùng gửi.</p><canvas id="privacyPreview" hidden></canvas></div></div>
+ <label class="tick"><input id="privacyConfirmed" type="checkbox">Tôi đã kiểm tra bản xem trước, không còn thông tin định danh bệnh nhân.</label>
+ <div class="actions"><button id="privacySave" class="primary" type="button">Lưu vùng gửi</button><button id="privacyCancel" type="button">Đóng</button></div><p id="privacyError" class="notice"></p>
+</div></section>
+<div id="editorBackdrop" hidden></div>
+<section id="reviewEditor" role="dialog" aria-modal="true" aria-labelledby="editorTitle" hidden>
+ <div class="editor-heading"><div><h2 id="editorTitle">Xem và sửa dữ liệu</h2><p id="editorSource" class="muted"></p></div><button id="closeEditor" aria-label="Đóng khung sửa">Đóng</button></div>
+ <section id="specimens" hidden></section>
+ <section id="metadata" hidden></section>
+ <div id="candidate" class="card empty">Chọn một giá trị để xem và sửa.</div>
+</section>
+<div id="legacyTools" hidden>
+ <select id="role"><option value="source_reviewer">Người đối chiếu nguồn</option><option value="clinician">Bác sĩ</option></select>
+ <select id="package"></select>
+ <p id="exportConfig"></p><select id="exportEvent"></select><button id="previewExport">Xem trước dữ liệu xuất</button><a id="patientDownload"></a>
+ <div id="exportReport" hidden></div><button id="createRedcap" disabled>Tạo CSV REDCap</button><button id="createWord" disabled>Tạo Word bản nháp</button><div id="exportDownloads"></div>
+ <button id="showPool">Xem pool</button><a id="export" hidden></a><pre id="poolPreview" hidden></pre>
+ <div>
+  <section><h2>Danh sách kết quả</h2><label>Tài liệu<select id="document"></select></label><p id="count" class="muted"></p><div id="list" class="list"></div></section>
+  <section style="margin-top:16px"><h2>Ca và lần ghi nhận</h2>
+   <details><summary>Tạo mã registry</summary><label>Mã registry<input id="registryCode" autocomplete="off"></label><label>Study ID (nếu được cấp riêng)<input id="studyId" autocomplete="off"></label><p class="muted">Nhập mã đã cấp; không dùng PID/SID thay Study ID.</p><button id="createCase">Lưu ca mới</button></details>
+   <details><summary>Tạo lần khám / thu mẫu</summary><label>Ca<select id="eventCase"></select></label><label>Tên lần ghi nhận<input id="eventLabel"></label><label>Loại<select id="eventType"><option value="visit">Lần khám</option><option value="sample_collection">Thu mẫu</option><option value="hospitalization">Nhập viện</option><option value="other">Khác</option></select></label><label>Ngày (nếu nguồn có)<input id="eventDate" type="date"></label><button id="createEvent">Lưu lần ghi nhận</button></details>
+  </section>
+ </div>
+ <div>
+  <section id="sourceApproval" style="margin-bottom:18px"><h2>Duyệt đối chiếu nguồn</h2><p id="sourceCounts"></p><p class="muted">Duyệt giá trị đang ghi nhận; các ô thiếu vẫn giữ trống. Liên kết ca/lần khám và đánh giá lâm sàng được lưu riêng.</p><a id="sourceExport">Tải pool đã duyệt nguồn (JSON)</a><details><summary>Duyệt toàn bộ phiên bản đang chọn</summary><label>Lý do đối chiếu<textarea id="sourceBatchReason"></textarea></label><label class="tick"><input type="checkbox" id="sourceBatchConfirm">Tôi đã đối chiếu toàn bộ kết quả, metadata và phiếu mẫu của phiên bản này.</label><button id="approveSourceBatch" class="primary">Lưu duyệt toàn bộ phiên bản</button></details><details><summary>Lịch sử xác nhận phiên bản</summary><div id="sourceBatchHistory"></div></details></section>
+  <section id="identity"><h2>Xác nhận tài liệu thuộc ca</h2><div id="assignment" class="muted"></div>
+   <div class="row"><label>Ca<select id="case"></select></label><label>Lần ghi nhận (tùy chọn)<select id="encounter"></select></label></div>
+   <label>Lý do / căn cứ đối chiếu<textarea id="identityReason" placeholder="Ghi căn cứ xác nhận tài liệu thuộc ca đã chọn"></textarea></label>
+   <label class="tick"><input id="identityConfirm" type="checkbox">Tôi đã đối chiếu nguồn và xác nhận liên kết này.</label>
+   <div class="actions"><button id="assign" class="primary">Lưu xác nhận liên kết</button><button id="revoke">Rút liên kết hiện tại</button></div>
+  </section>
+ </div>
+</div>
+<script nonce="{{NONCE}}">
+const TOKEN={{CSRF_TOKEN}};
+const $=id=>document.getElementById(id);
+let summary=null,current=null,selectedId=null,selected=null,loadGeneration=0,sourceNavigationGeneration=0;
+let editorTarget=null,editorReturnFocus=null;
+let exportPreview=null,exportGeneration=0,exportBusy=false;
+let patientGeneration=0,patientWorkspace=null,patientDocuments=new Map(),patientSelected=new Set(),patientVisibleIds=[],patientBusy=false,patientRetry=null;
+let crfView=null,crfSelections=new Map(),crfEditing=true,crfBusy=false,crfPoll=null;
+let crfScoreAssessment=null,crfScorePreview=null,crfScoreDirty=false;
+let referenceView=null,referenceInputs=[],referenceDocuments=[];
+let intakeDraft=null,intakeBusy=false,intakeJobs=[],intakePoll=null,intakeGeneration=0;
+let intakeSelection=[],intakeSelecting=false,intakeSelectionGeneration=0;
+let intakeEngines=null,privacyState=null,privacyProposalTask=null,intakeWaitingForCrop=false;
+function intakeEngine(){return $('intakeEngine').value||'local'}
+ const intakeEngineNames={local:'OCR tại máy',gemini:'AI qua API',tokenharbor:'Token Harbor'};
+ function usesIntakeApi(engine=intakeEngine()){return engine==='gemini'||engine==='tokenharbor'}
+const intakeStates={uploading:'Đang nhận ảnh',queued:'Đang chờ OCR',launching:'Đang khởi động OCR',processing:'Đang trích xuất OCR',completed:'Đã có dữ liệu chờ kiểm tra / duyệt',failed:'Xử lý lỗi, ảnh gốc đã lưu',needs_attention:'Cần kiểm tra tiến trình trước khi chạy lại'};
+function intakeStageLabel(stage){if(!stage)return '';if(stage==='gemini_privacy')return 'Đang chuẩn bị vùng ảnh đã che';if(stage==='local_source_dates')return 'Đang đọc ngày trên ảnh gốc tại máy';if(stage==='outgoing_privacy_check')return 'Đang kiểm tra lần cuối ảnh sắp gửi tại máy';if(stage==='gemini_extract')return 'Đang đọc vùng kết quả qua API';if(/bundle|sqlite|review/.test(stage))return 'Đang lưu dữ liệu và ảnh đối chiếu';if(/assemble|integrat|final/.test(stage))return 'Đang sắp xếp dữ liệu vào hồ sơ';if(/layout|region/.test(stage))return 'Đang tìm vùng thông tin trên ảnh';if(/metadata|header|identifier/.test(stage))return 'Đang đọc thông tin trên phiếu';return 'Đang đọc nội dung ảnh'}
+function intakeSelectionLocked(){return Boolean(intakeDraft?.identity&&intakeDraft?.job_id)}
+function resetIntakeSelection(){intakeSelectionGeneration++;intakeSelection=[];intakeSelecting=false;$('intakeFiles').value='';$('intakeSelectionNotice').textContent=''}
+function renderIntakeSelection(){
+ const root=$('intakeSelectedFiles');root.replaceChildren();
+ const disabled=intakeBusy||intakeSelecting||intakeSelectionLocked();
+ for(const [index,item] of intakeSelection.entries()){
+  const row=node('div',undefined,'intake-file'),label=node('span',(index+1)+'. '+item.file.name+' · '+(item.file.size/1024/1024).toFixed(2)+' MiB'),remove=node('button','Bỏ ảnh');
+  remove.type='button';remove.disabled=disabled;remove.setAttribute('aria-label','Bỏ ảnh '+item.file.name);
+  remove.onclick=()=>{if(intakeBusy||intakeSelecting||intakeSelectionLocked())return;intakeSelection.splice(index,1);$('intakeSelectionNotice').textContent='';intakeControls()};
+  row.append(label,remove);root.append(row);
+  if(usesIntakeApi()){
+   const privacyLocked=disabled||Boolean(intakeDraft?.job_id);
+   const crop=node('button',item.privacy?.skip?'Đã bỏ qua':item.privacy?.reviewed?'Sửa vùng gửi':item.proposalState==='completed'?'Xem vùng cắt đề xuất':'Chọn vùng gửi');crop.type='button';crop.disabled=privacyLocked;crop.onclick=()=>run(()=>openPrivacyEditor(item));
+   const skip=node('button',item.privacy?.skip?'Đọc ảnh này':'Không gửi ảnh này');skip.type='button';skip.disabled=privacyLocked;skip.onclick=()=>{if(privacyLocked)return;if(item.privacy?.skip){item.privacy=null;if(item.proposalState==='completed')item.proposalState=null}else item.privacy={sha256:item.sha256,skip:true};intakeControls();proposeSelectedImages()};
+   row.append(crop,skip,node('small',item.privacy?.skip?(item.privacy.automatic?'Trang chỉ có đồ thị · tự giữ làm đối chiếu, không gửi':'Giữ ảnh gốc, bỏ qua trích xuất'):item.privacy?.automatic?'Đã tự cắt · sẵn sàng gửi':item.privacy?.reviewed?'Đã kiểm tra vùng gửi':item.proposalState==='processing'?'Đang tự tìm vùng cắt tại máy…':item.proposalState==='completed'?'Đã đề xuất · cần kiểm tra':item.proposalState==='failed'?'Chưa đề xuất được · chọn vùng bằng tay':'Chờ đề xuất vùng cắt'));if(item.proposalState==='failed'){const retry=node('button','Thử đề xuất lại');retry.disabled=privacyLocked;retry.onclick=()=>{item.proposalState=null;if(!item.privacy?.reviewed&&!item.privacy?.skip)item.privacy=null;proposeSelectedImages()};row.append(retry)}
+  }
+ }
+ const total=intakeSelection.reduce((sum,item)=>sum+item.file.size,0);
+ $('intakeFileCount').textContent=(intakeSelection.length?intakeSelection.length+' ảnh đã chọn · '+(total/1024/1024).toFixed(1)+' MiB.':'Chưa chọn ảnh.')+' Tối đa 50 ảnh, 20 MiB mỗi ảnh, tổng 100 MiB.';
+}
+function intakeControls(){
+ const busy=intakeBusy||intakeSelecting,locked=intakeSelectionLocked();
+ for(const id of ['intakeCode','intakeFiles','chooseIntakeFiles','intakeEngine'])$(id).disabled=busy||locked;
+ $('intakeEngine').disabled=busy||Boolean(intakeDraft?.job_id);
+ for(const id of ['intakeSamePatient','submitIntake','newIntake'])$(id).disabled=busy;
+ $('submitIntake').disabled=busy||intakeWaitingForCrop;
+ $('clearIntakeFiles').disabled=busy||locked||!intakeSelection.length;
+ $('chooseIntakeFiles').textContent=intakeSelecting?'Đang kiểm tra ảnh…':'Chọn / thêm ảnh';
+ $('submitIntake').textContent=intakeDraft?.job_id?'Tiếp tục gửi / xử lý hồ sơ':'Tạo hồ sơ và xử lý ảnh';renderIntakeSelection();
+ $('intakeEngineInfo').hidden=!usesIntakeApi();
+ if(usesIntakeApi())$('intakeEngineInfo').textContent=(intakeEngines?.[intakeEngine()]?.available===false?'Máy chủ chưa cấu hình API trong .env. ':'')+'Máy tự cắt ảnh đủ điều kiện trước khi gửi '+(intakeEngines?.[intakeEngine()]?.model||'AI')+'. Chỉ kiểm tra ảnh được đánh dấu cần duyệt.';
+}
+function privacyMode(mode){if(!privacyState)return;privacyState.mode=mode;$('privacyCrop').setAttribute('aria-pressed',String(mode==='crop'));$('privacyMask').setAttribute('aria-pressed',String(mode==='mask'))}
+function drawPrivacy(){
+ if(!privacyState)return;const s=privacyState,c=$('privacyCanvas'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(s.image,0,0);
+ if(s.crop){const [x0,y0,x1,y1]=s.crop;ctx.strokeStyle='#098564';ctx.lineWidth=Math.max(3,c.width/250);ctx.strokeRect(x0,y0,x1-x0,y1-y0)}
+ for(const polygon of s.maskPolygons){ctx.beginPath();polygon.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fillStyle='#ffffffd9';ctx.fill();ctx.strokeStyle='#bf2849';ctx.stroke()}
+ for(const [x0,y0,x1,y1] of s.masks){ctx.fillStyle='#ffffffd9';ctx.fillRect(x0,y0,x1-x0,y1-y0);ctx.strokeStyle='#bf2849';ctx.strokeRect(x0,y0,x1-x0,y1-y0)}
+ if(!s.dirty){ctx.strokeStyle='#a65d00';for(const [x0,y0,x1,y1] of s.item.proposal?.result_review_boxes||[])ctx.strokeRect(x0,y0,x1-x0,y1-y0)}
+ const p=$('privacyPreview');p.hidden=!s.crop;$('privacyPreviewNotice').hidden=Boolean(s.crop);if(!s.crop)return;
+ const [x0,y0,x1,y1]=s.crop;p.width=x1-x0;p.height=y1-y0;const pc=p.getContext('2d');pc.drawImage(s.image,x0,y0,p.width,p.height,0,0,p.width,p.height);pc.fillStyle='white';
+ for(const [a,b,d,e] of s.masks)pc.fillRect(a-x0,b-y0,d-a,e-b);for(const polygon of s.maskPolygons){pc.beginPath();polygon.forEach(([x,y],i)=>i?pc.lineTo(x-x0,y-y0):pc.moveTo(x-x0,y-y0));pc.closePath();pc.fill()}
+}
+async function openPrivacyEditor(item){
+ if(intakeBusy||intakeSelecting||intakeDraft?.job_id)return;
+ const image=new Image(),url=URL.createObjectURL(item.file);
+ try{await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(Error('Không xem trước được ảnh này. Hãy chuyển thành PNG/JPEG để dùng Gemini.'));image.src=url})}finally{URL.revokeObjectURL(url)}
+ if(!intakeSelection.includes(item))return;
+ if(item.proposal&&(image.naturalWidth!==item.proposal.size[0]||image.naturalHeight!==item.proposal.size[1]))throw Error('Kích thước ảnh xem trước không khớp đề xuất. Hãy đổi ảnh sang PNG rồi chọn lại.');
+ privacyState={item,image,crop:item.privacy?.crop?[...item.privacy.crop]:null,masks:(item.privacy?.masks||[]).map(b=>[...b]),maskPolygons:(item.privacy?.mask_polygons||[]).map(poly=>poly.map(point=>[...point])),mode:'crop',start:null,dirty:false};
+ const c=$('privacyCanvas');c.width=image.naturalWidth;c.height=image.naturalHeight;$('privacyFilename').textContent=item.file.name;
+ for(const [index,id] of ['privacyLeft','privacyTop','privacyRight','privacyBottom'].entries())$(id).value=privacyState.crop?String(Math.round(privacyState.crop[index]/(index%2?c.height:c.width)*1000)/10):'';
+ $('privacyConfirmed').checked=false;$('privacyError').textContent='';$('privacyEditor').hidden=false;privacyMode('crop');drawPrivacy();privacyProposalNotice(item);$('privacyCancel').focus?.();
+}
+function closePrivacy(){privacyState=null;$('privacyEditor').hidden=true}
+function proposeSelectedImages(){
+ if(privacyProposalTask||!usesIntakeApi()||intakeDraft?.job_id)return privacyProposalTask;
+ privacyProposalTask=Promise.resolve().then(async()=>{
+ try{while(usesIntakeApi()&&!intakeDraft?.job_id){
+  const item=intakeSelection.find(i=>!i.privacy?.reviewed&&!i.privacy?.skip&&!i.proposalState);if(!item)break;
+  item.proposalState='processing';item.proposalError='';renderIntakeSelection();
+  try{
+   const response=await fetch('/api/privacy-proposals?'+new URLSearchParams({sha256:item.sha256}),{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Review-Token':TOKEN},body:await item.file.arrayBuffer()});let job=await response.json();if(!response.ok)throw Error(job.error||'Không đề xuất được vùng cắt.');
+   const deadline=Date.now()+240000;
+   while(['queued','processing'].includes(job.status)){
+    if(!intakeSelection.includes(item))break;if(Date.now()>deadline)throw Error('Đề xuất vùng cắt mất quá lâu. Có thể chọn bằng tay.');
+    await new Promise(resolve=>setTimeout(resolve,700));job=await api('/api/privacy-proposals?'+new URLSearchParams({job_id:job.job_id}));
+   }
+   if(!intakeSelection.includes(item))continue;if(job.status!=='completed')throw Error(job.error||'Chưa có đề xuất vùng cắt.');
+   const p=job.proposal;if(p.sha256!==item.sha256||p.reviewed!==false||p.outbound_allowed!==false)throw Error('Đề xuất không khớp ảnh đã chọn.');
+   item.proposal=p;item.proposalState='completed';
+   if(!item.privacy){item.privacy=job.automatic_plan||{sha256:item.sha256,crop:[...p.crop],masks:p.masks.map(b=>[...b]),mask_polygons:(p.mask_polygons||[]).map(poly=>poly.map(point=>[...point])),proposal_id:job.job_id,reviewed:false};
+    if(privacyState?.item===item&&!privacyState.dirty){if(privacyState.image.naturalWidth!==p.size[0]||privacyState.image.naturalHeight!==p.size[1])throw Error('Hướng ảnh xem trước không khớp đề xuất; hãy chọn lại bằng tay.');privacyState.crop=[...p.crop];privacyState.masks=p.masks.map(b=>[...b]);privacyState.maskPolygons=(p.mask_polygons||[]).map(poly=>poly.map(point=>[...point]));$('privacyConfirmed').checked=false;for(const [index,id] of ['privacyLeft','privacyTop','privacyRight','privacyBottom'].entries())$(id).value=String(Math.round(p.crop[index]/p.size[index%2]*1000)/10);drawPrivacy();privacyProposalNotice(item);}
+   }
+  }catch(error){if(intakeSelection.includes(item)){item.proposalState='failed';item.proposalError=error.message}}
+  renderIntakeSelection();
+ }}finally{privacyProposalTask=null}
+ });return privacyProposalTask;
+}
+function privacyProposalNotice(item){
+ const info=$('privacyProposalInfo'),proposal=item.proposal;
+ if(item.proposalState==='processing'){info.textContent='Đang tự tìm vùng kết quả tại máy. Bạn vẫn có thể chọn bằng tay.';return}
+ if(item.proposalState==='failed'){info.textContent=item.proposalError;return}
+ if(!proposal){info.textContent='';return}
+ const layout=proposal.crop_reason==='no_reliable_result_header_keep_page'?'Chưa xác định được bảng kết quả. Hãy chọn lại vùng cần gửi. ':'';
+ const review=proposal.review_count?proposal.review_count+' vùng cần kiểm tra thêm. ':'';
+ const staff=proposal.staff_review_count?'Kiểm tra và che thêm tên hoặc chữ ký nhân viên nếu còn trên ảnh. ':'';
+ const results=proposal.result_review_boxes?.length?'Vùng cắt hoặc che có thể làm mất tiêu đề hay kết quả. Hãy đối chiếu ảnh xem trước. ':'';
+ const routes={fast_pft:'Đủ điều kiện thử luồng nhanh hô hấp ký.',fast_labs:'Đủ điều kiện thử luồng nhanh xét nghiệm.',
+  split_lab:'Đủ điều kiện tách mục huỳnh quang và đọc nhanh phần bảng còn lại.',
+  standard:'Dùng luồng chuẩn.',standard_fluorescence_or_panel:'Dùng luồng chuẩn cho bảng có dấu hiệu huỳnh quang hoặc panel chưa xác định.'};
+ const route=$('intakeEngine').value==='tokenharbor'&&routes[proposal.tokenharbor_route];
+ const report=proposal.crop_reason==='detected_diagnostic_report_sections'?'Đã giữ phần kỹ thuật, mô tả và kết luận. ':'';
+ info.textContent='Đã đề xuất vùng cắt và che tại máy. '+layout+report+review+staff+results+
+  (route?'Token Harbor với vùng đề xuất: '+route+' ':'')+'Kiểm tra bản xem trước rồi xác nhận.';
+}
+function privacyPoint(event){const c=$('privacyCanvas'),r=c.getBoundingClientRect();return [Math.max(0,Math.min(c.width,Math.round((event.clientX-r.left)*c.width/r.width))),Math.max(0,Math.min(c.height,Math.round((event.clientY-r.top)*c.height/r.height)))]}
+async function addIntakeSelection(files){
+ if(!files.length)return;if(intakeBusy||intakeSelecting||intakeSelectionLocked())throw Error('Bộ ảnh đang gửi đã được giữ cố định để có thể tiếp tục an toàn.');
+ if(files.length>50||files.some(f=>!f.size||f.size>20*1024*1024)||files.reduce((s,f)=>s+f.size,0)>100*1024*1024)throw Error('Chọn tối đa 50 ảnh, mỗi ảnh tối đa 20 MiB, tổng tối đa 100 MiB.');
+ const generation=++intakeSelectionGeneration,next=[...intakeSelection],seen=new Set(next.map(item=>item.sha256));let duplicates=0;
+ intakeSelecting=true;intakeControls();
+ try{
+  for(const file of files){
+   const bytes=await file.arrayBuffer(),digest=await crypto.subtle.digest('SHA-256',bytes);
+   if(generation!==intakeSelectionGeneration)return;
+   const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+   if(seen.has(hash)){duplicates++;continue}seen.add(hash);next.push({file,sha256:hash,privacy:intakeDraft?.privacy?.find(p=>p.sha256===hash)||null});
+  }
+  if(next.length>50||next.reduce((sum,item)=>sum+item.file.size,0)>100*1024*1024)throw Error('Toàn bộ danh sách tối đa 50 ảnh, tổng tối đa 100 MiB. Các ảnh đã chọn trước được giữ lại.');
+  intakeSelection=next;$('intakeSelectionNotice').textContent=duplicates?'Đã bỏ qua '+duplicates+' ảnh trùng; các ảnh đã chọn trước vẫn được giữ.':'';
+ }finally{if(generation===intakeSelectionGeneration){intakeSelecting=false;intakeControls();proposeSelectedImages()}}
+}
+function scheduleIntakePoll(){if(intakePoll!==null&&typeof clearTimeout==='function')clearTimeout(intakePoll);intakePoll=null;if(intakeJobs.some(j=>['queued','launching','processing'].includes(j.status))&&typeof setTimeout==='function')intakePoll=setTimeout(()=>run(refreshIntakes),4000)}
+async function openIntakePatient(job){closeSourceEditor();await refreshSummary();$('exportCase').value=job.case_id;events(job.case_id,'exportEvent');await loadPatient();$('patientData').scrollIntoView?.({behavior:'smooth',block:'start'})}
+function intakeJobState(job){const name=intakeEngineNames[job.engine]||intakeEngineNames.local,states=usesIntakeApi(job.engine)?{queued:'Đang chờ API',launching:'Đang khởi động API',processing:'Đang đọc qua API'}:{};return (states[job.status]||intakeStates[job.status]||job.status)+' · '+name}
+async function refreshIntakes(){const generation=++intakeGeneration,result=await api('/api/intakes');if(generation!==intakeGeneration)return;const previous=new Map(intakeJobs.map(j=>[j.job_id,j.status]));if($('prototypeDirectLlm'))$('prototypeDirectLlm').hidden=result.prototype_direct_llm!==true;intakeJobs=result.jobs;intakeEngines=result.engines||null;{const options=$('intakeEngine')?.options,option=options&&Array.from(options).find(o=>o.value==='gemini'),model=intakeEngines?.gemini?.model;if(option)option.textContent='AI qua API'+(model?' · '+model:'')}const root=$('intakeJobs');root.replaceChildren();for(const warning of (result.api_health&&result.api_health.warnings)||[]){const p=node('p','⚠ '+warning);p.style.color='#b45309';p.style.fontWeight='600';root.append(p)}for(const job of intakeJobs){const box=node('details');box.open=['uploading','queued','launching','processing','failed','needs_attention'].includes(job.status);box.append(node('summary',job.registry_code+' · '+intakeJobState(job)),node('p',job.uploaded_files+'/'+job.expected_files+' ảnh đã lưu'+(job.completed_stages!=null?' · '+job.completed_stages+' bước xử lý đã xong':'')+(job.stage?' · '+intakeStageLabel(job.stage):'')+(job.observations!=null?' · '+job.observations+' kết quả trích xuất chờ duyệt':'')+(job.issues?' · '+job.issues+' ghi nhận cần xem lại':''),'muted'));if(job.error)box.append(node('p',job.error,'notice'));const actions=node('div',undefined,'actions'),open=node('button','Mở hồ sơ bệnh nhân');open.onclick=()=>run(()=>openIntakePatient(job));actions.append(open);if(job.status==='uploading'){const resume=node('button','Tiếp tục tải ảnh cho hồ sơ này');resume.onclick=()=>{if(intakeBusy||intakeSelecting)return;resetIntakeSelection();$('intakeSamePatient').checked=false;intakeDraft={job_id:job.job_id,registry_code:job.registry_code,expected_files:job.expected_files,request_id:crypto.randomUUID(),engine:job.engine||'local',privacy:job.privacy};$('intakeEngine').value=job.engine||'local';$('intakeCode').value=job.registry_code;$('intakeStatus').textContent='Chọn lại đầy đủ '+job.expected_files+' ảnh theo thứ tự ban đầu rồi xác nhận và tiếp tục gửi.';intakeControls()};actions.append(resume)}if(job.status==='failed'){const retry=node('button','Chạy lại '+(intakeEngineNames[job.engine]||intakeEngineNames.local)+' với ảnh đã lưu');retry.onclick=()=>run(async()=>{await api('/api/intakes/start',{job_id:job.job_id,retry:true});await refreshIntakes()});actions.append(retry)}box.append(actions);const sources=node('div',undefined,'row');for(const file of job.files){const a=node('a',file.name);a.href='/api/intakes/source?'+new URLSearchParams({job_id:job.job_id,file_id:file.file_id});a.target='_blank';a.rel='noopener';sources.append(a)}box.append(sources);root.append(box)}scheduleIntakePoll();const selected=intakeJobs.find(j=>j.case_id===$('exportCase').value&&j.status==='completed'&&previous.get(j.job_id)&&previous.get(j.job_id)!=='completed');if(selected)await openIntakePatient(selected)}
+async function submitIntake(){
+ if(intakeBusy||intakeWaitingForCrop)return;if(intakeSelecting)throw Error('Đang kiểm tra các ảnh vừa chọn. Vui lòng chờ.');const files=intakeSelection.map(item=>item.file);if(!files.length||files.length>50)throw Error('Chọn từ 1 đến 50 ảnh của cùng bệnh nhân.');if(!$('intakeSamePatient').checked)throw Error('Xác nhận các ảnh thuộc cùng một bệnh nhân.');const who=actor();if(files.some(f=>!f.size||f.size>20*1024*1024)||files.reduce((s,f)=>s+f.size,0)>100*1024*1024)throw Error('Mỗi ảnh tối đa 20 MiB, tổng tối đa 100 MiB.');const engine=intakeEngine(),privacy=usesIntakeApi(engine)?intakeSelection.map(item=>item.privacy):null;
+ if(usesIntakeApi(engine)){
+  if(intakeEngines?.[engine]?.available===false)throw Error('Kiểm tra cấu hình '+intakeEngineNames[engine]+' trong .env.');
+  if(!intakeDraft?.job_id&&intakeSelection.some(item=>!item.privacy?.reviewed&&!item.privacy?.skip&&(!item.proposalState||item.proposalState==='processing'))){
+   const selected=intakeSelection,code=$('intakeCode').value;intakeWaitingForCrop=true;intakeControls();$('intakeStatus').textContent='Đang tự cắt ảnh. Máy sẽ tiếp tục gửi khi đủ điều kiện.';
+   try{await proposeSelectedImages()}finally{intakeWaitingForCrop=false;intakeControls()}
+   if(privacyState||selected!==intakeSelection||code!==$('intakeCode').value||engine!==intakeEngine()||JSON.stringify(who)!==JSON.stringify(actor())||!$('intakeSamePatient').checked){$('intakeStatus').textContent='Kiểm tra thông tin lượt gửi rồi bấm xử lý để gửi bộ ảnh hiện tại.';return}
+   return submitIntake();
+  }
+  if(privacy.some((p,index)=>!p||p.sha256!==intakeSelection[index].sha256||!p.skip&&(!p.reviewed||!p.crop)))throw Error('Kiểm tra vùng gửi của các ảnh được đánh dấu cần duyệt, hoặc chọn không gửi ảnh đó.');
+  if(privacy.every(p=>p.skip))throw Error('Chọn ít nhất một ảnh để đọc qua API.');
+ }
+ if(intakeDraft?.engine&&intakeDraft.engine!==engine)throw Error('Lượt gửi đang tiếp tục dùng cách đọc ảnh đã chọn trước đó.');
+ if(intakeDraft?.job_id&&usesIntakeApi(engine)&&intakeDraft.privacy&&JSON.stringify(privacy)!==JSON.stringify(intakeDraft.privacy))throw Error('Bộ vùng gửi đã được giữ cố định cho lượt này.');
+ const identity=JSON.stringify({files:files.map((f,index)=>[f.name,f.size,f.lastModified,intakeSelection[index].sha256]),who,code:$('intakeCode').value.trim(),engine,privacy});
+ if(!intakeDraft)intakeDraft={request_id:crypto.randomUUID(),identity,engine,privacy};else if(intakeDraft.identity&&intakeDraft.identity!==identity)throw Error('Lượt gửi đang dở có bộ ảnh hoặc người gửi khác. Chọn lại bộ ảnh cũ, hoặc bắt đầu lượt gửi bệnh nhân khác.');if(intakeDraft.expected_files&&files.length!==intakeDraft.expected_files)throw Error('Chọn lại đầy đủ số ảnh của hồ sơ đang tiếp tục.');intakeDraft.identity=identity;intakeBusy=true;message('Đang lưu bộ ảnh để xử lý bằng '+intakeEngineNames[engine]+'…');intakeControls();
+ try{if(!intakeDraft.job_id){const response=await api('/api/intakes',{request_id:intakeDraft.request_id,registry_code:$('intakeCode').value.trim()||null,file_count:files.length,same_patient:true,engine,privacy,...who});intakeDraft.job_id=response.job.job_id;intakeDraft.case_id=response.job.case_id;await openIntakePatient(response.job)}for(const [index,file] of files.entries()){$('intakeStatus').textContent='Đang lưu ảnh '+(index+1)+'/'+files.length+'…';const response=await fetch('/api/intakes/image?'+new URLSearchParams({job_id:intakeDraft.job_id,file_id:'image-'+String(index+1).padStart(3,'0'),name:file.name}),{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Review-Token':TOKEN},body:await file.arrayBuffer()});const result=await response.json();if(!response.ok)throw Error(result.error||'Không lưu được ảnh.');}const result=await api('/api/intakes/start',{job_id:intakeDraft.job_id});$('intakeStatus').textContent='Đã lưu bộ ảnh cho '+result.job.registry_code+'. '+intakeEngineNames[engine]+' chạy nền; kết quả sẽ hiện trong hồ sơ và chờ bạn duyệt.';await openIntakePatient(result.job);intakeDraft=null;resetIntakeSelection();$('intakeSamePatient').checked=false;await refreshIntakes()}catch(error){$('intakeStatus').textContent='Chưa hoàn thành lượt gửi: '+error.message+' Ảnh đã lưu được giữ lại; có thể tiếp tục cùng lượt gửi.';await refreshIntakes();throw error}finally{intakeBusy=false;intakeControls()}
+}
+const patientStates={accepted:'Đã duyệt nguồn',pending:'Chờ duyệt',partial:'Duyệt một phần',source_placeholder:'Dấu trống trên nguồn',not_processed:'Chưa có dữ liệu trích xuất',requires_clinical_assessment:'Cần thông tin / đánh giá lâm sàng',conflict:'Mâu thuẫn cần đối chiếu',reject:'Đã loại',needs_clarification:'Cần làm rõ',withdraw:'Đã rút duyệt',accept:'Cần xác nhận lại liên kết',correct:'Cần xác nhận lại liên kết'};
+const componentNames={result:'Kết quả',intensity:'Cường độ',pre_measured:'Trước · giá trị đo',pre_percent_predicted:'Trước · % dự đoán',post_measured:'Sau · giá trị đo',post_percent_predicted:'Sau · % dự đoán',absolute_count:'Số lượng tuyệt đối',percentage:'Tỷ lệ %',titre:'Hiệu giá',method:'Phương pháp',present:'Có / không được ghi nhận',details:'Chi tiết'};
+const missingReasons={clinical_assessment_required:'Cần thông tin hoặc đánh giá lâm sàng được ghi nhận.',no_linked_documents:'Chưa có tài liệu được xác nhận thuộc bệnh nhân.',identifier_not_assigned:'Chưa có mã nghiên cứu được gán; mã trên phiếu không tự thay thế mã nghiên cứu.',no_candidate_in_linked_documents:'Chưa trích được ứng viên từ tài liệu đã liên kết. Cần kiểm tra nguồn.',extraction_not_supported:'Chưa có bộ trích tự động được khai báo cho thành phần này. Cần kiểm tra nguồn.'};
+function missingReasonText(component){return missingReasons[component.reason]||missingReasons[component.status==='requires_clinical_assessment'?'clinical_assessment_required':component.parser_implemented?'no_candidate_in_linked_documents':'extraction_not_supported']}
+function patientSearchKey(value){return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase()}
+function myositisColumns(v){if(v?.panel!=='myositis'||v.class_raw==null||!(v.component==='intensity'||v.results?.intensity!=null))return null;const intensity=v.results?.intensity??v.numeric_value??v.intensity_raw??v.result_raw??'Chưa đọc được';return 'Intensity: '+(v.comparator&&v.comparator!=='='?v.comparator:'')+intensity+' · Class: '+(v.class_symbol??v.class_raw)}
+function myositisInterpretationText(v){if(!myositisColumns(v))return null;const meaning=v.qualitative_value??v.interpretation;if(!meaning)return null;const names={negative:'Negative',borderline:'Borderline',positive:'Positive',strong_positive:'Strong positive'};const fromLegend=v.class_interpretation_origin==='source_legend'||v.class_interpretation_method==='source_legend_round_symbol_range_agreement';return (fromLegend?'Theo chú giải trên phiếu: ':'Diễn giải: ')+(names[meaning]||meaning)}
+function resultText(v){const columns=myositisColumns(v);if(columns)return columns;const parts=[];if(v.numeric_value!=null)parts.push((v.comparator&&v.comparator!=='='?v.comparator:'')+v.numeric_value);for(const key of ['qualitative_value','text_value','symbolic_value','pattern_raw','grade_raw','class_raw','titre_raw','source_flag_raw'])if(v[key]!=null)parts.push(v[key]);return parts.join(' · ')||v.result_raw||'Chưa có giá trị'}
+async function loadPatient(){
+ const generation=++patientGeneration,cid=$('exportCase').value,root=$('patientData');root.hidden=true;patientWorkspace=null;patientSelected.clear();patientVisibleIds=[];patientBusy=false;patientRetry=null;patientSelectionChanged();if(!cid)return;message('');
+ if(crfPoll!==null){clearTimeout(crfPoll);crfPoll=null}
+ crfView=null;crfSelections.clear();crfBusy=false;crfEditing=true;$('crfPanel').hidden=true;
+ crfScoreAssessment=null;crfScorePreview=null;crfScoreDirty=false;
+ referenceView=null;$('referencePanel').hidden=true;$('referencePanel').open=false;$('referenceForm').hidden=true;$('referenceStatus').textContent='';
+ const p=await api('/api/patient?'+new URLSearchParams({case_id:cid}));if(generation!==patientGeneration||cid!==$('exportCase').value)return;
+ patientWorkspace=p.workspace;patientDocuments=new Map(p.documents.map(d=>[d.document_id,d]));root.hidden=false;
+ $('showPriorOcr').checked=false;$('patientPriorOcr').hidden=!patientWorkspace?.prior_ocr?.candidates;$('patientPriorOcrNotice').textContent=(patientWorkspace?.prior_ocr?.pending_corrections||0)?(patientWorkspace.prior_ocr.pending_corrections+' đề xuất sửa cũ đang chờ duyệt trong dữ liệu trước.'):'';$('patientPriorOcrNotice').hidden=!patientWorkspace?.prior_ocr?.pending_corrections;
+ $('patientConfidence').value='all';renderConfidenceSummary();
+ $('patientTitle').textContent='Dữ liệu · '+p.cases[0].registry_code;
+ if(!patientWorkspace){$('patientCounts').textContent='Máy chủ cần khởi động lại để nạp bảng đầy đủ trường.';return}
+ const awaiting=patientWorkspace.candidates.filter(v=>!v.prior_ocr&&(v.review_status!=='accepted'||v.pending_correction)).length;$('patientCounts').textContent=p.documents.length+' ảnh · '+awaiting+' giá trị cần xem lại.';
+ $('patientDownload').href='/api/patient/export?'+new URLSearchParams({case_id:cid});
+ const sources=node('div',undefined,'source-links');
+ for(const d of p.documents){const line=node('p');if(d.source_url){const link=node('a',d.source_document_id);link.href=d.source_url;link.target='_blank';link.rel='noopener';line.append(link)}else line.textContent=d.source_document_id;sources.append(line)}$('patientSources').replaceChildren(sources);
+ if(Object.keys(p.metadata_conflicts).length)$('patientSources').append(node('p','Thông tin nguồn khác nhau cần đối chiếu: '+Object.keys(p.metadata_conflicts).join(', '),'notice'));
+ options($('patientSection'),[...new Set([...patientWorkspace.fields,...patientWorkspace.supplemental_fields||[]].map(f=>f.section))].map(s=>[s,s]),'Tất cả nhóm');
+ $('patientBatchConfirm').checked=false;$('patientBatchReason').value='';$('patientBatchHistory').replaceChildren();
+ for(const b of [...patientWorkspace.review_batches].reverse())$('patientBatchHistory').append(node('p',b.reviewer.name+' · '+b.created_at_utc+' · '+(sourceActions[b.action]||b.action)+' · '+Object.entries(b.counts).map(([k,v])=>k+': '+v).join(', ')+' · '+b.reason));
+ renderPatientFields();
+ if(summary?.crf_available){$('referencePanel').hidden=false;$('ocrReviewPanel').open=false;await loadCrf(generation,cid,true)}
+}
+const sourceFactNames={pid:'Mã bệnh nhân trên phiếu',sid:'Mã mẫu / phiếu',patient_id:'Mã bệnh nhân trên phiếu',identity_number:'Số định danh trên phiếu',birth_date:'Ngày sinh',sex:'Giới tính',age:'Tuổi',height:'Chiều cao',weight:'Cân nặng',ordered_date:'Ngày chỉ định',sample_date:'Ngày lấy mẫu',received_date:'Ngày nhận mẫu',measurement_date:'Ngày đo',source_diagnosis:'Chẩn đoán ghi trên phiếu',ordering_provider:'Người chỉ định',specimen_collector:'Người lấy mẫu',pft_conclusion:'Kết luận hô hấp',additional_lab_result:'Xét nghiệm không thuộc CRF'};
+
+async function loadCrf(generation,caseId,initial=false){
+ const view=await api('/api/crf?'+new URLSearchParams({case_id:caseId}));
+ if(generation!==patientGeneration||caseId!==$('exportCase').value)return;
+ const first=!crfView;
+ if(first||crfView.source_snapshot!==view.source_snapshot){
+  crfSelections.clear();
+  for(const field of view.fields)if(field.options.length===1)crfSelections.set(field.slot,field.options[0].id);
+  if(crfScoreAssessment){crfScorePreview=null;crfScoreDirty=true}
+ }
+ crfView=view;if(initial&&view.review)crfEditing=false;
+ if(first&&view.score_form?.eular)renderCrfScoreInputs();
+ $('crfScores').hidden=!view.score_form?.eular;
+ $('crfPanel').hidden=false;renderCrf();
+ if(view.job?.status==='running')crfPoll=setTimeout(()=>run(()=>loadCrf(generation,caseId)),1600);
+}
+
+function crfEvidence(value){
+ const root=node('details',undefined,'crf-evidence');root.append(node('summary','Xem ảnh và dữ kiện'));
+ const previews=[];
+ for(const id of value.sources){
+  const live=crfView.sources[id],saved=!crfEditing?crfView.review?.sources?.[id]:null;
+  const evidence=saved||live;if(!evidence)continue;
+  const line=node('p',evidence.label+' · '+evidence.value);
+  if(evidence.reference&&value.reason&&value.origin!=='calculated')line.append(node('span',' · Tham chiếu: '+evidence.reference.range+' ('+evidence.reference.profile+')'));
+  const item=node('div');item.append(line);root.append(item);
+  if(!evidence.url)continue;
+  const link=node('a','Mở ảnh đối chiếu trong tab riêng');link.href=evidence.url;link.target='_blank';link.rel='noopener';item.append(link);
+  const location=evidence.row_location||(live?.url===evidence.url?live.row_location:null);
+  previews.push({item,evidence,location});
+ }
+ root.ontoggle=()=>{
+  if(!root.open)return;
+  for(const {item,evidence,location} of previews.splice(0)){
+   const preview=node('div',undefined,'source-preview');
+   preview.append(sourceEvidenceImage({crop_url:evidence.url,source_data:{region:{llm_row_location:location}}},'Ảnh đối chiếu '+evidence.label));
+   item.append(preview);
+  }
+ };
+ return root;
+}
+
+function renderCrfScoreInputs(){
+ const root=$('crfScoreInputs');root.replaceChildren();
+ const change=()=>{crfScoreDirty=true;renderCrf()};
+ const input=(label,control)=>{const item=node('label',label);item.append(control);return item};
+ const statusOptions=[['yes','Có'],['no','Không']];
+ const initial=crfView.review?.scores?.assessment;
+ const ana=node('select');ana.id='crfScoreAna';options(ana,statusOptions,'Chưa xác nhận');
+ ana.value=initial?.ana||'';ana.onchange=change;
+ const day=node('input');day.id='crfScoreDate';day.type='date';day.value=initial?.date||crfView.score_default_date||'';
+ day.onchange=()=>{
+  for(const field of crfView.score_form.sledai)$('score-'+field.field_id).value='';
+  crfScorePreview=null;change();
+ };
+ for(const [group,rows] of Object.entries(crfView.score_form)){
+  const eular=group==='eular', section=node('details');section.open=true;
+  section.append(node('summary',eular?'EULAR/ACR 2019':'SLEDAI-2K'));
+  section.append(eular?input('Đạt điều kiện ANA ≥1:80 HEp-2 hoặc xét nghiệm tương đương',ana):
+    input('Ngày đánh giá (cửa sổ 10 ngày)',day));
+  section.append(node('p',eular?'Chọn Có khi tiêu chí đủ điều kiện và không có nguyên nhân hợp lý hơn SLE.':
+    'Chọn Có khi tiêu chí đủ điều kiện trong cửa sổ đánh giá. Để trống mục chưa xác định.','muted'));
+  for(const field of rows){
+   const control=node('select');control.id='score-'+field.field_id;
+   options(control,statusOptions,'Chưa đánh giá');control.value=initial?.criteria[field.field_id]||'';control.onchange=change;
+   const row=node('div',undefined,'crf-field');row.append(input(field.label+' · '+field.weight+' điểm',control));
+   const knowledge=field.knowledge;
+   if(knowledge){
+    const rule=node('details');rule.append(node('summary','Tiêu chí và nguồn'),node('p',knowledge.definition));
+    if(knowledge.exclude)rule.append(node('p',knowledge.exclude));
+    const link=node('a',knowledge.standard+' · '+knowledge.location);link.href=knowledge.source;
+    link.target='_blank';link.rel='noopener';rule.append(link);row.append(rule);
+   }else if(field.definition)row.append(node('small',field.definition,'muted'));
+   const evidence=node('div');evidence.id='score-evidence-'+field.field_id;row.append(evidence);section.append(row);
+  }
+  root.append(section);
+ }
+}
+
+function renderCrfScoreStatus(reviewed){
+ if(!crfView.score_form?.eular)return;
+ const details=$('crfScoreInputs');
+ for(const input of details.querySelectorAll('select,input'))input.disabled=crfBusy||Boolean(reviewed);
+ $('previewCrfScores').hidden=Boolean(reviewed);$('previewCrfScores').disabled=crfBusy;
+ const report=reviewed?.scores||(!crfScoreDirty?crfScorePreview:null);
+ const fill=$('applyCrfScoreSuggestions');
+ fill.hidden=Boolean(reviewed)||!Object.entries(crfScorePreview?.suggestions||{}).some(
+  ([fid,suggestion])=>!suggestion.requires_confirmation&&!$('score-'+fid).value);
+ fill.disabled=crfBusy;
+ for(const rows of Object.values(crfView.score_form))for(const field of rows){
+  const hint=$('score-evidence-'+field.field_id);hint.replaceChildren();
+  const suggestion=reviewed?.values?.[field.field_id+'/result']||crfScorePreview?.suggestions?.[field.field_id];
+  if(suggestion&&!reviewed){
+   const answer=suggestion.value==='no'?'Không':'Có';
+   hint.append(node('small',(suggestion.requires_confirmation?'Có dữ kiện hỗ trợ '+answer+' · ':'Đề xuất '+answer+' · ')+
+    suggestion.reason,'notice'),crfEvidence(suggestion));
+   const control=$('score-'+field.field_id);
+   if(suggestion.requires_confirmation&&!control.value){
+    const confirm=node('button','Xác nhận và chọn '+answer);confirm.type='button';confirm.disabled=crfBusy;
+    confirm.onclick=()=>{control.value=suggestion.value;control.onchange()};
+    hint.append(node('p',suggestion.confirmation),confirm);
+   }
+  }
+  if(reviewed&&suggestion?.sources?.length)hint.append(node('p',suggestion.reason),crfEvidence(suggestion));
+  if(reviewed&&suggestion?.knowledge_version){
+   const rule=node('a','Quy tắc lúc duyệt · '+suggestion.knowledge_version);
+   rule.href='/api/crf/knowledge?'+new URLSearchParams({version:suggestion.knowledge_version});
+   rule.target='_blank';rule.rel='noopener';hint.append(rule);
+  }
+ }
+ const score=$('crfScoreStatus');
+ if(!report){score.textContent=crfScoreDirty?'Bấm Tính điểm nháp sau khi thay đổi tiêu chí.':'';return}
+ const {eular,sledai}=report.summaries;
+ const classification={meets:'Đạt tiêu chí phân loại',does_not_meet:'Chưa đạt tiêu chí phân loại',
+  ana_not_met:'Chưa đạt điều kiện ANA',undetermined:'Chưa xác định phân loại'}[eular.classification];
+ score.textContent='EULAR/ACR '+(eular.total===null?'chưa đủ dữ kiện để ghi tổng':eular.total+' điểm')+
+  ' · '+classification+' · SLEDAI-2K '+(sledai.total===null?'chưa đủ ngày hoặc còn '+sledai.missing+' mục chưa đánh giá':sledai.total+' điểm');
+}
+
+$('previewCrfScores').onclick=()=>run(async()=>{
+ const generation=patientGeneration,case_id=$('exportCase').value,view=crfView;
+ if(crfBusy)return;crfBusy=true;renderCrf();
+ try{
+  const criteria=Object.fromEntries(Object.values(view.score_form).flat().map(
+   field=>[field.field_id,$('score-'+field.field_id).value]).filter(([,value])=>value));
+  const assessment={ana:$('crfScoreAna').value,date:$('crfScoreDate').value,criteria};
+  const result=await api('/api/crf/scores',{case_id,source_snapshot:view.source_snapshot,assessment});
+  if(generation!==patientGeneration||view.source_snapshot!==crfView.source_snapshot)return;
+  crfScorePreview=result;crfScoreAssessment=result.assessment;crfScoreDirty=false;
+ }finally{if(generation===patientGeneration){crfBusy=false;renderCrf()}}
+});
+$('applyCrfScoreSuggestions').onclick=()=>{
+ for(const [fid, suggestion] of Object.entries(crfScorePreview?.suggestions||{})){
+  const control=$('score-'+fid);
+  if(!control.value&&!suggestion.requires_confirmation)control.value=suggestion.value;
+ }
+ crfScoreDirty=true;renderCrf();
+};
+
+function renderCrf(){
+ if(!crfView)return;
+ const root=$('crfFields');const opened=new Map([...root.querySelectorAll('.crf-group')].map(group=>[group.dataset.section,group.open]));root.replaceChildren();
+ const nextSelections=new Map();
+ const sections=new Map(),reviewed=crfEditing?null:crfView.review,showEmpty=$('crfAllFields').checked;
+ const slots=new Map(),anchors=new Map(),tables=[],instanceTargets=new Map();
+ const parseSlot=slot=>{const [,fieldId,component,number]=/^([^/]+)\/([^/#]+)(?:#([1-9]\d*))?$/.exec(slot);
+  return {fieldId,component,instance:number?Number(number):1,baseSlot:fieldId+'/'+component}};
+ const inlineChoices=new Map();
+ // Fields without a bound cell are placed in the template row or line that prints their label,
+ // searched only in the tables just after the field's own template block.
+ const norm=text=>String(text||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const labelKeys=field=>{const label=(field.label||'').replace(/ -\d+$/,'');const keys=[label,label.split(/[:,(]/)[0]];
+  if(!label.includes(':')&&label.includes('/'))keys.push(label.split('/').pop());
+  return new Set(keys.map(norm).filter(key=>key.length>=2))};
+ const templateTarget=field=>{
+  const keys=labelKeys(field),start=Number(field.template_block);
+  if(!keys.size||!start)return null;
+  for(const table of tables){
+   if(table.index<start||table.index>start+3)continue;
+   for(const cells of table.rows){
+    const [first,spec]=cells[0]||[];
+    if(cells.length>1&&spec&&!spec.field_id&&!spec.checkbox_slot&&keys.has(norm(spec.text))){
+     const [last,lastSpec]=cells[cells.length-1];
+     if(!lastSpec.field_id&&!lastSpec.checkbox_slot)return {td:last,cells,header:table.rows[0]};
+    }
+    for(const [td,cellSpec] of cells){
+     if(cellSpec.field_id||cellSpec.checkbox_slot||!cellSpec.text.includes('\n'))continue;
+     if(cellSpec.text.split('\n').some(line=>keys.has(norm(line.split(/[:\t]/)[0]))))return {td,cells:null};
+    }
+   }
+  }
+  return null;
+ };
+ const markResultColumn=(match,value)=>{
+  // Show the printed result word (Negative/Positive/Borderline) as a tick in its own column.
+  if(!match?.cells||!match.header)return;
+  const word=['negative','positive','borderline'].find(item=>new RegExp('\\b'+item+'\\b','i').test(String(value||'')));
+  if(!word)return;
+  match.header.forEach(([,spec],index)=>{if(norm(spec.text)===word&&match.cells[index])match.cells[index][0].textContent='☑'});
+ };
+ const fieldsBySlot=new Map(crfView.fields.map(field=>[field.slot,field]));
+ const renderCheckboxes=(target,spec)=>{
+  if(!instanceTargets.has(spec.checkbox_slot))instanceTargets.set(spec.checkbox_slot,target);
+  const field=fieldsBySlot.get(spec.checkbox_slot);
+  if(!field)return;
+  const codes=spec.checkbox_values||[spec.checkbox_value];
+  const parts=spec.text.split('☐');
+  target.replaceChildren(node('span',parts[0]));
+  const selected=reviewed?.values[field.slot]||[...field.options,...(field.manual_options||[]),
+   ...(field.proposal?[field.proposal]:[])].find(item=>item.id===crfSelections.get(field.slot));
+  for(const [index,code] of codes.entries()){
+   const option=field.manual_options?.find(item=>item.value===code);
+   if(!option)continue;
+   const checked=selected?.value===code, text=spec.inline_label?'':parts[index+1]||'';
+   const mark=node('input');mark.type='checkbox';mark.checked=checked;mark.disabled=Boolean(reviewed);
+   if(spec.inline_label)mark.setAttribute('aria-label',spec.inline_label);
+   mark.onchange=()=>{if(mark.checked){
+     const grounded=field.options.find(item=>item.value===code)||
+      (field.proposal?.origin==='knowledge_rule'&&field.proposal.value===code?field.proposal:null);
+     crfSelections.set(field.slot,grounded?grounded.id:option.id);
+    }
+    else crfSelections.delete(field.slot);renderCrf()};
+   const label=node('label',undefined,'tick crf-template-choice');
+   label.append(mark,node('span',text));target.append(label);
+   // Printed as the CRF: the reviewed value, else the current selection, else the proposal.
+   const printed=checked||(!reviewed&&!selected&&field.proposal?.value===code);
+   target.append(node('span',(printed?'☑ ':'☐ ')+text,'crf-print-value crf-print-choice'));
+  }
+  if(!inlineChoices.has(field.slot))inlineChoices.set(field.slot,new Set());
+  for(const code of codes)inlineChoices.get(field.slot).add(code);
+ };
+ if(crfView.layout){
+  const paper=node('div',undefined,'crf-paper');root.append(paper);
+  // Printed above the form (CSS order) so a draft is never mistaken for a reviewed CRF.
+  if(!reviewed)root.append(node('p','BẢN NHÁP – CHƯA DUYỆT · gồm giá trị đọc từ nguồn và đề xuất LLM chưa xác nhận',
+   'crf-print-value crf-draft-mark'));
+  for(const block of crfView.layout){
+   if(!block.rows){const paragraph=node(block.index===1?'h4':'p',block.text);
+    if(block.checkbox_slot)renderCheckboxes(paragraph,block);
+    paper.append(paragraph);const after=node('div');paper.append(after);anchors.set(block.index,after);continue}
+   const table=node('table'),body=node('tbody');table.append(body);paper.append(table);
+   const tableRows=[];tables.push({index:block.index,rows:tableRows});
+   for(const cells of block.rows){const tr=node('tr');body.append(tr);const rowCells=[];tableRows.push(rowCells);for(const spec of cells){
+    const td=node('td',spec.field_id?undefined:spec.text);td.colSpan=spec.span;td.rowSpan=spec.row_span;tr.append(td);
+    rowCells.push([td,spec]);
+    if(spec.field_id){slots.set(spec.field_id,td);if(spec.inline_label)td.dataset.inlineLabel=spec.inline_label}
+    if(spec.checkbox_slot)renderCheckboxes(td,spec);
+   }}
+   const after=node('div');paper.append(after);anchors.set(block.index,after);
+  }
+ }
+ for(const field of crfView.fields){
+  const identity=parseSlot(field.slot);
+  const saved=reviewed?.values[field.slot];
+  const scored=reviewed||crfScoreDirty?null:crfScorePreview?.values[field.slot];
+  const available=reviewed?(saved?[saved]:[]):scored?[scored]:[...field.options,...(field.proposal?[field.proposal]:[])];
+  const manual=!reviewed&&!scored?(field.manual_options||[]):[];
+  const inline=inlineChoices.get(field.slot);
+  if(inline&&!field.knowledge&&!available.length&&manual.every(option=>inline.has(option.value))){
+   const selected=crfSelections.get(field.slot);
+   if(manual.some(value=>value.id===selected))nextSelections.set(field.slot,selected);
+   continue;
+  }
+  if(inline&&reviewed&&inline.has(saved?.value)&&!saved.knowledge_version)continue;
+  const bound=(identity.instance>1?instanceTargets.get(identity.baseSlot):null)||slots.get(identity.fieldId);
+  const matched=bound?null:templateTarget(field);
+  const target=bound||matched?.td;
+  if(target)instanceTargets.set(identity.baseSlot,target);
+  if(matched?.cells&&!target.childElementCount&&/^\s*\(.*\)\s*$/.test(target.textContent))target.textContent='';
+  const groupKey=String(field.template_block||'')+'|'+field.section;
+  if(!available.length&&!manual.length&&!showEmpty&&(!target||matched))continue;
+  if(!target&&!sections.has(groupKey)){
+   const group=node('details',undefined,'crf-group');group.dataset.section=groupKey;
+   group.open=opened.get(groupKey)??true;
+   group.append(node('summary',field.section,'crf-section-label'));sections.set(groupKey,group);(anchors.get(field.template_block)||root).append(group);
+  }
+  const row=node('div',undefined,'crf-field'+(available.length?'':' crf-empty'));
+  const componentLabel=componentNames[field.component]||field.component;
+  const label=node('label',(identity.instance>1?'-'+identity.instance+': ':'')+(target?.dataset.inlineLabel||
+   (target&&(field.slot.startsWith('PFT')||matched?.cells)?componentLabel:
+   field.label+(field.component==='result'?'':' · '+componentLabel))));
+  label.htmlFor='crf-'+field.slot.replace('/','-');row.append(label);
+  const cell=node('div',undefined,'crf-value');row.append(cell);
+  const selection=reviewed?saved?.id:crfSelections.get(field.slot);
+  if(selection&&[...available,...manual].some(value=>value.id===selection))nextSelections.set(field.slot,selection);
+  const shown=[...available,...manual].find(value=>value.id===selection)||available[0];
+  if(identity.instance===1&&field.component==='result')markResultColumn(matched,shown?.value);
+  const choiceLabel=value=>field.choices.find(choice=>choice.code===value)?.label||
+   ((saved||scored)?.origin==='score_assessment'?({yes:'Có',no:'Không'}[value]||value):value);
+  const setSelection=id=>{if(id)crfSelections.set(field.slot,id);else crfSelections.delete(field.slot);renderCrf()};
+  let printedValue='';   // what the printed CRF shows for this field (appended last, print-only)
+  if(manual.length){
+   const offered=new Set(available.map(value=>value.value));
+   const picker=node('select');options(picker,[...available.map(value=>[value.id,choiceLabel(value.value)]),
+    ...manual.filter(value=>!offered.has(value.value)).map(value=>[value.id,choiceLabel(value.value)])],'Chọn giá trị');
+   // A proposal is shown pre-filled but stays a suggestion: it is not selected for approval
+   // until the reviewer ticks it or picks a value.
+   const suggested=!reviewed&&!scored&&!selection&&field.proposal&&available.includes(field.proposal)?field.proposal:null;
+   picker.id=label.htmlFor;picker.value=selection||suggested?.id||'';picker.onchange=()=>setSelection(picker.value);cell.append(picker);
+   if(suggested){
+    picker.classList.add('crf-suggested');
+    const mark=node('input');mark.type='checkbox';mark.onchange=()=>setSelection(mark.checked?suggested.id:null);
+    const tick=node('label',undefined,'tick');tick.append(mark,node('span','LLM đề xuất · chưa duyệt — tích để duyệt ô này'));cell.append(tick);
+   }
+   const printedChoice=[...available,...manual].find(value=>value.id===picker.value);
+   printedValue=printedChoice?choiceLabel(printedChoice.value):'';
+   for(const option of available)if(option.sources.length)cell.append(crfEvidence(option));
+  }else if(available.length>1&&!reviewed){
+   const picker=node('select');options(picker,available.map(value=>[value.id,choiceLabel(value.value)]),'Chọn từ các giá trị nguồn');
+   picker.id=label.htmlFor;picker.value=selection||'';picker.onchange=()=>setSelection(picker.value);cell.append(picker);
+   printedValue=(available.find(value=>value.id===selection)?[available.find(value=>value.id===selection)]:available)
+    .map(value=>choiceLabel(value.value)).join(' / ');
+   for(const option of available)if(option.sources.length)cell.append(crfEvidence(option));
+  }else{
+   const input=node('input');input.type='text';input.readOnly=true;input.value=shown?choiceLabel(shown.value):'';
+   input.id=label.htmlFor;cell.append(input);
+   printedValue=input.value;
+   if(shown&&crfEditing&&!scored){
+    const mark=node('input');mark.type='checkbox';mark.checked=Boolean(selection);
+    mark.onchange=()=>{setSelection(mark.checked?shown.id:null)};
+    const tick=node('label',undefined,'tick');tick.append(mark,node('span','Duyệt ô này'));cell.append(tick);
+   }
+   if(shown?.sources.length)cell.append(crfEvidence(shown));
+  }
+  if(shown?.reason)cell.append(node('p',({calculated:'Tính từ số đo',score_calculated:'Tính theo bảng điểm',
+   knowledge_rule:'Đề xuất từ kho quy tắc',
+   score_assessment:'Đánh giá đã duyệt'}[shown.origin]||'Đề xuất LLM')+' · '+shown.reason,'notice'));
+  if(field.knowledge){
+   const rule=node('details');rule.append(node('summary','Tiêu chí và nguồn'),node('p',field.knowledge.definition));
+   if(field.knowledge.supporting_source){
+    const link=node('a','Tài liệu đối chiếu');link.href=field.knowledge.supporting_source;
+    link.target='_blank';link.rel='noopener';rule.append(link);
+   }
+   cell.append(rule);
+  }
+  if(saved?.knowledge_version){
+   const link=node('a','Quy tắc lúc duyệt · '+saved.knowledge_version);
+   link.href='/api/crf/knowledge?'+new URLSearchParams({version:saved.knowledge_version});
+   link.target='_blank';link.rel='noopener';cell.append(link);
+  }
+  if(printedValue)cell.append(node('span',printedValue,'crf-print-value'));
+  (target||sections.get(groupKey)).append(row);
+ }
+ $('crfDownloads').hidden=false;   // a draft prints as the CRF too; Word export still needs a review
+ $('crfWord').hidden=!(reviewed&&crfView.layout&&crfView.review_sha256);
+ if(!$('crfWord').hidden)$('crfWord').href='/api/crf/word?'+new URLSearchParams({case_id:$('exportCase').value,review_sha256:crfView.review_sha256});
+ if(!reviewed)crfSelections=nextSelections;
+ const running=crfView.job?.status==='running';
+ $('generateCrf').disabled=crfBusy||running;
+ $('approveCrf').hidden=Boolean(reviewed);
+ $('approveCrf').disabled=crfBusy||running||crfScoreDirty||!(crfSelections.size||Object.keys(crfScorePreview?.values||{}).length);
+ renderCrfScoreStatus(reviewed);
+ $('editCrf').hidden=!reviewed;
+ const proposalCount=crfView.fields.filter(field=>field.proposal&&field.proposal.origin!=='calculated').length;
+ const calculatedCount=crfView.fields.filter(field=>field.proposal?.origin==='calculated').length;
+ const filtered=crfView.model_counts?crfView.model_counts.returned-crfView.model_counts.kept:0;
+ const modelStatus=proposalCount?proposalCount+' đề xuất từ '+crfView.model:
+  filtered?filtered+' đề xuất LLM không qua kiểm tra dữ kiện':'LLM chưa tìm được đề xuất đủ dữ kiện';
+ $('crfStatus').textContent=running?'Đang điền đề xuất từ dữ liệu hiện có…':reviewed?
+  'Đã duyệt '+Object.keys(reviewed.values).length+' ô · '+reviewed.reviewer.name+
+  (reviewed.source_snapshot!==crfView.source_snapshot?' · Có dữ liệu nguồn mới':''):
+  (crfView.job?.error?crfView.job.error+' · ':'')+crfSelections.size+' ô được chọn để duyệt'+
+  (calculatedCount?' · '+calculatedCount+' ô tính từ số đo':'')+(crfView.model?' · '+modelStatus:'');
+ const metadata=$('crfMetadataRows');metadata.replaceChildren();
+ const facts=patientWorkspace.candidates.filter(c=>c.kind==='metadata'&&c.metadata_key!=='additional_lab_result'&&!c.prior_ocr&&c.current_revision&&['pending','accepted'].includes(c.review_status));
+ for(const fact of facts){
+  const row=node('p',patientCandidateText(fact));const crop=fact.evidence?.[0]?.crop_url;
+  if(crop){const link=node('a',' · Ảnh đối chiếu');link.href=crop;link.target='_blank';link.rel='noopener';row.append(link)}
+  metadata.append(row);
+ }
+ $('crfMetadata').hidden=!facts.length;
+}
+
+$('crfAllFields').onchange=renderCrf;
+$('crfPdf').onclick=()=>{
+ if(!crfView)return;   // drafts print too, marked as unreviewed
+ const closed=[...$('crfFields').querySelectorAll('details:not([open])')].filter(group=>!group.classList.contains('crf-evidence'));
+ closed.forEach(group=>group.open=true);document.body.classList.add('crf-print');
+ window.addEventListener('afterprint',()=>{document.body.classList.remove('crf-print');closed.forEach(group=>group.open=false)},{once:true});
+ window.print();
+};
+function renderReferenceProfile(){
+ const profile=referenceView.profiles.find(item=>item.name===$('referenceProfiles').value);
+ $('referenceName').value=profile?.name||'';
+ $('referenceSaved').replaceChildren(...(profile?.entries||[]).map(entry=>{
+  const row=node('p',entry.label+' · '+entry.raw+(entry.key[2]?' '+entry.key[2]:'')+(entry.source_scope_label?' · '+entry.source_scope_label:''));
+  for(const source of entry.sources||[]){
+   const link=node('a',' · '+(source.label||'Ảnh đối chiếu'));link.href=source.url;link.target='_blank';link.rel='noopener';row.append(link);
+  }
+  return row;
+ }));
+ for(const {doc,check} of referenceDocuments)check.checked=Boolean(profile&&doc.profile===profile.name);
+ for(const {check} of referenceInputs)check.checked=false;
+}
+function renderReferences(view, profileName=''){
+ referenceView=view;
+ options($('referenceProfiles'),view.profiles.map(profile=>[profile.name,profile.name+' · '+profile.count+' khoảng']),'Tạo hồ sơ mới');
+ $('referenceProfiles').value=profileName;
+ const docs=$('referenceDocuments');docs.replaceChildren();referenceDocuments=[];
+ for(const doc of view.documents){
+  const check=node('input');check.type='checkbox';
+  const label=node('label',undefined,'tick');label.append(check,node('span',doc.source_document_id+(doc.profile?' · '+doc.profile:'')));docs.append(label);
+  referenceDocuments.push({doc,check});
+ }
+ const rows=$('referenceRows');rows.replaceChildren();referenceInputs=[];
+ $('referenceRowsTitle').textContent=view.rows.length+' khoảng đọc từ OCR đã lưu';
+ for(const row of view.rows){
+  const check=node('input');check.type='checkbox';
+  const label=node('label',undefined,'tick');label.append(check,node('span',row.label+' · '+(row.key[2]||'không có đơn vị')));
+  const input=node('input');input.type='text';input.value=row.raw;input.maxLength=200;input.setAttribute('aria-label','Khoảng tham chiếu '+row.label);
+  const cell=node('div',undefined,'crf-field');cell.append(label,input);
+  const evidence=node('div');if(row.conflict)evidence.append(node('small','Có khoảng khác cho cùng xét nghiệm · '));
+  if(!row.numeric)evidence.append(node('small','Cần chuẩn hóa nếu muốn dùng để so sánh số · '));
+  for(const source of row.sources){const link=node('a','Ảnh đối chiếu ');link.href=source.url;link.target='_blank';link.rel='noopener';evidence.append(link)}
+  cell.append(evidence);rows.append(cell);referenceInputs.push({row,check,input});
+ }
+ renderReferenceProfile();$('referenceForm').hidden=false;
+}
+$('referenceProfiles').onchange=()=>{if(referenceView)renderReferenceProfile()};
+$('loadReferences').onclick=()=>run(async()=>{
+ const generation=patientGeneration,caseId=$('exportCase').value;
+ const view=await api('/api/crf/references?'+new URLSearchParams({case_id:caseId}));
+ if(generation===patientGeneration){renderReferences(view);$('referenceStatus').textContent=''}
+});
+$('saveReferences').onclick=()=>run(async()=>{
+ const generation=patientGeneration,caseId=$('exportCase').value,who=actor();
+ const profile=$('referenceName').value.trim(),button=$('saveReferences');
+ if(button.disabled)return;button.disabled=true;
+ try{
+  const view=await api('/api/crf/references',{case_id:caseId,profile,snapshot:referenceView.snapshot,
+   documents:referenceDocuments.filter(item=>item.check.checked).map(item=>item.doc.document_id),
+   selections:Object.fromEntries(referenceInputs.filter(item=>item.check.checked).map(item=>[item.row.id,item.input.value])),...who});
+  if(generation!==patientGeneration)return;
+  renderReferences(view,profile);$('referenceStatus').textContent='Đã lưu hồ sơ '+profile;
+  await loadCrf(generation,caseId);
+ }finally{button.disabled=false}
+});
+$('editCrf').onclick=()=>{
+ if(crfView.review.source_snapshot===crfView.source_snapshot){
+  crfSelections=new Map(Object.entries(crfView.review.values).filter(([,value])=>!value.origin.startsWith('score_')).map(([slot,value])=>[slot,value.id]));
+ }
+ if(crfView.review.scores){crfScoreAssessment=null;crfScorePreview=null;crfScoreDirty=true;renderCrfScoreInputs()}
+ crfEditing=true;renderCrf();
+};
+$('generateCrf').onclick=()=>run(async()=>{
+ const generation=patientGeneration,caseId=$('exportCase').value;
+ if(crfBusy)return;crfBusy=true;renderCrf();
+ try{await api('/api/crf/generate',{case_id:caseId});if(generation!==patientGeneration)return;crfEditing=true;await loadCrf(generation,caseId)}
+ finally{if(generation===patientGeneration){crfBusy=false;renderCrf()}}
+});
+$('approveCrf').onclick=()=>run(async()=>{
+ const generation=patientGeneration,caseId=$('exportCase').value,who=actor();
+ if(crfBusy)return;crfBusy=true;renderCrf();
+ try{
+  const review=await api('/api/crf/approve',{case_id:caseId,source_snapshot:crfView.source_snapshot,
+   draft_sha256:crfView.draft_sha256,selections:Object.fromEntries(crfSelections),
+   ...(crfScoreAssessment?{score_assessment:crfScoreAssessment}:{}),...who});
+  if(generation!==patientGeneration)return;
+  crfView.review=review;crfEditing=false;await loadCrf(generation,caseId);
+ }finally{if(generation===patientGeneration){crfBusy=false;renderCrf()}}
+});
+function patientCandidateText(c){const v=c.value;if(c.kind==='metadata'){if(c.metadata_key==='additional_lab_result'&&v.value&&typeof v.value==='object'){const x=v.value,names={result:'Kết quả',intensity:'Intensity',pre_measured:'Pre',pre_percent_predicted:'Pre % dự đoán',post_measured:'Post',post_percent_predicted:'Post % dự đoán'};const columns=myositisColumns(x);if(columns)return x.name+' · '+columns+(x.unit_raw?' · '+x.unit_raw:'')+(x.source_date?' · '+x.source_date:'');return x.name+' · '+Object.entries(x.results||{}).map(([k,v])=>(names[k]||k)+': '+v+(k.endsWith('percent_predicted')?'%':'')).join(' · ')+(x.unit_raw?' · '+x.unit_raw:'')+(x.class_raw?' · Class: '+x.class_raw:'')+(x.interpretation?' · '+x.interpretation:'')+(x.source_date?' · '+x.source_date:'')}return (sourceFactNames[c.metadata_key]||c.metadata_key)+': '+(typeof v.value==='object'?JSON.stringify(v.value):v.value??'[Trống]')}if(c.kind==='specimen'){const t=v.collection_datetime,a=v.amount;return (v.sample_type||'Mẫu')+' · '+v.checkbox_state+' · '+(a.numeric_value??'[Chưa có lượng]')+' '+(a.unit_raw||'')+' · '+(t.date||'[Chưa có ngày]')+' '+(t.time||'')}return resultText(v)+(v.unit_raw?' '+v.unit_raw:'')}
+const confidenceNames={high:'Ít cảnh báo',unverified:'LLM · Chưa đối chiếu',medium:'Cần kiểm tra thêm',low:'Cần đối chiếu'};
+function sourceReviewedPending(c){
+ return c.kind==='observation'&&c.review_status==='pending'&&c.source_review?.action==='approve'&&!c.pending_correction;
+}
+function confidenceMatches(c){if(c.prior_ocr&&!$('showPriorOcr').checked)return false;const mode=$('patientConfidence').value||'all',q=c.confidence;if(mode==='all')return true;if(!q)return false;if(mode==='placeholder')return q.placeholder;if(mode==='source_reviewed')return sourceReviewedPending(c);if(sourceReviewedPending(c))return false;if(q.placeholder||c.review_status==='accepted'&&!c.pending_correction)return false;return mode==='attention'?['low','medium'].includes(q.tier):q.tier===mode}
+function renderConfidenceSummary(){
+ const w=patientWorkspace,q=w?.confidence_summary;if(!q){$('confidenceCounts').textContent='Chưa có đánh giá mức kiểm tra. Tải lại máy chủ để nạp dữ liệu.';return}
+ $('confidenceCounts').textContent=q.attention+' giá trị ưu tiên xem lại'+(q.unverified?' · '+q.unverified+' LLM chưa đối chiếu':'')+(q.source_reviewed_pending?' · '+q.source_reviewed_pending+' đã duyệt nguồn':'')+(q.routine?' · '+q.routine+' ít cảnh báo':'')+(q.placeholders?' · '+q.placeholders+' dấu trống trên nguồn':'')+'.';
+ const alerts=w.confidence_alerts||[];$('confidenceCoverage').hidden=!alerts.length;$('confidenceCoverageTitle').textContent=alerts.length+' vùng / dòng nguồn chưa được xác định đầy đủ';const root=$('confidenceCoverageItems');root.replaceChildren();
+ const names={invalid_headers:'Chưa xác định được tiêu đề bảng',incomplete_generation:'OCR vùng bị cắt',invalid_table_structure:'Cấu trúc bảng chưa hợp lệ',unmapped_test:'Chưa ánh xạ dòng nguồn',ambiguous_mapping:'Ánh xạ chưa rõ',missing_test_name:'Thiếu tên xét nghiệm'};
+ for(const a of alerts){const line=node('p',(a.name_raw?a.name_raw+' · ':'')+(names[a.reason]||a.reason)+' · ');const d=patientDocuments.get(a.document_id);if(d?.source_url){const link=node('a',a.source_document_id);link.href=d.source_url;link.target='_blank';link.rel='noopener';line.append(link)}else line.append(node('span',a.source_document_id));root.append(line)}
+}
+function renderCandidateConfidence(box,c){if(sourceReviewedPending(c))return;const q=c.confidence;if(!q){box.append(node('p','Chưa có mức kiểm tra','muted'));return}if(q.placeholder){box.append(node('p','Dấu trống được in trên nguồn · không có số đo','muted'));return}
+ const text=q.human_verified?'Đã đối chiếu':(confidenceNames[q.tier]||'Chưa xác định');
+ const detail=node('details',undefined,'confidence-details');const heading=node('summary');heading.append(node('span',text,'confidence-badge confidence-'+q.tier));detail.append(heading);for(const r of q.reasons)detail.append(node('p',r.message,r.severity==='block'?'notice':'muted'));if(!q.llm)detail.append(node('p',q.score+'/100 điểm ưu tiên kiểm tra; chưa phải xác suất đọc đúng.','muted'));box.append(detail);
+}
+function patientCandidateSearch(c){return patientCandidateText(c)+' '+(patientDocuments.get(c.document_id)?.source_document_id||'')+' '+(c.value.source_date||'')+' '+(patientStates[c.review_status]||c.review_status)}
+function closeSourceEditor(){sourceNavigationGeneration++;loadGeneration++;editorTarget=null;current=null;selected=null;$('reviewEditor').hidden=true;$('editorBackdrop').hidden=true;if(editorReturnFocus?.isConnected)editorReturnFocus.focus?.();else $('exportCase').focus?.()}
+async function openSourceEditor(c){const navigation=++sourceNavigationGeneration,key=JSON.stringify([c.package_id,c.revision]);if(!Array.from($('package').options).some(o=>o.value===key))throw Error('Tải lại danh sách dữ liệu.');editorReturnFocus=document.activeElement;editorTarget=c;$('reviewEditor').hidden=false;$('editorBackdrop').hidden=false;$('editorTitle').textContent='Xem và sửa dữ liệu';$('editorSource').textContent=patientDocuments.get(c.document_id)?.source_document_id||c.document_id;$('closeEditor').focus?.();$('package').value=key;const loaded=await loadPackage(c,{refreshPatient:false});if(!loaded||navigation!==sourceNavigationGeneration||current?.package_id!==c.package_id||current?.revision!==c.revision)return;const root=$(c.kind==='observation'?'candidate':c.kind==='metadata'?'metadata':'specimens');for(const box of root.children)if(box.tagName==='DETAILS')box.open=true;root.scrollIntoView?.({behavior:'smooth',block:'start'})}
+function patientSelectionChanged(){
+ const chosen=patientWorkspace?patientWorkspace.candidates.filter(c=>patientSelected.has(c.selection_id)):[];
+ const hidden=chosen.filter(c=>!patientVisibleIds.includes(c.selection_id)).length;
+ $('batchSelectionBadge').textContent=patientSelected.size?'('+patientSelected.size+')':'';if(patientSelected.size)$('patientBatchPanel').open=true;
+ $('patientSelectionCount').textContent=patientSelected.size+' giá trị được chọn: '+chosen.filter(c=>c.kind==='observation').length+' thuộc CRF, '+chosen.filter(c=>c.kind==='metadata'&&c.metadata_key==='additional_lab_result').length+' không thuộc CRF, '+chosen.filter(c=>c.kind==='metadata'&&c.metadata_key!=='additional_lab_result').length+' thông tin nguồn, '+chosen.filter(c=>c.kind==='specimen').length+' mục thu mẫu'+(patientVisibleIds.length?' · '+patientVisibleIds.filter(id=>patientSelected.has(id)).length+' thuộc bộ lọc hiện tại':'')+(hidden?' · '+hidden+' giá trị đã chọn nằm ngoài bộ lọc hiện tại':'')+'.';
+ $('savePatientBatch').disabled=patientBusy||!patientSelected.size||!$('patientBatchConfirm').checked;
+ $('selectPatientVisible').disabled=patientBusy||!patientVisibleIds.length;$('clearPatientSelection').disabled=patientBusy||!patientSelected.size;
+ $('savePatientBatch').textContent=patientBusy?'Đang lưu…':'Lưu duyệt ('+patientSelected.size+' giá trị)';
+}
+function patientCandidateCard(c){
+ const box=node('div',undefined,'patient-value'),line=node('label',undefined,'tick'),check=node('input');check.type='checkbox';check.checked=patientSelected.has(c.selection_id);check.disabled=patientBusy||!c.current_revision;check.setAttribute('aria-label','Chọn '+(c.field_id||c.metadata_key||c.value.sample_type)+' '+patientCandidateText(c));
+ check.onchange=()=>{if(check.checked)patientSelected.add(c.selection_id);else patientSelected.delete(c.selection_id);$('patientBatchConfirm').checked=false;patientRetry=null;patientSelectionChanged()};line.append(check,node('span',patientCandidateText(c)));box.append(line);
+ const interpretation=myositisInterpretationText(c.kind==='metadata'&&c.metadata_key==='additional_lab_result'?c.value.value:c.value);if(interpretation)box.append(node('small',interpretation,'muted'));
+ if(c.prior_ocr)box.append(node('small','Dữ liệu trước lượt OCR mới · giữ nguyên quyết định đã lưu','muted'));
+ renderCandidateConfidence(box,c);
+ if(c.current_revision)patientVisibleIds.push(c.selection_id);
+ const controls=node('div',undefined,'candidate-actions');
+ const state=sourceReviewedPending(c)
+  ?'Đã duyệt nguồn · Chờ chấp nhận vào ca':patientStates[c.review_status]||c.review_status;
+ controls.append(node('span',state+(c.current_revision?'':' · Phiên bản cũ, chỉ đối chiếu'),'muted'));
+ if(c.current_revision){const edit=node('button','Xem / sửa');edit.onclick=()=>run(()=>openSourceEditor(c));controls.append(edit)}
+ if(c.pending_correction)box.append(node('p','Có đề xuất sửa chờ duyệt; giá trị đang dùng được giữ nguyên.','notice'));
+ const notes={ocr_method_spelling_variant:'Tên phương pháp có biến thể chính tả trong OCR; hãy đối chiếu ảnh nguồn.',ordering_provider_role_requires_review:'Nguồn ghi người chỉ định: cần xác nhận vai trò trước khi dùng cho mục Physician.',source_statement_not_confirmed_diagnosis:'Giữ nguyên chẩn đoán trên phiếu; chưa xác nhận là chẩn đoán bệnh.',source_conclusion_not_clinical_assessment:'Kết luận của phiếu hô hấp; chưa phải đánh giá tổn thương cơ quan.',handwritten_source_requires_review:'Nội dung viết tay: cần đối chiếu crop.',outside_word_catalog:'Kết quả bổ sung có nguồn, chưa có trường tương ứng trong Word.'};
+ for(const flag of c.value.flags||[])if(notes[flag])box.append(node('p',notes[flag],'muted'));
+ if(c.value.transcription_method==='assistant_visual_transcription')box.append(node('p','Trợ lý chép từ ảnh · chờ người dùng duyệt, không phải kết quả OCR tự động.','notice'));
+ if(c.kind==='observation'&&(c.value.source_date||c.value.missing_reason))box.append(node('p',(c.value.source_date||'')+(c.value.source_date&&c.value.date_type?' · '+(sourceFactNames[c.value.date_type]||c.value.date_type):'')+(c.value.missing_reason?' · '+c.value.missing_reason:''),'muted'));
+ const links=node('p'),source=node('a',patientDocuments.get(c.document_id)?.source_document_id||c.document_id);if(c.source_url){source.href=c.source_url;source.target='_blank';source.rel='noopener';links.append(source)}else links.append(node('span',source.textContent));
+ controls.append(links);box.append(controls);
+ if(!c.current_revision&&c.evidence.some(e=>e.crop_url)){const preview=node('details');preview.append(node('summary','Xem ảnh để đối chiếu'));for(const url of [...new Set(c.evidence.map(e=>e.crop_url).filter(Boolean))]){const image=node('img');image.src=url;image.alt='Vùng ảnh nguồn của giá trị đang kiểm tra';image.loading='lazy';image.style.maxWidth='100%';image.style.maxHeight='440px';image.style.objectFit='contain';preview.append(image)}box.append(preview)}
+ return box;
+}
+function renderPatientFields(){
+ if(!patientWorkspace)return;patientVisibleIds=[];const index=new Map(patientWorkspace.candidates.map(c=>[c.selection_id,c])),query=patientSearchKey($('patientSearch').value),section=$('patientSection').value,scope=$('patientScope').value,mode=$('patientFilter').value;let fieldsShown=new Set(),nonCrfShown=0;
+ function matches(items,text){if(mode==='data'&&!items.length||mode==='empty'&&items.length||mode==='pending'&&!items.some(c=>c.review_status!=='accepted'||c.pending_correction))return false;return !query||patientSearchKey(text+' '+items.map(patientCandidateSearch).join(' ')).includes(query)}
+ for(const [membership,fields,bodyId,groupId] of [['crf',patientWorkspace.fields,'patientFieldRows','patientCrfFields'],['non_crf',patientWorkspace.supplemental_fields||[],'patientSupplementalRows','patientNonCrfFields']]){const body=$(bodyId);body.replaceChildren();if(!scope||scope==='all'||scope===membership)for(const f of fields){if(section&&f.section!==section)continue;for(const component of f.components){const allItems=component.candidate_ids.map(id=>index.get(id)),items=allItems.filter(confidenceMatches);if(($('patientConfidence').value&&$('patientConfidence').value!=='all'&&!items.length)||!matches(items,f.field_id+' '+f.label+' '+f.section+' '+component.component_id+' '+(componentNames[component.component_id]||'')+' '+(patientStates[component.status]||'')))continue;if(membership==='crf'){fieldsShown.add(f.field_id)}else nonCrfShown++;const row=node('tr',undefined,items.length?'':'empty-field'),label=node('td',membership==='crf'?f.field_id+' · '+f.label:f.label);label.append(node('small',f.section));if(membership==='crf'&&component.component_id!=='result')label.append(node('small',componentNames[component.component_id]||component.component_id));const values=node('td');if(items.length)for(const c of items)values.append(patientCandidateCard(c));else values.append(node('span','— Chưa có giá trị'),node('small',missingReasonText(component)));if(['conflict','partial'].includes(component.status))label.append(node('p',patientStates[component.status],'notice'));row.append(label,values);body.append(row)}}$(groupId).hidden=!body.children.length}
+ const extra=$('patientExtraRows');extra.replaceChildren();let extras=0;for(const c of patientWorkspace.candidates.filter(c=>c.kind!=='observation'&&c.metadata_key!=='additional_lab_result'&&confidenceMatches(c))){if(scope&&scope!=='all'||section||!matches([c],''))continue;extra.append(patientCandidateCard(c));extras++}$('patientExtra').hidden=!extras;if(query||mode==='pending')$('patientExtra').open=true;
+ $('patientVisible').textContent='Đang hiện '+fieldsShown.size+' mục CRF · '+nonCrfShown+' mục ngoài CRF'+(extras?' · '+extras+' thông tin phiếu / thu mẫu':'')+'.';patientSelectionChanged();
+}
+async function savePatientReview(){
+ if(!patientWorkspace||!patientSelected.size)throw Error('Chọn các giá trị cần duyệt.');if(!$('patientBatchConfirm').checked)throw Error('Xác nhận đã kiểm tra các giá trị được chọn.');if(!$('patientBatchReason').value.trim())throw Error('Ghi chú cho đợt duyệt trước khi lưu.');
+ const generation=patientGeneration,cid=$('exportCase').value,payload={case_id:cid,selection_ids:[...patientSelected].sort(),action:$('patientBatchAction').value,expected_snapshot_sha256:patientWorkspace.review_snapshot_sha256,reason:$('patientBatchReason').value,...actor()};const identity=JSON.stringify(payload);
+ if(!patientRetry||patientRetry.identity!==identity)patientRetry={identity,request_id:crypto.randomUUID()};payload.request_id=patientRetry.request_id;patientBusy=true;renderPatientFields();
+ try{const result=await api('/api/patient-review',payload);if(generation!==patientGeneration||cid!==$('exportCase').value)return;invalidateExports();await loadPatient();message('Đã lưu một đợt duyệt: '+Object.values(result.batch.counts).reduce((a,b)=>a+b,0)+' giá trị. Các ô chưa có dữ liệu vẫn giữ trống.')}finally{if(generation===patientGeneration){patientBusy=false;renderPatientFields()}}
+}
+const exclusionLabels={conflicting_accepted_values:'Kết quả đã chấp nhận còn mâu thuẫn',no_current_uncontested_case_acceptance:'Chưa có chấp nhận cho ca còn hiệu lực',no_source_approval_for_latest_revision:'Chưa duyệt nguồn ở phiên bản mới nhất',no_confirmed_case_assignment:'Chưa xác nhận liên kết ca'};
+function exportButtons(){
+ $('previewExport').disabled=exportBusy||!$('exportCase').value;
+ $('createRedcap').disabled=exportBusy||!exportPreview?.redcap.enabled;
+ $('createWord').disabled=exportBusy||!exportPreview?.word.enabled;
+}
+function invalidateExports(){exportGeneration++;exportPreview=null;exportBusy=false;$('exportReport').hidden=true;$('exportDownloads').replaceChildren();$('export').hidden=true;$('poolPreview').hidden=true;exportButtons()}
+async function refreshExportConfig(){const c=await api('/api/exports/options');$('exportConfig').textContent=(c.synthetic?'DỮ LIỆU GIẢ LẬP · ':'')+'Project REDCap: '+c.project_namespace+' · '+c.field_count+' mục / '+c.component_count+' thành phần · Word: '+(c.word_disabled_reason||c.word_bound_fields+' mục có ô điền xác định')+' · Lưu file tại: '+c.output_directory}
+function renderExportReport(p){
+ const root=$('exportReport');root.replaceChildren();root.hidden=false;
+ root.append(node('h3','Ca '+p.case.registry_code+(p.synthetic?' · GIẢ LẬP':'')));
+ const c=p.redcap.counts;
+ root.append(node('p','CSV toàn ca: '+c.encounters+' lần ghi nhận · '+c.observations+' kết quả đã chấp nhận · '+c.metadata+' metadata · '+c.specimens+' mục thu mẫu.'));
+ root.append(node('p','Có dữ liệu ở '+p.redcap.accepted_fields+'/'+p.redcap.catalog_fields+' mục. '+p.redcap.missing_measurement_dates+' kết quả thiếu ngày đo nguồn; '+p.redcap.placeholders+' kết quả có lý do thiếu. Giữ nguyên ô trống và ký hiệu nguồn.','muted'));
+ root.append(node('p',p.word.enabled?(p.word.scope==='whole_patient'?'Word tổng hợp bệnh nhân: ':'Word lần đã chọn: ')+p.word.observations+' kết quả; '+p.word.bound_observations+' vào ô xác định, '+p.word.appendix_observations+' vào phụ lục. Cần kiểm tra bố cục bản nháp.':p.word.disabled_reason,'notice'));
+ root.append(node('h3',p.excluded.count+' mục của ca bị loại khỏi bản xuất'));
+ for(const [reason,count] of Object.entries(p.excluded.reasons))root.append(node('p',(exclusionLabels[reason]||reason)+': '+count));
+ root.append(node('p','Toàn kho còn '+p.unassigned_global_count+' mục chưa liên kết ca; không gộp vào số bị loại của ca này.','muted'));
+ root.append(node('p','REDCap: bật lặp cho registry_visits, pool_results, source_metadata, sample_collection trước khi import. Chưa kiểm thử import trên máy chủ REDCap thực tế.','notice'));
+}
+async function previewRegistryExport(){
+ invalidateExports();const generation=exportGeneration;
+ exportBusy=true;exportButtons();
+ try{const p=await api('/api/exports/preview',{case_id:$('exportCase').value,encounter_id:$('exportEvent').value||null});if(generation!==exportGeneration)return;exportPreview=p;renderExportReport(p);message('Đã xem trước dữ liệu xuất. Chọn CSV REDCap hoặc Word để tạo file.')}finally{if(generation===exportGeneration){exportBusy=false;exportButtons()}}
+}
+async function createRegistryExport(format){
+ if(!exportPreview)throw Error('Xem trước dữ liệu trước khi tạo file.');
+ const generation=exportGeneration;exportBusy=true;exportButtons();
+ try{const result=await api('/api/exports/create',{preview_id:exportPreview.preview_id,format});if(generation!==exportGeneration)return;
+ const box=node('details');box.open=true;box.append(node('summary',format==='word'?'File Word bản nháp':'File CSV REDCap'));
+ for(const f of result.files){const line=node('p'),a=node('a','Tải '+f.name);a.href=f.url;line.append(a);box.append(line)}
+ if(result.report.reconciliation_required?.length)box.append(node('p','Có '+result.report.reconciliation_required.length+' dòng cũ cần đối soát trên REDCap. CSV không tự xóa các dòng này. Xem export-report.json.','notice'));
+ $('exportDownloads').append(box);message('Đã tạo file và lưu snapshot, báo cáo cùng bản xuất.');
+ }catch(error){if(generation===exportGeneration)invalidateExports();throw error}finally{if(generation===exportGeneration){exportBusy=false;exportButtons()}}
+}
+const labels={result_type:'Kiểu kết quả',numeric_value:'Giá trị số',comparator:'Dấu so sánh',unit_raw:'Đơn vị',qualitative_value:'Diễn giải ghi nhận',symbolic_value:'Ký hiệu bán định lượng',pattern_raw:'Pattern',grade_raw:'Grade',source_date:'Ngày / giờ nguồn (ISO)',date_type:'Vai trò ngày',specimen:'Loại mẫu',panel:'Panel',method_raw:'Phương pháp',titre_raw:'Hiệu giá',source_flag_raw:'Cờ kết quả trên nguồn (H/L)',missing_reason:'Lý do thiếu'};
+const kinds={numeric:'Số',qualitative:'Định tính',mixed:'Số và định tính',pattern:'Pattern / grade',semiquantitative:'Bán định lượng',missing:'Dấu trống trên nguồn',unparsed:'Chưa đọc được'};
+const actions={accept:'Chấp nhận',correct:'Lưu sửa',reject:'Loại ứng viên',needs_clarification:'Cần làm rõ',withdraw:'Rút quyết định'};
+const sourceActions={approve:'Duyệt đối chiếu nguồn',reject:'Loại',needs_clarification:'Cần làm rõ',withdraw:'Rút duyệt nguồn'};
+const sourceState={source_verified:'Đã duyệt đối chiếu nguồn',pending:'Chờ duyệt',reject:'Đã loại',needs_clarification:'Cần làm rõ',withdraw:'Đã rút duyệt'};
+const sourceGroups={observation:['observations','observation_id'],metadata:['metadata_candidates','candidate_id'],specimen:['specimen_candidates','sample_id']};
+const correctionLabels={value_raw:'Giá trị đọc từ nguồn',collection_date:'Ngày thu mẫu (DD/MM/YYYY)',collection_time:'Giờ thu mẫu (HH:MM)',amount:'Lượng và đơn vị (ví dụ 5 mL)',checkbox_state:'Trạng thái ô trên nguồn'};
+function correctionLabel(key){return key.startsWith('result:')?'Kết quả · '+(componentNames[key.slice(7)]||key.slice(7)):key==='unit_raw'?'Đơn vị':correctionLabels[key]}
+function correctionText(data,key){if(key.startsWith('result:'))return data.value.results[key.slice(7)]??'';if(key==='unit_raw')return data.value.unit_raw??'';if(key==='value_raw')return data.value_raw??'';if(key==='collection_date')return data.collection_datetime.date_raw??'';if(key==='collection_time')return data.collection_datetime.time_raw??'';if(key==='amount')return data.amount.raw??'';return data.checkbox_state}
+function sourceCorrectionPanel(kind,item){
+ const root=node('details');root.append(node('summary','Đề xuất sửa thông tin nguồn'),node('p','Chép giá trị từ nguồn, chọn bằng chứng và ghi lý do. Đề xuất chờ duyệt; OCR gốc và giá trị đang dùng được giữ trong lịch sử.','muted'));
+ const data=item.effective_source_data||item.source_data,inputs=new Map();
+ for(const key of item.correction_fields||[]){const label=node('label',correctionLabel(key)),input=key==='checkbox_state'?node('select'):node('input');if(key==='checkbox_state')options(input,[['checked','Có dấu chọn'],['unchecked','Không có dấu chọn'],['unreadable','Chưa đọc được']]);input.value=correctionText(data,key);input.setAttribute('aria-label',correctionLabel(key));label.append(input);root.append(label);inputs.set(key,input)}
+ const evidence=node('select');options(evidence,item.evidence.map(e=>[e.evidence_id,e.source_data.table_id]));const evLabel=node('label','Bằng chứng trên tài liệu');evLabel.append(evidence);root.append(evLabel);
+ const reason=node('textarea');reason.placeholder='Lý do sửa và chữ đọc trên nguồn';root.append(reason);let retry=null,busy=false;
+ const save=node('button','Lưu đề xuất sửa');save.disabled=!current.source_available;
+ save.onclick=()=>run(async()=>{if(busy)return;const changes={};for(const [key,input] of inputs)if(input.value!==correctionText(data,key))changes[key]=input.value.trim()||null;if(!Object.keys(changes).length)throw Error('Thay đổi ít nhất một giá trị.');if(!reason.value.trim())throw Error('Ghi lý do và đối chiếu nguồn trước khi lưu.');if(!evidence.value)throw Error('Chọn bằng chứng nguồn.');const payload={package_id:current.package_id,revision:current.revision,candidate_type:kind,candidate_id:item[sourceGroups[kind][1]],changes,evidence_ids:[evidence.value],reason:reason.value,...actor(),expected_package_sha256:current.package_sha256,expected_candidate_sha256:item.source_candidate_sha256,expected_review_id:item.source_review?.review_id??null,expected_correction_id:item.correction_history?.at(-1)?.correction_id??null};const identity=JSON.stringify(payload);if(!retry||retry.identity!==identity)retry={identity,request_id:crypto.randomUUID()};busy=true;save.disabled=true;try{await api('/api/source-correction',{...payload,request_id:retry.request_id});await loadPackage();message('Đã lưu đề xuất chờ duyệt. Giá trị đang được dùng chưa thay đổi.')}finally{busy=false;save.disabled=!current?.source_available}});root.append(save);
+ const pending=item.pending_correction;
+ if(pending){const detail=node('div',undefined,'notice');detail.append(node('p','Đề xuất chờ duyệt · '+pending.reviewer.name+' · '+pending.reason),correctionComparison(kind,pending.before,pending.after));evidenceLinks(detail,item.evidence.filter(e=>pending.evidence_ids.includes(e.evidence_id)),false);const confirm=node('input');confirm.type='checkbox';const label=node('label',undefined,'tick');label.append(confirm,node('span','Tôi đã đối chiếu giá trị đề xuất với nguồn.'));const approve=node('button','Duyệt bản sửa này','primary');approve.disabled=true;confirm.onchange=()=>{approve.disabled=!confirm.checked||!current.source_available};let approving=false;approve.onclick=()=>run(async()=>{if(approving||!confirm.checked)return;approving=true;approve.disabled=true;try{await saveSourceCorrectionApproval(kind,item,pending)}finally{approving=false;approve.disabled=!confirm.checked||!current?.source_available}});detail.append(label,approve,correctionWithdrawalButton(kind,item,pending,reason));root.append(detail)}
+ const history=node('details');history.append(node('summary','Lịch sử đề xuất ('+(item.correction_history||[]).length+')'));for(const row of [...(item.correction_history||[])].reverse()){const approved=item.source_review_history.some(r=>r.correction_id===row.correction_id&&r.action==='approve');history.append(node('p',row.reviewer.name+' · '+row.created_at_utc+' · '+(row.status==='withdrawn'?'Đã bỏ đề xuất':approved?'Đã có quyết định duyệt':pending?.correction_id===row.correction_id?'Chờ duyệt':'Đề xuất cũ, cần lập lại trên dữ liệu hiện hành')+' · '+row.reason),correctionComparison(kind,row.before,row.after))}root.append(history);root.open=!!pending||!!editorTarget;return root;
+}
+async function saveSourceCorrectionApproval(kind,item,correction){
+ const payload={package_id:current.package_id,revision:current.revision,expected_package_sha256:current.package_sha256,request_id:correction.correction_id+':approve',decisions:[{candidate_type:kind,candidate_id:item[sourceGroups[kind][1]],action:'approve',expected_review_id:item.source_review?.review_id??null,expected_candidate_sha256:item.source_candidate_sha256,correction_id:correction.correction_id}],reason:'Đối chiếu và duyệt bản sửa: '+correction.reason,...actor()};await api('/api/source-review',payload);await loadPackage();message('Đã duyệt bản sửa có lịch sử. Dữ liệu bệnh nhân và bản xuất dùng giá trị vừa duyệt.');
+}
+function correctionWithdrawalButton(kind,item,correction,reason){
+ const button=node('button','Bỏ đề xuất này, giữ giá trị hiện hành');let retry=null,busy=false;
+ button.onclick=()=>run(async()=>{if(busy)return;if(!reason.value.trim())throw Error('Ghi lý do bỏ đề xuất ở ô lý do sửa.');const payload={package_id:current.package_id,revision:current.revision,candidate_type:kind,candidate_id:item[sourceGroups[kind][1]],action:'withdraw',changes:{},evidence_ids:correction.evidence_ids,reason:reason.value,...actor(),expected_package_sha256:current.package_sha256,expected_candidate_sha256:item.source_candidate_sha256,expected_review_id:item.source_review?.review_id??null,expected_correction_id:correction.correction_id};const identity=JSON.stringify(payload);if(!retry||retry.identity!==identity)retry={identity,request_id:crypto.randomUUID()};busy=true;button.disabled=true;try{await api('/api/source-correction',{...payload,request_id:retry.request_id});await loadPackage();message('Đã bỏ đề xuất và lưu lịch sử. Giá trị hiện hành giữ nguyên.')}finally{busy=false;button.disabled=false}});return button;
+}
+function sourcePanel(kind,item){const panel=node('div'),review=item.source_review;panel.append(node('p',sourceState[item.source_review_status]||'Chờ duyệt','badge'));if(review)panel.append(node('p',review.reviewer.name+' · '+review.created_at_utc+' · '+review.reason,'muted'));if(review?.incomplete_attributes.length)panel.append(node('p','Ô thiếu vẫn giữ trống: '+review.incomplete_attributes.join(', '),'muted'));const reason=node('textarea');reason.placeholder='Lý do đối chiếu hoặc rút quyết định';panel.append(reason);const buttons=node('div',undefined,'actions');for(const [action,label] of Object.entries(sourceActions)){const button=node('button',label,action==='approve'?'primary':undefined);button.disabled=action==='approve'&&!current.source_available;button.onclick=()=>run(()=>saveSourceBatch([{kind,item}],action,reason.value));buttons.append(button)}panel.append(buttons);const history=node('details');history.append(node('summary','Lịch sử duyệt nguồn ('+item.source_review_history.length+')'));for(const row of [...item.source_review_history].reverse())history.append(node('p',(sourceActions[row.action]||row.action)+' · '+row.reviewer.name+' · '+row.created_at_utc+' · '+row.reason,'muted'));panel.append(history);if(item.correction_fields?.length)panel.append(sourceCorrectionPanel(kind,item));return panel}
+async function saveSourceBatch(entries,action,reason){if(!reason.trim())throw Error('Ghi lý do duyệt nguồn trước khi lưu.');const decisions=entries.map(({kind,item})=>({candidate_type:kind,candidate_id:item[sourceGroups[kind][1]],action,expected_review_id:item.source_review?.review_id??null,expected_candidate_sha256:item.source_candidate_sha256}));await api('/api/source-review',{package_id:current.package_id,revision:current.revision,expected_package_sha256:current.package_sha256,request_id:crypto.randomUUID(),decisions,reason,...actor()});await loadPackage();message('Đã lưu duyệt nguồn và lịch sử. Các ô thiếu và liên kết ca giữ nguyên.')}
+function renderSourceSummary(){const counts=current.source_review_summary;$('sourceCounts').textContent='Phiên bản '+current.revision+' · Kết quả: '+counts.observations.approved+'/'+counts.observations.total+' đã duyệt · Metadata: '+counts.metadata_candidates.approved+'/'+counts.metadata_candidates.total+' · Mẫu: '+counts.specimen_candidates.approved+'/'+counts.specimen_candidates.total;$('sourceExport').href='/api/source-reviewed?'+new URLSearchParams({package_id:current.package_id,revision:current.revision});$('sourceExport').hidden=!current.source_available;$('approveSourceBatch').disabled=!current.source_available;$('sourceBatchConfirm').checked=false;$('sourceBatchHistory').replaceChildren();for(const batch of [...current.source_review_batches].reverse()){$('sourceBatchHistory').append(node('p',batch.reviewer.name+' · '+batch.created_at_utc+' · '+batch.reason,'muted'));if(batch.authorization_quote)$('sourceBatchHistory').append(node('p','Xác nhận qua hội thoại: “'+batch.authorization_quote+'”'))}}
+function sourceEvidenceImage(entry, alt){
+ const image=node('img');image.alt=alt;
+ const location=entry.source_data?.region?.llm_row_location;
+ const box=location?.box, size=location?.image_size;
+ const valid=location?.coordinate_space==='outgoing_image_1000' &&
+  Array.isArray(box)&&box.length===4&&box.every(v=>Number.isInteger(v)&&v>=0&&v<=1000)&&
+  box[0]<box[2]&&box[1]<box[3]&&Array.isArray(size)&&size.length===2&&
+  size.every(v=>Number.isInteger(v)&&v>0);
+ if(!valid){image.src=entry.crop_url;return image}
+ const frame=node('div',undefined,'source-row-image');
+ const mark=node('span',undefined,'source-row-mark');
+ const caption=node('small','Vùng hàng do AI đề xuất','muted');
+ mark.setAttribute('aria-hidden','true');
+ mark.hidden=true;caption.hidden=true;
+ const [left,top,right,bottom]=box;
+ frame.style.maxWidth=(65*size[0]/size[1])+'vh';
+ mark.style.left=left/10+'%';mark.style.top=top/10+'%';
+ mark.style.width=(right-left)/10+'%';mark.style.height=(bottom-top)/10+'%';
+ image.onload=()=>{
+  const matches=image.naturalWidth===size[0]&&image.naturalHeight===size[1];
+  mark.hidden=!matches;caption.hidden=!matches;
+ };
+ frame.append(image,mark);
+ const preview=node('div');preview.append(frame,caption);
+ image.src=entry.crop_url;
+ return preview;
+}
+function evidenceLinks(root,entries,showImages=true){
+ const preview=node('div',undefined,'source-preview'),unique=[...new Map(entries.filter(e=>e.crop_url).map(e=>[e.crop_url,e])).values()];for(const [index,ev] of unique.entries()){if(!showImages){const link=node('a','Ảnh đối chiếu '+(index+1));link.href=ev.crop_url;link.target='_blank';link.rel='noopener';preview.append(link);continue}const box=node('div');box.append(sourceEvidenceImage(ev,'Ảnh đối chiếu '+(index+1)));const text=node('details');text.append(node('summary','Chữ đọc từ ảnh'));if(ev.raw_url){const link=node('a','Mở chữ OCR gốc');link.href=ev.raw_url;link.target='_blank';link.rel='noopener';text.append(link)}box.append(text);preview.append(box)}root.append(preview)
+}
+function renderMetadata(){
+ const root=$('metadata');root.replaceChildren();const items=current.metadata_candidates.filter(m=>m.document_id===$('document').value&&(!editorTarget||editorTarget.kind==='metadata'&&m.candidate_id===editorTarget.candidate_id));root.hidden=!items.length;if(!items.length)return;
+ root.append(node('h2','Thông tin trên phiếu'));sourceImageLink(root);
+ for(const item of items){const data=item.effective_source_data||item.source_data,box=node('div');box.append(node('h3',sourceFactNames[item.key]||item.key),node('p',patientCandidateText({kind:'metadata',metadata_key:item.key,value:data})),sourcePanel('metadata',item));evidenceLinks(box,item.evidence);root.append(box)}
+}
+function node(tag,content,cls){const n=document.createElement(tag);if(content!==undefined)n.textContent=content;if(cls)n.className=cls;return n}
+function message(text,error=false){$('status').textContent=text;$('status').hidden=!text;$('status').className='status'+(error?' error':'')}
+async function api(path,payload){const r=await fetch(path,{method:payload?'POST':'GET',headers:payload?{'Content-Type':'application/json','X-Review-Token':TOKEN}:{},body:payload?JSON.stringify(payload):undefined});const d=await r.json();if(!r.ok)throw Error(d.error||'Không lưu được');return d}
+function actor(){const name=$('actor').value.trim();if(!name)throw Error('Nhập tên người đang thực hiện đối chiếu.');return {actor:name,role:$('role').value}}
+function options(select,items,blank){select.replaceChildren();if(blank!==undefined)select.add(new Option(blank,''));for(const [value,label] of items)select.add(new Option(label,value))}
+function caseOptions(id){options($(id),summary.cases.map(c=>[c.case_id,c.registry_code+(c.study_id?' · '+c.study_id:'')]),'Chọn ca…')}
+function events(caseId,id){options($(id),summary.encounters.filter(e=>e.case_id===caseId).map(e=>[e.encounter_id,e.label+(e.event_date?' · '+e.event_date:'')]),'Chưa chọn lần ghi nhận')}
+function packageKey(){return JSON.parse($('package').value)}
+function documentRecord(){return current?.documents.find(d=>d.document_id===$('document').value)}
+async function refreshSummary(){patientGeneration++;invalidateExports();const previous=$('package').value,previousCase=$('exportCase').value;summary=await api('/api/summary');options($('package'),summary.packages.map(p=>[JSON.stringify([p.package_id,p.revision]),p.package_id.slice(0,20)+'… · v'+p.revision+(p.source_available?' · có nguồn':'')]));if(previous&&Array.from($('package').options).some(o=>o.value===previous))$('package').value=previous;else{const preferred=[...summary.packages].reverse().find(p=>p.source_available);if(preferred)$('package').value=JSON.stringify([preferred.package_id,preferred.revision])}for(const id of ['case','eventCase','exportCase'])caseOptions(id);if(summary.cases.some(c=>c.case_id===previousCase))$('exportCase').value=previousCase;else if(summary.cases.length===1)$('exportCase').value=summary.cases[0].case_id;events('','encounter');events($('exportCase').value,'exportEvent');$('exportEvent').options[0].textContent='Toàn bộ hồ sơ bệnh nhân';exportButtons()}
+function clearSourceView(text){current=null;selected=null;$('document').replaceChildren();$('document').disabled=true;$('list').replaceChildren();$('count').textContent='';$('candidate').replaceChildren(node('p',text,'muted'));for(const id of ['metadata','specimens']){$(id).replaceChildren();$(id).hidden=true}for(const id of ['sourceApproval','identity'])$(id).hidden=true}
+async function loadPackage(target=null,{refreshPatient=true}={}){if(!target&&!$('reviewEditor').hidden&&editorTarget&&JSON.stringify([editorTarget.package_id,editorTarget.revision])===$('package').value)target=editorTarget;const generation=++loadGeneration,key=$('package').value,oldDoc=target?.document_id||$('document').value;invalidateExports();clearSourceView('Đang tải ảnh nguồn…');try{if(refreshPatient)await loadPatient();if(generation!==loadGeneration||key!==$('package').value)return false;if(!key){clearSourceView('Chưa có dữ liệu.');message('Chọn một bệnh nhân hoặc thêm hồ sơ từ ảnh.');return false}const [pid,rev]=JSON.parse(key),next=await api('/api/package?'+new URLSearchParams({package_id:pid,revision:rev}));if(generation!==loadGeneration||key!==$('package').value)return false;if(target&&(!next.documents.some(d=>d.document_id===target.document_id)||!next[sourceGroups[target.kind][0]].some(item=>item.document_id===target.document_id&&item[sourceGroups[target.kind][1]]===target.candidate_id)))throw Error('Giá trị và ảnh nguồn không còn khớp. Hãy tải lại hồ sơ.');current=next;options($('document'),current.documents.map(d=>[d.document_id,d.source_document_id]));if(current.documents.some(d=>d.document_id===oldDoc))$('document').value=oldDoc;if(target?.kind==='observation')selectedId=target.candidate_id;$('document').disabled=false;$('sourceApproval').hidden=false;$('identity').hidden=false;renderDocument();message(current.source_available?'Đã tải dữ liệu. Bạn có thể xem ảnh, sửa và duyệt.':'Chưa có ảnh nguồn để đối chiếu và duyệt.');return true}catch(error){if(generation===loadGeneration)clearSourceView('Không tải được nguồn. Hãy tải lại để đối chiếu.');throw error}}
+function renderDocument(){const d=documentRecord();if(!d)return;const a=d.assignment;$('assignment').textContent=a?.identity_status==='confirmed'?'Đã xác nhận: '+(summary.cases.find(c=>c.case_id===a.case_id)?.registry_code||a.case_id)+' · '+a.confirmed_by.name:'Tài liệu chưa có liên kết ca được xác nhận.';$('case').value='';events('','encounter');$('identityConfirm').checked=false;$('identityReason').value='';renderSourceSummary();renderList();renderSpecimens();renderMetadata();$('candidate').hidden=!!editorTarget&&editorTarget.kind!=='observation'}
+function sourceImageLink(root){const doc=documentRecord();if(doc?.source_url){const link=node('a','Mở toàn bộ ảnh nguồn');link.href=doc.source_url;link.target='_blank';link.rel='noopener';root.append(link)}}
+function sourceValueText(kind,data){if(kind==='metadata'&&data.key==='additional_lab_result')return patientCandidateText({kind:'metadata',metadata_key:data.key,value:data});if(kind==='specimen'){const timing=data.collection_datetime||{},amount=data.amount||{};return [(data.sample_type||'Mẫu'),timing.date||timing.date_raw||'Chưa có ngày',timing.time||timing.time_raw||'',amount.raw||[amount.numeric_value,amount.unit_raw].filter(v=>v!=null).join(' '),data.checkbox_state==='checked'?'Có dấu chọn':data.checkbox_state==='unchecked'?'Không đánh dấu':'Chưa rõ dấu chọn'].filter(Boolean).join(' · ')}return data.value_raw??(typeof data.value==='object'?patientCandidateText({kind:'metadata',metadata_key:data.key,value:data}):data.value)??'Chưa có giá trị'}
+function correctionComparison(kind,before,after){const box=node('div');box.append(node('p','Đang dùng: '+sourceValueText(kind,before)),node('p','Đề xuất: '+sourceValueText(kind,after)));return box}
+function renderSpecimens(){
+ const root=$('specimens');root.replaceChildren();const samples=(current.specimen_candidates||[]).filter(s=>s.document_id===$('document').value&&(!editorTarget||editorTarget.kind==='specimen'&&s.sample_id===editorTarget.candidate_id));root.hidden=!samples.length;if(!samples.length)return;
+ root.append(node('h2','Thu mẫu'));sourceImageLink(root);
+ for(const sample of samples){const data=sample.effective_source_data||sample.source_data,box=node('div');box.append(node('p',sourceValueText('specimen',data)),sourcePanel('specimen',sample));evidenceLinks(box,sample.evidence);root.append(box)}
+}
+function renderList(){if(editorTarget&&editorTarget.kind!=='observation'){selected=null;selectedId=null;$('list').replaceChildren();$('candidate').replaceChildren();return}const observations=current.observations.filter(o=>o.document_id===$('document').value);$('count').textContent=observations.length+' kết quả';$('list').replaceChildren();if(!observations.some(o=>o.observation_id===selectedId))selectedId=observations[0]?.observation_id||null;for(const o of observations){const human=o.history.filter(h=>h.reviewer.declared_role!=='assistant').at(-1);const b=node('button',o.field_id+' · '+o.label+'\n'+o.component+' · '+(human?actions[human.action]||human.action:sourceState[o.source_review_status]||'Chờ duyệt'),'item'+(selectedId===o.observation_id?' active':''));b.onclick=()=>{selectedId=o.observation_id;renderList()};$('list').append(b)}selected=observations.find(o=>o.observation_id===selectedId);renderCandidate()}
+function field(key,value){const l=node('label',labels[key]);let input;if(key==='result_type'){input=node('select');options(input,Object.entries(kinds));input.value=value||'unparsed'}else{input=node('input');input.value=value??'';if(key==='source_date')input.placeholder='YYYY-MM-DD hoặc YYYY-MM-DDTHH:MM:SS'}input.id='value-'+key;l.append(input);return l}
+function renderCandidate(){
+ const root=$('candidate');root.replaceChildren();root.className='card';if(!selected){root.append(node('p','Không có giá trị để sửa.'));return}
+ const o=selected,d=documentRecord();root.append(node('h2',o.field_id+' · '+o.label),node('p',componentNames[o.component]||o.component,'muted'));
+ const layout=node('div',undefined,'layout'),source=node('div',undefined,'source'),edit=node('div');source.append(node('h3','Ảnh đối chiếu'));sourceImageLink(source);
+ const evidence=node('select');options(evidence,o.evidence.map((e,i)=>[String(i),(e.source_data.evidence_kind==='metadata'?'Thông tin nguồn'+(e.source_data.extraction_method==='local_ocr'?' · OCR tại máy':''):'Kết quả')+(o.evidence.length>1?' · '+(i+1):'')]));evidence.setAttribute('aria-label','Chọn ảnh đối chiếu');if(o.evidence.length>1)source.append(evidence);
+ const picture=node('div'),raw=node('pre','Đang tải chữ OCR gốc…'),rawDetail=node('details');rawDetail.append(node('summary','Chữ đọc từ ảnh'),raw);source.append(picture,rawDetail);let evidenceGeneration=0;
+ async function loadEvidence(){const generation=++evidenceGeneration,entry=o.evidence[Number(evidence.value)];picture.replaceChildren();raw.textContent='Đang tải chữ OCR gốc…';if(!entry?.crop_url){raw.textContent='Chưa có ảnh đối chiếu.';return}picture.append(sourceEvidenceImage(entry,'Vùng ảnh nguồn của kết quả đang chọn'));try{const r=await fetch(entry.raw_url),text=await r.text();if(generation!==evidenceGeneration||selected!==o)return;if(!r.ok)throw Error('Không tải được chữ đọc từ ảnh');raw.textContent=text}catch(error){if(generation===evidenceGeneration&&selected===o)raw.textContent=error.message}}evidence.onchange=loadEvidence;loadEvidence();
+ edit.append(node('h3','Giá trị'));const primary=new Set(['unit_raw','source_date']);for(const key of ['numeric_value','qualitative_value','symbolic_value','pattern_raw','grade_raw'])if(o.editable_value[key]!=null)primary.add(key);if(primary.size===2)primary.add(o.editable_value.result_type==='missing'?'missing_reason':'numeric_value');if(o.editable_value.source_date)primary.add('date_type');
+ const fields=node('div',undefined,'fields'),more=node('details'),moreFields=node('div',undefined,'fields');more.append(node('summary','Thông tin kết quả khác'),moreFields);for(const key of Object.keys(labels))(primary.has(key)?fields:moreFields).append(field(key,o.editable_value[key]));edit.append(fields,more);
+ const reason=node('label','Ghi chú'),reasonInput=node('textarea');reasonInput.id='reviewReason';reasonInput.placeholder='Ghi lý do duyệt hoặc sửa';reason.append(reasonInput);edit.append(reason);
+ const verification=node('select');verification.id='verification';verification.hidden=true;options(verification,[['source_verified','Đã đối chiếu nguồn']]);edit.append(verification);
+ if(o.replacement_options.length){const replace=node('details');replace.append(node('summary','Thay kết quả đã duyệt của cùng lần đo'));for(const option of o.replacement_options){const line=node('label',undefined,'tick'),check=node('input');check.type='checkbox';check.className='replace-choice';check.dataset.reviewIds=JSON.stringify(option.review_ids);line.append(check,node('span',resultText(option.value)+' '+(option.value.unit_raw||'')+' · '+(option.value.source_date||'Chưa có ngày')));replace.append(line)}edit.append(replace)}
+ const controls=node('div',undefined,'actions editor-actions');for(const [action,label] of [['accept','Duyệt'],['correct','Lưu sửa và duyệt']]){const button=node('button',label,action==='accept'?'primary':undefined);button.disabled=!current.source_available||d.assignment?.identity_status!=='confirmed';button.onclick=()=>run(()=>saveReview(action));controls.append(button)}edit.append(controls);
+ const other=node('details'),otherButtons=node('div',undefined,'actions');other.append(node('summary','Cần xem lại / loại / bỏ duyệt'),otherButtons);for(const [action,label] of [['needs_clarification','Cần xem lại'],['reject','Loại'],['withdraw','Bỏ duyệt']]){const button=node('button',label);button.onclick=()=>run(()=>saveReview(action));otherButtons.append(button)}edit.append(other);layout.append(source,edit);root.append(layout);
+ if(o.history.length){const history=node('details');history.append(node('summary','Lịch sử chỉnh sửa và duyệt'));for(const item of [...o.history].reverse()){const box=node('div',undefined,'history-line');box.append(node('p',(actions[item.action]||'Đề xuất')+' · '+item.reviewer.name),node('p',item.created_at_utc+' · '+item.reason,'muted'),node('p',resultText(item.before)+' → '+resultText(item.after)));history.append(box)}root.append(history)}
+}
+async function saveReview(action){const o=selected,d=documentRecord(),who=actor();const reason=$('reviewReason').value.trim();if(!reason)throw Error('Ghi lý do quyết định trước khi lưu.');const payload={package_id:current.package_id,revision:current.revision,observation_id:o.observation_id,action,...who,reason,expected_review_id:o.latest_review?.review_id??null,expected_assignment_id:d.assignment?.assignment_id??null,verification_level:$('verification').value};if(action==='accept'&&Object.keys(labels).some(key=>($('value-'+key).value.trim()||null)!==(o.editable_value[key]??null)))throw Error('Giá trị đang có chỉnh sửa. Chọn Lưu sửa để ghi thay đổi.');if(action==='correct'){const changes={};for(const key of Object.keys(labels)){const value=$('value-'+key).value.trim()||null;if(value!==(o.editable_value[key]??null))changes[key]=value}payload.changes=changes}if(['accept','correct'].includes(action))payload.replaces_review_ids=[...new Set(Array.from(document.querySelectorAll('.replace-choice:checked')).flatMap(input=>JSON.parse(input.dataset.reviewIds)))];await api('/api/review',payload);await loadPackage();message('Đã lưu quyết định và lịch sử. Dữ liệu OCR gốc được giữ nguyên.')}
+async function run(fn){try{await fn()}catch(error){message(error.message,true)}}
+$('reload').onclick=()=>run(async()=>{closeSourceEditor();await refreshSummary();await loadPatient();await refreshIntakes();message('Đã tải lại hồ sơ.')});$('package').onchange=()=>{sourceNavigationGeneration++;return run(loadPackage)};$('document').onchange=()=>{sourceNavigationGeneration++;loadGeneration++;renderDocument()};$('case').onchange=()=>events($('case').value,'encounter');$('exportCase').onchange=()=>{closeSourceEditor();events($('exportCase').value,'exportEvent');$('exportEvent').options[0].textContent='Toàn bộ hồ sơ bệnh nhân';invalidateExports();run(loadPatient)};$('exportEvent').onchange=invalidateExports;
+$('previewExport').onclick=()=>run(previewRegistryExport);$('createRedcap').onclick=()=>run(()=>createRegistryExport('redcap'));$('createWord').onclick=()=>run(()=>createRegistryExport('word'));
+$('closeEditor').onclick=closeSourceEditor;$('editorBackdrop').onclick=closeSourceEditor;document.addEventListener?.('keydown',event=>{if($('reviewEditor').hidden)return;if(event.key==='Escape'){closeSourceEditor();return}if(event.key==='Tab'){const items=Array.from($('reviewEditor').querySelectorAll?.('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],summary')||[]).filter(item=>item.getClientRects().length);const first=items[0],last=items.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}}});
+function changeConfidenceFilter(mode){$('patientConfidence').value=mode;$('patientBatchConfirm').checked=false;patientRetry=null;renderPatientFields()}
+$('patientConfidence').onchange=()=>changeConfidenceFilter($('patientConfidence').value);
+$('showPriorOcr').onchange=()=>{$('patientBatchConfirm').checked=false;patientRetry=null;renderPatientFields()};
+$('patientSearch').oninput=renderPatientFields;$('patientSection').onchange=renderPatientFields;$('patientFilter').onchange=renderPatientFields;$('patientScope').onchange=()=>{$('patientSection').value='';renderPatientFields()};
+$('selectPatientVisible').onclick=()=>{for(const id of patientVisibleIds)patientSelected.add(id);$('patientBatchConfirm').checked=false;patientRetry=null;renderPatientFields()};$('clearPatientSelection').onclick=()=>{patientSelected.clear();$('patientBatchConfirm').checked=false;patientRetry=null;renderPatientFields()};$('patientBatchConfirm').onchange=patientSelectionChanged;$('patientBatchAction').onchange=()=>{$('patientBatchConfirm').checked=false;patientRetry=null;patientSelectionChanged()};$('savePatientBatch').onclick=()=>run(savePatientReview);
+$('createCase').onclick=()=>run(async()=>{await api('/api/cases',{registry_code:$('registryCode').value.trim(),study_id:$('studyId').value.trim()||null,...actor()});$('registryCode').value='';$('studyId').value='';await refreshSummary();message('Đã lưu ca mới. Chưa tự liên kết tài liệu nào.')});
+$('createEvent').onclick=()=>run(async()=>{await api('/api/encounters',{case_id:$('eventCase').value,label:$('eventLabel').value,event_type:$('eventType').value,event_date:$('eventDate').value||null,...actor()});$('eventLabel').value='';$('eventDate').value='';await refreshSummary();message('Đã lưu lần ghi nhận. Chọn tài liệu để xác nhận liên kết.')});
+async function assign(revoke){const d=documentRecord();if(!d)throw Error('Chọn tài liệu.');if(!$('identityConfirm').checked)throw Error('Đánh dấu đã đối chiếu liên kết trước khi lưu.');if(!revoke&&!$('case').value)throw Error('Chọn ca cần liên kết.');await api('/api/assign',{document_id:d.document_id,case_id:revoke?null:$('case').value,encounter_id:revoke?null:$('encounter').value||null,expected_assignment_id:d.assignment?.assignment_id??null,reason:$('identityReason').value,...actor()});await loadPackage();message(revoke?'Đã rút liên kết. Các quyết định cũ không còn đủ điều kiện xuất.':'Đã xác nhận liên kết tài liệu. Các kết quả vẫn cần quyết định duyệt riêng.')}
+$('assign').onclick=()=>run(()=>assign(false));$('revoke').onclick=()=>run(()=>assign(true));
+$('approveSourceBatch').onclick=()=>run(async()=>{if(!$('sourceBatchConfirm').checked)throw Error('Đánh dấu đã đối chiếu toàn bộ phiên bản trước khi lưu.');const entries=Object.entries(sourceGroups).flatMap(([kind,[group]])=>(current[group]||[]).map(item=>({kind,item})));await saveSourceBatch(entries,'approve',$('sourceBatchReason').value);$('sourceBatchReason').value=''});
+$('showPool').onclick=()=>run(async()=>{const cid=$('exportCase').value;if(!cid)throw Error('Chọn ca để xem pool.');const query=new URLSearchParams({case_id:cid});if($('exportEvent').value)query.set('encounter_id',$('exportEvent').value);const pool=await api('/api/effective?'+query);$('poolPreview').hidden=false;$('poolPreview').textContent=JSON.stringify(pool,null,2);$('export').href='/api/export?'+query;$('export').hidden=false;message('Pool có '+pool.observations.filter(o=>o.eligible_for_verified_pool).length+' kết quả đủ điều kiện xuất; '+pool.observations.filter(o=>!o.eligible_for_verified_pool).length+' mục mâu thuẫn.')});
+$('submitIntake').onclick=()=>run(submitIntake);$('reloadIntakes').onclick=()=>run(refreshIntakes);
+$('intakeEngine').onchange=()=>{if(intakeBusy||intakeDraft?.job_id)return;intakeControls();proposeSelectedImages()};
+$('privacyCrop').onclick=()=>privacyMode('crop');$('privacyMask').onclick=()=>privacyMode('mask');
+$('privacyUndo').onclick=()=>{if(!privacyState)return;if(privacyState.masks.length)privacyState.masks.pop();else privacyState.maskPolygons.pop();privacyState.dirty=true;$('privacyConfirmed').checked=false;drawPrivacy()};
+$('privacyReset').onclick=()=>{if(!privacyState)return;privacyState.crop=null;privacyState.masks=[];privacyState.maskPolygons=[];privacyState.dirty=true;$('privacyConfirmed').checked=false;privacyMode('crop');drawPrivacy()};
+$('privacyCancel').onclick=closePrivacy;
+$('privacyApply').onclick=()=>{if(!privacyState)return;const values=['privacyLeft','privacyTop','privacyRight','privacyBottom'].map(id=>$(id).value.trim()),nums=values.map(Number);if(values.some(v=>v==='')||nums.some(n=>!Number.isFinite(n)||n<0||n>100)||nums[0]>=nums[2]||nums[1]>=nums[3]){$('privacyError').textContent='Nhập bốn tỉ lệ 0–100, trái < phải và trên < dưới.';return}const c=$('privacyCanvas'),box=nums.map((n,i)=>Math.round(n*(i%2?c.height:c.width)/100));privacyState.dirty=true;if(privacyState.mode==='crop')privacyState.crop=box;else privacyState.masks.push(box);$('privacyError').textContent='';$('privacyConfirmed').checked=false;drawPrivacy()};
+$('privacyCanvas').onpointerdown=event=>{if(!privacyState)return;privacyState.start=privacyPoint(event);$('privacyCanvas').setPointerCapture?.(event.pointerId);$('privacyConfirmed').checked=false;event.preventDefault()};
+$('privacyCanvas').onpointerup=event=>{if(!privacyState?.start)return;const start=privacyState.start,end=privacyPoint(event),box=[Math.min(start[0],end[0]),Math.min(start[1],end[1]),Math.max(start[0],end[0]),Math.max(start[1],end[1])];privacyState.start=null;if(box[2]-box[0]<2||box[3]-box[1]<2)return;privacyState.dirty=true;if(privacyState.mode==='crop')privacyState.crop=box;else privacyState.masks.push(box);drawPrivacy()};
+$('privacyCanvas').onpointercancel=()=>{if(privacyState)privacyState.start=null};
+$('privacySave').onclick=()=>{const s=privacyState;if(!s)return;if(!s.crop||!$('privacyConfirmed').checked){$('privacyError').textContent='Chọn vùng kết quả và xác nhận đã kiểm tra bản xem trước.';return}if(!intakeSelection.includes(s.item)||intakeDraft?.job_id)return;s.item.privacy={sha256:s.item.sha256,crop:s.crop,masks:s.masks,mask_polygons:s.maskPolygons,...(s.item.privacy?.proposal_id?{proposal_id:s.item.privacy.proposal_id}:{}),reviewed:true};closePrivacy();intakeControls()};
+$('chooseIntakeFiles').onclick=()=>{if(!intakeBusy&&!intakeSelecting&&!intakeSelectionLocked())$('intakeFiles').click()};
+$('intakeFiles').onchange=()=>{const files=Array.from($('intakeFiles').files||[]);$('intakeFiles').value='';return run(()=>addIntakeSelection(files))};
+$('clearIntakeFiles').onclick=()=>{if(intakeBusy||intakeSelecting||intakeSelectionLocked())return;resetIntakeSelection();intakeControls()};
+$('newIntake').onclick=()=>{if(intakeBusy||intakeSelecting)return;intakeDraft=null;resetIntakeSelection();$('intakeCode').value='';$('intakeSamePatient').checked=false;$('intakeStatus').textContent='Lượt gửi mới cho một bệnh nhân khác. Hồ sơ đã tạo vẫn được giữ lại.';intakeControls()};
+run(async()=>{await refreshSummary();await loadPatient();await refreshIntakes();message('')});
+</script>
+</html>

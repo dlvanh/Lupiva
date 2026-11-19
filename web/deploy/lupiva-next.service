@@ -1,0 +1,19 @@
+# systemd USER unit template for the Lupiva Next.js standalone server.
+# Install to ~/.config/systemd/user/lupiva-next.service (see PILOT-DEPLOY.md).
+[Unit]
+Description=Lupiva Next.js standalone server (pilot)
+
+[Service]
+Type=simple
+WorkingDirectory=%h/lupiva-next/current
+EnvironmentFile=%h/lupiva-next/.env
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env node server.js
+Restart=on-failure
+RestartSec=3
+MemoryMax=600M
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,4 @@
+# Windows CRLF is a line ending; Markdown permits two-space hard line breaks.
+* whitespace=cr-at-eol
+*.md whitespace=cr-at-eol,-blank-at-eol
+*.sh text eol=lf

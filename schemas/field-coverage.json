@@ -1,0 +1,5028 @@
+{
+  "dictionary_version": "lupus-dictionary-1.0-draft",
+  "dictionary_sha256": "758e6ea3ab5016341615a8f08f9c3c4dbe937b2d546bac8659cd18521f89893a",
+  "catalog_fields": 261,
+  "components": 377,
+  "parser_supported_fields": 98,
+  "observed_fields": 90,
+  "note": "Coverage of implemented extraction and observed candidates; not patient completeness or clinical accuracy.",
+  "fields": [
+    {
+      "field_id": "ADM01",
+      "label": "Study ID",
+      "section": "Thông tin nền và hành chính",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "identifier"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ADM02",
+      "label": "Age",
+      "section": "Thông tin nền và hành chính",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ADM03",
+      "label": "Gender: Female / Male",
+      "section": "Thông tin nền và hành chính",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 8,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ADM04",
+      "label": "ICF signed date",
+      "section": "Thông tin nền và hành chính",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ADM05",
+      "label": "Height, cm",
+      "section": "Thông tin nền và hành chính",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ADM06",
+      "label": "Weight, kg",
+      "section": "Thông tin nền và hành chính",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ADM07",
+      "label": "BMI",
+      "section": "Thông tin nền và hành chính",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ADM08",
+      "label": "Physician",
+      "section": "Thông tin nền và hành chính",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ADM09",
+      "label": "Nurse",
+      "section": "Thông tin nền và hành chính",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS01",
+      "label": "Pregnancy / Beta-hCG",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS02",
+      "label": "Malignant disease: No / Yes, Specify",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS03",
+      "label": "Other comorbidities: No / Yes, Specify",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS04",
+      "label": "Family Autoimmune Disease History: No / Yes",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS05",
+      "label": "Father / Disease Specify",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS06",
+      "label": "Mother / Disease Specify",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS07",
+      "label": "Brother / Disease Specify",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS08",
+      "label": "Sister / Disease Specify",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS09",
+      "label": "Child / Disease Specify",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS10",
+      "label": "Others / Who? Which diseases?",
+      "section": "Thai kỳ, bệnh đồng mắc và gia đình",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS11",
+      "label": "Fever: Yes / No",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS12",
+      "label": "Temperature, highest, °C",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS13",
+      "label": "Date of onset",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS14",
+      "label": "Type: periodic / prolonged / others",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS15",
+      "label": "History of Infection: Yes / No / Unknown",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS16",
+      "label": "Factor",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS17",
+      "label": "Date of onset",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HIS18",
+      "label": "Date of normalization",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF01",
+      "label": "CMV IgM",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF02",
+      "label": "CMV IgG",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF03",
+      "label": "CMV PCR*",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF04",
+      "label": "HSV 1+2 IgM",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF05",
+      "label": "HSV 1+2 IgG",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF06",
+      "label": "EBV IgM",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF07",
+      "label": "EBV Real-time PCR*",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF08",
+      "label": "HBsAg",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF09",
+      "label": "Anti-HBc total",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF10",
+      "label": "Anti-HBs",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF11",
+      "label": "HCV Ag/Ab",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF12",
+      "label": "HIV Ag/Ab",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "INF13",
+      "label": "QuantiFERON-TB",
+      "section": "Sốt và nhiễm trùng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "TRT01",
+      "label": "Current/previous treatment/vaccination: No / Yes",
+      "section": "Điều trị hiện tại, trước đây và tiêm chủng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "TRT02",
+      "label": "Group: Medication / Vaccine / Other",
+      "section": "Điều trị hiện tại, trước đây và tiêm chủng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "TRT03",
+      "label": "Name",
+      "section": "Điều trị hiện tại, trước đây và tiêm chủng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "TRT04",
+      "label": "Administration route",
+      "section": "Điều trị hiện tại, trước đây và tiêm chủng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "TRT05",
+      "label": "Dose",
+      "section": "Điều trị hiện tại, trước đây và tiêm chủng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "dose_unit",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "dose_basis",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "TRT06",
+      "label": "Frequency",
+      "section": "Điều trị hiện tại, trước đây và tiêm chủng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "TRT07",
+      "label": "Duration",
+      "section": "Điều trị hiện tại, trước đây và tiêm chủng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "TRT08",
+      "label": "Begin date",
+      "section": "Điều trị hiện tại, trước đây và tiêm chủng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "TRT09",
+      "label": "End date",
+      "section": "Điều trị hiện tại, trước đây và tiêm chủng",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN01",
+      "label": "Skin and Mucosal abnormality?",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN02",
+      "label": "Butterfly rash / Malar rash",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN03",
+      "label": "Puffy fingers / Dactylitis",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN04",
+      "label": "Calcinosis",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN05",
+      "label": "Skin sclerosis",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN06",
+      "label": "Alopecia",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN07",
+      "label": "Digital ulcers",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN08",
+      "label": "Oral ulcers",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN09",
+      "label": "Raynaud",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN10",
+      "label": "Cutaneous vasculitis",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN11",
+      "label": "Livedoid vasculopathy",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN12",
+      "label": "V sign",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN13",
+      "label": "Shawl sign",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN14",
+      "label": "Gottron's sign",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN15",
+      "label": "Heliotrope rash",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN16",
+      "label": "Mechanic's hands",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN17",
+      "label": "Inverse Gottron sign",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN18",
+      "label": "Photosensitive rash / Photosensitivity",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SKN19",
+      "label": "Others / Specify",
+      "section": "Da và niêm mạc",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MUS01",
+      "label": "Creatine kinase (CK)",
+      "section": "Cơ",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MUS02",
+      "label": "Muscle damage?: Yes / No / Unknown",
+      "section": "Cơ",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MUS03",
+      "label": "Lactate dehydrogenase (LDH)",
+      "section": "Cơ",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MUS04",
+      "label": "Electromyography (EMG)",
+      "section": "Cơ",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "conclusion",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "performed_date",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MUS05",
+      "label": "Muscle MRI",
+      "section": "Cơ",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "conclusion",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "performed_date",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MUS06",
+      "label": "Others, e.g. muscle biopsy: No / Yes, specify",
+      "section": "Cơ",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "conclusion",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "performed_date",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "JNT01",
+      "label": "Joints damage?: Yes / No / Unknown",
+      "section": "Khớp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "JNT02",
+      "label": "Number of swollen joints",
+      "section": "Khớp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "JNT03",
+      "label": "Number of tender joints",
+      "section": "Khớp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "JNT04",
+      "label": "Visual analogue scale (VAS), /100",
+      "section": "Khớp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "JNT05",
+      "label": "Abnormal X-ray?: Yes / No / Unknown, specify",
+      "section": "Khớp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "conclusion",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "performed_date",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "JNT06",
+      "label": "Abnormal ultrasound?: Yes / No / Unknown, specify",
+      "section": "Khớp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "conclusion",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "performed_date",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "JNT07",
+      "label": "Joint deformity?: Yes / No / Unknown, specify",
+      "section": "Khớp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "JNT08",
+      "label": "Others: No / Yes, specify",
+      "section": "Khớp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN01",
+      "label": "Urine Protein Creatinine Ratio (UPCR)",
+      "section": "Thận",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN02",
+      "label": "Haematuria (RBC in urine)",
+      "section": "Thận",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN03",
+      "label": "Pyuria (WBC in urine)",
+      "section": "Thận",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN04",
+      "label": "Urea",
+      "section": "Thận",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN05",
+      "label": "Creatinine",
+      "section": "Thận",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN06",
+      "label": "Estimated glomerular filtration rate (eGFR), ml/min/1.73 m²",
+      "section": "Thận",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN07",
+      "label": "Kidneys damage?: Yes / No / Unknown",
+      "section": "Thận",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN08",
+      "label": "24 hour Proteinuria",
+      "section": "Thận",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN09",
+      "label": "Albumin",
+      "section": "Thận",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN10",
+      "label": "Renal biopsy: No / Yes",
+      "section": "Thận",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "conclusion",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "performed_date",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN11",
+      "label": "Class I / II / III / IV / V / VI",
+      "section": "Thận",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN12",
+      "label": "IIIA / IVA / IIIC / IVC / IIIA/C / IVA/C",
+      "section": "Thận",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "REN13",
+      "label": "Others: No / Yes, specify",
+      "section": "Thận",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM01",
+      "label": "RBC (T/L): RBC",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM02",
+      "label": "Hb",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM03",
+      "label": "MCV",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM04",
+      "label": "MCHC (g/L)",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM05",
+      "label": "WBC",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM06",
+      "label": "NE",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "absolute_count",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "percentage",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM07",
+      "label": "LY",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "absolute_count",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "percentage",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM08",
+      "label": "MO",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "absolute_count",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "percentage",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM09",
+      "label": "EO",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "absolute_count",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "percentage",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM10",
+      "label": "BA",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "absolute_count",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "percentage",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM11",
+      "label": "PLT",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM12",
+      "label": "Haematological disorders?: Yes / No / Unknown, specify",
+      "section": "Huyết học",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "HEM13",
+      "label": "Direct Coombs test",
+      "section": "Huyết học",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "CV01",
+      "label": "Cardiovascular abnormality (Echocardiography/ECG)?: Yes / No / Unknown",
+      "section": "Tim mạch",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "CV02",
+      "label": "Myocarditis",
+      "section": "Tim mạch",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "CV03",
+      "label": "Pericarditis",
+      "section": "Tim mạch",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "CV04",
+      "label": "Endocarditis",
+      "section": "Tim mạch",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "CV05",
+      "label": "Myocardial infarction",
+      "section": "Tim mạch",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "CV06",
+      "label": "Pericardial effusion",
+      "section": "Tim mạch",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "CV07",
+      "label": "Pulmonary embolism",
+      "section": "Tim mạch",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "CV08",
+      "label": "Elevated Pulmonary artery pressure",
+      "section": "Tim mạch",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "CV09",
+      "label": "Others / Specify",
+      "section": "Tim mạch",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT01",
+      "label": "VC(L)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT02",
+      "label": "FVC(L)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT03",
+      "label": "FEV1 (L)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT04",
+      "label": "FEV1/VC(%)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT05",
+      "label": "FEV1/FVC(%)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT06",
+      "label": "TLC (L) / TLC(L)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT07",
+      "label": "RV(L)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT08",
+      "label": "RV/TLC",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT09",
+      "label": "VA(L) / VA",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT10",
+      "label": "Kco Hb(mL/mmHg/Mi) / Kco Hb (mL/mmHg/Mi)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "PFT11",
+      "label": "DLCO Hb (or TLco)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "pre_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "pre_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_measured",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        },
+        {
+          "component_id": "post_percent_predicted",
+          "parser_implemented": true,
+          "value_type": "decimal"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 4,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "LUNG01",
+      "label": "Lung damage?",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "LUNG02",
+      "label": "Interstitial lung disease (ILD)",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "LUNG03",
+      "label": "HRCT/ILD pattern conclusion",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "conclusion",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "performed_date",
+          "parser_implemented": false,
+          "value_type": "date"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "LUNG04",
+      "label": "Pleuritis / Pleural effusion",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "LUNG05",
+      "label": "Others / Specify",
+      "section": "Phổi và chức năng hô hấp",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "NEU01",
+      "label": "Neuropsychiatric disorders?: Yes / No / Unknown",
+      "section": "Thần kinh và tâm thần",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "NEU02",
+      "label": "Seizures",
+      "section": "Thần kinh và tâm thần",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "NEU03",
+      "label": "Headache",
+      "section": "Thần kinh và tâm thần",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "NEU04",
+      "label": "Psychosis",
+      "section": "Thần kinh và tâm thần",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "NEU05",
+      "label": "Cranial neuropathy",
+      "section": "Thần kinh và tâm thần",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "NEU06",
+      "label": "Cranial arterial/venous embolism",
+      "section": "Thần kinh và tâm thần",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "NEU07",
+      "label": "Others / Specify",
+      "section": "Thần kinh và tâm thần",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI01",
+      "label": "ASAT (GOT)",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI02",
+      "label": "ALAT (GPT)",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI03",
+      "label": "GGT",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI04",
+      "label": "Gastrointestinal disorders?: Yes / No / Unknown",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "source_label_only",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI05",
+      "label": "Constipation",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI06",
+      "label": "Diarrhoea",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI07",
+      "label": "IBD (UC/Crohn)",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI08",
+      "label": "GERD",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI09",
+      "label": "Hepatomegaly",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI10",
+      "label": "Splenomegaly",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI11",
+      "label": "Ulcerative colitis",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI12",
+      "label": "Peptic ulcer",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI13",
+      "label": "Oesophageal dysmotility",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "GI14",
+      "label": "Others / Specify",
+      "section": "Tiêu hóa và gan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "finding"
+        },
+        {
+          "component_id": "detail",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM01",
+      "label": "ANA (pattern)",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        },
+        {
+          "component_id": "titre",
+          "parser_implemented": false,
+          "value_type": "text"
+        },
+        {
+          "component_id": "method",
+          "parser_implemented": false,
+          "value_type": "text"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM02",
+      "label": "Anti CCP",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM03",
+      "label": "RF (Rheumatoid Factor)",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM04",
+      "label": "dsDNA (ImmunoCAP)",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM05",
+      "label": "Anticardiolipin IgG",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM06",
+      "label": "Anticardiolipin IgM",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM07",
+      "label": "Anti-beta2-glycoprotein I IgG",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM08",
+      "label": "Anti-beta2-glycoprotein I IgM",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM09",
+      "label": "Lupus anticoagulant screening (LAC/LA screen)",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM10",
+      "label": "Lupus anticoagulant confirmation (LAC/LA confirm)",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM11",
+      "label": "C3",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM12",
+      "label": "C4",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM13",
+      "label": "IgE",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM14",
+      "label": "IgA",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM15",
+      "label": "IgG",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM16",
+      "label": "IgM",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM17",
+      "label": "IL-6",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM18",
+      "label": "KL-6",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM19",
+      "label": "CRP",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM20",
+      "label": "ESR",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "IMM21",
+      "label": "Ferritin",
+      "section": "Miễn dịch và các xét nghiệm liên quan",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "lab_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 1,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA01",
+      "label": "dsDNA",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA02",
+      "label": "Nucleosome",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA03",
+      "label": "Histone",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA04",
+      "label": "SS-A",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA05",
+      "label": "Ro-52",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA06",
+      "label": "SS-B",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA07",
+      "label": "nRNP/Sm",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA08",
+      "label": "Sm",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA09",
+      "label": "Mi-anpha protein",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA10",
+      "label": "Mi-2 beta protein",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA11",
+      "label": "Ku protein",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA12",
+      "label": "CENP A",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA13",
+      "label": "CENP B",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA14",
+      "label": "Sp100 protein",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA15",
+      "label": "PML protein",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA16",
+      "label": "Scl-70",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA17",
+      "label": "PM-Scl100 protein",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA18",
+      "label": "PM-Scl75 protein",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA19",
+      "label": "RP11",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA20",
+      "label": "RP155",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA21",
+      "label": "Gp210 protein",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA22",
+      "label": "PCNA",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "ANA23",
+      "label": "DFS70",
+      "section": "ANA Profile 23",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO01",
+      "label": "Mi-2 alpha",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO02",
+      "label": "Mi-2 beta",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO03",
+      "label": "TIFI-gamma",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO04",
+      "label": "MDA5",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO05",
+      "label": "SAE1",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO06",
+      "label": "Ku",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO07",
+      "label": "PM-Scl100 protein",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO08",
+      "label": "PM-Scl75 protein",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO09",
+      "label": "Jo-1",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO10",
+      "label": "SRP",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO11",
+      "label": "PL-7",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO12",
+      "label": "PL-12",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO13",
+      "label": "EJ",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO14",
+      "label": "Ro-52",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO15",
+      "label": "cN-1A",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "MYO16",
+      "label": "HMGCR",
+      "section": "Autoimmune Myositis Antibody Panel",
+      "parser_implemented": true,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        },
+        {
+          "component_id": "intensity",
+          "parser_implemented": true,
+          "value_type": "panel_result"
+        }
+      ],
+      "extraction_status": "found",
+      "observations": 2,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC01",
+      "label": "Fever",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC02",
+      "label": "Leukopenia",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC03",
+      "label": "Thrombocytopenia",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC04",
+      "label": "Autoimmune hemolysis",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC05",
+      "label": "Delirium",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC06",
+      "label": "Psychosis",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC07",
+      "label": "Seizure",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC08",
+      "label": "Non-scarring alopecia",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC09",
+      "label": "Oral ulcers",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC10",
+      "label": "Subacute cutaneous OR discoid lupus",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC11",
+      "label": "Acute cutaneous lupus",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC12",
+      "label": "Pleural or pericardial effusion",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC13",
+      "label": "Acute pericarditis",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC14",
+      "label": "Joint involvement",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC15",
+      "label": "Proteinuria >0.5 g/24h",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC16",
+      "label": "Renal biopsy with Class II or V lupus nephritis",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC17",
+      "label": "Renal biopsy with Class III or IV lupus nephritis",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC18",
+      "label": "Anti-cardiolipin OR Anti-beta2GP1 OR Lupus anticoagulant",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC19",
+      "label": "Low C3 OR low C4",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC20",
+      "label": "Low C3 AND low C4",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC21",
+      "label": "Anti-dsDNA OR Anti-Smith",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "EAC22",
+      "label": "SLE: 2019 EULAR/ACR score, Total",
+      "section": "Phân loại SLE theo bảng 2019 EULAR/ACR trong CRF",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA01",
+      "label": "Seizure",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA02",
+      "label": "Psychosis",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA03",
+      "label": "Organic Brain Syndrome",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA04",
+      "label": "Visual Disturbance",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA05",
+      "label": "Cranial Nerve Disorder",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA06",
+      "label": "Lupus Headache",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA07",
+      "label": "CVA (Cerebrovascular Accident)",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA08",
+      "label": "Vasculitis",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA09",
+      "label": "Arthritis",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA10",
+      "label": "Myositis",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA11",
+      "label": "Urinary Casts",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA12",
+      "label": "Hematuria",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA13",
+      "label": "Proteinuria",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA14",
+      "label": "Pyuria",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA15",
+      "label": "Rash",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA16",
+      "label": "Alopecia",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA17",
+      "label": "Mucosal Ulcers",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA18",
+      "label": "Pleurisy",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA19",
+      "label": "Pericarditis",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA20",
+      "label": "Low Complement",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA21",
+      "label": "Increased DNA binding",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA22",
+      "label": "Fever",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA23",
+      "label": "Thrombocytopenia",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA24",
+      "label": "Leukopenia",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    },
+    {
+      "field_id": "SDA25",
+      "label": "SLEDAI-2K score, Total",
+      "section": "Đánh giá hoạt động bệnh SLEDAI-2K",
+      "parser_implemented": false,
+      "components": [
+        {
+          "component_id": "result",
+          "parser_implemented": false,
+          "value_type": "recorded_assessment"
+        }
+      ],
+      "extraction_status": "not_processed",
+      "observations": 0,
+      "choices_status": "not_specified_in_catalog_label",
+      "semantic_review_status": "draft_requires_domain_review"
+    }
+  ]
+}
