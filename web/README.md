@@ -1,11 +1,10 @@
 # Lupiva: Intelligent SLE Clinical Registry & Patient Companion Platform
 
-[![Vinmec Innovation Challenge 2026](https://img.shields.io/badge/Project-Vinmec%20Innovation%20Challenge%202026-blue.svg)](https://vinmec.com)
 [![Domain](https://img.shields.io/badge/Domain-Clinical%20Immunology%20%26%20Allergy-purple.svg)]()
 [![Status](https://img.shields.io/badge/Status-Interactive%20Prototype-teal.svg)]()
 [![AI Architecture](https://img.shields.io/badge/AI-Physician--in--the--Loop%20(HITL)-orange.svg)]()
 
-> **Lupiva** is a clinical registry and patient companion web application tailored for **Systemic Lupus Erythematosus (SLE)**. Built for the **Vinmec Innovation Challenge 2026**, Lupiva bridges patient document submission, Physician-in-the-Loop (HITL) lab report OCR, standardized electronic Case Report Forms (**e-CRF**), and automated **2019 EULAR/ACR** & **SLEDAI-2K** clinical scoring.
+> **Lupiva** is a clinical registry and patient companion web application tailored for **Systemic Lupus Erythematosus (SLE)**. Lupiva bridges patient document submission, Physician-in-the-Loop (HITL) lab report OCR, standardized electronic Case Report Forms (**e-CRF**), and automated **2019 EULAR/ACR** & **SLEDAI-2K** clinical scoring.
 
 ---
 
@@ -121,28 +120,6 @@ npm run build
 
 ---
 
-## Roadmap & Milestones (Vinmec Innovation Challenge 2026)
-
-| Phase | Date | Milestone / Deliverable | Status |
-| :--- | :--- | :--- | :---: |
-| **Week 2** | **Nov 10, 2026** | Complete Clinical CRF schema & Lab Result Extraction engine | ✅ Implemented in Prototype |
-| | **Nov 11, 2026** | **Abstract Submission Deadline** - *Vinmec Innovation Challenge* | ✅ Submitted |
-| **Week 3** | **Nov 18, 2026** | SLE Registry Web Prototype Completion | 🔄 Active Refinement |
-| | **Nov 22, 2026** | **Pitch Deck / Slide Submission Deadline** | 🎯 Upcoming |
-| | *TBD* | **ROI & Clinical Feasibility Review** with the Practical AI Evaluation Board | 📅 Pending |
-| **Week 4** | **Nov 25, 2026** | SLE Registry Platform V1.0 Finalized | 📅 Scheduled |
-| | **Nov 28–29, 2026** | **Final Onsite Project Pitch & Defense** at Vinmec Innovation Challenge | 🏆 Final |
-
----
-
-## Strategic Vision & Long-Term Clinical Impact
-
-* **High-Quality Real-World Evidence (RWE)**: Transforms unstructured hospital visits into a structured, longitudinal SLE cohort dataset for clinical research and drug response monitoring.
-* **Scalable Care Model**: Integrates Vinmec's Clinical Immunology & Allergy department with community patients, expanding specialist reach while lowering emergency flare-up admissions.
-* **Defensible ROI**: Reduces clinical data entry burden via confidence-triaged OCR parsing while preserving strict physician oversight and patient engagement.
-
----
-
 ## Medical Disclaimer & Data Ethics
 
 > **Medical Disclaimer:** *Lupiva is a clinical support and educational tool. The AI component operates strictly under physician supervision and is NOT a substitute for emergency care or independent diagnostic judgment.*  
@@ -152,7 +129,7 @@ npm run build
 
 ## Contributors & Collaboration
 
-Developed with guidance and clinical insights from specialists in **Clinical Immunology & Allergy**, submitted for the **Vinmec Innovation Challenge 2026**.
+Developed with guidance and clinical insights from specialists in **Clinical Immunology & Allergy**.
 
 * Repository: [https://github.com/dlvanh/Lupiva](https://github.com/dlvanh/Lupiva)
 * Members: [@dlvanh](https://github.com/dlvanh), [@phamkien_1](https://github.com/pvksssss), [@VietHoang04-sys](https://github.com/VietHoang04-sys)
