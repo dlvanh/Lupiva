@@ -87,7 +87,7 @@ describe("public site pages", () => {
     for (const text of [
       "Lupus ban đỏ hệ thống là gì?", "Quyền lợi", "Cơ hội trao đổi với bác sĩ chuyên khoa",
       "Dùng email/số điện thoại để tạo tài khoản", "Đồng ý tham gia (ký chấp thuận)", "rút khỏi dự án",
-      "Tôi tham gia có mất phí không?", "miễn phí", "Ai được quyền xem hồ sơ của tôi?", "giả danh hóa",
+      "Tôi tham gia có mất phí không?", "tự nguyện và miễn phí", "Ai được quyền xem hồ sơ của tôi?", "giả danh hóa",
       "Thời gian nộp hồ sơ mất bao lâu?", "Thời gian gửi mỗi tài liệu mất vài phút.", "Hồ sơ của tôi dùng vào việc gì?",
       "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.", "Bắt đầu tham gia",
     ]) {

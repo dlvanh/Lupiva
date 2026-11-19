@@ -430,7 +430,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       faqTitle: "Frequently asked questions",
       // TODO: research team to confirm wording
       faq: [
-        { question: "Does it cost anything to take part?", answer: "Taking part in the project is free." },
+        { question: "Does it cost anything to take part?", answer: "Taking part in the project is voluntary and completely free." },
         { question: "Who is authorized to see my records?", answer: "The project’s specialists can review your records. The research data is pseudonymized, which means it uses codes in place of identifying details." },
         { question: "How long does submitting records take?", answer: "Sending each document takes a few minutes." },
         { question: "What will my records be used for?", answer: "Specialists review the records, and the project uses the data to study how lupus changes over time and how people respond to treatment." },
@@ -774,7 +774,7 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       faqTitle: "Câu hỏi thường gặp",
       // TODO: research team to confirm wording
       faq: [
-        { question: "Tôi tham gia có mất phí không?", answer: "Tham gia dự án là miễn phí." },
+        { question: "Tôi tham gia có mất phí không?", answer: "Việc tham gia dự án là hoàn toàn tự nguyện và miễn phí." },
         { question: "Ai được quyền xem hồ sơ của tôi?", answer: "Các bác sĩ chuyên khoa của dự án có thể xem hồ sơ bạn gửi. Dữ liệu nghiên cứu được giả danh hóa, tức là dùng mã số thay cho thông tin nhận diện." },
         { question: "Thời gian nộp hồ sơ mất bao lâu?", answer: "Thời gian gửi mỗi tài liệu mất vài phút." },
         { question: "Hồ sơ của tôi dùng vào việc gì?", answer: "Bác sĩ xem hồ sơ và dự án dùng dữ liệu để tìm hiểu bệnh lupus thay đổi theo thời gian ra sao và người bệnh đáp ứng với điều trị thế nào." },
