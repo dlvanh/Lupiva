@@ -5,14 +5,15 @@
  * answers (approved value, else source value, else the proposal itself) plus a
  * note outside each cell on where the answer came from. Read-only: a doctor
  * changes a value on "Duyệt hồ sơ" (/registry); clicking a value opens it there.
- * Score totals come from the backend (/api/crf/scores, compute only) using the
- * approved criteria.
+ * Official scores come from the review, with a compute-only backend fallback
+ * for approved criteria on older reviews.
  */
 import Link from "next/link";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLupiva } from "@/context/LupivaContext";
 import { CrfFormTitle } from "@/components/CrfDossierStatus";
+import { CrfScoreSummary } from "@/components/CrfScoreSummary";
 import { UiIcon } from "@/components/UiIcon";
 import { useCrfCases } from "@/components/upload/CrfAdminFacts";
 import { getSubmissionStatus } from "@/data/crfData";
@@ -21,6 +22,7 @@ import type { CrfField } from "@/lib/crfApproval";
 import { parseSlot } from "@/lib/crfSlot";
 import { linkedCases, withoutHidden, type CrfViewWithSources } from "@/lib/crfEvidence";
 import { dashboardPatient } from "@/lib/doctorDashboard";
+import { computeProvisionalScores, type ScoreForm, type ScoreReview } from "@/lib/provisionalScores";
 import { useWebCaseIdentities, webCaseLabel, type IntakeJob } from "@/lib/webCaseIdentities";
 import {
   approvedCriteria,
@@ -37,15 +39,14 @@ import {
 } from "@/lib/crfForm";
 
 type CaseItem = { case_id: string; registry_code: string };
-type ScoreRow = { field_id: string; label: string; weight: number; definition?: string };
 type FormView = CrfViewWithSources & {
   layout?: LayoutBlock[];
-  score_form?: Record<string, ScoreRow[]>;
+  score_form?: ScoreForm;
+  review: (NonNullable<CrfViewWithSources["review"]> & { scores?: ScoreReview }) | null;
 };
-type Summary = { total: number | null; missing: number; classification?: string };
 type CheckboxSpec = { text?: string; checkbox_values?: string[] };
 
-const scoreCriteriaIds = (form: Record<string, ScoreRow[]> | undefined) =>
+const scoreCriteriaIds = (form: ScoreForm | undefined) =>
   Object.values(form ?? {})
     .flat()
     .map((row) => row.field_id)
@@ -143,6 +144,7 @@ function Checkboxes({ spec, shown, onPick }: { spec: CheckboxSpec; shown: Shown 
 
 export default function CrfFormPage() {
   const { currentUser, language } = useLupiva();
+  const isVi = language === "vi";
   const isSpecialist = currentUser?.role === "specialist";
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [intakeJobs, setIntakeJobs] = useState<IntakeJob[]>([]);
@@ -150,7 +152,7 @@ export default function CrfFormPage() {
   const [view, setView] = useState<FormView | null>(null);
   const [showEmpty, setShowEmpty] = useState(false);
   const [ana, setAna] = useState<"" | "yes" | "no">("");
-  const [summaries, setSummaries] = useState<Record<string, Summary> | null>(null);
+  const [computedOfficialSummaries, setComputedOfficialSummaries] = useState<ScoreReview["summaries"]>();
   const [scoreError, setScoreError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -179,7 +181,7 @@ export default function CrfFormPage() {
     const version = ++loadVersion.current;
     setCaseId(id);
     setView(null);
-    setSummaries(null);
+    setComputedOfficialSummaries(undefined);
     setScoreError(null);
     setError(null);
     setNotice(null);
@@ -194,17 +196,15 @@ export default function CrfFormPage() {
       setWaiting(
         raw.fields.filter((field) => (field.options.length > 0 || field.proposal) && !reviewed[field.slot]).length,
       );
-      const next: FormView = {
-        ...raw,
-        fields: raw.fields.map((field) => ({ ...field, options: [], proposal: undefined })),
-      };
       const initial: Record<string, string> = {};
-      for (const field of next.fields) {
-        const shown = shownValue(field, next.review?.values);
-        if (shown) initial[field.slot] = shown.value;
+      for (const field of raw.fields) {
+        const saved = reviewed[field.slot];
+        if (saved) initial[field.slot] = saved.value;
       }
+      const reviewedAna = raw.review?.scores?.assessment?.ana;
+      setAna(reviewedAna === "yes" || reviewedAna === "no" ? reviewedAna : "");
       setEdits(initial);
-      setView(next);
+      setView(raw);
     } catch (reason) {
       if (version === loadVersion.current) setError((reason as Error).message);
     } finally {
@@ -230,41 +230,50 @@ export default function CrfFormPage() {
   }, [isSpecialist, load]);
 
   const approved = view?.review?.values;
-  const fieldsBySlot = useMemo(() => new Map((view?.fields ?? []).map((field) => [field.slot, field])), [view]);
+  const formFields = useMemo<CrfField[]>(
+    () => (view?.fields ?? []).map((field) => ({ ...field, options: [], proposal: undefined })),
+    [view],
+  );
+  const fieldsBySlot = useMemo(() => new Map(formFields.map((field) => [field.slot, field])), [formFields]);
+  const provisionalScores = useMemo(() => view?.score_form ? computeProvisionalScores(view) : null, [view]);
+  const officialScores = view?.review?.scores;
+  const officialAna = officialScores?.assessment?.ana ?? "";
+  const officialDate = officialScores?.assessment?.date || view?.score_default_date || "";
+  const summaries = officialScores?.summaries ?? computedOfficialSummaries;
   const placement = useMemo(
     () =>
       view?.layout
-        ? placeFields(view.layout, view.fields, approved, showEmpty, new Set(scoreCriteriaIds(view.score_form)))
+        ? placeFields(view.layout, formFields, approved, showEmpty, new Set(scoreCriteriaIds(view.score_form)))
         : null,
-    [view, approved, showEmpty],
+    [view, formFields, approved, showEmpty],
   );
 
-  // Totals from the backend, counting only criteria the doctor has approved.
+  // Older reviews may need totals computed from their approved values.
   useEffect(() => {
-    if (!view?.score_form || !caseId) return;
+    if (!view?.score_form || !caseId || officialScores?.summaries) return;
     let cancelled = false;
-    const criteria = approvedCriteria(view.score_form, approved);
-    backend<{ summaries: Record<string, Summary> }>("/api/crf/scores", undefined, {
+    const criteria = { ...approvedCriteria(view.score_form, approved), ...officialScores?.assessment?.criteria };
+    backend<{ summaries: NonNullable<ScoreReview["summaries"]> }>("/api/crf/scores", undefined, {
       case_id: caseId,
       source_snapshot: view.source_snapshot,
-      assessment: { ana, date: view.score_default_date ?? "", criteria },
+      assessment: { ana: officialAna, date: officialDate, criteria },
     })
       .then((report) => {
         if (cancelled) return;
-        setSummaries(report.summaries);
+        setComputedOfficialSummaries(report.summaries);
         setScoreError(null);
       })
       .catch((reason: Error) => { if (!cancelled) setScoreError(reason.message); });
     return () => { cancelled = true; };
-  }, [view, approved, ana, caseId]);
+  }, [view, approved, officialScores, officialAna, officialDate, caseId]);
 
   const counts = useMemo(() => {
-    const shown = (view?.fields ?? []).map((field) => shownValue(field, approved)).filter(Boolean) as Shown[];
+    const shown = formFields.map((field) => shownValue(field, approved)).filter(Boolean) as Shown[];
     return {
       approved: shown.filter((item) => item.kind === "approved").length,
       pending: shown.filter((item) => item.kind !== "approved").length,
     };
-  }, [view, approved]);
+  }, [formFields, approved]);
 
   if (currentUser && !isSpecialist) {
     return (
@@ -329,7 +338,7 @@ export default function CrfFormPage() {
       const selections: Record<string, string> = {};
       const manual: Record<string, string> = {};
       const criteria: Record<string, string> = {};
-      for (const field of view.fields) {
+      for (const field of formFields) {
         const value = (edits[field.slot] ?? "").trim();
         const { fieldId: fid, instance } = parseSlot(field.slot);
         if (!value || fid === "EAC22" || fid === "SDA25") continue;
@@ -344,14 +353,14 @@ export default function CrfFormPage() {
         if (option) selections[field.slot] = option.id;
         else if (!field.choices.length) manual[field.slot] = value;
       }
-      const scored = Object.keys(criteria).length > 0 || ana !== "";
+      const scored = Object.keys(criteria).length > 0 || ana !== officialAna;
       await backend("/api/crf/approve", undefined, {
         case_id: caseId,
         source_snapshot: view.source_snapshot,
         draft_sha256: view.draft_sha256,
         selections,
         manual_values: manual,
-        ...(scored ? { score_assessment: { ana, date: view.score_default_date ?? "", criteria } } : {}),
+        ...(scored ? { score_assessment: { ana, date: officialDate, criteria } } : {}),
       });
       await load(caseId);
       setNotice(
@@ -500,10 +509,7 @@ export default function CrfFormPage() {
             className="rounded border border-slate-300 px-2 py-1 text-sm"
             value={caseId}
             disabled={saving}
-            onChange={(event) => {
-              setAna("");
-              void load(event.target.value);
-            }}
+            onChange={(event) => void load(event.target.value)}
           >
             <option value="">{language === "vi" ? "Chọn bệnh nhân…" : "Choose a patient…"}</option>
             {patientCases.map((item) => {
@@ -614,45 +620,38 @@ export default function CrfFormPage() {
         </article>
       )}
 
-      {view?.score_form && (
+      {provisionalScores && (
         <article className="mt-6 rounded border border-slate-300 bg-white p-6 text-sm print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-bold">Chấm điểm EULAR/ACR 2019 và SLEDAI-2K</h2>
+            <h2 className="text-base font-bold">
+              {isVi ? "Chấm điểm EULAR/ACR 2019 và SLEDAI-2K" : "EULAR/ACR 2019 and SLEDAI-2K scoring"}
+            </h2>
             <label className="flex items-center gap-2 text-sm print:hidden">
-              Tiêu chí vào ANA ≥ 1:80
+              {isVi ? "Tiêu chí vào ANA ≥ 1:80" : "ANA ≥ 1:80 entry criterion"}
               <select
                 className="rounded border border-slate-300 px-2 py-1"
                 value={ana}
                 onChange={(event) => setAna(event.target.value as "" | "yes" | "no")}
               >
-                <option value="">Chưa xác nhận</option>
-                <option value="yes">Có</option>
-                <option value="no">Không</option>
+                <option value="">{isVi ? "Chưa xác nhận" : "Unconfirmed"}</option>
+                <option value="yes">{isVi ? "Có" : "Yes"}</option>
+                <option value="no">{isVi ? "Không" : "No"}</option>
               </select>
             </label>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Tiêu chí EULAR được tích trong bảng của mẫu; SLEDAI-2K chỉ in tổng. Tổng điểm do backend tính từ các tiêu
-            chí đã duyệt ở Duyệt hồ sơ. Ngày đánh giá SLEDAI: {view.score_default_date || "—"}.
+            {isVi
+              ? "Tiêu chí EULAR được đánh dấu trong mẫu in. SLEDAI-2K chỉ in tổng điểm. Ngày đánh giá SLEDAI"
+              : "The printed form marks each EULAR criterion and shows the SLEDAI-2K total. SLEDAI assessment date"}
+            {" · "}{officialDate || "—"}
           </p>
           {scoreError && <p className="mt-2 text-xs text-red-700">{scoreError}</p>}
-          {Object.keys(view.score_form).map((group) => {
-            const summary = summaries?.[group];
-            return (
-              <div key={group} className="mt-4">
-                <h3 className="font-semibold">
-                  {group === "eular" ? "EULAR/ACR 2019" : "SLEDAI-2K"} ·{" "}
-                  {summary?.total != null ? (
-                    <span className="font-mono">{summary.total} điểm</span>
-                  ) : (
-                    <span className="text-amber-700 print:hidden">
-                      chưa đủ để tính{summary ? ` (còn ${summary.missing} tiêu chí chưa duyệt)` : ""}
-                    </span>
-                  )}
-                </h3>
-              </div>
-            );
-          })}
+          <CrfScoreSummary
+            provisional={provisionalScores}
+            official={summaries}
+            officialAna={officialAna}
+            language={language}
+          />
         </article>
       )}
     </main>

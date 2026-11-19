@@ -15,6 +15,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { DossierApprovalNotice, ViewCrfLink } from "@/components/CrfDossierStatus";
+import { CrfScoreSummary } from "@/components/CrfScoreSummary";
 import { UiIcon } from "@/components/UiIcon";
 import { useLupiva } from "@/context/LupivaContext";
 import { getSubmissionStatus } from "@/data/crfData";
@@ -50,15 +51,15 @@ import {
   withoutHidden,
 } from "@/lib/crfEvidence";
 import { parseSlot } from "@/lib/crfSlot";
+import { computeProvisionalScores, type ScoreForm, type ScoreReview } from "@/lib/provisionalScores";
 import type { SubmissionItemDTO } from "@/lib/submissionsService";
 import { useWebCaseIdentities, type IntakeJob } from "@/lib/webCaseIdentities";
 import { clearCrfViewCache } from "@/components/upload/CrfAdminFacts";
 
 type CaseItem = { case_id: string; registry_code: string };
-type ScoreRow = { field_id: string; label: string; weight: number; definition?: string };
 type ReviewView = CrfViewWithSources & {
-  score_form?: Record<string, ScoreRow[]>;
-  review: (CrfViewWithSources["review"] & { scores?: { assessment?: { ana?: string; date?: string } } }) | null;
+  score_form?: ScoreForm;
+  review: (NonNullable<CrfViewWithSources["review"]> & { scores?: ScoreReview }) | null;
 };
 type Answer = "yes" | "no";
 const TOTALS = new Set(["EAC22", "SDA25"]);
@@ -1034,6 +1035,12 @@ export default function RegistryCrfPage() {
                     />
                   </label>
                 </div>
+                <CrfScoreSummary
+                  provisional={computeProvisionalScores(view)}
+                  official={view.review?.scores?.summaries}
+                  officialAna={view.review?.scores?.assessment?.ana}
+                  language={language}
+                />
                 {Object.entries(view.score_form).map(([group, scoreRows]) => (
                   <details key={group} className="mt-3" open>
                     <summary className="cursor-pointer text-sm font-semibold text-slate-700">
