@@ -9,7 +9,6 @@ export const SITE_NAME = "Vietnam Lupus Registry";
 
 export const SITE_PAGES = [
   { href: "/", vi: "Trang chủ", en: "Home", id: "nav-link-home" },
-  { href: "/gioi-thieu", vi: "Về Registry", en: "About the Registry", id: "nav-link-about" },
   { href: "/benh-nhan", vi: "Cho bệnh nhân", en: "For patients", id: "nav-link-patients" },
   { href: "/lien-he", vi: "Liên hệ", en: "Contact", id: "nav-link-contact" },
 ] as const;

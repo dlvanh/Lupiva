@@ -135,15 +135,16 @@ describe("public site pages", () => {
     expect(contact).toContain("Assoc. Prof. Dr. Nguyen Van Dinh");
   });
 
-  it("menu: 4 public pages (Trang chủ, Về Registry, Cho bệnh nhân, Liên hệ) and no doctor button beside sign-in", () => {
+  it("menu: 3 public pages (Trang chủ, Cho bệnh nhân, Liên hệ) without Về Registry and no doctor button beside sign-in", () => {
     const markup = renderToStaticMarkup(<Navbar />);
     expect(markup).toContain("Vietnam Lupus Registry");
     expect(markup).not.toMatch(/>Lupiva</);
-    for (const href of ["/", "/gioi-thieu", "/benh-nhan", "/lien-he"]) {
+    for (const href of ["/", "/benh-nhan", "/lien-he"]) {
       expect(markup).toContain(`href="${href}"`);
     }
+    expect(markup).not.toContain('href="/gioi-thieu"');
+    expect(markup).not.toContain("Về Registry");
     expect(markup).not.toContain('href="/upload"');
-    expect(markup.indexOf('href="/gioi-thieu"')).toBeLessThan(markup.indexOf('href="/benh-nhan"'));
     expect(markup.indexOf('href="/benh-nhan"')).toBeLessThan(markup.indexOf('href="/lien-he"'));
     expect(markup).not.toContain('id="nav-btn-doctor"');
     expect(markup).not.toContain('href="/login?role=specialist"');
