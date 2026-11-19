@@ -305,9 +305,6 @@ export function HomeSections() {
             <Link href="/benh-nhan" className="hover:text-teal-800">
               {home.patientsBtn}
             </Link>
-            <Link href="/lien-he" className="hover:text-teal-800">
-              {content.contact.title}
-            </Link>
             <Link href="/login?role=specialist" className="hover:text-teal-800">
               {home.doctorBtn}
             </Link>
