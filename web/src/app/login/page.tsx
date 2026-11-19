@@ -176,7 +176,7 @@ function LoginFormContent({
           : await registerAccount({
               fullName: fullName.trim(),
               phone: phone.trim(),
-              otpCode: otpRequired ? otpCode.trim() : undefined,
+              otpCode: otpCode.trim(),
               email: email.trim() || undefined,
               password,
               role: "patient",
