@@ -609,6 +609,48 @@ describe("Lupiva Auth, Sessions, RBAC, Rate Limit & Proxy Integration", () => {
     }
   });
 
+  it("registers a patient with phone only when NEXT_PUBLIC_OTP_REQUIRED=false", async () => {
+    const prev = process.env.NEXT_PUBLIC_OTP_REQUIRED;
+    process.env.NEXT_PUBLIC_OTP_REQUIRED = "false";
+    try {
+      const res = await registerPost(
+        buildJsonRequest("/api/auth/register", {
+          fullName: "Le Thi Hoa",
+          phone: "0987654321",
+          password: "PatientSecure#2026",
+          role: "patient",
+          consentChecked: true,
+        })
+      );
+      expect(res.status).toBe(201);
+
+      const dup = await registerPost(
+        buildJsonRequest("/api/auth/register", {
+          fullName: "Someone Else",
+          phone: "+84987654321",
+          password: "PatientSecure#2026",
+          role: "patient",
+          consentChecked: true,
+        })
+      );
+      expect(dup.status).toBe(409);
+    } finally {
+      if (prev === undefined) delete process.env.NEXT_PUBLIC_OTP_REQUIRED;
+      else process.env.NEXT_PUBLIC_OTP_REQUIRED = prev;
+    }
+
+    const blocked = await registerPost(
+      buildJsonRequest("/api/auth/register", {
+        fullName: "Pham Van Nam",
+        phone: "0977111222",
+        password: "PatientSecure#2026",
+        role: "patient",
+        consentChecked: true,
+      })
+    );
+    expect(blocked.status).toBe(400);
+  });
+
   it("protects /ocr, /crf, and /scores in Next.js 16 proxy when session cookie is missing", () => {
     const unauthReq = new NextRequest("http://localhost:3000/ocr?tab=1");
     const redirectRes = proxy(unauthReq);
