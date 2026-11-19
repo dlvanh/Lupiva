@@ -7,7 +7,7 @@ import AboutPage from "@/app/gioi-thieu/page";
 import PatientsPage from "@/app/benh-nhan/page";
 import ContactPage from "@/app/lien-he/page";
 import LoginPage from "@/app/login/page";
-import { Navbar } from "@/components/Navbar";
+import { Navbar, logoutAndGoHome } from "@/components/Navbar";
 import { TRANSLATIONS, type Language } from "@/data/translations";
 
 const state = vi.hoisted(() => ({
@@ -166,5 +166,24 @@ describe("public site pages", () => {
     expect(markup).toContain('id="login-password-hint"');
     expect(markup).not.toContain('id="login-input-invite-code"');
     expect(markup).not.toContain('id="login-tab-specialist"');
+  });
+
+  it("redirects to home page (/) on sign-out for any role", async () => {
+    for (const role of ["patient", "specialist"] as const) {
+      state.currentUser = { role, consentSigned: true };
+      const markup = renderToStaticMarkup(<Navbar />);
+      expect(markup).toContain('id="nav-btn-signout"');
+
+      const events: string[] = [];
+      const logout = vi.fn(async () => {
+        events.push("logout");
+      });
+      const replace = vi.fn((href: string) => {
+        events.push(`replace:${href}`);
+      });
+
+      await logoutAndGoHome(logout, { replace });
+      expect(events).toEqual(["logout", "replace:/"]);
+    }
   });
 });
