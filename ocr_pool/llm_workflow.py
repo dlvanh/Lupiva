@@ -362,7 +362,9 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
         if doc['privacy'].get('direct_llm'):
             direct_dates, direct_headers = [], []
             for fact_index, fact in enumerate(header_facts(result['extraction'])):
-                eid = ev(-2-fact_index, dict(source_label=fact['label_raw'], raw_result=fact['value_raw']))
+                # The header box (0–1000 on the outgoing image) becomes the review outline.
+                eid = ev(-2-fact_index, dict(source_label=fact['label_raw'], raw_result=fact['value_raw'],
+                                             row_box=fact.pop('box', None)))
                 rid = tid+'HEADER'+str(fact_index).zfill(3)
                 prefix = fact['label_raw'] + ': '
                 fact_raw = prefix + fact['value_raw']

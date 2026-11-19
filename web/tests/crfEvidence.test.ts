@@ -118,6 +118,20 @@ describe("withoutHidden", () => {
     };
     expect(withoutHidden(view).fields.map((f) => f.slot)).toEqual(["IMM01/result", "IMM01/titre"]);
   });
+
+  it("drops LLM and rule proposals: the review shows only values read from the documents", async () => {
+    const { withoutHidden } = await import("@/lib/crfEvidence");
+    const view = {
+      fields: [field({ slot: "CV01/result", proposal: { id: "p1", value: "no", origin: "llm", reason: "Suy luận" } })],
+      review: null,
+      source_snapshot: "s",
+      draft_sha256: "d",
+    };
+    expect(withoutHidden(view).fields[0].proposal).toBeUndefined();
+    expect(withoutHidden(view).fields[0].slot).toBe("CV01/result");
+    const bmi = { ...view, fields: [field({ slot: "ADM07/result", proposal: { id: "b", value: "25.4", origin: "calculated" } })] };
+    expect(withoutHidden(bmi).fields[0].proposal?.value).toBe("25.4");
+  });
 });
 
 describe("linkedCases", () => {
@@ -127,5 +141,19 @@ describe("linkedCases", () => {
   });
   it("keeps the case currently open even when it has no web submission", () => {
     expect(linkedCases(cases, new Set(["b"]), "c").map((c) => c.case_id)).toEqual(["b", "c"]);
+  });
+});
+
+describe("adminPrefill", () => {
+  it("ticks background/administrative fields that have exactly one source value or a calculated BMI", async () => {
+    const { adminPrefill } = await import("@/lib/crfEvidence");
+    const fields = [
+      field({ slot: "ADM03/result", section: "Administrative", options: [{ id: "o1", value: "Female" }] }),
+      field({ slot: "ADM06/result", section: "Administrative", options: [{ id: "a", value: "52 kg" }, { id: "b", value: "54 kg" }] }),
+      field({ slot: "ADM07/result", section: "Administrative", proposal: { id: "bmi", value: "25.4", origin: "calculated" } }),
+      field({ slot: "ADM05/result", section: "Administrative", options: [{ id: "h", value: "143 cm" }] }),
+      field({ slot: "CBC01/result", section: "Haematology", options: [{ id: "c", value: "4.2" }] }),
+    ];
+    expect(adminPrefill(fields, { "ADM05/result": true })).toEqual({ "ADM03/result": "o1", "ADM07/result": "bmi" });
   });
 });

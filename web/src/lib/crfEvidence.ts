@@ -44,8 +44,23 @@ export type CrfViewWithSources = CrfView & { sources?: Record<string, SourceDeta
  */
 export const HIDDEN_SLOTS = new Set(["IMM01/method"]);
 
+/**
+ * Also drops LLM and rule proposals (clinical Yes/No answers, score criteria):
+ * the review collects only values read from the documents, values calculated
+ * from them (BMI), or values entered by the doctor.
+ */
 export function withoutHidden<T extends CrfView>(view: T): T {
-  return { ...view, fields: view.fields.filter((field) => !HIDDEN_SLOTS.has(parseSlot(field.slot).baseSlot)) };
+  return {
+    ...view,
+    fields: view.fields
+      .filter((field) => !HIDDEN_SLOTS.has(parseSlot(field.slot).baseSlot))
+      .map((field) => {
+        if (!field.proposal || field.proposal.origin === "calculated") return field;
+        const rest = { ...field };
+        delete rest.proposal;
+        return rest;
+      }),
+  };
 }
 
 const DATE_KIND: Record<string, string> = {
@@ -132,6 +147,22 @@ export function singleSourceSelections(fields: readonly CrfField[]): Record<stri
   const result: Record<string, string> = {};
   for (const field of fields) {
     if (reviewGroup(field) === "source") result[field.slot] = field.options[0].id;
+  }
+  return result;
+}
+
+/**
+ * Pre-ticks the background/administrative group (sex, age, height, weight,
+ * BMI, physician, nurse…) when the documents give exactly one value, or BMI
+ * was calculated from them. Conflicting values stay for the doctor; nothing
+ * is stored until "Duyệt các ô đã chọn".
+ */
+export function adminPrefill(fields: readonly CrfField[], approved: Readonly<Record<string, unknown>>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const field of fields) {
+    if (approved[field.slot] || crfSectionGroup(field) !== "admin") continue;
+    if (field.options.length === 1) result[field.slot] = field.options[0].id;
+    else if (!field.options.length && field.proposal?.origin === "calculated") result[field.slot] = field.proposal.id;
   }
   return result;
 }

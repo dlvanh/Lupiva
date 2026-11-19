@@ -29,7 +29,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def api_result():
     record = result()
     record['extraction']['header_facts'] = [
-        dict(key=key, label_raw=label, value_raw=value) for key, label, value in (
+        dict(key=key, label_raw=label, value_raw=value, box=[100, 50, 400, 80] if key == 'sex' else None)
+        for key, label, value in (
             ('sample_date', 'Ngày lấy mẫu', '19/03/2025 07:35'),
             ('result_date', 'Result date', '2025-03-20'),
             ('sex', 'Giới tính', 'Nữ'), ('age', 'Age', '42 years'),
@@ -148,6 +149,11 @@ class DirectLlmTests(unittest.TestCase):
             self.assertFalse(any('conflict' in f or 'ocr_number_disagrees' == f for f in entry['flags']))
         package = verify_bundle(bundle, DICTIONARY)
         self.assertEqual(len(package['observations']), 7)
+        header_boxes = [((e['source_data'].get('region') or {}).get('llm_row_location') or {}).get('box')
+                        for e in package['evidence'] if e['source_data'].get('evidence_kind') == 'metadata']
+        self.assertIn([100, 50, 400, 80], header_boxes)
+        self.assertEqual(sum(box is not None for box in header_boxes), 1)
+        self.assertNotIn('box', facts['result_date'])
         self.assertEqual(read(self.root/'direct/provenance.json')['documents'][0]['local_source_date_status'], 'direct_llm')
 
     def test_api_values_reach_patient_crf_candidates_without_approval(self):

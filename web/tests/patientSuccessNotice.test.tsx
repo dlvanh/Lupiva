@@ -53,10 +53,16 @@ function renderUpload() {
   return PatientUploadView({ embedded: context.currentUser.role === "specialist" });
 }
 
-function selectFiles(files: File[], id = "upload-file-input") {
+function pickFiles(files: File[], id = "upload-file-input") {
   const input = findElement(renderUpload(), (element) => element.props.id === id) as
     ReactElement<{ onChange: React.ChangeEventHandler<HTMLInputElement> }>;
   input.props.onChange({ target: { files, value: "" } } as unknown as React.ChangeEvent<HTMLInputElement>);
+}
+
+/** Picks files and waits until the images have been read into memory. */
+async function selectFiles(files: File[], id = "upload-file-input") {
+  pickFiles(files, id);
+  await new Promise((resolve) => setTimeout(resolve, 100));
 }
 
 async function submitFiles(result: { id: string; filesUploaded?: boolean } | null) {
@@ -64,7 +70,7 @@ async function submitFiles(result: { id: string; filesUploaded?: boolean } | nul
   const files = context.currentUser.role === "patient"
     ? ["result1.jpg", "result2.jpg"].map((name) => new File(["sample"], name, { type: "image/jpeg" }))
     : [new File(["sample"], "result.pdf", { type: "application/pdf" })];
-  selectFiles(files);
+  await selectFiles(files);
 
   const form = findElement(renderUpload(), (element) => element.type === "form") as
     ReactElement<{ onSubmit: (event: React.FormEvent) => Promise<void> }>;
@@ -92,6 +98,25 @@ beforeEach(() => {
 });
 
 describe("patient upload confirmation", () => {
+  it("keeps Gửi hồ sơ disabled until every picked image has been read", async () => {
+    pickFiles([new File(["sample"], "slow.jpg", { type: "image/jpeg" })]);
+    const loading = renderToStaticMarkup(renderUpload());
+    expect(loading).toContain("Đang tải…");
+    expect(loading).toMatch(/id="upload-btn-submit"[^>]* disabled=""/);
+    expect(loading).toContain("Đang tải ảnh lên trang");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const ready = renderToStaticMarkup(renderUpload());
+    expect(ready).not.toMatch(/id="upload-btn-submit"[^>]* disabled=""/);
+  });
+
+  it("blocks sending when a picked image cannot be read", async () => {
+    await selectFiles([new File([], "empty.jpg", { type: "image/jpeg" })]);
+    const markup = renderToStaticMarkup(renderUpload());
+    expect(markup).toContain("Lỗi");
+    expect(markup).toMatch(/id="upload-btn-submit"[^>]* disabled=""/);
+    expect(markup).toContain("Có ảnh không đọc được");
+  });
+
   it("shows a Vietnamese success notice with the submission code and two files", async () => {
     const markup = await noticeMarkup({ id: "abc" });
     const copy = TRANSLATIONS.vi.patientPortal;
@@ -102,9 +127,9 @@ describe("patient upload confirmation", () => {
     expect(markup).toContain(">2</dd>");
   });
 
-  it("stages images at the 20 MB limit, rejects larger files and PDFs, and labels each preview", () => {
+  it("stages images at the 20 MB limit, rejects larger files and PDFs, and labels each preview", async () => {
     const limit = 20 * 1024 * 1024;
-    selectFiles([
+    await selectFiles([
       new File([new Uint8Array(limit)], "exact.jpg", { type: "image/jpeg" }),
       new File([new Uint8Array(limit + 1)], "too-big.png", { type: "image/png" }),
       new File(["sample"], "report.pdf", { type: "application/pdf" }),
@@ -121,8 +146,8 @@ describe("patient upload confirmation", () => {
     expect(markup).not.toMatch(/id="upload-btn-submit"[^>]* disabled=""/);
   });
 
-  it("keeps the native camera renaming when staging a capture", () => {
-    selectFiles([new File(["sample"], "image.jpg", { type: "image/jpeg" })], "upload-camera-input");
+  it("keeps the native camera renaming when staging a capture", async () => {
+    await selectFiles([new File(["sample"], "image.jpg", { type: "image/jpeg" })], "upload-camera-input");
     const markup = renderToStaticMarkup(renderUpload());
     expect(markup).toMatch(/chup-anh-\d+\.jpg/);
     expect(markup).toContain("Ảnh 1");

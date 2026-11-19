@@ -15,7 +15,6 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { DossierApprovalNotice, ViewCrfLink } from "@/components/CrfDossierStatus";
-import { CrfScoreSummary } from "@/components/CrfScoreSummary";
 import { UiIcon } from "@/components/UiIcon";
 import { useLupiva } from "@/context/LupivaContext";
 import { getSubmissionStatus } from "@/data/crfData";
@@ -49,25 +48,21 @@ import {
   type Evidence,
   type SourceDetail,
   withoutHidden,
+  adminPrefill,
 } from "@/lib/crfEvidence";
 import { parseSlot } from "@/lib/crfSlot";
-import { computeProvisionalScores, type ScoreForm, type ScoreReview } from "@/lib/provisionalScores";
-import { scoreSuggestions } from "@/lib/scoreSuggestions";
 import type { SubmissionItemDTO } from "@/lib/submissionsService";
 import { useWebCaseIdentities, type IntakeJob } from "@/lib/webCaseIdentities";
 import { clearCrfViewCache } from "@/components/upload/CrfAdminFacts";
 
 type CaseItem = { case_id: string; registry_code: string };
+type ScoreRow = { field_id: string; label: string; weight: number; definition?: string };
 type ReviewView = CrfViewWithSources & {
-  score_form?: ScoreForm;
-  review: (NonNullable<CrfViewWithSources["review"]> & { scores?: ScoreReview }) | null;
+  score_form?: Record<string, ScoreRow[]>;
+  review: (CrfViewWithSources["review"] & { scores?: { assessment?: { ana?: string; date?: string } } }) | null;
 };
 type Answer = "yes" | "no";
 const TOTALS = new Set(["EAC22", "SDA25"]);
-const SCORE_SOURCES: Record<string, { name: string; url: string }> = {
-  eular: { name: "EULAR/ACR 2019 (Aringer 2019, Bảng 1)", url: "https://acrjournals.onlinelibrary.wiley.com/doi/10.1002/art.40930" },
-  sledai: { name: "SLEDAI-2K (Gladman 2002)", url: "https://pubmed.ncbi.nlm.nih.gov/11838846/" },
-};
 const NO_LINKED_CRF = "This dossier does not yet have a CRF.";
 type Sources = Record<string, SourceDetail> | undefined;
 
@@ -437,8 +432,6 @@ export default function RegistryCrfPage() {
   const [view, setView] = useState<ReviewView | null>(null);
   // Score criteria (EULAR/SLEDAI): the doctor's Có/Không per criterion, approved with the rest.
   const [criteria, setCriteria] = useState<Record<string, Answer>>({});
-  // Criteria (and ANA) pre-selected from suggestions; the doctor still saves the review to approve them.
-  const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
   const [ana, setAna] = useState<"" | Answer>("");
   const [scoreDate, setScoreDate] = useState("");
   const [scoreSettingsChanged, setScoreSettingsChanged] = useState(false);
@@ -451,7 +444,7 @@ export default function RegistryCrfPage() {
   const [notice, setNotice] = useState<string | { approvedCaseId: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [drafting, setDrafting] = useState(false);
+  const drafting = false; // LLM clinical proposals are switched off
   // Free-text boxes stay hidden until the doctor clicks Edit.
   const [editing, setEditing] = useState<Set<string>>(new Set());
   const [intakeJobs, setIntakeJobs] = useState<IntakeJob[]>([]);
@@ -468,7 +461,6 @@ export default function RegistryCrfPage() {
     setSelections({});
     setTyped({});
     setCriteria({});
-    setPrefilled(new Set());
     setScoreSettingsChanged(false);
     setActiveSlot(null);
     setRequestedAnchor(null);
@@ -482,20 +474,10 @@ export default function RegistryCrfPage() {
       const next = withoutHidden(await backend<ReviewView>("/api/crf", { case_id: id }));
       if (version !== loadVersion.current) return;
       setView(next);
+      setSelections(adminPrefill(next.fields, next.review?.values ?? {}));
       const previous = next.review?.scores?.assessment;
       setAna(previous?.ana === "yes" || previous?.ana === "no" ? previous.ana : "");
       setScoreDate(previous?.date || next.score_default_date || "");
-      if (next.score_form) {
-        const suggested = scoreSuggestions(next);
-        setCriteria(Object.fromEntries(Object.entries(suggested.criteria).map(([id, item]) => [id, item.answer])));
-        const marked = new Set(Object.keys(suggested.criteria));
-        if (suggested.ana) {
-          setAna(suggested.ana.answer);
-          setScoreSettingsChanged(true);
-          marked.add("ANA");
-        }
-        setPrefilled(marked);
-      }
       const scoreSlots = new Set(Object.values(next.score_form ?? {}).flat().map((row) => row.field_id + "/result"));
       const candidates = next.fields.filter(
         (field) => !scoreSlots.has(field.slot) && reviewGroup(field) !== "empty",
@@ -591,37 +573,6 @@ export default function RegistryCrfPage() {
     }
   }, [caseId, view, selections, typed, criteria, scoreSettingsChanged, ana, scoreDate, load, selectedCount, dc]);
 
-  // Ask the backend LLM to answer the clinical questions from labs, report notes and
-  // printed diagnoses; proposals arrive as "LLM đề xuất · chưa duyệt".
-  const draftClinical = useCallback(async () => {
-    if (!caseId) return;
-    setError(null);
-    setNotice(null);
-    setDrafting(true);
-    try {
-      await backend("/api/crf/generate", undefined, { case_id: caseId });
-      for (let i = 0; i < 60; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-        const next = await backend<CrfViewWithSources & { job?: { status?: string; error?: string } }>("/api/crf", {
-          case_id: caseId,
-        });
-        if (next.job?.status !== "running") {
-          if (next.job?.status === "failed") {
-            throw new Error(next.job.error ?? (isVi ? "Không tạo được đề xuất." : "Unable to generate proposals."));
-          }
-          clearCrfViewCache();
-          await load(caseId);
-          setNotice(isVi ? "Đã tạo đề xuất LLM cho các câu lâm sàng." : "LLM proposals are ready for review.");
-          return;
-        }
-      }
-      throw new Error(isVi ? "Đang tạo đề xuất. Hãy tải lại phiếu sau." : "Proposal generation is still running. Reload the CRF later.");
-    } catch (reason) {
-      setError((reason as Error).message);
-    } finally {
-      setDrafting(false);
-    }
-  }, [caseId, isVi, load]);
 
   useEffect(() => {
     if (!caseId || drafting || view?.job?.status !== "running") return;
@@ -644,18 +595,6 @@ export default function RegistryCrfPage() {
   }, [caseId, drafting, view?.job?.status]);
 
   const fieldBySlot = useMemo(() => new Map((view?.fields ?? []).map((field) => [field.slot, field])), [view]);
-  const suggestions = useMemo(() => (view?.score_form ? scoreSuggestions(view) : null), [view]);
-  const acceptScoreProposals = () => {
-    const missing = Object.entries(suggestions?.criteria ?? {}).filter(([id]) => !criteria[id]);
-    setCriteria((previous) => ({ ...previous, ...Object.fromEntries(missing.map(([id, item]) => [id, item.answer])) }));
-    setPrefilled((previous) => new Set([...previous, ...missing.map(([id]) => id)]));
-  };
-  const unmark = (id: string) => setPrefilled((previous) => {
-    if (!previous.has(id)) return previous;
-    const next = new Set(previous);
-    next.delete(id);
-    return next;
-  });
 
   const groups = useMemo(() => {
     // Score criteria are answered in their own section, not in the field lists.
@@ -904,16 +843,6 @@ export default function RegistryCrfPage() {
           <input type="checkbox" checked={showEmpty} onChange={(event) => setShowEmpty(event.target.checked)} />
           {isVi ? "Hiện cả các ô trống" : "Show empty cells"}
         </label>
-        {view && canApprove && (
-          <button
-            type="button"
-            disabled={drafting || saving || finalizing || hasEdits}
-            onClick={() => void draftClinical()}
-            className="rounded border border-amber-600 px-2 py-1 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-50"
-          >
-            {drafting ? (isVi ? "Đang tạo đề xuất…" : "Generating proposals…") : (isVi ? "Tạo đề xuất LLM" : "Generate LLM proposals")}
-          </button>
-        )}
       </div>
       {view && progress && (
         <div className="mt-4 rounded border border-slate-200 bg-white p-3">
@@ -1013,15 +942,6 @@ export default function RegistryCrfPage() {
               <section id="crf-section-score" className="mt-5 scroll-mt-[calc(35vh+4rem)] rounded border border-indigo-200 bg-white p-4 lg:scroll-mt-20">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-medium text-slate-800">{dc.scoreShort} · EULAR/ACR 2019 &amp; SLEDAI-2K</h2>
-                  {canApprove && (
-                    <button
-                      type="button"
-                      className="rounded border border-amber-600 px-2 py-1 text-xs text-amber-900 hover:bg-amber-50"
-                      onClick={acceptScoreProposals}
-                    >
-                      {isVi ? "Chọn lại các gợi ý" : "Select suggestions again"}
-                    </button>
-                  )}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
                   <label className="flex items-center gap-2">
@@ -1033,23 +953,12 @@ export default function RegistryCrfPage() {
                       onChange={(event) => {
                         setAna(event.target.value as "" | Answer);
                         setScoreSettingsChanged(true);
-                        unmark("ANA");
                       }}
                     >
                       <option value="">{isVi ? "Chưa xác nhận" : "Unconfirmed"}</option>
                       <option value="yes">{isVi ? "Có" : "Yes"}</option>
                       <option value="no">{isVi ? "Không" : "No"}</option>
                     </select>
-                    {prefilled.has("ANA") && suggestions?.ana && (
-                      <span className="text-xs text-amber-800">
-                        {isVi ? "Chọn sẵn theo gợi ý" : "Pre-selected from suggestion"} · {suggestions.ana.evidence}
-                        {suggestions.ana.slots.map((source) => (
-                          <button key={source} type="button" className="ml-1 underline" onClick={() => setActiveSlot(source)}>
-                            {isVi ? "Xem ảnh" : "View image"}
-                          </button>
-                        ))}
-                      </span>
-                    )}
                   </label>
                   <label className="flex items-center gap-2">
                     {isVi ? "Ngày đánh giá SLEDAI" : "SLEDAI assessment date"}
@@ -1065,17 +974,6 @@ export default function RegistryCrfPage() {
                     />
                   </label>
                 </div>
-                <CrfScoreSummary
-                  provisional={computeProvisionalScores(view)}
-                  official={view.review?.scores?.summaries}
-                  officialAna={view.review?.scores?.assessment?.ana}
-                  language={language}
-                />
-                <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-900">
-                  {isVi
-                    ? "Tiêu chí viền vàng nét đứt được chọn sẵn theo gợi ý (đề xuất hoặc suy từ xét nghiệm/lâm sàng). Kiểm tra bằng chứng, bấm “Xem ảnh” để đối chiếu nguồn, rồi lưu duyệt; chưa lưu thì chưa có gì được ghi."
-                    : "Dashed amber criteria are pre-selected from suggestions (proposals or inferred from labs/clinical fields). Check the evidence, use “View image” to compare with the source, then save the review; nothing is stored before that."}
-                </p>
                 {Object.entries(view.score_form).map(([group, scoreRows]) => (
                   <details key={group} className="mt-3" open>
                     <summary className="cursor-pointer text-sm font-semibold text-slate-700">
@@ -1094,8 +992,6 @@ export default function RegistryCrfPage() {
                         const answer = (value: string) => value === "yes" ? (isVi ? "Có" : "Yes") :
                           value === "no" ? (isVi ? "Không" : "No") : value;
                         const viLabel = isVi && field ? viFieldLabel(field) : undefined;
-                        const suggestion = suggestions?.criteria[row.field_id];
-                        const isPrefilled = prefilled.has(row.field_id) && !!criteria[row.field_id];
                         return (
                           <div
                             key={row.field_id}
@@ -1116,19 +1012,17 @@ export default function RegistryCrfPage() {
                                 aria-label={`${dc.scoreShort} ${row.label}`}
                                 disabled={!canApprove}
                                 className={`rounded border px-2 py-1 text-sm ${
-                                  isPrefilled ? "border-dashed border-amber-500 bg-amber-50"
-                                    : criteria[row.field_id] ? "border-emerald-500 bg-emerald-50" : "border-slate-300"
+                                  criteria[row.field_id] ? "border-emerald-500 bg-emerald-50" : "border-slate-300"
                                 }`}
                                 value={criteria[row.field_id] ?? approvedAnswer}
-                                onChange={(event) => {
-                                  unmark(row.field_id);
+                                onChange={(event) =>
                                   setCriteria((previous) => {
                                     const next = { ...previous };
                                     if (event.target.value && event.target.value !== approvedAnswer) next[row.field_id] = event.target.value as Answer;
                                     else delete next[row.field_id];
                                     return next;
-                                  });
-                                }}
+                                  })
+                                }
                               >
                                 {!approvedAnswer && <option value="">{isVi ? "— Chưa chọn —" : "— Select —"}</option>}
                                 <option value="yes">{answer("yes")}</option>
@@ -1145,35 +1039,6 @@ export default function RegistryCrfPage() {
                                 </span>
                               )}
                               {proposal?.reason && <p className="text-xs text-slate-500">{proposal.reason}</p>}
-                              {suggestion && suggestion.kind !== "proposal" && (
-                                <p className="mt-0.5 text-xs text-amber-900">
-                                  {isPrefilled && <span className="font-medium">{isVi ? "Chọn sẵn · " : "Pre-selected · "}</span>}
-                                  {isVi ? "Gợi ý" : "Suggestion"}: {answer(suggestion.answer)} ·{" "}
-                                  {suggestion.kind === "lab"
-                                    ? (isVi ? "từ xét nghiệm" : "from lab results")
-                                    : (isVi ? "từ câu trả lời lâm sàng, cần xem lại" : "from a clinical answer, review it")}
-                                  {" "}({suggestion.evidence})
-                                  {suggestion.slots.map((source) => (
-                                    <button
-                                      key={source}
-                                      type="button"
-                                      className="ml-1 underline"
-                                      onClick={(event) => { event.stopPropagation(); setActiveSlot(source); }}
-                                    >
-                                      {isVi ? "Xem ảnh" : "View image"} {fieldBySlot.get(source)?.label.split(/[:(/]/)[0].trim() ?? source}
-                                    </button>
-                                  ))}
-                                </p>
-                              )}
-                              {suggestion && (
-                                <p className="mt-0.5 text-xs text-slate-500">
-                                  {row.definition && <>{isVi ? "Định nghĩa" : "Definition"}: {row.definition} · </>}
-                                  <a className="underline" href={SCORE_SOURCES[group]?.url} target="_blank" rel="noreferrer"
-                                    onClick={(event) => event.stopPropagation()}>
-                                    {SCORE_SOURCES[group]?.name}
-                                  </a>
-                                </p>
-                              )}
                             </div>
                           </div>
                         );
