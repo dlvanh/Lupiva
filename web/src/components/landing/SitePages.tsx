@@ -4,7 +4,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLupiva } from "@/context/LupivaContext";
-import { SITE_CONTENT, SITE_NAME } from "@/components/landing/siteContent";
+import { SITE_CONTENT, SITE_NAME, type CommitteeMember } from "@/components/landing/siteContent";
 import { PatientContactSection, PatientInfoSections } from "@/components/landing/PatientInfoSections";
 import { useStartAction } from "@/components/landing/RegistryOverview";
 
@@ -76,45 +76,45 @@ function FlowConnector() {
   );
 }
 
+function MemberCard({ member }: { member: CommitteeMember }) {
+  return (
+    <li className="flex flex-col items-center rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xs">
+      {member.photoSrc ? (
+        <Image
+          src={member.photoSrc}
+          alt={member.name}
+          width={112}
+          height={112}
+          className="h-28 w-28 rounded-full border-2 border-teal-100 object-cover shadow-2xs"
+        />
+      ) : (
+        <div
+          role="img"
+          aria-label={member.name}
+          className="flex h-28 w-28 items-center justify-center rounded-full border-2 border-dashed border-teal-200 bg-gradient-to-br from-teal-50 via-white to-slate-50 text-xl font-bold text-teal-800"
+        >
+          {member.initials}
+        </div>
+      )}
+      <p className="mt-4 text-base font-bold text-slate-900">{member.name}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{member.role}</p>
+    </li>
+  );
+}
+
 /** Merged Home & About Registry body styled after commit f8b75bee. */
 export function HomeSections() {
-  const { language } = useLupiva();
+  const { language, t } = useLupiva();
   const content = SITE_CONTENT[language];
   const home = content.home;
   const about = content.about;
+  const contact = t.patientPortal;
+  const topMembers = about.committee.filter((m) => m.row === "top");
+  const bottomMembers = about.committee.filter((m) => m.row === "bottom");
 
   return (
     <>
-      {/* Section 1: Bối cảnh */}
-      <section
-        id="boi-canh"
-        aria-labelledby="heading-background"
-        className="scroll-mt-16 border-b border-slate-200 bg-slate-50/70 py-14 sm:py-16"
-      >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <p className={kicker}>{about.backgroundKicker}</p>
-            <h2 id="heading-background" className={sectionHeading}>
-              {about.backgroundTitle}
-            </h2>
-            <p className="mt-3 text-base leading-relaxed text-slate-700">{home.aimBody}</p>
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-            {about.backgroundCards.map((item) => (
-              <article
-                key={item.title}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs sm:p-7"
-              >
-                <h3 className="text-lg font-bold text-slate-900">{item.title}</h3>
-                <p className="mt-2.5 text-sm leading-7 text-slate-600 sm:text-[15px]">{item.body}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Section 2: Mục tiêu và hướng nghiên cứu */}
+      {/* Section 1: Mục tiêu và hướng nghiên cứu */}
       <section
         id="muc-tieu"
         aria-labelledby="heading-aims"
@@ -129,7 +129,7 @@ export function HomeSections() {
             <p className="mt-3 text-base leading-relaxed text-slate-600">{about.aimBody}</p>
           </div>
 
-          <ol className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
+          <ol className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2" role="list">
             {about.aims.map((aim, idx) => (
               <li
                 key={aim}
@@ -152,18 +152,12 @@ export function HomeSections() {
         className="scroll-mt-16 border-b border-slate-200 bg-slate-50/70 py-14 sm:py-16"
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="max-w-3xl">
-              <p className={kicker}>{about.approachKicker}</p>
-              <h2 id="heading-workflow" className={sectionHeading}>
-                {about.approachTitle}
-              </h2>
-              <p className="mt-3 text-base leading-relaxed text-slate-600">{about.approachSubtitle}</p>
-            </div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3.5 py-1.5 text-xs font-bold text-teal-900">
-              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-teal-700" />
-              {about.approachBadge}
-            </span>
+          <div className="max-w-3xl">
+            <p className={kicker}>{about.approachKicker}</p>
+            <h2 id="heading-workflow" className={sectionHeading}>
+              {about.approachTitle}
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-slate-600">{about.approachSubtitle}</p>
           </div>
 
           <div
@@ -233,7 +227,7 @@ export function HomeSections() {
         </div>
       </section>
 
-      {/* Section 5: Thành viên (Steering Committee + Ảnh nhóm) & Đơn vị thực hiện */}
+      {/* Section 5: Thành viên (2 trên - 3 dưới) & Đơn vị thực hiện */}
       <section
         id="thanh-vien"
         aria-labelledby="heading-members"
@@ -247,72 +241,26 @@ export function HomeSections() {
             </h2>
           </div>
 
-          {/* CURE-style 2-column layout: Members + Group Photo */}
-          <div className="mt-8 grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
-            <div className="lg:col-span-7">
-              <h3 className="text-lg font-bold text-slate-900">{about.committeeTitle}</h3>
-              <ul className="mt-4 space-y-3" role="list">
-                {about.committee.map((member) => (
-                  <li
-                    key={member.name}
-                    className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-teal-200 bg-teal-50 text-sm font-bold text-teal-800"
-                    >
-                      {member.initials}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-base font-bold text-slate-900">{member.name}</p>
-                      <p className="mt-0.5 text-xs font-semibold text-teal-800">{member.role}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-slate-600">{member.affiliation}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="lg:col-span-5">
-              <figure className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
-                {about.groupPhotoSrc ? (
-                  <Image
-                    src={about.groupPhotoSrc}
-                    alt={about.groupPhotoAlt}
-                    width={800}
-                    height={600}
-                    className="aspect-[4/3] w-full rounded-xl object-cover"
-                  />
-                ) : (
-                  <div
-                    role="img"
-                    aria-label={about.groupPhotoAlt}
-                    className="flex aspect-[4/3] w-full flex-col items-center justify-center rounded-xl border border-dashed border-teal-300 bg-gradient-to-br from-teal-50 via-white to-slate-50 p-6 text-center"
-                  >
-                    <svg
-                      aria-hidden="true"
-                      className="h-14 w-14 text-teal-700/80"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </svg>
-                    <p className="mt-3 text-sm font-semibold text-teal-950">{about.groupPhotoCaption}</p>
-                    <p className="mt-1 text-xs text-slate-500">{about.groupPhotoPlaceholderHint}</p>
-                  </div>
-                )}
-                <figcaption className="mt-3 text-center text-xs font-medium text-slate-600">
-                  {about.groupPhotoCaption}
-                </figcaption>
-              </figure>
-            </div>
+          <div className="mt-8">
+            <h3 className="text-lg font-bold text-slate-900">{about.committeeTitle}</h3>
+            {/* Hàng trên: 2 thành viên nằm ngang */}
+            <ul
+              className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2"
+              role="list"
+            >
+              {topMembers.map((member) => (
+                <MemberCard key={member.name} member={member} />
+              ))}
+            </ul>
+            {/* Hàng dưới: 3 thành viên theo hàng ngang */}
+            <ul
+              className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3"
+              role="list"
+            >
+              {bottomMembers.map((member) => (
+                <MemberCard key={member.name} member={member} />
+              ))}
+            </ul>
           </div>
 
           {/* Implementing Units with full Vietnamese names */}
@@ -336,7 +284,14 @@ export function HomeSections() {
       {/* Institutional Footer */}
       <footer className="border-t border-slate-200 bg-white py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:px-6 lg:px-8">
-          <p className="font-semibold text-slate-800">{SITE_NAME}</p>
+          <div>
+            <p className="font-semibold text-slate-800">{SITE_NAME}</p>
+            <p className="mt-1 text-xs text-slate-600">
+              <span>{contact.contactEmail}</span>
+              <span aria-hidden="true" className="mx-2 text-slate-300">|</span>
+              <span>{contact.contactPhone}</span>
+            </p>
+          </div>
           <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-600">
             <Link href="/benh-nhan" className="hover:text-teal-800">
               {home.patientsBtn}

@@ -313,9 +313,9 @@ export interface Translations {
 }
 
 const patientContact = {
-  contactLead: "...",
-  contactEmail: "...",
-  contactPhone: "...",
+  contactLead: "PGS.TS.BS Nguyễn Văn Đĩnh",
+  contactEmail: "26ai.anhdlv@vinuni.edu.vn",
+  contactPhone: "(+84) 93 456 0122",
 };
 
 export const TRANSLATIONS: Record<Language, Translations> = {
@@ -420,8 +420,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       benefitPrivacyBody: "The project uses codes in place of names and other details that identify you in the research data.",
       howTitle: "How to join",
       registerTitle: "Create an account",
-      registerBody: "Use your email address to sign up and track the records you send.",
-      step1Title: "Agree to take part (sign electronically)",
+      registerBody: "Use your email or phone number to sign up and track the records you send.",
+      step1Title: "Agree to take part (sign consent)",
       step1Body: "When you agree to take part, you let the project use the records you share for lupus research. You can contact the project team to withdraw.",
       step1Btn: "Review consent",
       step1Done: "You’ve agreed to take part",
@@ -430,10 +430,10 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       faqTitle: "Frequently asked questions",
       // TODO: research team to confirm wording
       faq: [
-        { question: "Does it cost anything?", answer: "Taking part in the project is free." },
-        { question: "Who can see my records?", answer: "The project’s specialists can review your records. The research data is pseudonymized, which means it uses codes in place of identifying details." },
-        { question: "How long does it take?", answer: "Submitting depends on how many photos you send. Review usually takes a few working days." },
-        { question: "How will my records be used?", answer: "Specialists review the records, and the project uses the data to study how lupus changes over time and how people respond to treatment." },
+        { question: "Does it cost anything to take part?", answer: "Taking part in the project is free." },
+        { question: "Who is authorized to see my records?", answer: "The project’s specialists can review your records. The research data is pseudonymized, which means it uses codes in place of identifying details." },
+        { question: "How long does submitting records take?", answer: "Sending each document takes a few minutes." },
+        { question: "What will my records be used for?", answer: "Specialists review the records, and the project uses the data to study how lupus changes over time and how people respond to treatment." },
       ],
       appointmentNotice: "This does not book an appointment or replace seeing a doctor.",
       contactTitle: "Contact",
@@ -764,8 +764,8 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       benefitPrivacyBody: "Dữ liệu nghiên cứu dùng mã số thay cho tên và những thông tin có thể nhận ra bạn.",
       howTitle: "Cách tham gia",
       registerTitle: "Tạo tài khoản",
-      registerBody: "Dùng email để tạo tài khoản và theo dõi hồ sơ bạn đã gửi.",
-      step1Title: "Đồng ý tham gia (ký điện tử)",
+      registerBody: "Dùng email/số điện thoại để tạo tài khoản và theo dõi hồ sơ bạn đã gửi.",
+      step1Title: "Đồng ý tham gia (ký chấp thuận)",
       step1Body: "Khi đồng ý tham gia, bạn cho phép dự án dùng hồ sơ bạn chia sẻ để nghiên cứu bệnh lupus. Bạn có thể liên hệ nhóm dự án để rút khỏi dự án.",
       step1Btn: "Xem nội dung đồng ý tham gia",
       step1Done: "Bạn đã đồng ý tham gia",
@@ -774,10 +774,10 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       faqTitle: "Câu hỏi thường gặp",
       // TODO: research team to confirm wording
       faq: [
-        { question: "Có mất phí không?", answer: "Tham gia dự án là miễn phí." },
-        { question: "Ai được xem hồ sơ?", answer: "Các bác sĩ chuyên khoa của dự án có thể xem hồ sơ bạn gửi. Dữ liệu nghiên cứu được giả danh hóa, tức là dùng mã số thay cho thông tin nhận diện." },
-        { question: "Mất bao lâu?", answer: "Thời gian gửi tùy vào số ảnh bạn nộp. Hồ sơ thường được xem trong vài ngày làm việc." },
-        { question: "Hồ sơ dùng vào việc gì?", answer: "Bác sĩ xem hồ sơ và dự án dùng dữ liệu để tìm hiểu bệnh lupus thay đổi theo thời gian ra sao và người bệnh đáp ứng với điều trị thế nào." },
+        { question: "Tôi tham gia có mất phí không?", answer: "Tham gia dự án là miễn phí." },
+        { question: "Ai được quyền xem hồ sơ của tôi?", answer: "Các bác sĩ chuyên khoa của dự án có thể xem hồ sơ bạn gửi. Dữ liệu nghiên cứu được giả danh hóa, tức là dùng mã số thay cho thông tin nhận diện." },
+        { question: "Thời gian nộp hồ sơ mất bao lâu?", answer: "Thời gian gửi mỗi tài liệu mất vài phút." },
+        { question: "Hồ sơ của tôi dùng vào việc gì?", answer: "Bác sĩ xem hồ sơ và dự án dùng dữ liệu để tìm hiểu bệnh lupus thay đổi theo thời gian ra sao và người bệnh đáp ứng với điều trị thế nào." },
       ],
       appointmentNotice: "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.",
       contactTitle: "Liên hệ",

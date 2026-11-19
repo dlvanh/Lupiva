@@ -39,7 +39,6 @@ export function RegistryOverview() {
   const home = SITE_CONTENT[language].home;
 
   const sectionAnchors = [
-    { href: "#boi-canh", label: home.navBackground },
     { href: "#muc-tieu", label: home.navAims },
     { href: "#van-hanh", label: home.navWorkflow },
     { href: "#huong-phat-trien", label: home.navFuture },
@@ -50,12 +49,7 @@ export function RegistryOverview() {
     <section className="border-b border-teal-950 bg-teal-900 text-white">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-1.5 text-xs font-semibold text-teal-950 shadow-xs sm:text-sm">
-            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-teal-700" />
-            <span>{home.tagline}</span>
-          </div>
-
-          <h1 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[42px] lg:leading-[1.2]">
+          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[42px] lg:leading-[1.2]">
             {SITE_NAME}
           </h1>
 
@@ -114,7 +108,7 @@ export function RegistryOverview() {
 
         {/* Quick Section Anchors */}
         <nav
-          aria-label={home.tagline}
+          aria-label={SITE_NAME}
           className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-teal-800 pt-5"
         >
           {sectionAnchors.map((item, idx) => (

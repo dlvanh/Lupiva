@@ -32,40 +32,53 @@ beforeEach(() => {
 });
 
 describe("public site pages", () => {
-  it("home: Vietnam Lupus Registry hero without 'tại', no submit CTA on home, merged About sections", () => {
+  it("home: Vietnam Lupus Registry hero without tagline badge or 'tại', no submit CTA on home, merged About sections", () => {
     const markup = renderToStaticMarkup(<LandingPage />);
     const hero = markup.match(/<section\b[^>]*>[\s\S]*?<\/section>/)?.[0];
     expect(hero).toContain("Vietnam Lupus Registry");
-    expect(hero).toContain("Registry bệnh lupus ban đỏ hệ thống Việt Nam");
+    expect(hero).not.toContain("Registry bệnh lupus ban đỏ hệ thống Việt Nam");
     expect(hero).not.toContain("bệnh lupus ban đỏ hệ thống tại Việt Nam");
+    expect(hero).not.toContain("(SLE) tại Việt Nam");
     expect(hero).toContain('href="/benh-nhan"');
     expect(hero).toContain('href="/login?role=specialist"');
     expect(hero).not.toContain('href="/upload"');
     expect(markup).not.toContain('href="/login?mode=register"');
 
     for (const text of [
-      "Bối cảnh",
-      "EULAR/ACR 2019",
-      "SLEDAI-2K",
+      "Mục tiêu và hướng nghiên cứu",
+      "Chuẩn hóa hồ sơ khám và xét nghiệm thực tế",
+      "Theo dõi mức độ hoạt động bệnh, diễn biến lâm sàng",
+      "Ứng dụng AI hiểu ngữ cảnh y khoa",
+      "mô hình dự báo đợt bùng phát",
       "Cách registry vận hành",
-      "75%",
       "Hướng phát triển",
-      "biobank",
-      "Thành viên (Steering Committee)",
-      "Nguyễn Văn Đinh",
+      "Thành viên nhóm thực hiện",
+      "PGS.TS.BS Nguyễn Văn Đĩnh",
+      "Hoàng Thị Oánh",
+      "Đỗ Lê Việt Anh",
+      "Phạm Văn Kiên",
+      "Vương Việt Hoàng",
+      "Học viên AI Thực Chiến",
       "Đơn vị thực hiện",
       "Viện Nghiên cứu Miễn dịch Vinmec – VinUni",
-      "Viện Nghiên cứu Tế bào gốc và Công nghệ gen Vinmec (VRISG)",
+      "VinUni VRIC - VinMec",
+      "Thuộc chương trình AI Thực Chiến",
+      "26ai.anhdlv@vinuni.edu.vn",
+      "(+84) 93 456 0122",
     ]) {
       expect(markup).toContain(text);
     }
-    expect(markup).not.toContain("VRIC");
+    expect(markup).not.toContain("Bối cảnh");
+    expect(markup).not.toContain("Giảm &gt;75%");
+    expect(markup).not.toContain("75%");
+    expect(markup).not.toContain("VRISG");
+    expect(markup).not.toContain("SLEDAI-2K");
     expect(markup).not.toContain("Câu hỏi thường gặp");
   });
 
   it("about (/gioi-thieu): renders merged registry home sections", () => {
     const markup = renderToStaticMarkup(<AboutPage />);
-    expect(markup).toContain("Thành viên (Steering Committee)");
+    expect(markup).toContain("Thành viên nhóm thực hiện");
     expect(markup).toContain("Cách registry vận hành");
   });
 
@@ -73,28 +86,33 @@ describe("public site pages", () => {
     const markup = renderToStaticMarkup(<PatientsPage />);
     for (const text of [
       "Lupus ban đỏ hệ thống là gì?", "Quyền lợi", "Cơ hội trao đổi với bác sĩ chuyên khoa",
-      "Đồng ý tham gia (ký điện tử)", "rút khỏi dự án", "miễn phí", "giả danh hóa", "Mất bao lâu?",
+      "Dùng email/số điện thoại để tạo tài khoản", "Đồng ý tham gia (ký chấp thuận)", "rút khỏi dự án",
+      "Tôi tham gia có mất phí không?", "miễn phí", "Ai được quyền xem hồ sơ của tôi?", "giả danh hóa",
+      "Thời gian nộp hồ sơ mất bao lâu?", "Thời gian gửi mỗi tài liệu mất vài phút.", "Hồ sơ của tôi dùng vào việc gì?",
       "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.", "Bắt đầu tham gia",
     ]) {
       expect(markup).toContain(text);
     }
+    expect(markup).not.toContain("vài ngày làm việc");
     expect(markup.indexOf("Quyền lợi")).toBeLessThan(markup.indexOf("Cách tham gia"));
     expect(markup).not.toContain("E-consent");
   });
 
-  it("contact: partners with full Vietnamese names, principal investigator and placeholders for email and phone", () => {
+  it("contact: partners with full Vietnamese names, principal investigator and real email/phone", () => {
     const markup = renderToStaticMarkup(<ContactPage />);
     for (const text of [
       "Liên hệ",
       "Chủ nhiệm nghiên cứu",
-      "Nguyen Van Dinh",
+      "PGS.TS.BS Nguyễn Văn Đĩnh",
       "Viện Nghiên cứu Miễn dịch Vinmec – VinUni",
-      "Viện Nghiên cứu Tế bào gốc và Công nghệ gen Vinmec (VRISG)",
+      "VinUni VRIC - VinMec thuộc chương trình AI Thực Chiến",
       "Điện thoại",
-      "...",
+      "26ai.anhdlv@vinuni.edu.vn",
+      "(+84) 93 456 0122",
     ]) {
       expect(markup).toContain(text);
     }
+    expect(markup).not.toContain("VRISG");
   });
 
   it("presents the pages in English", () => {
@@ -102,23 +120,24 @@ describe("public site pages", () => {
     const home = renderToStaticMarkup(<LandingPage />);
     expect(home).toContain("How the registry operates");
     expect(home).toContain("Future directions");
-    expect(home).toContain("Our Members (Steering Committee)");
+    expect(home).toContain("Our Members");
     const patients = renderToStaticMarkup(<PatientsPage />);
     expect(patients).toContain("A chance to talk with a specialist");
-    expect(patients).toContain("Agree to take part (sign electronically)");
+    expect(patients).toContain("Agree to take part (sign consent)");
   });
 
-  it("menu: Vietnam Lupus Registry brand, Cho bệnh nhân before Nộp hồ sơ, doctor entry and sign-in link", () => {
+  it("menu: 4 public pages (Trang chủ, Về Registry, Cho bệnh nhân, Liên hệ) and no doctor button beside sign-in", () => {
     const markup = renderToStaticMarkup(<Navbar />);
     expect(markup).toContain("Vietnam Lupus Registry");
     expect(markup).not.toMatch(/>Lupiva</);
-    for (const href of ["/", "/benh-nhan", "/upload", "/lien-he"]) {
+    for (const href of ["/", "/gioi-thieu", "/benh-nhan", "/lien-he"]) {
       expect(markup).toContain(`href="${href}"`);
     }
-    expect(markup.indexOf('href="/benh-nhan"')).toBeLessThan(markup.indexOf('href="/upload"'));
-    expect(markup.indexOf('href="/upload"')).toBeLessThan(markup.indexOf('href="/lien-he"'));
-    expect(markup).toContain('id="nav-btn-doctor"');
-    expect(markup).toContain('href="/login?role=specialist"');
+    expect(markup).not.toContain('href="/upload"');
+    expect(markup.indexOf('href="/gioi-thieu"')).toBeLessThan(markup.indexOf('href="/benh-nhan"'));
+    expect(markup.indexOf('href="/benh-nhan"')).toBeLessThan(markup.indexOf('href="/lien-he"'));
+    expect(markup).not.toContain('id="nav-btn-doctor"');
+    expect(markup).not.toContain('href="/login?role=specialist"');
     expect(markup.match(/href="\/login"/g)).toHaveLength(1);
   });
 
