@@ -25,6 +25,7 @@ export interface CommitteeMember {
   initials: string;
   role: string;
   photoSrc?: string | null;
+  photoClassName?: string;
   row: "top" | "bottom";
 }
 
@@ -183,36 +184,37 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         {
           name: "PGS.TS.BS Nguyễn Văn Đĩnh",
           initials: "NĐ",
-          role: "Trưởng Chuyên khoa Miễn dịch Dị ứng kiêm Viện trưởng Viện nghiên cứu miễn dịch Vinmec - VinUni",
-          photoSrc: null,
+          role: "Vinmec Times City, Trường Đại học VinUni",
+          photoSrc: "/images/team/image13.png",
           row: "top",
         },
         {
-          name: "Hoàng Thị Oánh",
+          name: "ThS. Hoàng Thị Oánh",
           initials: "HO",
-          role: "Viện nghiên cứu Miễn dịch Vinmec - VinUni",
-          photoSrc: null,
+          role: "Vinmec, Viện Nghiên cứu Miễn dịch VinUni",
+          photoSrc: "/images/team/image14.png",
           row: "top",
         },
         {
           name: "Đỗ Lê Việt Anh",
           initials: "VA",
-          role: "Học viên AI Thực Chiến",
-          photoSrc: null,
+          role: "VinUniversity VRIC – Vinmec",
+          photoSrc: "/images/team/image17.jpg",
+          photoClassName: "object-[50%_25%]",
           row: "bottom",
         },
         {
           name: "Phạm Văn Kiên",
           initials: "VK",
-          role: "Học viên AI Thực Chiến",
-          photoSrc: null,
+          role: "VinUniversity VRIC – Vinmec",
+          photoSrc: "/images/team/image15.png",
           row: "bottom",
         },
         {
           name: "Vương Việt Hoàng",
           initials: "VH",
-          role: "Học viên AI Thực Chiến",
-          photoSrc: null,
+          role: "VinUniversity VRIC – Vinmec",
+          photoSrc: "/images/team/image16.png",
           row: "bottom",
         },
       ],
@@ -365,38 +367,39 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
       committeeTitle: "Our Members",
       committee: [
         {
-          name: "Assoc. Prof. Dr. Nguyen Van Dinh",
+          name: "Assoc. Prof. Nguyen Van Dinh",
           initials: "ND",
-          role: "Head of Allergy & Clinical Immunology and Director, Vinmec-VinUni Institute of Immunology",
-          photoSrc: null,
+          role: "Vinmec Times City, VinUniversity",
+          photoSrc: "/images/team/image13.png",
           row: "top",
         },
         {
-          name: "Hoang Thi Oanh",
+          name: "Hoang Thi Oanh, MSc",
           initials: "HO",
-          role: "Vinmec-VinUni Institute of Immunology",
-          photoSrc: null,
+          role: "Vinmec, VinUni Institute of Immunology",
+          photoSrc: "/images/team/image14.png",
           row: "top",
         },
         {
           name: "Do Le Viet Anh",
           initials: "VA",
-          role: "Practical AI Fellow",
-          photoSrc: null,
+          role: "VinUniversity VRIC – Vinmec",
+          photoSrc: "/images/team/image17.jpg",
+          photoClassName: "object-[50%_25%]",
           row: "bottom",
         },
         {
           name: "Pham Van Kien",
           initials: "VK",
-          role: "Practical AI Fellow",
-          photoSrc: null,
+          role: "VinUniversity VRIC – Vinmec",
+          photoSrc: "/images/team/image15.png",
           row: "bottom",
         },
         {
           name: "Vuong Viet Hoang",
           initials: "VH",
-          role: "Practical AI Fellow",
-          photoSrc: null,
+          role: "VinUniversity VRIC – Vinmec",
+          photoSrc: "/images/team/image16.png",
           row: "bottom",
         },
       ],
