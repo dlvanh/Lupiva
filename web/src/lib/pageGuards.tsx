@@ -10,6 +10,7 @@ import { getSessionUser } from "@/lib/auth";
 export async function SpecialistGate({ nextPath, children }: { nextPath: string; children: ReactNode }) {
   const session = await getSessionUser();
   if (!session) redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+  if (session.user.role === "admin") redirect("/admin");
   if (session.user.role !== "specialist") redirect("/upload");
   return <>{children}</>;
 }
@@ -21,6 +22,7 @@ export async function SpecialistGate({ nextPath, children }: { nextPath: string;
 async function RetiredGate({ nextPath }: { nextPath: string }) {
   const session = await getSessionUser();
   if (!session) redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+  if (session.user.role === "admin") redirect("/admin");
   redirect("/upload");
   return null;
 }
@@ -37,6 +39,25 @@ export function SpecialistOnly({ nextPath, children }: { nextPath: string; child
   return (
     <Suspense fallback={null}>
       <SpecialistGate nextPath={nextPath}>{children}</SpecialistGate>
+    </Suspense>
+  );
+}
+
+/**
+ * Server-side guard for system administration pages (/admin).
+ * Non-admin accounts (patients and specialists) are redirected to /upload.
+ */
+export async function AdminGate({ nextPath, children }: { nextPath: string; children: ReactNode }) {
+  const session = await getSessionUser();
+  if (!session) redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+  if (session.user.role !== "admin") redirect("/upload");
+  return <>{children}</>;
+}
+
+export function AdminOnly({ nextPath, children }: { nextPath: string; children: ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <AdminGate nextPath={nextPath}>{children}</AdminGate>
     </Suspense>
   );
 }

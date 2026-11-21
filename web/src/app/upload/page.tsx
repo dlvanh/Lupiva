@@ -1,17 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLupiva } from "@/context/LupivaContext";
 import { TRANSLATIONS } from "@/data/translations";
 import { DoctorSubmissionsView } from "@/components/upload/DoctorSubmissionsView";
 import { PatientUploadView } from "@/components/upload/PatientUploadView";
 
 export default function PatientUploadPage() {
+  const router = useRouter();
   const { currentUser, authLoading, language } = useLupiva();
   const [listKey, setListKey] = useState(0);
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  if (authLoading) {
+  useEffect(() => {
+    if (!authLoading && currentUser?.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [authLoading, currentUser?.role, router]);
+
+  if (authLoading || currentUser?.role === "admin") {
     return (
       <main
         id="main-content"

@@ -1,4 +1,4 @@
-export type UserRole = "specialist" | "patient";
+export type UserRole = "specialist" | "patient" | "admin";
 
 export interface AuthUser {
   id: string;
@@ -96,6 +96,17 @@ export const DEMO_USERS: Record<UserRole, DemoUser> = {
     passwordHint: "PatientCare#2026",
     departmentOrRegistryId: "SLE Registry Cohort • Enrolled Oct 2026",
     badgeText: "Voucher Eligible",
+    consentSigned: true,
+  },
+  admin: {
+    id: "usr-adm-01",
+    name: "System Administrator",
+    role: "admin",
+    title: "Platform & Security Administrator",
+    email: "admin.lupiva@example.test",
+    passwordHint: "AdminVault#2026",
+    departmentOrRegistryId: "Lupiva Clinical Operations & Security",
+    badgeText: "System Admin",
     consentSigned: true,
   },
 };

@@ -13,4 +13,11 @@ describe("where sign-in leads", () => {
     expect(resolveSafeRedirect("/registry", "patient")).toBe("/upload");
     expect(resolveSafeRedirect("//evil.example", "patient")).toBe("/upload");
   });
+  it("admins land on /admin and non-admins cannot redirect into /admin", () => {
+    expect(resolveSafeRedirect(null, "admin")).toBe("/admin");
+    expect(resolveSafeRedirect("/admin", "admin")).toBe("/admin");
+    expect(resolveSafeRedirect("/registry", "admin")).toBe("/admin");
+    expect(resolveSafeRedirect("/admin", "patient")).toBe("/upload");
+    expect(resolveSafeRedirect("/admin", "specialist")).toBe("/upload");
+  });
 });

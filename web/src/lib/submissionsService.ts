@@ -161,7 +161,10 @@ export async function querySubmissions(params: {
 }): Promise<QuerySubmissionsResult> {
   const db = params.db ?? getDb();
   const { user } = params;
-  const roleScope = user.role;
+  if (user.role !== "specialist" && user.role !== "patient") {
+    throw new AuthError(403, "Insufficient role privileges.");
+  }
+  const roleScope: "specialist" | "patient" = user.role;
 
   // Patients are strictly scoped to their own submissions sorted by upload date (newest first),
   // while still respecting backend page & pageSize pagination.
