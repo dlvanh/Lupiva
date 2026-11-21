@@ -14,6 +14,9 @@ const push = await pushSchema(schema, db as unknown as Parameters<typeof pushSch
 if (push.hasDataLoss) throw new Error("Schema change would lose data: " + push.warnings.join("; "));
 await push.apply();
 // Fictional sample cases only when asked (SEED_SAMPLE_CASES=true), never on the pilot.
-await seedDatabase(db, { sampleCases: process.env.SEED_SAMPLE_CASES === "true" });
+await seedDatabase(db, {
+  sampleCases: process.env.SEED_SAMPLE_CASES === "true",
+  includeAdmin: process.env.SEED_ADMIN !== "false",
+});
 await closeDb();
 console.log("Database ready.");

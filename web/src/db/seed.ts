@@ -30,6 +30,7 @@ import { hashPassword } from "@/lib/password";
 
 export const SEEDED_SPECIALIST_UUID = "00000000-0000-4000-8000-000000000001";
 export const SEEDED_PATIENT_UUID = "00000000-0000-4000-8000-000000000002";
+export const SEEDED_ADMIN_UUID = "00000000-0000-4000-8000-000000000003";
 
 const PATIENT_LINKED_KEYS = new Set(["crf-pat-084", "crf-pat-103", "crf-pat-108"]);
 
@@ -91,19 +92,20 @@ export interface SeedResult {
   documentsSeeded: number;
   specialistId: string;
   patientId: string;
+  adminId?: string;
 }
 
 export async function seedDatabase(
   db: DatabaseClient = getDb(),
   // Sample (fictional) cases are for tests and local demos only; a pilot
   // database must start with the accounts alone.
-  { sampleCases = true }: { sampleCases?: boolean } = {}
+  { sampleCases = true, includeAdmin = false }: { sampleCases?: boolean; includeAdmin?: boolean } = {}
 ): Promise<SeedResult> {
   assertCryptoConfig();
 
   const demoSpecs: Array<{
     defaultId: string;
-    user: (typeof DEMO_USERS)["specialist"] | (typeof DEMO_USERS)["patient"];
+    user: (typeof DEMO_USERS)["specialist"] | (typeof DEMO_USERS)["patient"] | (typeof DEMO_USERS)["admin"];
     defaultPassword: string;
   }> = [
     {
@@ -116,9 +118,18 @@ export async function seedDatabase(
       user: DEMO_USERS.patient,
       defaultPassword: DEMO_USERS.patient.passwordHint ?? "PatientCare#2026",
     },
+    ...(includeAdmin
+      ? [
+          {
+            defaultId: SEEDED_ADMIN_UUID,
+            user: DEMO_USERS.admin,
+            defaultPassword: DEMO_USERS.admin.passwordHint ?? "AdminVault#2026",
+          },
+        ]
+      : []),
   ];
 
-  const resolvedUserIds: Record<"specialist" | "patient", string> = {
+  const resolvedUserIds: { specialist: string; patient: string; admin?: string } = {
     specialist: SEEDED_SPECIALIST_UUID,
     patient: SEEDED_PATIENT_UUID,
   };
@@ -393,6 +404,7 @@ export async function seedDatabase(
     documentsSeeded,
     specialistId: resolvedUserIds.specialist,
     patientId: resolvedUserIds.patient,
+    ...(resolvedUserIds.admin ? { adminId: resolvedUserIds.admin } : {}),
   };
 }
 
@@ -404,7 +416,7 @@ async function runCli() {
     if (existsSync(".env")) loadEnv(".env");
   }
 
-  const result = await seedDatabase();
+  const result = await seedDatabase(undefined, { includeAdmin: true });
   console.log(
     `[Lupiva Seed] Complete: ${result.usersSeeded} users, ${result.profilesSeeded} patient profiles, ${result.submissionsSeeded} CRF submissions, ${result.documentsSeeded} document records.`
   );
@@ -421,6 +433,13 @@ if (isDirectExecution) {
     .then(() => closeDb())
     .then(() => process.exit(0))
     .catch(async (error) => {
+      const errObj = error as { code?: unknown; cause?: { code?: unknown } } | null;
+      const pgCode = String(errObj?.code ?? errObj?.cause?.code ?? "");
+      if (pgCode === "42703" || pgCode === "42P01") {
+        console.error(
+          '[Lupiva Seed] Database schema is missing or out of date. Run "npm run db:push" (or "npx tsx scripts/db-init.mts") before "npm run db:seed".'
+        );
+      }
       console.error("[Lupiva Seed] Failed:", error);
       await closeDb().catch(() => undefined);
       process.exit(1);

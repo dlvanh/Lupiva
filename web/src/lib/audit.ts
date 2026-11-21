@@ -17,13 +17,27 @@ export type AuditAction =
   | "submission.image_stored"
   | "submission.sent_to_pipeline"
   | "submission.pipeline_retried"
-  | "submission.opened";
+  | "submission.opened"
+  | "admin.account_created"
+  | "admin.account_updated"
+  | "admin.sessions_revoked"
+  | "admin.pipeline_retried"
+  | "admin.pipeline_marked_failed"
+  | "admin.pipeline_reset"
+  | "admin.pipeline_synced";
 
 export interface WriteAuditLogInput {
   actorUserId?: string | null;
   actorRole?: string | null;
   action: AuditAction;
-  targetType: "user" | "session" | "auth_gate" | "crf_submission" | "uploaded_document";
+  targetType:
+    | "user"
+    | "session"
+    | "auth_gate"
+    | "crf_submission"
+    | "uploaded_document"
+    | "pipeline_queue"
+    | "system";
   targetId?: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;

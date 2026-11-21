@@ -3,6 +3,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { UiIcon } from "@/components/UiIcon";
 import { useLupiva } from "@/context/LupivaContext";
 import { resolveSafeRedirect } from "@/lib/loginRedirect";
 import { isValidVietnamPhone } from "@/lib/phone";
@@ -49,6 +50,7 @@ function LoginFormContent({
   const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -72,6 +74,7 @@ function LoginFormContent({
     setDevOtpHint(null);
     setEmail("");
     setPassword("");
+    setShowPassword(false);
   };
 
   const handleSendOtp = async () => {
@@ -386,21 +389,37 @@ function LoginFormContent({
               >
                 {t.login.passwordLabel}
               </label>
-              <input
-                id="login-input-password"
-                name="password"
-                type="password"
-                required
-                autoComplete={
-                  mode === "login" ? "current-password" : "new-password"
-                }
-                aria-describedby={
-                  mode === "register" ? "login-password-hint" : undefined
-                }
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-teal-700"
-              />
+              <div className="relative mt-1.5">
+                <input
+                  id="login-input-password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete={
+                    mode === "login" ? "current-password" : "new-password"
+                  }
+                  aria-describedby={
+                    mode === "register" ? "login-password-hint" : undefined
+                  }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pr-11 pl-3.5 text-sm text-slate-900 focus:border-teal-700"
+                />
+                <button
+                  type="button"
+                  id="login-btn-toggle-password"
+                  aria-pressed={showPassword}
+                  aria-label={
+                    showPassword
+                      ? language === "vi" ? "Ẩn mật khẩu" : "Hide password"
+                      : language === "vi" ? "Hiện mật khẩu" : "Show password"
+                  }
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center rounded-r-lg text-slate-500 transition hover:text-slate-800"
+                >
+                  <UiIcon name={showPassword ? "eyeOff" : "eye"} />
+                </button>
+              </div>
               {mode === "register" && (
                 <p
                   id="login-password-hint"

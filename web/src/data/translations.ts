@@ -1075,6 +1075,13 @@ export function getLocalizedDemoUsers(lang: Language): Record<UserRole, DemoUser
       departmentOrRegistryId: "Đoàn hệ Đăng ký SLE • Tham gia Tháng 10/2026",
       badgeText: "Đủ điều kiện Voucher",
     },
+    admin: {
+      ...DEMO_USERS.admin,
+      name: "Quản trị viên Hệ thống",
+      title: "Quản trị Hệ thống & An toàn Dữ liệu",
+      departmentOrRegistryId: "Vận hành Lâm sàng & An toàn Bảo mật Lupiva",
+      badgeText: "Quản trị viên",
+    },
   };
 }
 

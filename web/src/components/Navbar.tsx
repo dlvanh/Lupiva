@@ -72,23 +72,35 @@ export function Navbar() {
   const isVi = language === "vi";
   const newSubmissions = useNewSubmissions();
 
-  const navLinks =
-    currentUser?.role === "specialist"
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
+
+  const navLinks = isAdminRoute
+    ? []
+    : currentUser?.role === "admin"
       ? [
-          { href: "/upload", label: "Dashboard", id: "nav-link-upload" },
-          { href: "/registry", label: isVi ? "Duyệt hồ sơ" : "Review", id: "nav-link-registry" },
-          { href: "/crf-form", label: isVi ? "Phiếu CRF" : "CRF form", id: "nav-link-crf-form" },
-        ]
-      : [
+          { href: "/admin", label: isVi ? "Quản trị" : "Admin", id: "nav-link-admin" },
           ...SITE_PAGES.map((page) => ({
             href: page.href,
             label: isVi ? page.vi : page.en,
             id: page.id,
           })),
-          ...(currentUser?.role === "patient"
-            ? [{ href: "/upload", label: t.patientPortal.patientMenuLabel, id: "nav-link-upload" }]
-            : []),
-        ];
+        ]
+      : currentUser?.role === "specialist"
+        ? [
+            { href: "/upload", label: "Dashboard", id: "nav-link-upload" },
+            { href: "/registry", label: isVi ? "Duyệt hồ sơ" : "Review", id: "nav-link-registry" },
+            { href: "/crf-form", label: isVi ? "Phiếu CRF" : "CRF form", id: "nav-link-crf-form" },
+          ]
+        : [
+            ...SITE_PAGES.map((page) => ({
+              href: page.href,
+              label: isVi ? page.vi : page.en,
+              id: page.id,
+            })),
+            ...(currentUser?.role === "patient"
+              ? [{ href: "/upload", label: t.patientPortal.patientMenuLabel, id: "nav-link-upload" }]
+              : []),
+          ];
 
   const localizedButtonMap = getLocalizedButtonActionMap(language);
 
@@ -129,37 +141,39 @@ export function Navbar() {
             </Link>
 
             {/* Clean Horizontal Menu Bar */}
-            <nav
-              aria-label="Primary"
-              className="flex items-center gap-1 overflow-x-auto"
-            >
-              {navLinks.map((item) => {
-                const isActive =
-                  item.href === "/ocr"
-                    ? pathname === "/ocr" || pathname === "/crf"
-                    : pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    id={item.id}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
-                      isActive
-                        ? "bg-teal-50 text-teal-900"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
-                  >
-                    {item.label}
-                    {item.href === "/ocr" && crfPatients.length > 0 && (
-                      <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-teal-100 px-1.5 py-0.2 text-[10px] font-bold tabular-nums text-teal-800">
-                        {crfPatients.length}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
+            {navLinks.length > 0 && (
+              <nav
+                aria-label="Primary"
+                className="flex items-center gap-1 overflow-x-auto"
+              >
+                {navLinks.map((item) => {
+                  const isActive =
+                    item.href === "/ocr"
+                      ? pathname === "/ocr" || pathname === "/crf"
+                      : pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      id={item.id}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
+                        isActive
+                          ? "bg-teal-50 text-teal-900"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      {item.label}
+                      {item.href === "/ocr" && crfPatients.length > 0 && (
+                        <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-teal-100 px-1.5 py-0.2 text-[10px] font-bold tabular-nums text-teal-800">
+                          {crfPatients.length}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
           </div>
 
           {/* Right Controls: Session (only if logged in) or Sign In, and Compact Language Switcher on far right */}
@@ -169,20 +183,30 @@ export function Navbar() {
                 <span
                   aria-hidden="true"
                   className={`h-2 w-2 rounded-full ${
-                    currentUser.role === "specialist"
-                      ? "bg-teal-600"
-                      : "bg-blue-600"
+                    currentUser.role === "admin"
+                      ? "bg-indigo-600"
+                      : currentUser.role === "specialist"
+                        ? "bg-teal-600"
+                        : "bg-blue-600"
                   }`}
                 />
                 <span className="hidden text-xs font-semibold text-slate-900 sm:inline">
                   {currentUser.name}
                 </span>
-                <span className="hidden rounded bg-teal-50 px-1.5 py-0.2 text-[10px] font-semibold text-teal-800 md:inline">
+                <span
+                  className={`hidden rounded px-1.5 py-0.2 text-[10px] font-semibold md:inline ${
+                    currentUser.role === "admin"
+                      ? "bg-indigo-50 text-indigo-800"
+                      : "bg-teal-50 text-teal-800"
+                  }`}
+                >
                   {process.env.NEXT_PUBLIC_DEMO_MODE === "true"
                     ? currentUser.badgeText
-                    : currentUser.role === "specialist"
-                      ? language === "vi" ? "Bác sĩ" : "Specialist"
-                      : language === "vi" ? "Bệnh nhân" : "Patient"}
+                    : currentUser.role === "admin"
+                      ? language === "vi" ? "Quản trị viên" : "Admin"
+                      : currentUser.role === "specialist"
+                        ? language === "vi" ? "Bác sĩ" : "Specialist"
+                        : language === "vi" ? "Bệnh nhân" : "Patient"}
                 </span>
                 <button
                   type="button"
