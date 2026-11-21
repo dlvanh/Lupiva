@@ -4,8 +4,15 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLupiva } from "@/context/LupivaContext";
-import { SITE_CONTENT, SITE_NAME, type CommitteeMember } from "@/components/landing/siteContent";
-import { PatientContactSection, PatientInfoSections } from "@/components/landing/PatientInfoSections";
+import {
+  SITE_CONTENT,
+  SITE_NAME,
+  type CommitteeMember,
+} from "@/components/landing/siteContent";
+import {
+  PatientContactSection,
+  PatientInfoSections,
+} from "@/components/landing/PatientInfoSections";
 import { useStartAction } from "@/components/landing/RegistryOverview";
 
 const h2 = "text-xl font-bold text-slate-900 sm:text-2xl";
@@ -13,16 +20,30 @@ const sectionHeading = "mt-2 text-2xl font-bold text-slate-900 sm:text-3xl";
 const kicker = "text-xs font-bold uppercase tracking-wider text-teal-800";
 const text = "text-base leading-relaxed text-slate-800";
 
-function PageShell({ title, intro, children }: { title: string; intro: string; children: React.ReactNode }) {
+function PageShell({
+  title,
+  intro,
+  children,
+}: {
+  title: string;
+  intro: string;
+  children: React.ReactNode;
+}) {
   return (
     <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
       <section className="bg-teal-900 text-white">
         <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-          <h1 className="text-3xl leading-tight font-bold sm:text-4xl">{title}</h1>
-          <p className="mt-3 max-w-2xl text-lg leading-relaxed text-teal-50">{intro}</p>
+          <h1 className="text-3xl leading-tight font-bold sm:text-4xl">
+            {title}
+          </h1>
+          <p className="mt-3 max-w-2xl text-lg leading-relaxed text-teal-50">
+            {intro}
+          </p>
         </div>
       </section>
-      <div className="mx-auto max-w-5xl space-y-9 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">{children}</div>
+      <div className="mx-auto max-w-5xl space-y-9 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        {children}
+      </div>
     </main>
   );
 }
@@ -30,32 +51,74 @@ function PageShell({ title, intro, children }: { title: string; intro: string; c
 function Bullets({ items }: { items: readonly string[] }) {
   return (
     <ul className={`mt-3 list-disc space-y-2 pl-5 ${text}`}>
-      {items.map((item) => <li key={item}>{item}</li>)}
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
     </ul>
   );
 }
 
 const WORKFLOW_ICONS = [
   // 1. Patient upload
-  <svg key="upload" aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    key="upload"
+    aria-hidden="true"
+    className="h-5 w-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="17 8 12 3 7 8" />
     <line x1="12" y1="3" x2="12" y2="15" />
   </svg>,
   // 2. AI & OCR
-  <svg key="ai" aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    key="ai"
+    aria-hidden="true"
+    className="h-5 w-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="4" y="4" width="16" height="16" rx="2" />
     <rect x="9" y="9" width="6" height="6" />
     <path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" />
   </svg>,
   // 3. Specialist validation
-  <svg key="doctor" aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    key="doctor"
+    aria-hidden="true"
+    className="h-5 w-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
     <circle cx="9" cy="7" r="4" />
     <polyline points="16 11 18 13 22 9" />
   </svg>,
   // 4. Research analytics
-  <svg key="analytics" aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    key="analytics"
+    aria-hidden="true"
+    className="h-5 w-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M3 3v18h18" />
     <path d="m19 9-5 5-4-4-3 3" />
   </svg>,
@@ -63,12 +126,31 @@ const WORKFLOW_ICONS = [
 
 function FlowConnector() {
   return (
-    <div aria-hidden="true" className="flex items-center justify-center text-teal-700">
-      <svg className="hidden h-6 w-6 lg:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <div
+      aria-hidden="true"
+      className="flex items-center justify-center text-teal-700"
+    >
+      <svg
+        className="hidden h-6 w-6 lg:block"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M5 12h14" />
         <path d="m13 6 6 6-6 6" />
       </svg>
-      <svg className="h-6 w-6 lg:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        className="h-6 w-6 lg:hidden"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M12 5v14" />
         <path d="m6 13 6 6 6-6" />
       </svg>
@@ -85,7 +167,7 @@ function MemberCard({ member }: { member: CommitteeMember }) {
           alt={member.name}
           width={112}
           height={112}
-          className="h-28 w-28 rounded-full border-2 border-teal-100 object-cover shadow-2xs"
+          className="h-28 w-28 rounded-full border-2 border-teal-100 object-cover object-top shadow-2xs"
         />
       ) : (
         <div
@@ -97,7 +179,9 @@ function MemberCard({ member }: { member: CommitteeMember }) {
         </div>
       )}
       <p className="mt-4 text-base font-bold text-slate-900">{member.name}</p>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{member.role}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+        {member.role}
+      </p>
     </li>
   );
 }
@@ -118,10 +202,7 @@ function CommitteeMembersGrid({ committee }: { committee: CommitteeMember[] }) {
         ))}
       </ul>
       {/* Hàng dưới: 3 thành viên theo hàng ngang */}
-      <ul
-        className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3"
-        role="list"
-      >
+      <ul className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3" role="list">
         {bottomMembers.map((member) => (
           <MemberCard key={member.name} member={member} />
         ))}
@@ -152,10 +233,15 @@ export function HomeSections() {
             <h2 id="heading-aims" className={sectionHeading}>
               {about.aimTitle}
             </h2>
-            <p className="mt-3 text-base leading-relaxed text-slate-600">{about.aimBody}</p>
+            <p className="mt-3 text-base leading-relaxed text-slate-600">
+              {about.aimBody}
+            </p>
           </div>
 
-          <ol className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2" role="list">
+          <ol
+            className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2"
+            role="list"
+          >
             {about.aims.map((aim, idx) => (
               <li
                 key={aim}
@@ -164,7 +250,9 @@ export function HomeSections() {
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-700 text-xs font-bold text-white">
                   {idx + 1}
                 </span>
-                <p className="text-sm leading-relaxed text-slate-700 sm:text-[15px]">{aim}</p>
+                <p className="text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+                  {aim}
+                </p>
               </li>
             ))}
           </ol>
@@ -183,7 +271,9 @@ export function HomeSections() {
             <h2 id="heading-workflow" className={sectionHeading}>
               {about.approachTitle}
             </h2>
-            <p className="mt-3 text-base leading-relaxed text-slate-600">{about.approachSubtitle}</p>
+            <p className="mt-3 text-base leading-relaxed text-slate-600">
+              {about.approachSubtitle}
+            </p>
           </div>
 
           <div
@@ -205,7 +295,9 @@ export function HomeSections() {
                       {WORKFLOW_ICONS[index % WORKFLOW_ICONS.length]}
                     </span>
                   </div>
-                  <h3 className="mt-3.5 text-base font-bold text-slate-900">{step.title}</h3>
+                  <h3 className="mt-3.5 text-base font-bold text-slate-900">
+                    {step.title}
+                  </h3>
                   <ul className="mt-2.5 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-slate-600 sm:text-sm">
                     {step.bullets.map((bullet) => (
                       <li key={bullet}>{bullet}</li>
@@ -231,7 +323,9 @@ export function HomeSections() {
             <h2 id="heading-future" className={sectionHeading}>
               {about.futureTitle}
             </h2>
-            <p className="mt-3 text-base leading-relaxed text-slate-600">{about.futureBody}</p>
+            <p className="mt-3 text-base leading-relaxed text-slate-600">
+              {about.futureBody}
+            </p>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -244,8 +338,12 @@ export function HomeSections() {
                   {idx + 1}
                 </span>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 sm:text-lg">{item.title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-slate-600 sm:text-[15px]">{item.body}</p>
+                  <h3 className="text-base font-bold text-slate-900 sm:text-lg">
+                    {item.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
+                    {item.body}
+                  </p>
                 </div>
               </article>
             ))}
@@ -268,21 +366,26 @@ export function HomeSections() {
           </div>
 
           <div className="mt-8">
-            <h3 className="text-lg font-bold text-slate-900">{about.committeeTitle}</h3>
             <CommitteeMembersGrid committee={about.committee} />
           </div>
 
           {/* Implementing Units with full Vietnamese names */}
           <div className="mt-12">
-            <h3 className="text-lg font-bold text-slate-900">{about.teamTitle}</h3>
+            <h3 className="text-lg font-bold text-slate-900">
+              {about.teamTitle}
+            </h3>
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
               {about.units.map((unit) => (
                 <article
                   key={unit.name}
                   className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs"
                 >
-                  <h4 className="text-base font-bold text-teal-900">{unit.name}</h4>
-                  <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{unit.parent}</p>
+                  <h4 className="text-base font-bold text-teal-900">
+                    {unit.name}
+                  </h4>
+                  <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+                    {unit.parent}
+                  </p>
                 </article>
               ))}
             </div>
@@ -297,7 +400,9 @@ export function HomeSections() {
             <p className="font-semibold text-slate-800">{SITE_NAME}</p>
             <p className="mt-1 text-xs text-slate-600">
               <span>{contact.contactEmail}</span>
-              <span aria-hidden="true" className="mx-2 text-slate-300">|</span>
+              <span aria-hidden="true" className="mx-2 text-slate-300">
+                |
+              </span>
               <span>{contact.contactPhone}</span>
             </p>
           </div>
@@ -322,19 +427,32 @@ export function PatientsContent() {
   return (
     <PageShell title={patients.title} intro={patients.intro}>
       <section aria-labelledby="patients-lupus-heading">
-        <h2 id="patients-lupus-heading" className={h2}>{patients.lupusTitle}</h2>
-        <div className={`mt-3 space-y-3 ${text}`}>{patients.lupus.map((p) => <p key={p}>{p}</p>)}</div>
+        <h2 id="patients-lupus-heading" className={h2}>
+          {patients.lupusTitle}
+        </h2>
+        <div className={`mt-3 space-y-3 ${text}`}>
+          {patients.lupus.map((p) => (
+            <p key={p}>{p}</p>
+          ))}
+        </div>
       </section>
       <section aria-labelledby="patients-why-heading">
-        <h2 id="patients-why-heading" className={h2}>{patients.whyTitle}</h2>
+        <h2 id="patients-why-heading" className={h2}>
+          {patients.whyTitle}
+        </h2>
         <Bullets items={patients.why} />
       </section>
       <PatientInfoSections />
       <section aria-labelledby="patients-contribute-heading">
-        <h2 id="patients-contribute-heading" className={h2}>{patients.contributeTitle}</h2>
+        <h2 id="patients-contribute-heading" className={h2}>
+          {patients.contributeTitle}
+        </h2>
         <p className={`mt-3 ${text}`}>{patients.contributeBody}</p>
         <Bullets items={patients.contribute} />
-        <Link href={action.href} className="mt-5 inline-flex min-h-12 items-center rounded-lg bg-teal-800 px-5 py-3 text-base font-semibold text-white hover:bg-teal-900">
+        <Link
+          href={action.href}
+          className="mt-5 inline-flex min-h-12 items-center rounded-lg bg-teal-800 px-5 py-3 text-base font-semibold text-white hover:bg-teal-900"
+        >
           {action.label}
         </Link>
       </section>
@@ -348,16 +466,22 @@ export function ContactContent() {
   return (
     <PageShell title={contact.title} intro={contact.intro}>
       <section aria-labelledby="contact-members-heading">
-        <h2 id="contact-members-heading" className={h2}>{about.committeeTitle}</h2>
+        <h2 id="contact-members-heading" className={h2}>
+          {about.committeeTitle}
+        </h2>
         <CommitteeMembersGrid committee={about.committee} />
       </section>
       <PatientContactSection />
       <section aria-labelledby="contact-units-heading">
-        <h2 id="contact-units-heading" className={h2}>{contact.unitsTitle}</h2>
+        <h2 id="contact-units-heading" className={h2}>
+          {contact.unitsTitle}
+        </h2>
         <Bullets items={contact.units} />
       </section>
       <section aria-labelledby="contact-collab-heading">
-        <h2 id="contact-collab-heading" className={h2}>{contact.collaborateTitle}</h2>
+        <h2 id="contact-collab-heading" className={h2}>
+          {contact.collaborateTitle}
+        </h2>
         <p className={`mt-3 ${text}`}>{contact.collaborateBody}</p>
       </section>
     </PageShell>
