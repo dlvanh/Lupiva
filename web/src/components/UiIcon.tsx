@@ -8,6 +8,8 @@ const paths = {
   close: "m6 6 12 12 M18 6 6 18",
   unchecked: "M4 4h16v16H4z",
   checked: "M4 4h16v16H4z M7.5 12l3 3 6-6",
+  eye: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z M12 9a3 3 0 1 0 0 6 3 3 0 1 0 0-6z",
+  eyeOff: "M10.6 5.1A9.8 9.8 0 0 1 12 5c6.4 0 10 7 10 7a18.5 18.5 0 0 1-3.2 4.3 M6.6 6.6A17.7 17.7 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6 M9.9 9.9a3 3 0 0 0 4.2 4.2 M3 3l18 18",
 };
 
 export function UiIcon({ name, className = "size-4 shrink-0" }: { name: keyof typeof paths; className?: string }) {

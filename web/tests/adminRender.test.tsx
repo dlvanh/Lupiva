@@ -335,6 +335,9 @@ describe("Admin UI SSR rendering & localization", () => {
     expect(html).toContain("Generate password");
     expect(html).toContain('id="admin-btn-toggle-password"');
     expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('aria-label="Show password"');
+    expect(html).toMatch(/id="admin-btn-toggle-password"[^>]*><svg aria-hidden="true"/);
+    expect(html).not.toContain(">Show password<");
     expect(html).toContain('id="admin-btn-copy-password"');
   });
 

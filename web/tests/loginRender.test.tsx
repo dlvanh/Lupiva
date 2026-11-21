@@ -36,6 +36,10 @@ describe("login copy", () => {
     expect(html).toContain('id="login-link-register"');
     expect(html).toContain('href="/login?mode=register"');
     expect(html).toContain(registerLinkText);
+    expect(html).toContain('id="login-btn-toggle-password"');
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain(`aria-label="${language === "vi" ? "Hiện mật khẩu" : "Show password"}"`);
+    expect(html).toMatch(/id="login-btn-toggle-password"[^>]*><svg aria-hidden="true"/);
     expect(html).not.toMatch(/<aside\b|login-tab-specialist|login-tab-patient|login-input-invite-code|phân quyền|role-based clinical access|aes-256|hmac|blind index/i);
   });
 
@@ -53,6 +57,9 @@ describe("login copy", () => {
     expect(html).toContain("Email (không bắt buộc)");
     expect(html).not.toMatch(/id="login-input-email"[^>]*\brequired\b/);
     expect(html).toContain('id="login-password-hint"');
+    expect(html).toContain('id="login-btn-toggle-password"');
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('aria-label="Hiện mật khẩu"');
     expect(html).toMatch(/id="login-btn-submit"[^>]*>Đăng ký<\/button>/);
     expect(html).toContain('id="login-link-signin"');
     expect(html).toContain('href="/login"');

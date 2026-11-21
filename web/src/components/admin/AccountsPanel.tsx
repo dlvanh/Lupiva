@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { UiIcon } from "@/components/UiIcon";
 import type { UserRole } from "@/data/mockData";
 import type {
   AdminAccountDTO,
@@ -305,22 +306,34 @@ export function AccountsPanel({
                 {copy.accounts.passwordHint}
               </p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <input
-                  id="admin-create-password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  minLength={8}
-                  maxLength={128}
-                  aria-describedby="admin-create-password-hint"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (passwordStatus) setPasswordStatus(null);
-                  }}
-                  className="min-h-9 min-w-[220px] flex-1 max-w-md rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900"
-                />
+                <div className="relative min-w-[220px] max-w-md flex-1">
+                  <input
+                    id="admin-create-password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    maxLength={128}
+                    aria-describedby="admin-create-password-hint"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (passwordStatus) setPasswordStatus(null);
+                    }}
+                    className="min-h-9 w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-10 pl-3 text-xs text-slate-900"
+                  />
+                  <button
+                    type="button"
+                    id="admin-btn-toggle-password"
+                    aria-pressed={showPassword}
+                    aria-label={showPassword ? copy.accounts.hidePassword : copy.accounts.showPassword}
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 flex w-9 cursor-pointer items-center justify-center rounded-r-lg text-slate-500 transition hover:text-slate-800"
+                  >
+                    <UiIcon name={showPassword ? "eyeOff" : "eye"} />
+                  </button>
+                </div>
                 <button
                   type="button"
                   id="admin-btn-generate-password"
@@ -328,15 +341,6 @@ export function AccountsPanel({
                   className="min-h-9 cursor-pointer rounded-lg border border-teal-700 bg-white px-3 py-1.5 text-xs font-semibold text-teal-800 transition hover:bg-teal-50"
                 >
                   {copy.accounts.generatePassword}
-                </button>
-                <button
-                  type="button"
-                  id="admin-btn-toggle-password"
-                  aria-pressed={showPassword}
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="min-h-9 cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                >
-                  {showPassword ? copy.accounts.hidePassword : copy.accounts.showPassword}
                 </button>
                 <button
                   type="button"
