@@ -25,6 +25,7 @@ export interface CommitteeMember {
   initials: string;
   role: string;
   photoSrc?: string | null;
+  photoClassName?: string;
   row: "top" | "bottom";
 }
 
@@ -199,6 +200,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           initials: "VA",
           role: "VinUniversity VRIC – Vinmec",
           photoSrc: "/images/team/image17.jpg",
+          photoClassName: "object-[50%_25%]",
           row: "bottom",
         },
         {
@@ -383,6 +385,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           initials: "VA",
           role: "VinUniversity VRIC – Vinmec",
           photoSrc: "/images/team/image17.jpg",
+          photoClassName: "object-[50%_25%]",
           row: "bottom",
         },
         {

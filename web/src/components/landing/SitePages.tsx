@@ -167,13 +167,13 @@ function MemberCard({ member }: { member: CommitteeMember }) {
           alt={member.name}
           width={112}
           height={112}
-          className="h-28 w-28 rounded-full border-2 border-teal-100 object-cover object-top shadow-2xs"
+          className={`h-28 w-28 rounded-lg border-2 border-teal-100 object-cover shadow-2xs ${member.photoClassName ?? "object-top"}`}
         />
       ) : (
         <div
           role="img"
           aria-label={member.name}
-          className="flex h-28 w-28 items-center justify-center rounded-full border-2 border-dashed border-teal-200 bg-gradient-to-br from-teal-50 via-white to-slate-50 text-xl font-bold text-teal-800"
+          className="flex h-28 w-28 items-center justify-center rounded-lg border-2 border-dashed border-teal-200 bg-gradient-to-br from-teal-50 via-white to-slate-50 text-xl font-bold text-teal-800"
         >
           {member.initials}
         </div>
