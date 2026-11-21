@@ -21,6 +21,7 @@ import {
   timingSafeStringEqual,
 } from "@/lib/crypto";
 import { OTP_MAX_VERIFY_ATTEMPTS, hashOtpCode } from "@/lib/otp";
+import { isOtpRequired } from "@/lib/otpConfig";
 import { hashPassword } from "@/lib/password";
 import { normalizeVietnamPhone } from "@/lib/phone";
 import {
@@ -129,7 +130,7 @@ export async function POST(request: Request) {
         { status: 400, headers: NO_STORE_HEADERS }
       );
     }
-    if (!data.otpCode || !/^\d{6}$/.test(data.otpCode)) {
+    if (isOtpRequired() && (!data.otpCode || !/^\d{6}$/.test(data.otpCode))) {
       return NextResponse.json(
         { error: "Please enter the 6-digit OTP verification code." },
         { status: 400, headers: NO_STORE_HEADERS }
@@ -272,7 +273,12 @@ export async function POST(request: Request) {
     const now = new Date();
 
     // Verify & atomically consume phone OTP for patient self-registration.
-    if (data.role === "patient" && phoneBlindIndex && data.otpCode) {
+    if (
+      isOtpRequired() &&
+      data.role === "patient" &&
+      phoneBlindIndex &&
+      data.otpCode
+    ) {
       const [otpRow] = await db
         .select()
         .from(phoneOtps)
