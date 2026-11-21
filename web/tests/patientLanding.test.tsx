@@ -53,13 +53,13 @@ describe("public site pages", () => {
       "mô hình dự báo đợt bùng phát",
       "Cách registry vận hành",
       "Hướng phát triển",
-      "Thành viên nhóm thực hiện",
+      "Thành viên &amp; Đơn vị thực hiện",
       "PGS.TS.BS Nguyễn Văn Đĩnh",
       "Hoàng Thị Oánh",
       "Đỗ Lê Việt Anh",
       "Phạm Văn Kiên",
       "Vương Việt Hoàng",
-      "Học viên AI Thực Chiến",
+      "VinUniversity VRIC – Vinmec",
       "Đơn vị thực hiện",
       "Viện Nghiên cứu Miễn dịch Vinmec – VinUni",
       "VinUni VRIC - VinMec",
@@ -79,7 +79,7 @@ describe("public site pages", () => {
 
   it("about (/gioi-thieu): renders merged registry home sections", () => {
     const markup = renderToStaticMarkup(<AboutPage />);
-    expect(markup).toContain("Thành viên nhóm thực hiện");
+    expect(markup).toContain("Thành viên &amp; Đơn vị thực hiện");
     expect(markup).toContain("Cách registry vận hành");
   });
 
@@ -109,7 +109,7 @@ describe("public site pages", () => {
       "Đỗ Lê Việt Anh",
       "Phạm Văn Kiên",
       "Vương Việt Hoàng",
-      "Học viên AI Thực Chiến",
+      "VinUniversity VRIC – Vinmec",
       "Viện Nghiên cứu Miễn dịch Vinmec – VinUni",
       "VinUni VRIC - VinMec thuộc chương trình AI Thực Chiến",
       "Điện thoại",
@@ -133,7 +133,7 @@ describe("public site pages", () => {
     expect(patients).toContain("Agree to take part (sign consent)");
     const contact = renderToStaticMarkup(<ContactPage />);
     expect(contact).toContain("Our Members");
-    expect(contact).toContain("Assoc. Prof. Dr. Nguyen Van Dinh");
+    expect(contact).toContain("Assoc. Prof. Nguyen Van Dinh");
   });
 
   it("menu: 2 public pages (Trang chủ, Cho bệnh nhân) without Về Registry or Liên hệ and no doctor button beside sign-in", () => {
