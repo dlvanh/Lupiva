@@ -97,6 +97,10 @@ describe("public site pages", () => {
     expect(markup).not.toContain("vài ngày làm việc");
     expect(markup.indexOf("Quyền lợi")).toBeLessThan(markup.indexOf("Cách tham gia"));
     expect(markup).not.toContain("E-consent");
+    // "Vì sao cần registry?" is folded into the research benefit; still 3 benefits.
+    expect(markup).not.toContain("Vì sao cần registry");
+    expect(markup).toContain("phù hợp hơn với người bệnh Việt Nam");
+    expect(markup.match(/<article /g)?.length).toBe(3);
   });
 
   it("contact: team members matching home page, partners, and real email/phone", () => {

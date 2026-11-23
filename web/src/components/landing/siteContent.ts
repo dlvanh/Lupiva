@@ -75,8 +75,6 @@ export interface SiteContent {
     intro: string;
     lupusTitle: string;
     lupus: string[];
-    whyTitle: string;
-    why: string[];
     contributeTitle: string;
     contributeBody: string;
     contribute: string[];
@@ -241,18 +239,12 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
     patients: {
       title: "Thông tin cho bệnh nhân",
       intro:
-        "Trang này giải thích bệnh lupus, vì sao registry cần sự tham gia của bạn, quyền lợi khi tham gia và các bước để bắt đầu.",
+        "Trang này giải thích bệnh lupus, quyền lợi khi tham gia registry và các bước để bắt đầu.",
       lupusTitle: "Lupus ban đỏ hệ thống là gì?",
       lupus: [
         "Lupus ban đỏ hệ thống (SLE) là bệnh tự miễn: hệ miễn dịch tấn công nhầm vào chính cơ thể. Bệnh có thể ảnh hưởng da, khớp, thận, máu, tim, phổi, não và nhiều cơ quan khác.",
         "Bệnh gặp nhiều nhất ở phụ nữ trong độ tuổi sinh đẻ, nhưng cũng có thể gặp ở nam giới, trẻ em và người lớn tuổi. Mỗi người bệnh có biểu hiện và mức độ nặng khác nhau, bệnh thường diễn tiến thành từng đợt.",
         "Hiện chưa có thuốc chữa khỏi hẳn, nhưng điều trị đúng và theo dõi đều đặn giúp kiểm soát bệnh và giảm tổn thương cơ quan.",
-      ],
-      whyTitle: "Vì sao cần registry?",
-      why: [
-        "Theo dõi bệnh lupus thay đổi thế nào ở từng người bệnh theo thời gian.",
-        "Tìm cách chẩn đoán và điều trị sớm hơn, phù hợp hơn với người bệnh Việt Nam.",
-        "Góp phần phát triển cách điều trị hiệu quả hơn và ít tác dụng phụ hơn.",
       ],
       contributeTitle: "Bạn có thể đóng góp như thế nào?",
       contributeBody: "Bạn chỉ cần chia sẻ những giấy tờ đã có từ các lần khám:",
@@ -425,18 +417,12 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
     },
     patients: {
       title: "Information for patients",
-      intro: "This page explains lupus, why the registry needs you, the benefits of taking part and how to start.",
+      intro: "This page explains lupus, the benefits of taking part in the registry and how to start.",
       lupusTitle: "What is systemic lupus erythematosus?",
       lupus: [
         "Systemic lupus erythematosus (SLE) is an autoimmune disease: the immune system attacks the body by mistake. It can affect the skin, joints, kidneys, blood, heart, lungs, brain and other organs.",
         "It is most common in women of child-bearing age, but men, children and older people can also have lupus. Symptoms and severity differ between people and the disease often comes in flares.",
         "There is no cure yet, but the right treatment and regular follow-up help control the disease and reduce organ damage.",
-      ],
-      whyTitle: "Why a registry?",
-      why: [
-        "Track how lupus changes in each patient over time.",
-        "Find ways to diagnose and treat earlier, better suited to Vietnamese patients.",
-        "Help develop more effective treatments with fewer side effects.",
       ],
       contributeTitle: "How can you contribute?",
       contributeBody: "You only need to share documents you already have from your visits:",
