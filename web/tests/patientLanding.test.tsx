@@ -87,7 +87,7 @@ describe("public site pages", () => {
     const markup = renderToStaticMarkup(<PatientsPage />);
     for (const text of [
       "Lupus ban đỏ hệ thống là gì?", "Quyền lợi", "Cơ hội trao đổi với bác sĩ chuyên khoa",
-      "Dùng email/số điện thoại để tạo tài khoản", "Đồng ý tham gia (ký chấp thuận)", "rút khỏi dự án",
+      "Dùng email/số điện thoại để tạo tài khoản", "Đồng ý tham gia (ký chấp thuận)",
       "Tôi tham gia có mất phí không?", "tự nguyện và miễn phí", "Ai được quyền xem hồ sơ của tôi?", "giả danh hóa",
       "Thời gian nộp hồ sơ mất bao lâu?", "Thời gian gửi mỗi tài liệu mất vài phút.", "Hồ sơ của tôi dùng vào việc gì?",
       "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.", "Bắt đầu tham gia",
@@ -97,6 +97,7 @@ describe("public site pages", () => {
     expect(markup).not.toContain("vài ngày làm việc");
     expect(markup.indexOf("Quyền lợi")).toBeLessThan(markup.indexOf("Cách tham gia"));
     expect(markup).not.toContain("E-consent");
+    expect(markup).not.toContain("rút khỏi dự án");
     // "Vì sao cần registry?" is folded into the research benefit; still 3 benefits.
     expect(markup).not.toContain("Vì sao cần registry");
     expect(markup).toContain("phù hợp hơn với người bệnh Việt Nam");

@@ -259,7 +259,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
     },
     contact: {
       title: "Liên hệ",
-      intro: "Nếu bạn có câu hỏi về registry, việc tham gia hoặc muốn rút khỏi dự án, vui lòng liên hệ nhóm nghiên cứu.",
+      intro: "Nếu bạn có câu hỏi về registry, hoặc việc tham gia, vui lòng liên hệ nhóm nghiên cứu.",
       unitsTitle: "Đơn vị thực hiện",
       units: [
         "Viện Nghiên cứu Miễn dịch Vinmec – VinUni, Trường Khoa học Sức khỏe, Trường Đại học VinUni",
@@ -437,7 +437,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
     },
     contact: {
       title: "Contact",
-      intro: "If you have questions about the registry, taking part or withdrawing from the project, please contact the research team.",
+      intro: "If you have questions about the registry, or taking part, please contact the research team.",
       unitsTitle: "Implementing Partners",
       units: [
         "Vinmec-VinUni Institute of Immunology, College of Health Sciences, VinUniversity",
