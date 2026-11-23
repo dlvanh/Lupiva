@@ -7,6 +7,7 @@ import { UiIcon } from "@/components/UiIcon";
 import { useLupiva } from "@/context/LupivaContext";
 import { resolveSafeRedirect } from "@/lib/loginRedirect";
 import { isValidVietnamPhone } from "@/lib/phone";
+import { isOtpRequired } from "@/lib/otpConfig";
 
 type AuthMode = "login" | "register";
 
@@ -43,6 +44,7 @@ function LoginFormContent({
   const [fullName, setFullName] = useState<string>("");
   const [identifier, setIdentifier] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
+  const otpRequired = isOtpRequired();
   const [otpCode, setOtpCode] = useState<string>("");
   const [otpSent, setOtpSent] = useState<boolean>(false);
   const [otpSending, setOtpSending] = useState<boolean>(false);
@@ -154,7 +156,7 @@ function LoginFormContent({
         return;
       }
 
-      if (!/^\d{6}$/.test(otpCode.trim())) {
+      if (otpRequired && !/^\d{6}$/.test(otpCode.trim())) {
         setErrorMessage(t.toasts.otpRequiredDesc);
         showToast(
           t.toasts.otpRequiredTitle,
@@ -307,6 +309,7 @@ function LoginFormContent({
                       className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-teal-700"
                       placeholder={t.login.phonePlaceholder}
                     />
+                    {otpRequired && (
                     <button
                       type="button"
                       id="login-btn-send-otp"
@@ -320,9 +323,11 @@ function LoginFormContent({
                         ? t.login.resendOtpBtn(otpCooldown)
                         : t.login.sendOtpBtn}
                     </button>
+                    )}
                   </div>
                 </div>
 
+                {otpRequired && (
                 <div>
                   <label
                     htmlFor="login-input-otp"
@@ -356,6 +361,7 @@ function LoginFormContent({
                     </p>
                   )}
                 </div>
+                )}
 
                 <div>
                   <label

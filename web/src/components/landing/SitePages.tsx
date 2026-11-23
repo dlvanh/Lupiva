@@ -436,12 +436,6 @@ export function PatientsContent() {
           ))}
         </div>
       </section>
-      <section aria-labelledby="patients-why-heading">
-        <h2 id="patients-why-heading" className={h2}>
-          {patients.whyTitle}
-        </h2>
-        <Bullets items={patients.why} />
-      </section>
       <PatientInfoSections />
       <section aria-labelledby="patients-contribute-heading">
         <h2 id="patients-contribute-heading" className={h2}>

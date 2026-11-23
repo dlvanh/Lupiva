@@ -53,13 +53,13 @@ describe("public site pages", () => {
       "mô hình dự báo đợt bùng phát",
       "Cách registry vận hành",
       "Hướng phát triển",
-      "Thành viên nhóm thực hiện",
+      "Thành viên &amp; Đơn vị thực hiện",
       "PGS.TS.BS Nguyễn Văn Đĩnh",
       "Hoàng Thị Oánh",
       "Đỗ Lê Việt Anh",
       "Phạm Văn Kiên",
       "Vương Việt Hoàng",
-      "Học viên AI Thực Chiến",
+      "VinUniversity VRIC – Vinmec",
       "Đơn vị thực hiện",
       "Viện Nghiên cứu Miễn dịch Vinmec – VinUni",
       "VinUni VRIC - VinMec",
@@ -79,7 +79,7 @@ describe("public site pages", () => {
 
   it("about (/gioi-thieu): renders merged registry home sections", () => {
     const markup = renderToStaticMarkup(<AboutPage />);
-    expect(markup).toContain("Thành viên nhóm thực hiện");
+    expect(markup).toContain("Thành viên &amp; Đơn vị thực hiện");
     expect(markup).toContain("Cách registry vận hành");
   });
 
@@ -87,7 +87,7 @@ describe("public site pages", () => {
     const markup = renderToStaticMarkup(<PatientsPage />);
     for (const text of [
       "Lupus ban đỏ hệ thống là gì?", "Quyền lợi", "Cơ hội trao đổi với bác sĩ chuyên khoa",
-      "Dùng email/số điện thoại để tạo tài khoản", "Đồng ý tham gia (ký chấp thuận)", "rút khỏi dự án",
+      "Dùng email/số điện thoại để tạo tài khoản", "Đồng ý tham gia (ký chấp thuận)",
       "Tôi tham gia có mất phí không?", "tự nguyện và miễn phí", "Ai được quyền xem hồ sơ của tôi?", "giả danh hóa",
       "Thời gian nộp hồ sơ mất bao lâu?", "Thời gian gửi mỗi tài liệu mất vài phút.", "Hồ sơ của tôi dùng vào việc gì?",
       "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.", "Bắt đầu tham gia",
@@ -97,6 +97,11 @@ describe("public site pages", () => {
     expect(markup).not.toContain("vài ngày làm việc");
     expect(markup.indexOf("Quyền lợi")).toBeLessThan(markup.indexOf("Cách tham gia"));
     expect(markup).not.toContain("E-consent");
+    expect(markup).not.toContain("rút khỏi dự án");
+    // "Vì sao cần registry?" is folded into the research benefit; still 3 benefits.
+    expect(markup).not.toContain("Vì sao cần registry");
+    expect(markup).toContain("phù hợp hơn với người bệnh Việt Nam");
+    expect(markup.match(/<article /g)?.length).toBe(3);
   });
 
   it("contact: team members matching home page, partners, and real email/phone", () => {
@@ -109,7 +114,7 @@ describe("public site pages", () => {
       "Đỗ Lê Việt Anh",
       "Phạm Văn Kiên",
       "Vương Việt Hoàng",
-      "Học viên AI Thực Chiến",
+      "VinUniversity VRIC – Vinmec",
       "Viện Nghiên cứu Miễn dịch Vinmec – VinUni",
       "VinUni VRIC - VinMec thuộc chương trình AI Thực Chiến",
       "Điện thoại",
@@ -133,7 +138,7 @@ describe("public site pages", () => {
     expect(patients).toContain("Agree to take part (sign consent)");
     const contact = renderToStaticMarkup(<ContactPage />);
     expect(contact).toContain("Our Members");
-    expect(contact).toContain("Assoc. Prof. Dr. Nguyen Van Dinh");
+    expect(contact).toContain("Assoc. Prof. Nguyen Van Dinh");
   });
 
   it("menu: 2 public pages (Trang chủ, Cho bệnh nhân) without Về Registry or Liên hệ and no doctor button beside sign-in", () => {
