@@ -79,8 +79,6 @@ export interface SiteContent {
     contributeTitle: string;
     contributeBody: string;
     contribute: string[];
-    doctorBenefitTitle: string;
-    doctorBenefitBody: string;
   };
   contact: {
     title: string;
@@ -238,9 +236,9 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Trang này giải thích bệnh lupus, quyền lợi khi tham gia registry và các bước để bắt đầu.",
       lupusTitle: "Lupus ban đỏ hệ thống là gì?",
       lupus: [
-        "Lupus ban đỏ hệ thống (SLE) là bệnh tự miễn: hệ miễn dịch tấn công nhầm vào chính cơ thể. Bệnh có thể ảnh hưởng da, khớp, thận, máu, tim, phổi, não và nhiều cơ quan khác.",
-        "Bệnh gặp nhiều nhất ở phụ nữ trong độ tuổi sinh đẻ, nhưng cũng có thể gặp ở nam giới, trẻ em và người lớn tuổi. Mỗi người bệnh có biểu hiện và mức độ nặng khác nhau, bệnh thường diễn tiến thành từng đợt.",
-        "Hiện chưa có thuốc chữa khỏi hẳn, nhưng điều trị đúng và theo dõi đều đặn giúp kiểm soát bệnh và giảm tổn thương cơ quan.",
+        "Lupus ban đỏ hệ thống (systemic lupus erythematosus, SLE) là bệnh tự miễn mạn tính có thể ảnh hưởng đến nhiều cơ quan, từ da và khớp đến thận và hệ thần kinh (The Lancet). Bệnh phát sinh do tương tác giữa yếu tố di truyền, nội tiết và môi trường, dẫn đến mất dung nạp miễn dịch, sản xuất tự kháng thể, hình thành phức hợp miễn dịch và hoạt hóa con đường interferon típ I, góp phần duy trì tình trạng viêm và gây tổn thương mô.",
+        "Bệnh gặp nhiều nhất ở phụ nữ trong độ tuổi sinh sản, nhưng cũng có thể gặp ở nam giới, trẻ em và người lớn tuổi. Mỗi người bệnh có biểu hiện và mức độ nặng khác nhau, bệnh thường diễn tiến thành từng đợt.",
+        "Mục tiêu điều trị bệnh hiện nay là kiểm soát bệnh và theo dõi đều đặn nhằm giảm tổn thương cơ quan.",
       ],
       contributeTitle: "Bạn có thể đóng góp như thế nào?",
       contributeBody: "Bạn chỉ cần chia sẻ những giấy tờ đã có từ các lần khám:",
@@ -249,9 +247,6 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Kết quả đo chức năng hô hấp, siêu âm, chẩn đoán hình ảnh.",
         "Giấy ra viện, đơn thuốc, tóm tắt bệnh án nếu có.",
       ],
-      doctorBenefitTitle: "Cơ hội trao đổi với bác sĩ chuyên khoa",
-      doctorBenefitBody:
-        "Hồ sơ của bạn được bác sĩ chuyên khoa Dị ứng – Miễn dịch lâm sàng xem xét. Khi cần, bạn có cơ hội trao đổi trực tiếp với bác sĩ về kết quả và quá trình theo dõi bệnh.",
     },
     contact: {
       title: "Liên hệ",
@@ -411,9 +406,9 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
       intro: "This page explains lupus, the benefits of taking part in the registry and how to start.",
       lupusTitle: "What is systemic lupus erythematosus?",
       lupus: [
-        "Systemic lupus erythematosus (SLE) is an autoimmune disease: the immune system attacks the body by mistake. It can affect the skin, joints, kidneys, blood, heart, lungs, brain and other organs.",
-        "It is most common in women of child-bearing age, but men, children and older people can also have lupus. Symptoms and severity differ between people and the disease often comes in flares.",
-        "There is no cure yet, but the right treatment and regular follow-up help control the disease and reduce organ damage.",
+        "Systemic lupus erythematosus (SLE) is a chronic autoimmune disease that can affect multiple organs, from the skin and joints to the kidneys and nervous system (The Lancet). It develops through interactions among genetic, hormonal, and environmental factors, leading to loss of immune tolerance, autoantibody production, immune complex formation, and activation of the type I interferon pathway, sustaining inflammation and causing tissue damage.",
+        "It is most common in women of reproductive age, but men, children and older people can also have lupus. Symptoms and severity differ between people and the disease often comes in flares.",
+        "Current treatment aims to control the disease and maintain regular follow-up to reduce organ damage.",
       ],
       contributeTitle: "How can you contribute?",
       contributeBody: "You only need to share documents you already have from your visits:",
@@ -422,9 +417,6 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Lung function, ultrasound and imaging results.",
         "Discharge summaries, prescriptions or clinical summaries if available.",
       ],
-      doctorBenefitTitle: "A chance to talk with a specialist",
-      doctorBenefitBody:
-        "Your records are reviewed by allergy and clinical immunology specialists. When needed, you have the chance to discuss your results and follow-up directly with a doctor.",
     },
     contact: {
       title: "Contact",

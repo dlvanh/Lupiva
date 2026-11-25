@@ -89,11 +89,21 @@ describe("public site pages", () => {
     expect(markup).toContain("Cách registry vận hành");
   });
 
-  it("patients: lupus explained, benefits incl. talking with a specialist, joining, FAQ and notice", () => {
+  it("patients: lupus explained, 2 participation benefits, joining, FAQ and notice", () => {
     const markup = renderToStaticMarkup(<PatientsPage />);
     for (const text of [
-      "Lupus ban đỏ hệ thống là gì?", "Quyền lợi", "Cơ hội trao đổi với bác sĩ chuyên khoa",
-      "Dùng email/số điện thoại để tạo tài khoản", "Đồng ý tham gia (ký chấp thuận)",
+      "Lupus ban đỏ hệ thống là gì?",
+      "Lupus ban đỏ hệ thống (systemic lupus erythematosus, SLE) là bệnh tự miễn mạn tính",
+      "hoạt hóa con đường interferon típ I",
+      "phụ nữ trong độ tuổi sinh sản",
+      "Mục tiêu điều trị bệnh hiện nay là kiểm soát bệnh và theo dõi đều đặn nhằm giảm tổn thương cơ quan.",
+      "Quyền lợi tham gia",
+      "Được theo dõi quản lý bệnh",
+      "Đồng thời sẽ giúp nghiên cứu về bệnh lupus và các phác đồ điều trị phù hợp cho người Việt.",
+      "Toàn bộ thông tin cá nhân sẽ được mã hoá dưới dạng số và hoàn toàn bảo mật.",
+      "Dùng email/số điện thoại để tạo tài khoản",
+      "Ký chấp thuận tham gia",
+      "Bạn sẽ được cung cấp phiếu thông tin dự án và bản chấp thuận đồng ý tham gia.",
       "Tôi tham gia có mất phí không?", "tự nguyện và miễn phí", "Ai được quyền xem hồ sơ của tôi?", "giả danh hóa",
       "Thời gian nộp hồ sơ mất bao lâu?", "Thời gian gửi mỗi tài liệu mất vài phút.", "Hồ sơ của tôi dùng vào việc gì?",
       "Đây không phải đặt lịch khám và không thay thế việc khám bác sĩ.", "Bắt đầu tham gia",
@@ -101,13 +111,15 @@ describe("public site pages", () => {
       expect(markup).toContain(text);
     }
     expect(markup).not.toContain("vài ngày làm việc");
-    expect(markup.indexOf("Quyền lợi")).toBeLessThan(markup.indexOf("Cách tham gia"));
+    expect(markup.indexOf("Quyền lợi tham gia")).toBeLessThan(markup.indexOf("Cách tham gia"));
     expect(markup).not.toContain("E-consent");
     expect(markup).not.toContain("rút khỏi dự án");
-    // "Vì sao cần registry?" is folded into the research benefit; still 3 benefits.
     expect(markup).not.toContain("Vì sao cần registry");
-    expect(markup).toContain("phù hợp hơn với người bệnh Việt Nam");
-    expect(markup.match(/<article /g)?.length).toBe(3);
+    expect(markup).not.toContain("Cơ hội trao đổi với bác sĩ chuyên khoa");
+    expect(markup).not.toContain("sinh đẻ");
+    expect(markup).not.toContain("Góp phần nghiên cứu bệnh lupus");
+    expect(markup).not.toContain("Đồng ý tham gia (ký chấp thuận)");
+    expect(markup.match(/<article /g)?.length).toBe(2);
   });
 
   it("contact: team members matching home page, partners, and real email/phone", () => {
@@ -140,8 +152,10 @@ describe("public site pages", () => {
     expect(home).toContain("Future directions");
     expect(home).toContain("Our Members");
     const patients = renderToStaticMarkup(<PatientsPage />);
-    expect(patients).toContain("A chance to talk with a specialist");
-    expect(patients).toContain("Agree to take part (sign consent)");
+    expect(patients).toContain("Benefits of Participation");
+    expect(patients).toContain("Ongoing disease monitoring and management");
+    expect(patients).toContain("Sign participation consent");
+    expect(patients).not.toContain("A chance to talk with a specialist");
     const contact = renderToStaticMarkup(<ContactPage />);
     expect(contact).toContain("Our Members");
     expect(contact).toContain("Assoc. Prof. Nguyen Van Dinh");
