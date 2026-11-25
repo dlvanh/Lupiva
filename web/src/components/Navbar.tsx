@@ -90,6 +90,11 @@ export function Navbar() {
             { href: "/upload", label: "Dashboard", id: "nav-link-upload" },
             { href: "/registry", label: isVi ? "Duyệt hồ sơ" : "Review", id: "nav-link-registry" },
             { href: "/crf-form", label: isVi ? "Phiếu CRF" : "CRF form", id: "nav-link-crf-form" },
+            {
+              href: "/redcap",
+              label: isVi ? "Quản lý dữ liệu REDCap" : "REDCap Data Management",
+              id: "nav-link-redcap",
+            },
           ]
         : [
             ...SITE_PAGES.map((page) => ({
