@@ -10,6 +10,7 @@ export const SITE_NAME = "Vietnam Lupus Registry";
 export const SITE_PAGES = [
   { href: "/", vi: "Trang chủ", en: "Home", id: "nav-link-home" },
   { href: "/benh-nhan", vi: "Cho bệnh nhân", en: "For patients", id: "nav-link-patients" },
+  { href: "/login?role=specialist", vi: "Cho bác sĩ", en: "For physicians", id: "nav-link-doctor" },
 ] as const;
 
 type Item = { title: string; body: string };
@@ -78,8 +79,6 @@ export interface SiteContent {
     contributeTitle: string;
     contributeBody: string;
     contribute: string[];
-    doctorBenefitTitle: string;
-    doctorBenefitBody: string;
   };
   contact: {
     title: string;
@@ -114,7 +113,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Chuẩn hóa hồ sơ khám và xét nghiệm thực tế thành cơ sở dữ liệu lâm sàng đồng bộ của người bệnh SLE Việt Nam.",
         "Theo dõi mức độ hoạt động bệnh, diễn biến lâm sàng cùng hiệu quả và độ an toàn điều trị theo thời gian.",
         "Ứng dụng AI hiểu ngữ cảnh y khoa để tự động trích xuất, tách định danh và chuẩn hóa dữ liệu tiếng Việt.",
-        "Kết nối ngân hàng mẫu sinh học (biobank) và dữ liệu đa tầng để tìm dấu ấn sinh học, xây dựng mô hình dự báo đợt bùng phát và đáp ứng điều trị.",
+        "Kết nối ngân hàng mẫu sinh học và dữ liệu đa tầng để tìm dấu ấn sinh học, xây dựng mô hình dự báo đợt bùng phát và đáp ứng điều trị.",
       ],
       approachKicker: "Quy trình vận hành",
       approachTitle: "Cách registry vận hành",
@@ -134,7 +133,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           title: "Xử lý tài liệu bằng AI & nhận dạng chữ",
           bullets: [
             "Nhận dạng văn bản tiếng Việt và hiểu ngữ cảnh lâm sàng",
-            "Trích xuất thông tin hành chính, chỉ số ANA, anti-dsDNA, C3/C4 và tách dữ liệu định danh",
+            "Trích xuất thông tin lâm sàng và xử lý dữ liệu định danh cá nhân",
           ],
         },
         {
@@ -164,14 +163,14 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         },
         {
           title: "Ngân hàng mẫu sinh học & dữ liệu đa tầng",
-          body: "Liên kết với ngân hàng mẫu sinh học (biobank) và dữ liệu sinh học phân tử để phân loại kiểu hình và tìm dấu ấn sinh học mới.",
+          body: "Liên kết với ngân hàng mẫu sinh học và dữ liệu sinh học phân tử để phân loại kiểu hình và tìm dấu ấn sinh học mới.",
         },
         {
           title: "Mô hình dự báo lâm sàng",
           body: "Xây dựng mô hình dự báo đợt bùng phát, tổn thương cơ quan và đáp ứng điều trị.",
         },
         {
-          title: "Y học chính xác cho người Việt",
+          title: "Hướng điều trị riêng cho người Việt",
           body: "Cá thể hóa phác đồ theo dõi và điều trị phù hợp với đặc điểm người bệnh Việt Nam.",
         },
       ],
@@ -242,9 +241,9 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Trang này giải thích bệnh lupus, quyền lợi khi tham gia registry và các bước để bắt đầu.",
       lupusTitle: "Lupus ban đỏ hệ thống là gì?",
       lupus: [
-        "Lupus ban đỏ hệ thống (SLE) là bệnh tự miễn: hệ miễn dịch tấn công nhầm vào chính cơ thể. Bệnh có thể ảnh hưởng da, khớp, thận, máu, tim, phổi, não và nhiều cơ quan khác.",
-        "Bệnh gặp nhiều nhất ở phụ nữ trong độ tuổi sinh đẻ, nhưng cũng có thể gặp ở nam giới, trẻ em và người lớn tuổi. Mỗi người bệnh có biểu hiện và mức độ nặng khác nhau, bệnh thường diễn tiến thành từng đợt.",
-        "Hiện chưa có thuốc chữa khỏi hẳn, nhưng điều trị đúng và theo dõi đều đặn giúp kiểm soát bệnh và giảm tổn thương cơ quan.",
+        "Lupus ban đỏ hệ thống (systemic lupus erythematosus, SLE) là bệnh tự miễn mạn tính có thể ảnh hưởng đến nhiều cơ quan, từ da và khớp đến thận và hệ thần kinh (The Lancet). Bệnh phát sinh do tương tác giữa yếu tố di truyền, nội tiết và môi trường, dẫn đến mất dung nạp miễn dịch, sản xuất tự kháng thể, hình thành phức hợp miễn dịch và hoạt hóa con đường interferon típ I, góp phần duy trì tình trạng viêm và gây tổn thương mô.",
+        "Bệnh gặp nhiều nhất ở phụ nữ trong độ tuổi sinh sản, nhưng cũng có thể gặp ở nam giới, trẻ em và người lớn tuổi. Mỗi người bệnh có biểu hiện và mức độ nặng khác nhau, bệnh thường diễn tiến thành từng đợt.",
+        "Mục tiêu điều trị bệnh hiện nay là kiểm soát bệnh và theo dõi đều đặn nhằm giảm tổn thương cơ quan.",
       ],
       contributeTitle: "Bạn có thể đóng góp như thế nào?",
       contributeBody: "Bạn chỉ cần chia sẻ những giấy tờ đã có từ các lần khám:",
@@ -253,9 +252,6 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Kết quả đo chức năng hô hấp, siêu âm, chẩn đoán hình ảnh.",
         "Giấy ra viện, đơn thuốc, tóm tắt bệnh án nếu có.",
       ],
-      doctorBenefitTitle: "Cơ hội trao đổi với bác sĩ chuyên khoa",
-      doctorBenefitBody:
-        "Hồ sơ của bạn được bác sĩ chuyên khoa Dị ứng – Miễn dịch lâm sàng xem xét. Khi cần, bạn có cơ hội trao đổi trực tiếp với bác sĩ về kết quả và quá trình theo dõi bệnh.",
     },
     contact: {
       title: "Liên hệ",
@@ -313,7 +309,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           title: "AI & OCR document processing",
           bullets: [
             "Text recognition (OCR) and clinical language models",
-            "Extract demographics, ANA, anti-dsDNA, C3/C4 and separate identifiers",
+            "Extract clinical information and process data de-identification",
           ],
         },
         {
@@ -350,8 +346,8 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           body: "Develop models that predict flares, organ damage and treatment response.",
         },
         {
-          title: "Precision medicine",
-          body: "Support precision medicine tailored to Vietnamese patients with SLE.",
+          title: "Personalized treatment for Vietnamese patients",
+          body: "Support personalized follow-up and treatment tailored to Vietnamese patients with SLE.",
         },
       ],
       membersKicker: "Team & Institutions",
@@ -420,9 +416,9 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
       intro: "This page explains lupus, the benefits of taking part in the registry and how to start.",
       lupusTitle: "What is systemic lupus erythematosus?",
       lupus: [
-        "Systemic lupus erythematosus (SLE) is an autoimmune disease: the immune system attacks the body by mistake. It can affect the skin, joints, kidneys, blood, heart, lungs, brain and other organs.",
-        "It is most common in women of child-bearing age, but men, children and older people can also have lupus. Symptoms and severity differ between people and the disease often comes in flares.",
-        "There is no cure yet, but the right treatment and regular follow-up help control the disease and reduce organ damage.",
+        "Systemic lupus erythematosus (SLE) is a chronic autoimmune disease that can affect multiple organs, from the skin and joints to the kidneys and nervous system (The Lancet). It develops through interactions among genetic, hormonal, and environmental factors, leading to loss of immune tolerance, autoantibody production, immune complex formation, and activation of the type I interferon pathway, sustaining inflammation and causing tissue damage.",
+        "It is most common in women of reproductive age, but men, children and older people can also have lupus. Symptoms and severity differ between people and the disease often comes in flares.",
+        "Current treatment aims to control the disease and maintain regular follow-up to reduce organ damage.",
       ],
       contributeTitle: "How can you contribute?",
       contributeBody: "You only need to share documents you already have from your visits:",
@@ -431,9 +427,6 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Lung function, ultrasound and imaging results.",
         "Discharge summaries, prescriptions or clinical summaries if available.",
       ],
-      doctorBenefitTitle: "A chance to talk with a specialist",
-      doctorBenefitBody:
-        "Your records are reviewed by allergy and clinical immunology specialists. When needed, you have the chance to discuss your results and follow-up directly with a doctor.",
     },
     contact: {
       title: "Contact",
