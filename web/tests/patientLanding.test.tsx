@@ -50,10 +50,13 @@ describe("public site pages", () => {
       "Chuẩn hóa hồ sơ khám và xét nghiệm thực tế",
       "Theo dõi mức độ hoạt động bệnh, diễn biến lâm sàng",
       "Ứng dụng AI hiểu ngữ cảnh y khoa",
+      "Kết nối ngân hàng mẫu sinh học và dữ liệu đa tầng",
       "Trích xuất thông tin lâm sàng và xử lý dữ liệu định danh cá nhân",
       "mô hình dự báo đợt bùng phát",
       "Cách registry vận hành",
       "Hướng phát triển",
+      "Ngân hàng mẫu sinh học &amp; dữ liệu đa tầng",
+      "Liên kết với ngân hàng mẫu sinh học và dữ liệu sinh học phân tử",
       "Hướng điều trị riêng cho người Việt",
       "Thành viên &amp; Đơn vị thực hiện",
       "PGS.TS.BS Nguyễn Văn Đĩnh",
@@ -77,8 +80,8 @@ describe("public site pages", () => {
     expect(markup).not.toContain("VRISG");
     expect(markup).not.toContain("SLEDAI-2K");
     expect(markup).not.toContain("Câu hỏi thường gặp");
+    expect(markup).not.toContain("(biobank)");
     expect(markup).not.toContain("biobank");
-    expect(markup).not.toContain("Ngân hàng mẫu sinh học");
     expect(markup).not.toContain("Y học chính xác cho người Việt");
     expect(markup).not.toContain("chỉ số ANA, anti-dsDNA, C3/C4");
   });

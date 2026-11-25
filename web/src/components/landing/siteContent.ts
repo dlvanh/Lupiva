@@ -113,6 +113,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Chuẩn hóa hồ sơ khám và xét nghiệm thực tế thành cơ sở dữ liệu lâm sàng đồng bộ của người bệnh SLE Việt Nam.",
         "Theo dõi mức độ hoạt động bệnh, diễn biến lâm sàng cùng hiệu quả và độ an toàn điều trị theo thời gian.",
         "Ứng dụng AI hiểu ngữ cảnh y khoa để tự động trích xuất, tách định danh và chuẩn hóa dữ liệu tiếng Việt.",
+        "Kết nối ngân hàng mẫu sinh học và dữ liệu đa tầng để tìm dấu ấn sinh học, xây dựng mô hình dự báo đợt bùng phát và đáp ứng điều trị.",
       ],
       approachKicker: "Quy trình vận hành",
       approachTitle: "Cách registry vận hành",
@@ -159,6 +160,10 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         {
           title: "Mạng lưới đa trung tâm",
           body: "Mở rộng thành mạng lưới dữ liệu đa trung tâm trên toàn quốc, theo dõi người bệnh dọc theo nhiều lần khám.",
+        },
+        {
+          title: "Ngân hàng mẫu sinh học & dữ liệu đa tầng",
+          body: "Liên kết với ngân hàng mẫu sinh học và dữ liệu sinh học phân tử để phân loại kiểu hình và tìm dấu ấn sinh học mới.",
         },
         {
           title: "Mô hình dự báo lâm sàng",
@@ -284,6 +289,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Standardize real-world patient visit and laboratory records into unified SLE clinical schemas in Vietnam.",
         "Track disease activity, clinical trajectories, and long-term treatment efficacy and safety over time.",
         "Apply context-aware clinical AI for automated Vietnamese medical extraction, de-identification, and validation.",
+        "Link biobanking and multi-omics data to discover Vietnamese-specific biomarkers and build predictive models for flares and treatment response.",
       ],
       approachKicker: "Operational Workflow",
       approachTitle: "How the registry operates",
@@ -330,6 +336,10 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         {
           title: "Multi-centre longitudinal network",
           body: "Grow into a national multi-centre registry following patients across visits over time.",
+        },
+        {
+          title: "Biobank & multi-omics linkage",
+          body: "Link biobanking and multi-omics data to classify phenotypes and discover new biomarkers.",
         },
         {
           title: "Predictive clinical models",

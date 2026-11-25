@@ -239,7 +239,7 @@ export function HomeSections() {
           </div>
 
           <ol
-            className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3"
+            className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2"
             role="list"
           >
             {about.aims.map((aim, idx) => (
@@ -328,7 +328,7 @@ export function HomeSections() {
             </p>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
             {about.future.map((item, idx) => (
               <article
                 key={item.title}
