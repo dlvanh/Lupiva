@@ -50,9 +50,11 @@ describe("public site pages", () => {
       "Chuẩn hóa hồ sơ khám và xét nghiệm thực tế",
       "Theo dõi mức độ hoạt động bệnh, diễn biến lâm sàng",
       "Ứng dụng AI hiểu ngữ cảnh y khoa",
+      "Trích xuất thông tin lâm sàng và xử lý trích xuất dữ liệu định danh",
       "mô hình dự báo đợt bùng phát",
       "Cách registry vận hành",
       "Hướng phát triển",
+      "Hướng điều trị riêng cho người Việt",
       "Thành viên &amp; Đơn vị thực hiện",
       "PGS.TS.BS Nguyễn Văn Đĩnh",
       "Hoàng Thị Oánh",
@@ -75,6 +77,10 @@ describe("public site pages", () => {
     expect(markup).not.toContain("VRISG");
     expect(markup).not.toContain("SLEDAI-2K");
     expect(markup).not.toContain("Câu hỏi thường gặp");
+    expect(markup).not.toContain("biobank");
+    expect(markup).not.toContain("Ngân hàng mẫu sinh học");
+    expect(markup).not.toContain("Y học chính xác cho người Việt");
+    expect(markup).not.toContain("chỉ số ANA, anti-dsDNA, C3/C4");
   });
 
   it("about (/gioi-thieu): renders merged registry home sections", () => {
@@ -141,20 +147,21 @@ describe("public site pages", () => {
     expect(contact).toContain("Assoc. Prof. Nguyen Van Dinh");
   });
 
-  it("menu: 2 public pages (Trang chủ, Cho bệnh nhân) without Về Registry or Liên hệ and no doctor button beside sign-in", () => {
+  it("menu: 3 public pages (Trang chủ, Cho bệnh nhân, Cho bác sĩ) without Về Registry or Liên hệ", () => {
     const markup = renderToStaticMarkup(<Navbar />);
     expect(markup).toContain("Vietnam Lupus Registry");
     expect(markup).not.toMatch(/>Lupiva</);
-    for (const href of ["/", "/benh-nhan"]) {
+    for (const href of ["/", "/benh-nhan", "/login?role=specialist"]) {
       expect(markup).toContain(`href="${href}"`);
     }
+    expect(markup).toContain(">Cho bác sĩ</a>");
     expect(markup).not.toContain('href="/gioi-thieu"');
     expect(markup).not.toContain('href="/lien-he"');
     expect(markup).not.toContain("Về Registry");
     expect(markup).not.toContain('href="/upload"');
     expect(markup.indexOf('href="/"')).toBeLessThan(markup.indexOf('href="/benh-nhan"'));
+    expect(markup.indexOf('href="/benh-nhan"')).toBeLessThan(markup.indexOf('href="/login?role=specialist"'));
     expect(markup).not.toContain('id="nav-btn-doctor"');
-    expect(markup).not.toContain('href="/login?role=specialist"');
     expect(markup.match(/href="\/login"/g)).toHaveLength(1);
   });
 

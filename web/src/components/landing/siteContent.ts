@@ -10,6 +10,7 @@ export const SITE_NAME = "Vietnam Lupus Registry";
 export const SITE_PAGES = [
   { href: "/", vi: "Trang chủ", en: "Home", id: "nav-link-home" },
   { href: "/benh-nhan", vi: "Cho bệnh nhân", en: "For patients", id: "nav-link-patients" },
+  { href: "/login?role=specialist", vi: "Cho bác sĩ", en: "For physicians", id: "nav-link-doctor" },
 ] as const;
 
 type Item = { title: string; body: string };
@@ -114,7 +115,6 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Chuẩn hóa hồ sơ khám và xét nghiệm thực tế thành cơ sở dữ liệu lâm sàng đồng bộ của người bệnh SLE Việt Nam.",
         "Theo dõi mức độ hoạt động bệnh, diễn biến lâm sàng cùng hiệu quả và độ an toàn điều trị theo thời gian.",
         "Ứng dụng AI hiểu ngữ cảnh y khoa để tự động trích xuất, tách định danh và chuẩn hóa dữ liệu tiếng Việt.",
-        "Kết nối ngân hàng mẫu sinh học (biobank) và dữ liệu đa tầng để tìm dấu ấn sinh học, xây dựng mô hình dự báo đợt bùng phát và đáp ứng điều trị.",
       ],
       approachKicker: "Quy trình vận hành",
       approachTitle: "Cách registry vận hành",
@@ -134,7 +134,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           title: "Xử lý tài liệu bằng AI & nhận dạng chữ",
           bullets: [
             "Nhận dạng văn bản tiếng Việt và hiểu ngữ cảnh lâm sàng",
-            "Trích xuất thông tin hành chính, chỉ số ANA, anti-dsDNA, C3/C4 và tách dữ liệu định danh",
+            "Trích xuất thông tin lâm sàng và xử lý trích xuất dữ liệu định danh",
           ],
         },
         {
@@ -163,15 +163,11 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           body: "Mở rộng thành mạng lưới dữ liệu đa trung tâm trên toàn quốc, theo dõi người bệnh dọc theo nhiều lần khám.",
         },
         {
-          title: "Ngân hàng mẫu sinh học & dữ liệu đa tầng",
-          body: "Liên kết với ngân hàng mẫu sinh học (biobank) và dữ liệu sinh học phân tử để phân loại kiểu hình và tìm dấu ấn sinh học mới.",
-        },
-        {
           title: "Mô hình dự báo lâm sàng",
           body: "Xây dựng mô hình dự báo đợt bùng phát, tổn thương cơ quan và đáp ứng điều trị.",
         },
         {
-          title: "Y học chính xác cho người Việt",
+          title: "Hướng điều trị riêng cho người Việt",
           body: "Cá thể hóa phác đồ theo dõi và điều trị phù hợp với đặc điểm người bệnh Việt Nam.",
         },
       ],
@@ -293,7 +289,6 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
         "Standardize real-world patient visit and laboratory records into unified SLE clinical schemas in Vietnam.",
         "Track disease activity, clinical trajectories, and long-term treatment efficacy and safety over time.",
         "Apply context-aware clinical AI for automated Vietnamese medical extraction, de-identification, and validation.",
-        "Link biobanking and multi-omics data to discover Vietnamese-specific biomarkers and build predictive models for flares and treatment response.",
       ],
       approachKicker: "Operational Workflow",
       approachTitle: "How the registry operates",
@@ -313,7 +308,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           title: "AI & OCR document processing",
           bullets: [
             "Text recognition (OCR) and clinical language models",
-            "Extract demographics, ANA, anti-dsDNA, C3/C4 and separate identifiers",
+            "Extract clinical information and process data de-identification",
           ],
         },
         {
@@ -342,16 +337,12 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           body: "Grow into a national multi-centre registry following patients across visits over time.",
         },
         {
-          title: "Biobank & multi-omics linkage",
-          body: "Link biobanking and multi-omics data to classify phenotypes and discover new biomarkers.",
-        },
-        {
           title: "Predictive clinical models",
           body: "Develop models that predict flares, organ damage and treatment response.",
         },
         {
-          title: "Precision medicine",
-          body: "Support precision medicine tailored to Vietnamese patients with SLE.",
+          title: "Personalized treatment for Vietnamese patients",
+          body: "Support personalized follow-up and treatment tailored to Vietnamese patients with SLE.",
         },
       ],
       membersKicker: "Team & Institutions",
