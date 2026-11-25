@@ -132,7 +132,7 @@ export const SITE_CONTENT: Record<Language, SiteContent> = {
           title: "Xử lý tài liệu bằng AI & nhận dạng chữ",
           bullets: [
             "Nhận dạng văn bản tiếng Việt và hiểu ngữ cảnh lâm sàng",
-            "Trích xuất thông tin lâm sàng và xử lý trích xuất dữ liệu định danh",
+            "Trích xuất thông tin lâm sàng và xử lý dữ liệu định danh cá nhân",
           ],
         },
         {

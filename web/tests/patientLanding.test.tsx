@@ -50,7 +50,7 @@ describe("public site pages", () => {
       "Chuẩn hóa hồ sơ khám và xét nghiệm thực tế",
       "Theo dõi mức độ hoạt động bệnh, diễn biến lâm sàng",
       "Ứng dụng AI hiểu ngữ cảnh y khoa",
-      "Trích xuất thông tin lâm sàng và xử lý trích xuất dữ liệu định danh",
+      "Trích xuất thông tin lâm sàng và xử lý dữ liệu định danh cá nhân",
       "mô hình dự báo đợt bùng phát",
       "Cách registry vận hành",
       "Hướng phát triển",
