@@ -14,6 +14,7 @@ from registry_pool.slots import parse_slot
 from .store import HUMAN_ROLES, ReviewStore, actor_info, now
 from .workspace import StalePatient, patient_workspace
 from .references import matched_references, record_references, reference_view
+from .auto_review import VERSION as AUTO_REVIEW_VERSION
 from .crf_scores import SCORE_FIELDS, assessment_form, evaluate_scores, iso_date
 from .crf_knowledge import FINDINGS_VERSION, LAB_FINDINGS_VERSION, load_knowledge, read_knowledge
 from .crf_lab_findings import lab_finding_proposals
@@ -424,9 +425,14 @@ class CRFReview:
                                        rules=load_knowledge(store.db))
         for fid, suggestion in score_report['suggestions'].items():
             proposals.setdefault(fid + '/result', dict(suggestion, origin='knowledge_rule'))
+        eligible_sources = {s['selection_id'] for s in sources if (s.get('auto_review') or {}).get('eligible')}
         for field in fields:
             slot = field['slot']
             field_id, component, _ = parse_slot(slot)
+            # One value, one reading: every source behind it met all the conditions.
+            option = field['options'][0] if len(field['options']) == 1 else None
+            field['auto_review'] = bool(option and field['instances'] == 1 and option['sources']
+                                        and set(option['sources']) <= eligible_sources)
             if component == 'result' and field_id in finding_rules:
                 field['knowledge'] = finding_rules[field_id]
             proposal = proposals.get(slot)
@@ -474,6 +480,8 @@ class CRFReview:
         return dict(fields=fields, sources=source_details, source_snapshot=snapshot,
                     layout=layout, score_form=assessment_form(dictionary, load_knowledge(store.db)),
                     score_default_date=score_date,
+                    auto_review=dict(version=AUTO_REVIEW_VERSION,
+                                     eligible=sum(field['auto_review'] for field in fields)),
                     draft_sha256=digest(draft), review=review, job=job, model=(draft or {}).get('model'),
                     model_counts=(draft or {}).get('counts'))
 

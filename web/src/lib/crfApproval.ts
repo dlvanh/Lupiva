@@ -24,6 +24,8 @@ export type CrfField = {
   options: CrfOption[];
   manual_options?: CrfOption[];
   proposal?: CrfProposal;
+  /** Local OCR confirmed the single source value (same number, row and result column). */
+  auto_review?: boolean;
 };
 export type CrfReviewValue = { id: string; value: string; origin: string };
 export type CrfReview = {
@@ -38,6 +40,7 @@ export type CrfView = {
   draft_sha256: string;
   review_sha256?: string | null;
   score_default_date?: string;
+  auto_review?: { version: string; eligible: number };
   job?: { status?: string; error?: string } | null;
 };
 

@@ -11,6 +11,7 @@ from .corrections import editable_source
 from .store import HUMAN_ROLES,actor_info,now,text
 from .confidence import assess as assess_confidence, summary as confidence_summary, feedback as confidence_feedback
 from .confidence import coverage_alerts, identity_conflict_documents
+from .auto_review import mark_auto_review
 
 
 class StalePatient(ValueError):
@@ -159,6 +160,7 @@ def patient_workspace(store,dictionary,case_id):
             message='Thông tin định danh giữa các ảnh trong hồ sơ khác nhau; cần xác nhận liên kết.'))
     prior_ocr=mark_prior_ocr(candidates,loaded_packages,set(documents))
     displayed=[c for c in candidates if not c.get('prior_ocr')]
+    mark_auto_review(candidates)
     by_component=defaultdict(list)
     for item in candidates:
         if item['kind']=='observation':by_component[item['field_id'],item['component']].append(item)

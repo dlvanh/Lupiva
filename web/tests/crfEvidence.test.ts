@@ -157,3 +157,36 @@ describe("adminPrefill", () => {
     expect(adminPrefill(fields, { "ADM05/result": true })).toEqual({ "ADM03/result": "o1", "ADM07/result": "bmi" });
   });
 });
+
+describe("review filter", () => {
+  const unknown = { id: "u", value: "unknown", origin: "no_evidence" };
+  const fields = [
+    field({ slot: "REN04/result", auto_review: true, options: [{ id: "a", value: "5.8" }] }),
+    field({ slot: "REN05/result", auto_review: false, options: [{ id: "b", value: "84.3" }] }),
+    field({ slot: "HEM01/result", options: [{ id: "c", value: "4.8" }, { id: "d", value: "4.6" }] }),
+    field({ slot: "HIS01/result", proposal: unknown }),
+    field({ slot: "PFT05/result" }),
+    field({ slot: "GI01/result", auto_review: true, options: [{ id: "e", value: "28.1" }] }),
+    field({ slot: "GI02/result", auto_review: true, options: [{ id: "f", value: "34.2" }] }),
+  ];
+  const approved = { "GI01/result": true };
+  it("puts every cell in exactly one filter and keeps empty cells out of all", async () => {
+    const { fieldFilter, matchesFilter } = await import("@/lib/crfEvidence");
+    expect(fields.map((item) => fieldFilter(item, approved))).toEqual(
+      ["matched", "check", "decide", "unknown", "empty", "approved", "matched"]);
+    expect(fields.filter((item) => matchesFilter(item, approved, "all")).map((item) => item.slot)).not.toContain("PFT05/result");
+    expect(fields.filter((item) => matchesFilter(item, approved, "empty"))).toHaveLength(1);
+  });
+  it("ticks every shown single value and unknown draft, never a cell to decide", async () => {
+    const { groupSelections } = await import("@/lib/crfEvidence");
+    expect(groupSelections(fields, "matched", approved, {}, {})).toEqual({ "REN04/result": "a", "GI02/result": "f" });
+    expect(groupSelections(fields, "matched", approved, { "REN04/result": "x" }, { "GI02/result": "35" })).toEqual({});
+    expect(groupSelections(fields, "unknown", approved, {}, {})).toEqual({ "HIS01/result": "u" });
+    expect(groupSelections(fields, "check", approved, {}, {})).toEqual({ "REN05/result": "b" });
+    expect(groupSelections(fields, "all", approved, {}, {})).toEqual(
+      { "REN04/result": "a", "REN05/result": "b", "HIS01/result": "u", "GI02/result": "f" });
+    for (const filter of ["decide", "empty", "approved"] as const) {
+      expect(groupSelections(fields, filter, approved, {}, {})).toEqual({});
+    }
+  });
+});

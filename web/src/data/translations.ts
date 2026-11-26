@@ -258,7 +258,6 @@ export interface Translations {
     scoreSaved: string;
     reviewBar: (approved: number, total: number, pending: number) => string;
     sectionsLabel: string;
-    backendIdLabel: string;
     keyboardHint: string;
     editBtn: string;
     originLlm: string;
@@ -610,7 +609,6 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       reviewBar: (approved, total, pending) =>
         `Approved ${approved}/${total} · ${pending} cell(s) left to decide`,
       sectionsLabel: "Sections",
-      backendIdLabel: "Backend id",
       keyboardHint: "↑/↓ move between cells · Enter ticks the active cell",
       editBtn: "Edit manually",
       originLlm: "LLM proposal",
@@ -971,7 +969,6 @@ export const TRANSLATIONS: Record<Language, Translations> = {
       reviewBar: (approved, total, pending) =>
         `Đã duyệt ${approved}/${total} · còn ${pending} ô cần quyết định`,
       sectionsLabel: "Mục",
-      backendIdLabel: "Mã backend",
       keyboardHint: "↑/↓ chuyển ô · Enter tích ô đang chọn",
       editBtn: "Sửa tay",
       originLlm: "LLM đề xuất",
