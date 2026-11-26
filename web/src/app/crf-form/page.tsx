@@ -104,8 +104,8 @@ function Value({
     <span className={`mr-2 ${instance > 1 ? "block" : "inline-block"} ${blankOnPrint(shown) ? "print:hidden" : ""}`}>
       {instance > 1 && <span>-{instance}: </span>}
       {withLabel && component && <span className="text-xs text-slate-500">{component}: </span>}
-      <span className="print:hidden">{control}</span>
-      {shown && <span className="hidden font-mono print:inline">{shown.text}</span>}
+      {control && <span className="print:hidden">{control}</span>}
+      {shown && <span className={`font-mono ${control ? "hidden print:inline" : ""}`}>{shown.text}</span>}
       {shown && shown.kind !== "approved" && (
         <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
       )}
@@ -275,8 +275,12 @@ export default function CrfFormPage() {
   }
 
   /** The cell's current answer: the doctor's edit if any, with where it came from. */
+  const studyId = selectedSubmission?.record.studyId?.trim();
   const effective = (field: CrfField): Shown | null => {
-    const original = shownValue(field, approved);
+    const original = shownValue(field, approved)
+      // The Study ID is assigned to the web case, not read from a document.
+      ?? (studyId && /^study id$/i.test(field.label)
+        ? { value: studyId, text: studyId, kind: "approved", origin: "web_case" } as Shown : null);
     if (!(field.slot in edits)) return original;
     const value = edits[field.slot];
     if (!value) return null;
@@ -286,8 +290,13 @@ export default function CrfFormPage() {
   const setEdit = (slot: string, value: string) => setEdits((previous) => ({ ...previous, [slot]: value }));
   const toggle = (slot: string, code: string) =>
     setEdits((previous) => ({ ...previous, [slot]: previous[slot] === code ? "" : code }));
+  /** An approved value is final on the form (changed on "Duyệt hồ sơ"): show it without an input. */
+  const locked = (field: CrfField) => {
+    const shown = effective(field);
+    return shown?.kind === "approved" && shown.origin !== "manual_entry";
+  };
   const controlFor = (field: CrfField) =>
-    field.choices.length ? (
+    locked(field) ? null : field.choices.length ? (
       <select
         aria-label={field.label}
         className="rounded border border-slate-300 bg-white px-1 py-0.5 text-xs"
@@ -384,13 +393,40 @@ export default function CrfFormPage() {
     );
   };
 
-  const renderFields = (fields: CrfField[]) =>
-    fields.map((field) => {
-      const shown = effective(field);
-      return (
-        <Value key={field.slot} field={field} shown={shown} withLabel={fields.length > 1} control={controlFor(field)} />
-      );
+  const renderFields = (fields: CrfField[]) => {
+    const shownBy = new Map(fields.map((field) => [field.slot, effective(field)]));
+    const visible = fields.filter((field) => {
+      const shown = shownBy.get(field.slot);
+      const others = fields.filter((other) => other !== field);
+      // Profile panels (ANA 23, myositis): the result is ticked in the columns before the intensity.
+      if (field.component === "result" && others.some((other) => other.component === "intensity" && shownBy.get(other.slot))) {
+        return false;
+      }
+      // A component already printed inside a sibling ("Homogeneous 1:320" + titre "1:320").
+      if (shown && shown.text.length >= 3 && others.some((other) => {
+        const text = shownBy.get(other.slot)?.text;
+        return !!text && text !== shown.text && text.includes(shown.text);
+      })) return false;
+      // An approved form drops empty components beside filled ones (PFT "Sau" with no post test).
+      if (webApproved && !shown && others.some((other) => shownBy.get(other.slot))) return false;
+      return true;
     });
+    return visible.map((field) => (
+      <Value key={field.slot} field={field} shown={shownBy.get(field.slot) ?? null} withLabel={visible.length > 1} control={controlFor(field)} />
+    ));
+  };
+
+  /** A template row that repeats the label above it with nothing filled in (PFT "VC(L)" twice). */
+  const emptyRepeatRow = (block: LayoutBlock, r: number) => {
+    if (r === 0) return false;
+    const label = (cells: LayoutCell[] | undefined) => (cells?.[0]?.text ?? "").replace(/\s+/g, "").toLowerCase();
+    const rows = block.rows ?? [];
+    const cells = rows[r];
+    if (!label(cells) || label(cells) !== label(rows[r - 1])) return false;
+    if ([...(rows[r - 1] ?? []), ...cells].some((cell) => (cell.row_span ?? 1) > 1)) return false;
+    return cells.slice(1).every((cell, i) =>
+      !cell.text.trim() && !cell.checkbox_slot && !(placement?.inCell.get(cellKey(block.index, r, i + 1))?.length));
+  };
 
   const renderCell = (block: LayoutBlock, cell: LayoutCell, r: number, c: number) => {
     const k = cellKey(block.index, r, c);
@@ -446,7 +482,9 @@ export default function CrfFormPage() {
             <div key={index} className="whitespace-pre-wrap">
               {plain && <span className="hidden print:inline">{line}</span>}
               <span className={plain ? "print:hidden" : ""}>{filled ?? line}</span>
-              <span className="ml-2 print:hidden">{controlFor(field)}</span>
+              {!(locked(field) && filled !== null) && (
+                <span className="ml-2 print:hidden">{controlFor(field) ?? <span className="font-mono">{shown?.text}</span>}</span>
+              )}
               {shown && shown.kind !== "approved" && (
                 <span className={`ml-1 text-[10px] ${NOTE_TONE[shown.kind]} print:hidden`}>({shownNote(shown)})</span>
               )}
@@ -545,8 +583,8 @@ export default function CrfFormPage() {
         </div>
       </div>
       <p className="mt-1 text-sm text-slate-500 print:hidden">
-        Phiếu chỉ điền các giá trị đã duyệt ở Duyệt hồ sơ. Vẫn sửa trực tiếp được: bấm ô để tích, chọn hoặc gõ giá
-        trị vào ô, rồi &quot;Lưu / Duyệt&quot;.
+        Phiếu chỉ điền các giá trị đã duyệt ở Duyệt hồ sơ; muốn sửa giá trị đã duyệt, dùng &quot;Sửa ở Duyệt hồ sơ&quot;.
+        Ô còn trống vẫn điền trực tiếp được: bấm ô để tích, chọn hoặc gõ giá trị, rồi &quot;Lưu / Duyệt&quot;.
       </p>
       {error && <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700 print:hidden">{error}</p>}
       {notice && <p className="mt-4 rounded bg-emerald-50 p-3 text-sm text-emerald-700 print:hidden">{notice}</p>}
@@ -591,7 +629,7 @@ export default function CrfFormPage() {
               ) : (
                 <table className="w-full border-collapse text-xs">
                   <tbody>
-                    {block.rows.map((cells, r) => (
+                    {block.rows.map((cells, r) => emptyRepeatRow(block, r) ? null : (
                       <tr key={r}>
                         {cells.map((cell, c) => (
                           <td

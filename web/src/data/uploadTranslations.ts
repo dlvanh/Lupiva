@@ -159,7 +159,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       kpiApproved: "Approved",
       filterHeading: "Filter & sort patient dossiers",
       searchLabel: "Search patient, Study ID, doctor, or file",
-      searchPlaceholder: "Name, Study ID (VN-...), or filename...",
+      searchPlaceholder: "Name, Study ID (SLER-...), or filename...",
       statusLegend: "Submission review status",
       statusOptions: {
         all: "All",
@@ -331,7 +331,7 @@ const UPLOAD_COPY: Record<Language, UploadPageCopy> = {
       kpiApproved: "Đã phê duyệt",
       filterHeading: "Bộ lọc & sắp xếp hồ sơ bệnh nhân",
       searchLabel: "Tìm tên bệnh nhân, Study ID, bác sĩ hoặc tệp",
-      searchPlaceholder: "Tên, Study ID (VN-...), hoặc tên tệp...",
+      searchPlaceholder: "Tên, Study ID (SLER-...), hoặc tên tệp...",
       statusLegend: "Trạng thái duyệt hồ sơ",
       statusOptions: {
         all: "Tất cả",

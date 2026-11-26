@@ -530,6 +530,24 @@ export const createSubmissionSchema = z.object({
 
 export type CreateSubmissionInput = z.infer<typeof createSubmissionSchema>;
 
+/** Registry Study IDs: SLER-001, SLER-002, … (more digits past 999). */
+export function formatStudyId(n: number): string {
+  if (!Number.isInteger(n) || n < 1) throw new Error(`Invalid study number: ${n}`);
+  return `SLER-${String(n).padStart(3, "0")}`;
+}
+
+/**
+ * The next Study ID from the `study_id_seq` sequence (migration 20261126-study-id-seq.sql).
+ * A sequence never hands the same number out twice, even to concurrent submissions;
+ * a number lost to a failed submission is simply skipped.
+ */
+export async function nextStudyId(db: DatabaseClient): Promise<string> {
+  const result = (await db.execute(sql`SELECT nextval('study_id_seq')::int AS n`)) as unknown;
+  // postgres-js returns the rows; PGlite (tests) returns { rows }.
+  const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { n: number }[];
+  return formatStudyId(Number(rows[0]?.n));
+}
+
 export async function createPatientSubmission(params: {
   user: AuthenticatedUserDTO;
   input: CreateSubmissionInput;
@@ -546,9 +564,7 @@ export async function createPatientSubmission(params: {
         input.patientName?.trim() || "Chưa nhập tên";
   if (!patientName) throw new AuthError(400, "Patient name is required.");
 
-  const studyId =
-    input.studyId?.trim() ||
-    `VN-${String(1000 + crypto.randomInt(8999))}-${String(now.getFullYear()).slice(-2)}`;
+  const studyId = input.studyId?.trim() || (await nextStudyId(db));
 
   const profileId = crypto.randomUUID();
   const submissionId = crypto.randomUUID();

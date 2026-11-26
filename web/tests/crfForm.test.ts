@@ -130,6 +130,12 @@ describe("fillTemplateLine", () => {
     expect(fillTemplateLine("Age: ☐ ☐ ", age, shown("36"))).toBe("Age: 36 ");
     expect(fillTemplateLine("BMI:", bmi, shown("21.1"))).toBe("BMI: 21.1");
   });
+  it("writes over boxes followed by a printed unit without repeating it", () => {
+    const height = field({ slot: "ADM05/result", label: "Height, cm" });
+    const weight = field({ slot: "ADM06/result", label: "Weight, kg" });
+    expect(fillTemplateLine("Height: ☐ ☐ ☐ cm", height, shown("172 cm"))).toBe("Height: 172 cm");
+    expect(fillTemplateLine("Weight: ☐ ☐ .☐ kg", weight, shown("68"))).toBe("Weight: 68 kg");
+  });
   it("leaves other lines and unknown options alone", () => {
     expect(fillTemplateLine("Study ID: ☐ ☐", age, shown("36"))).toBeNull();
     expect(fillTemplateLine("Gender\t☐  Female\t☐  Male", gender, shown("Other"))).toBeNull();

@@ -286,9 +286,12 @@ export function fillTemplateLine(line: string, field: CrfField, shown: Shown): s
       return whole;
     });
     if (ticked) return head + filled;
-    if (!/☐\s*[A-Za-zÀ-ỹ]/.test(rest)) {
-      // Boxes are digit cells ("Age: ☐ ☐"), not options: write the value over them.
-      return head + rest.replace(/(?:☐[\s\-./]*)+/, `${shown.text} `);
+    if (!field.choices.length || !/☐\s*[A-Za-zÀ-ỹ]/.test(rest)) {
+      // Boxes are digit cells ("Age: ☐ ☐", "Height: ☐ ☐ ☐ cm"), not options: write the
+      // value over them, keeping the printed unit unless the value already ends with it.
+      return head + rest.replace(/(?:☐[\s\-./]*)+([^\s☐]+)?/, (whole, unit?: string) =>
+        unit === undefined ? `${shown.text} `
+          : norm(shown.text).endsWith(norm(unit)) ? shown.text : `${shown.text} ${unit}`);
     }
     return null;
   }

@@ -65,7 +65,7 @@ async function submissionAt(ageDays: number) {
 }
 
 describe("specialist default sort: new first, unreviewed next, approved last", () => {
-  it.each(["", "VN-"])("puts older failed dossiers on the first page with search %j", async (q) => {
+  it.each(["", "SLER-"])("puts older failed dossiers on the first page with search %j", async (q) => {
     await submissionAt(0);
     await submissionAt(1);
     const failed = await submissionAt(3);
@@ -113,7 +113,7 @@ describe("specialist default sort: new first, unreviewed next, approved last", (
 
     const result = await querySubmissions({
       user: doctor,
-      filters: { ...DEFAULT_SUBMISSION_FILTERS, pageSize: 10, q: "VN-" },
+      filters: { ...DEFAULT_SUBMISSION_FILTERS, pageSize: 10, q: "SLER-" },
     });
     expect(result.items.map((item) => item.dbSubmissionId)).toEqual([
       newOlder.dbSubmissionId,
