@@ -3,6 +3,7 @@ import {
   index,
   integer,
   jsonb,
+  pgSequence,
   pgTable,
   real,
   text,
@@ -201,6 +202,9 @@ export const auditLogs = pgTable(
 // -----------------------------------------------------------------------------
 // 5. Patient Cohort Profiles (Encrypted Study ID / Name / ICF Date + Non-PII Metrics)
 // -----------------------------------------------------------------------------
+/** Numbers Study IDs SLER-001, SLER-002, … (submissionsService.nextStudyId). */
+export const studyIdSeq = pgSequence("study_id_seq", { startWith: 1, minValue: 1 });
+
 export const patientProfiles = pgTable(
   "patient_profiles",
   {
