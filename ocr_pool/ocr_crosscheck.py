@@ -185,3 +185,100 @@ def number_disagreements(rows, scan, privacy, *, min_confidence=.9, label_confid
                 and not any(abs(n - value) < 1e-9 for n, _, _ in near)):
             flagged.add(index)
     return sorted(flagged)
+
+
+RESULT_HEADERS = {'ketqua', 'result', 'results', 'intensity'}
+THOUSANDS = re.compile(r'(?<![\d.,])\d{1,3}(?:,\d{3})+(?![\d,])')
+
+
+def _printed_number(text):
+    """(comparator, number) of a cell that prints exactly one number, else None."""
+    text = THOUSANDS.sub(lambda m: m[0].replace(',', ''), text)
+    found = list(NUMBER.finditer(text))
+    if len(found) != 1:
+        return None
+    return found[0][1] or '=', _number(found[0][2])
+
+
+def number_agreement(rows, scan, privacy, *, min_confidence=.9, label_confidence=.8):
+    """'match', 'mismatch' or 'unchecked' for every API row.
+
+    Unlike ``number_disagreements`` this separates a confirmed number from one that
+    could not be checked. A match needs the row label once on the page, one
+    confident OCR cell on that row under the printed result header, and the same
+    number, comparator and (when the result has words) the same words.
+    """
+    result = ['unchecked'] * len(rows)
+    if not scan:
+        return result
+    left, top, right, bottom = privacy['crop']
+    masks = list(privacy.get('masks', []))
+    for polygon in privacy.get('mask_polygons', []):
+        xs, ys = zip(*polygon)
+        masks.append((min(xs), min(ys), max(xs), max(ys)))
+    lines = [line for line in _valid_lines(scan)
+             if left <= line['box'][0] < line['box'][2] <= right and top <= line['box'][1] < line['box'][3] <= bottom
+             and not any(line['box'][0] < r and line['box'][2] > l and line['box'][1] < b and line['box'][3] > t
+                         for l, t, r, b in masks)]
+    headers = [line for line in lines if _loose_key(line['text']) in RESULT_HEADERS]
+    labels, loose = defaultdict(list), defaultdict(list)
+    for line in lines:
+        labels[label_key(line['text'])].append(line)
+        loose[_loose_key(line['text'])].append(line)
+    counts = Counter(label_key(row.get('source_label')) for row in rows)
+    anchors = {}
+    for index, row in enumerate(rows):
+        key = label_key(row.get('source_label'))
+        if _number(row.get('numeric_value')) is None or not key or counts[key] != 1:
+            continue
+        found = labels[key]
+        anchor = found[0] if len(found) == 1 else None if found else _near_label(row.get('source_label'), lines, loose)
+        if anchor and (anchor.get('confidence') or 0) >= label_confidence:
+            anchors[index] = anchor
+    if len({id(a) for a in anchors.values()}) != len(anchors) or not anchors:
+        return result
+
+    def middle(line):
+        return (line['box'][1] + line['box'][3]) / 2
+
+    # The one header printed above every row; a legend below the table may repeat the word.
+    first = min(middle(a) for a in anchors.values())
+    above = [line for line in headers if line['box'][3] <= first]
+    if len(above) != 1:
+        return result
+    h0, _, h1, header_bottom = above[0]['box']
+    below = min((middle(line) for line in headers if line is not above[0]), default=bottom)
+    anchors = {index: a for index, a in anchors.items() if middle(a) < below and a['box'][2] <= (h0+h1)/2}
+
+    # Cells under the result header only, never the reference or unit column.
+    column = [line for line in lines if header_bottom <= middle(line) < below and line not in headers
+              and abs((line['box'][0]+line['box'][2])/2 - (h0+h1)/2) <= .75*(h1-h0)
+              and any(c.isdigit() for c in line['text'])]
+    # Photographed pages slant: take the label-to-value offset from agreeing rows.
+    offsets = []
+    for index, anchor in anchors.items():
+        near = [c for c in column if abs(middle(c) - middle(anchor)) <= anchor['box'][3] - anchor['box'][1]]
+        if near:
+            cell = min(near, key=lambda c: abs(middle(c) - middle(anchor)))
+            printed = _printed_number(cell['text'])
+            if printed and printed[1] == _number(rows[index]['numeric_value']):
+                offsets.append(middle(cell) - middle(anchor))
+    offset = _median(offsets) if len(offsets) >= 5 else 0
+    for index, anchor in anchors.items():
+        row = rows[index]
+        height = anchor['box'][3] - anchor['box'][1]
+        cells = [c for c in column if abs(middle(c) - middle(anchor) - offset) <= .4*height]
+        if len(cells) != 1 or (cells[0].get('confidence') or 0) < min_confidence:
+            continue
+        printed = _printed_number(cells[0]['text'])
+        if printed is None or printed[1] is None:
+            continue
+        comparator = {'<=': '≤', '>=': '≥'}.get(row.get('comparator'), row.get('comparator') or '=')
+        same = abs(printed[1] - _number(row['numeric_value'])) < 1e-9 and printed[0] == comparator
+        words, printed_words = (re.sub(r'[\W\d_]', '', str(text or ''))
+                                for text in (row.get('raw_result'), cells[0]['text']))
+        # A lone H/L marker beside the number is not part of the result.
+        if same and _loose_key(words) != _loose_key(printed_words) and not {words, printed_words} <= {'', 'H', 'L'}:
+            same = False
+        result[index] = 'match' if same else 'mismatch'
+    return result

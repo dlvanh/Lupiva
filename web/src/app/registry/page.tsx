@@ -49,6 +49,11 @@ import {
   type SourceDetail,
   withoutHidden,
   adminPrefill,
+  fieldFilter,
+  groupSelections,
+  matchesFilter,
+  REVIEW_FILTERS,
+  type ReviewFilter,
 } from "@/lib/crfEvidence";
 import { parseSlot } from "@/lib/crfSlot";
 import type { SubmissionItemDTO } from "@/lib/submissionsService";
@@ -296,6 +301,11 @@ export function FieldRow({
             <UiIcon name={badge} className="size-3 shrink-0" />{badgeText}
           </span>
         )}
+        {field.auto_review && !approved && (
+          <span className="ml-2 inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-emerald-800">
+            {isVi ? "OCR khớp" : "OCR match"}
+          </span>
+        )}
         {approved?.origin.startsWith("manual") && badge !== "manual" && (
           <span className="ml-2 inline-flex items-center gap-1 text-xs text-sky-800">
             <UiIcon name="manual" className="size-3 shrink-0" />{dc.originManual}
@@ -409,6 +419,16 @@ function bySection(fields: CrfField[]): [string, CrfField[]][] {
   return [...groups.entries()];
 }
 
+const FILTER_LABEL: Record<ReviewFilter, [string, string]> = {
+  all: ["Tất cả", "All"],
+  matched: ["OCR khớp", "OCR match"],
+  check: ["Cần xem", "Check"],
+  decide: ["Phải quyết định", "Decide"],
+  unknown: ["Chưa rõ", "Unknown"],
+  empty: ["Ô trống", "Empty"],
+  approved: ["Đã duyệt", "Approved"],
+};
+
 function scrollToField(slot: string) {
   requestAnimationFrame(() => {
     const field = document.getElementById(`slot-${slot}`);
@@ -439,7 +459,7 @@ export default function RegistryCrfPage() {
   // Values the doctor typed for free-text fields; they replace any ticked source/proposal.
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
-  const [showEmpty, setShowEmpty] = useState(false);
+  const [filter, setFilter] = useState<ReviewFilter>("all");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | { approvedCaseId: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -467,7 +487,6 @@ export default function RegistryCrfPage() {
     setEditing(new Set());
     setError(null);
     setNotice(null);
-    setShowEmpty(false);
     setLoading(!!id);
     if (!id) return;
     try {
@@ -492,8 +511,11 @@ export default function RegistryCrfPage() {
       const targetField = next.fields.find((field) => `slot-${field.slot}` === anchor);
       const first = targetField ?? firstReviewField(ordered, next.sources);
       setActiveSlot(first?.slot ?? null);
-      setShowEmpty(!!requestedSlot || (!!targetField && reviewGroup(targetField) === "empty"));
-      if (anchor) setRequestedAnchor(anchor);
+      if (anchor) {
+        const own = targetField ? fieldFilter(targetField, next.review?.values ?? {}) : "all";
+        setFilter(own === "empty" ? "empty" : "all");
+        setRequestedAnchor(anchor);
+      }
     } catch (reason) {
       if (version === loadVersion.current) setError((reason as Error).message);
     } finally {
@@ -601,14 +623,20 @@ export default function RegistryCrfPage() {
     const scoreSlots = new Set(Object.values(view?.score_form ?? {}).flat().map((row) => row.field_id + "/result"));
     const fields = (view?.fields ?? []).filter((field) => !scoreSlots.has(field.slot));
     const approved = view?.review?.values ?? {};
-    const pick = (group: string) => fields.filter((field) => reviewGroup(field) === group);
+    const shown = fields.filter((field) => matchesFilter(field, approved, filter));
+    const pick = (group: string) => shown.filter((field) => reviewGroup(field) === group);
+    const counts = Object.fromEntries(
+      REVIEW_FILTERS.map((name) => [name, fields.filter((field) => matchesFilter(field, approved, name)).length]),
+    ) as Record<ReviewFilter, number>;
     return {
+      shown,
+      counts,
       decide: pick("decide"),
       source: bySection(pick("source")),
       unknown: pick("unknown"),
-      empty: bySection(pick("empty").filter((field) => showEmpty || approved[field.slot])),
+      empty: bySection(pick("empty")),
     };
-  }, [view, showEmpty]);
+  }, [view, filter]);
 
   const activeField = useMemo(
     () => view?.fields.find((field) => field.slot === activeSlot) ?? null,
@@ -645,12 +673,12 @@ export default function RegistryCrfPage() {
     for (const [section, fields] of sections) {
       entries.push({ id: `slot-${fields[0].slot}`, label: isVi ? viSection(section) : section });
     }
-    if (view.score_form) entries.push({ id: "crf-section-score", label: dc.scoreShort });
+    if (view.score_form && filter === "all") entries.push({ id: "crf-section-score", label: dc.scoreShort });
     if (groups.unknown.length > 0) {
       entries.push({ id: "crf-section-unknown", label: `${dc.unknownShort} (${groups.unknown.length})` });
     }
     return entries;
-  }, [view, progress, groups, isVi, dc.decideShort, dc.scoreShort, dc.unknownShort]);
+  }, [view, progress, groups, filter, isVi, dc.decideShort, dc.scoreShort, dc.unknownShort]);
 
   const scoreSlots = useMemo(() => new Map(
     Object.values(view?.score_form ?? {}).flat()
@@ -663,11 +691,11 @@ export default function RegistryCrfPage() {
       [
         ...groups.decide.map((field) => field.slot),
         ...groups.source.flatMap(([, fields]) => fields.map((field) => field.slot)),
-        ...scoreSlots.keys(),
+        ...(filter === "all" ? scoreSlots.keys() : []),
         ...groups.unknown.map((field) => field.slot),
         ...groups.empty.flatMap(([, fields]) => fields.map((field) => field.slot)),
       ],
-    [groups, scoreSlots],
+    [groups, scoreSlots, filter],
   );
 
   // ↑/↓ move between fields, Enter ticks the active field — never submits the review.
@@ -680,7 +708,8 @@ export default function RegistryCrfPage() {
       if (target?.closest("input, select, textarea, button, a, summary")) return;
       if (!navSlots.length) return;
       if (event.key === "Enter") {
-        if (!activeSlot) return;
+        // Never tick a cell the filter is hiding.
+        if (!activeSlot || !navSlots.includes(activeSlot)) return;
         event.preventDefault();
         if (event.repeat) return;
         const field = fieldBySlot.get(activeSlot);
@@ -766,6 +795,13 @@ export default function RegistryCrfPage() {
       return next;
     });
 
+  const reviewed = view?.review?.values ?? {};
+  const groupTicks = groupSelections(groups.shown, filter, reviewed, selections, typed);
+  const allTicks = groupSelections(groups.shown, filter, reviewed, {}, typed);
+  const tickable = groups.shown.filter((field) => allTicks[field.slot]);
+  const allTicked = tickable.length > 0 && tickable.every((field) => selections[field.slot]);
+  const unconfirmed = tickable.filter((field) => fieldFilter(field, reviewed) === "check").length;
+
   const rows = (fields: CrfField[]) =>
     fields.map((field) => (
       <FieldRow
@@ -814,9 +850,6 @@ export default function RegistryCrfPage() {
               </span>
             </p>
           )}
-          <p className="mt-0.5 text-xs text-slate-500">
-            {dc.backendIdLabel}: <span className="font-mono">{currentCase.registry_code}</span>
-          </p>
         </div>
       )}
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -825,7 +858,10 @@ export default function RegistryCrfPage() {
           className="rounded border border-slate-300 px-2 py-1 text-sm"
           value={caseId}
           disabled={saving || finalizing || drafting}
-          onChange={(event) => load(event.target.value)}
+          onChange={(event) => {
+            setFilter("all");
+            void load(event.target.value);
+          }}
         >
           <option value="">{isVi ? "Chọn bệnh nhân…" : "Select a patient…"}</option>
           {linkedCases(cases, new Set(identityByCase.keys()), caseId).map((item) => {
@@ -834,16 +870,51 @@ export default function RegistryCrfPage() {
               <option key={item.case_id} value={item.case_id}>
                 {mapped
                   ? `${mapped.record.studyId} · ${mapped.record.patientName}`
-                  : item.registry_code}
+                  : (isVi ? "Hồ sơ chưa liên kết" : "Unlinked dossier")}
               </option>
             );
           })}
         </select>
-        <label className="flex items-center gap-1 text-sm text-slate-600">
-          <input type="checkbox" checked={showEmpty} onChange={(event) => setShowEmpty(event.target.checked)} />
-          {isVi ? "Hiện cả các ô trống" : "Show empty cells"}
-        </label>
       </div>
+      {view && (
+        <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={isVi ? "Lọc ô" : "Filter cells"}>
+          {REVIEW_FILTERS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              aria-pressed={filter === name}
+              onClick={() => setFilter(name)}
+              className={`cursor-pointer rounded border px-2.5 py-1 text-sm ${
+                filter === name
+                  ? "border-teal-700 bg-teal-700 font-semibold text-white"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              {FILTER_LABEL[name][isVi ? 0 : 1]} ({groups.counts[name]})
+            </button>
+          ))}
+          {canApprove && tickable.length > 0 && (
+            <label className="flex cursor-pointer items-center gap-1.5 rounded border border-emerald-600 px-2.5 py-1 text-sm font-semibold text-emerald-800">
+              <input
+                type="checkbox"
+                checked={allTicked}
+                disabled={saving || drafting || finalizing}
+                onChange={(event) =>
+                  event.target.checked
+                    ? setSelections((previous) => ({ ...previous, ...groupTicks }))
+                    : untickAll(tickable)
+                }
+              />
+              {isVi ? "Tích chọn tất cả" : "Tick all"} ({tickable.length})
+            </label>
+          )}
+          {canApprove && unconfirmed > 0 && (
+            <span className="text-xs text-amber-800">
+              {isVi ? `Gồm ${unconfirmed} ô OCR chưa xác nhận, cần đối chiếu ảnh` : `${unconfirmed} cells not confirmed by OCR; check the image`}
+            </span>
+          )}
+        </div>
+      )}
       {view && progress && (
         <div className="mt-4 rounded border border-slate-200 bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -938,7 +1009,10 @@ export default function RegistryCrfPage() {
                 {rows(fields)}
               </section>
             ))}
-            {view.score_form && (
+            {filter !== "all" && groups.shown.length === 0 && (
+              <p className="rounded bg-slate-50 p-3 text-sm text-slate-600">{isVi ? "Không có ô nào trong nhóm này." : "No cells in this group."}</p>
+            )}
+            {view.score_form && filter === "all" && (
               <section id="crf-section-score" className="mt-5 scroll-mt-[calc(35vh+4rem)] rounded border border-indigo-200 bg-white p-4 lg:scroll-mt-20">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-medium text-slate-800">{dc.scoreShort} · EULAR/ACR 2019 &amp; SLEDAI-2K</h2>
@@ -1051,7 +1125,7 @@ export default function RegistryCrfPage() {
               <details
                 id="crf-section-unknown"
                 className="mt-5 rounded border border-slate-200 bg-white p-4"
-                open={groups.unknown.some((field) => field.slot === activeSlot) || undefined}
+                open={filter === "unknown" || groups.unknown.some((field) => field.slot === activeSlot) || undefined}
               >
                 <summary className="cursor-pointer font-medium text-slate-800">
                   {isVi ? "Câu hỏi lâm sàng chưa có dữ kiện" : "Clinical questions without evidence"} ({groups.unknown.length})

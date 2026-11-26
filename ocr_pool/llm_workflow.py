@@ -18,7 +18,7 @@ from .llm import DeadlineReached, InvalidAPIResponse, TransportError, configurat
 from .lab_api import extract_lab_image, lab_crop_evidence
 from .outgoing_gate import check_outgoing, enough_result_content, result_table_header
 from .ocr_hint import ocr_hint_lines
-from .ocr_crosscheck import number_disagreements
+from .ocr_crosscheck import number_agreement, number_disagreements
 from .lab_reference_cells import attach_complement_ranges
 from .llm_extraction import VERSION as LLM_CONTRACT_VERSION, valid_row_box
 from .local_dates import local_date_evidence, local_metadata_evidence, observation_date, scan_source_dates, unmasked_crop_lines
@@ -388,6 +388,9 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
         rows = result['extraction']['rows']
         class_outliers = _intensity_class_outliers(rows)
         ocr_disagreements = set(result.get('ocr_number_disagreements', []))
+        # A crop that skipped its own checks (test-data forced send) never confirms a value.
+        ocr_matches = {n for n, state in enumerate(result.get('ocr_number_agreement', []))
+                       if state == 'match' and n not in ocr_disagreements} if not doc['privacy'].get('forced_test_send') else set()
         for n, row in enumerate(rows + local_findings):
             literal = _comparator_literal(row)
             if literal:
@@ -450,6 +453,9 @@ def build_candidate(documents, results, dictionary, run, *, local_dates=None, lo
                         extraction_status='unreadable' if values['result_type']=='unparsed' else 'found',
                         validation_status='needs_review', **common, **values))
                 observation(component, value)
+                if n < len(rows) and n in ocr_matches and not literal:
+                    # Only the checked cell: secondary values below were not compared.
+                    observations[-1]['flags'] = [*flags, 'ocr_number_matches']
                 for secondary in ('pre_percent_predicted', 'post_percent_predicted'):
                     if row.get(secondary) is not None and secondary in allowed and component != secondary:
                         observation(secondary, _value(dict(numeric_value=row[secondary], comparator='=', unit_raw='%')))
@@ -802,6 +808,8 @@ def _extract_one(index, doc, body, output, workspace, dictionary, config, extrac
         result['local_report_findings'] = findings
     if scan:
         result['ocr_number_disagreements'] = number_disagreements(
+            result['extraction']['rows'], scan, doc['privacy'])
+        result['ocr_number_agreement'] = number_agreement(
             result['extraction']['rows'], scan, doc['privacy'])
     result.update(elapsed_seconds=round(time.monotonic()-start,3),outgoing_sha256=hashlib.sha256(body).hexdigest())
     if profiles:

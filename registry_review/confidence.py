@@ -8,7 +8,7 @@ LLM_METHODS = {'gemini_api', 'tokenharbor_api'}
 LLM_FLAGS = {method+'_extraction' for method in LLM_METHODS}
 BENIGN = {'outside_word_catalog', 'explicit_source_result_flag', *LLM_FLAGS,
           'explicit_method_from_test_name', 'explicit_method_row_continuation',
-          'source_placeholder'}
+          'source_placeholder', 'ocr_number_matches'}
 WATCH = {
     'crf_hb_qualifier_missing': 'Kiểm tra nhãn có Hb. Kết quả này đang được giữ ngoài trường CRF hiệu chỉnh Hb.',
     'source_row_box_reused': 'AI trả cùng vùng cho nhiều dòng. Đối chiếu hàng trực tiếp trên ảnh.',

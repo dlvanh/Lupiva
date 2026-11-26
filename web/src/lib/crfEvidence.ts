@@ -167,6 +167,54 @@ export function adminPrefill(fields: readonly CrfField[], approved: Readonly<Rec
   return result;
 }
 
+export const REVIEW_FILTERS = ["all", "matched", "check", "decide", "unknown", "empty", "approved"] as const;
+export type ReviewFilter = (typeof REVIEW_FILTERS)[number];
+
+/** The one filter (besides "all") a cell belongs to. */
+export function fieldFilter(
+  field: CrfField,
+  approved: Readonly<Record<string, unknown>>,
+): Exclude<ReviewFilter, "all"> {
+  if (approved[field.slot]) return "approved";
+  const group = reviewGroup(field);
+  if (group !== "source") return group;
+  return field.auto_review ? "matched" : "check";
+}
+
+/** "all" keeps empty cells out; they have their own filter. */
+export function matchesFilter(
+  field: CrfField,
+  approved: Readonly<Record<string, unknown>>,
+  filter: ReviewFilter,
+): boolean {
+  const own = fieldFilter(field, approved);
+  return filter === "all" ? own !== "empty" : own === filter;
+}
+
+/**
+ * "Tích chọn tất cả" for the cells the filter shows: single source values and
+ * "Chưa rõ" drafts. Cells with several values or a proposal to weigh are never
+ * ticked in bulk, and an approved, ticked or typed cell is left alone.
+ * Nothing is stored until "Duyệt các ô đã chọn".
+ */
+export function groupSelections(
+  fields: readonly CrfField[],
+  filter: ReviewFilter,
+  approved: Readonly<Record<string, unknown>>,
+  selections: Readonly<Record<string, string>>,
+  typed: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const field of fields) {
+    if (!matchesFilter(field, approved, filter) || selections[field.slot] || typed[field.slot]?.trim()) continue;
+    const own = fieldFilter(field, approved);
+    const id = own === "matched" || own === "check" ? field.options[0]?.id
+      : own === "unknown" ? field.proposal?.id : undefined;
+    if (id) result[field.slot] = id;
+  }
+  return result;
+}
+
 /** Map a backend intake job to its registry case (for /registry?intake=…). */
 export function caseForIntake(
   jobs: readonly { job_id?: string; case_id?: string | null }[] | undefined,
